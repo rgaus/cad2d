@@ -43,6 +43,7 @@ import {
   Entity,
   EntityOmitComponents,
   FillColorComponent,
+  GeometryComponent,
   type Id,
   LinkDimensionsComponent,
   PolygonComponent,
@@ -52,6 +53,7 @@ import {
   RenderOrderComponent,
 } from './index';
 import { Polygon, type PolygonSegment } from './polygon';
+import { GeometryData, type Geometry } from './geometry';
 
 export const ID_PREFIXES = {
   polygon: 'ply' as const,
@@ -111,23 +113,27 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * maintaining eventual consistency.
    */
   private _debouncedDcelUpdaters = new Map<Id, ReturnType<typeof debounce>>();
-  private _syncDcelUpdate(geometry: Entity, immediate?: boolean): void {
-    const id = geometry.id;
+  private _syncDcelUpdate(entity: Entity, immediate?: boolean): void {
+    if (!Entity.hasComponent(entity, GeometryComponent) && !Entity.hasComponent(entity, DatumComponent)) {
+      return;
+    }
+
+    const id = entity.id;
     if (immediate) {
-      this.dcelIndex.updateGeometry(geometry);
+      this.dcelIndex.updateGeometry(entity);
       this._debouncedDcelUpdaters.delete(id);
       return;
     }
 
     let updater = this._debouncedDcelUpdaters.get(id);
     if (typeof updater === 'undefined') {
-      updater = debounce((g: Entity) => {
+      updater = debounce((g: Geometry) => {
         this.dcelIndex.updateGeometry(g);
         this._debouncedDcelUpdaters.delete(g.id);
       }, 200);
       this._debouncedDcelUpdaters.set(id, updater);
     }
-    updater(geometry);
+    updater(entity);
   }
 
   private readonly historyManager: HistoryManager;
@@ -484,10 +490,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Adds a new geometry entry to the internal store.
    * Does NOT record to history. Used by HistoryManager redo.
    */
-  addDirect(geometry: Entity): void {
-    this.geometryById.set(geometry.id, geometry);
-    this.dcelIndex.addGeometry(geometry);
-    this.emit('geometryAdded', geometry);
+  addDirect(entity: Entity): void {
+    this.geometryById.set(entity.id, entity);
+    if (Entity.hasComponent(entity, GeometryComponent) || Entity.hasComponent(entity, DatumComponent)) {
+      this.dcelIndex.addGeometry(entity);
+    }
+    this.emit('geometryAdded', entity);
   }
 
   /**
@@ -945,27 +953,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Takes the passed rectangle, deletes it, and converts it to a polygon. Records as a single
    * atomic conversion operation. */
   convertRectangleToPolygon(rectangleId: Id, options?: { insertConstraints?: boolean }): Polygon {
-    const geometry = this.getById(rectangleId);
+    const geometry = this.getByIdWithComponents(rectangleId, GeometryComponent, FillColorComponent, RenderOrderComponent);
     if (!geometry) {
-      throw new Error(
-        `GeometryStore.convertRectangleToPolygon: Cannot find rectangle ${rectangleId}`,
-      );
+      throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find geometry ${rectangleId}`);
     }
-    if (
-      !Entity.hasComponents(
-        geometry,
-        RectangleComponent,
-        FillColorComponent,
-        LinkDimensionsComponent,
-        RenderOrderComponent,
-      )
-    ) {
-      throw new Error(
-        `GeometryStore.convertRectangleToPolygon: Cannot find rectangle ${rectangleId}`,
-      );
+    const rectangleData = GeometryComponent.get<GeometryData>(geometry);
+    if (rectangleData.type !== 'rectangle') {
+      throw new Error(`GeometryStore.convertEllipseToPolygon: GeometryComponent data for geoemtry ${rectangleId} is not of type ellipse, found ${rectangleData.type}`);
     }
-    const rectangle = RectangleComponent.get(geometry);
-    const points = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
+
+    const points = rectangleToPolygon(rectangleData.upperLeft, rectangleData.lowerRight);
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
 
     const polygonTemplate = Polygon.create(points, {
@@ -1062,17 +1059,20 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Takes the passed ellipse, deletes it, and converts it to a polygon. Records as a single
    * atomic conversion operation. */
   convertEllipseToPolygon(ellipseId: Id): Polygon {
-    const ellipse = this.getByIdWithComponent(ellipseId, EllipseComponent) as Ellipse;
-    if (!ellipse) {
-      throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find ellipse ${ellipseId}`);
+    const geometry = this.getByIdWithComponents(ellipseId, GeometryComponent, FillColorComponent, RenderOrderComponent) as Ellipse | null;
+    if (!geometry) {
+      throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find geometry ${ellipseId}`);
     }
-    const ellipseData = EllipseComponent.get(ellipse);
+    const ellipseData = GeometryComponent.get<GeometryData>(geometry);
+    if (ellipseData.type !== 'ellipse') {
+      throw new Error(`GeometryStore.convertEllipseToPolygon: GeometryComponent data for geoemtry ${ellipseId} is not of type ellipse, found ${ellipseData.type}`);
+    }
     const points = ellipseToPolygon(ellipseData.center, ellipseData.radiusX, ellipseData.radiusY);
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
 
     const polygonTemplate = Polygon.create(points, {
       closed: true,
-      fillColor: FillColorComponent.get(ellipse),
+      fillColor: FillColorComponent.get(geometry),
       openAtIndex: 0,
     });
     const polygon: Polygon = {
@@ -1080,13 +1080,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       ...polygonTemplate,
       components: {
         ...polygonTemplate.components,
-        ...RenderOrderComponent.create(RenderOrderComponent.get(ellipse)),
+        ...RenderOrderComponent.create(RenderOrderComponent.get(geometry)),
       },
     };
 
     this.addDirect(polygon);
     this.deleteByIdDirect(ellipseId);
-    this.historyManager.push(UndoEntry.ellipseToPolygon(ellipse, polygon));
+    this.historyManager.push(UndoEntry.ellipseToPolygon(geometry, polygon));
     return polygon;
   }
 

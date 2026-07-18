@@ -1,25 +1,21 @@
 import { EventMode, FederatedPointerEvent, Graphics } from 'pixi.js';
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useMemo } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useClosestPointToSegment } from '@/hooks/useClosestPointToSegment';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
-import { usePolygons } from '@/hooks/usePolygons';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { useWorkingPolygon } from '@/hooks/useWorkingPolygon';
-import { FillColorComponent, type Polygon, PolygonComponent, PolygonSegment } from '@/lib/entity';
-import { KeyCombo } from '@/lib/index-mapper';
+import { FillColorComponent, GeometryComponent, PolygonSegment } from '@/lib/entity';
+import { type Geometry } from '@/lib/entity/geometry';
 import { BoundingBox, CohenSutherland } from '@/lib/math';
-import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
+import { ListLayers, RendererLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import {
   HIGHLIGHT_COLOR_FILL,
   HIGHLIGHT_COLOR_STROKE,
   HIGHLIGHT_STROKE_WIDTH,
-  IntersectionVertexHandleTexture,
   SELECTION_HINT_WIDTH_PX,
   VertexHandleTexture,
 } from '@/lib/textures';
-import { PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import {
   CubicCurve,
   QuadraticCurve,
@@ -31,120 +27,12 @@ import { CurveControlPointHandlesSprites } from './CurveControlPointHandlesSprit
 import { CurveEdgeHitDetector } from './CurveEdgeHitDetector';
 import { HandleSprites } from './HandleSprites';
 import { LineSegmentEdgeHitDetector } from './LineSegmentEdgeHitDetector';
+import { useGeometries } from '@/hooks/useGeoemtries';
 
-export const WorkingPolygonRenderer: React.FunctionComponent = () => {
-  const { viewportScale, activeTool } = useViewportContext();
-  const workingPolygon = useWorkingPolygon();
+/** Size of the center corsshairs rendered on ellipses. */
+const CIRCLE_CENTER_MARKER_SIZE_PX = 8;
 
-  const [previewSegmentIntersections, setPreviewSegmentIntersections] = useState<
-    Array<PreviewSegmentIntersection>
-  >([]);
-  const [previewSegmentIntersectionsEnabled, setPreviewSegmentIntersectionsEnabled] = useState(
-    new Set<KeyCombo>(),
-  );
-  const [committedIntersectionPoints, setCommittedIntersectionPoints] = useState<
-    Array<SheetPosition>
-  >([]);
-  useEffect(() => {
-    if (activeTool.type !== 'polygon') {
-      return;
-    }
-
-    activeTool.on('previewSegmentIntersections', setPreviewSegmentIntersections);
-    activeTool.on('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
-    activeTool.on('committedIntersectionsChanged', setCommittedIntersectionPoints);
-    return () => {
-      activeTool.off('previewSegmentIntersections', setPreviewSegmentIntersections);
-      activeTool.off('previewSegmentIntersectionsEnabled', setPreviewSegmentIntersectionsEnabled);
-      activeTool.off('committedIntersectionsChanged', setCommittedIntersectionPoints);
-    };
-  }, [activeTool]);
-
-  if (!workingPolygon || activeTool.type !== 'polygon') {
-    return null;
-  }
-
-  return (
-    <>
-      <PolygonShapeRenderer segments={workingPolygon.points} viewportScale={viewportScale} />
-
-      <PolygonDecorationsRenderer
-        segments={workingPolygon.points}
-        closed={false}
-        viewportScale={viewportScale}
-        onVertexEnter={(_e, index) => {
-          if (
-            workingPolygon.source.type === 'existing-polygon' &&
-            workingPolygon.source.isStartPoint
-          ) {
-            if (index === workingPolygon.points.length - 1) {
-              activeTool.setHoveringFirstHandle(true);
-            }
-          } else {
-            if (index === 0) {
-              activeTool.setHoveringFirstHandle(true);
-            }
-          }
-        }}
-        onVertexLeave={(_e, index) => {
-          if (
-            workingPolygon.source.type === 'existing-polygon' &&
-            workingPolygon.source.isStartPoint
-          ) {
-            if (index === workingPolygon.points.length - 1) {
-              activeTool.setHoveringFirstHandle(false);
-            }
-          } else {
-            if (index === 0) {
-              activeTool.setHoveringFirstHandle(false);
-            }
-          }
-        }}
-        // IMPORTANT: Make sure this is set so that clicks don't get "trapped" by the final
-        // handle since it is always under the cursor.
-        firstHandleEventMode={
-          workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint
-            ? 'none'
-            : undefined
-        }
-        lastHandleEventMode={
-          workingPolygon.source.type === 'existing-polygon' && workingPolygon.source.isStartPoint
-            ? undefined
-            : 'none'
-        }
-      />
-
-      {/* Render any intersection points. */}
-      <HandleSprites
-        points={[
-          ...previewSegmentIntersections
-            .filter((inters) => previewSegmentIntersectionsEnabled.has(inters.keyCombo))
-            .map((inters) => inters.point),
-          ...committedIntersectionPoints,
-        ]}
-        handleTexture={VertexHandleTexture.get()}
-        viewportScale={viewportScale}
-      />
-      <HandleSprites
-        points={previewSegmentIntersections
-          .filter((inters) => !previewSegmentIntersectionsEnabled.has(inters.keyCombo))
-          .map((inters) => inters.point)}
-        handleTexture={IntersectionVertexHandleTexture.get()}
-        viewportScale={viewportScale}
-      />
-    </>
-  );
-};
-
-/** Renders the "working polygon" - the polygon currently being created by the user when using the
- * polygon tool. */
-export const WorkingPolygonLayers: SingleLayers<React.ReactNode> = {
-  [RendererLayers.Overlays]: <WorkingPolygonRenderer />,
-};
-
-type PolygonRendererProps = {
-  segments: Array<PolygonSegment>;
-  closed?: boolean;
+type GeometryShapeRendererCommonProps = {
   fillColor?: number | null;
   stroke?: number;
   strokeWidth?: number;
@@ -156,37 +44,25 @@ type PolygonRendererProps = {
   eventMode?: EventMode;
 };
 
-/** Renders a polygon shape to the screen. Just draws the polygon - all other extra ui elements are
- * left to the caller to layer on top. */
-const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
-  segments,
-  closed = false,
-  fillColor = null,
-  stroke = 0x000000,
-  strokeWidth = 1,
-  viewportScale,
-  showHintStroke = false,
-  onFillPointerDown,
-  onFillPointerOver,
-  onFillPointerOut,
-  eventMode,
-}) => {
-  const polygonBounds = useMemo(() => {
-    return BoundingBox.fromPoints(segments.map((s) => s.point));
-  }, [segments]);
+type GeometryShapeRendererProps =
+  | (GeometryShapeRendererCommonProps & { type: 'polygon'; segments: Array<PolygonSegment>; closed?: boolean })
+  | (GeometryShapeRendererCommonProps & { type: 'rectangle'; upperLeft: SheetPosition; lowerRight: SheetPosition })
+  | (GeometryShapeRendererCommonProps & { type: 'ellipse'; center: SheetPosition; radiusX: number; radiusY: number; showCenterCrosshairs?: boolean });
 
-  const polygonBoundsInPixels = useMemo(() => {
-    return {
-      width: polygonBounds.width * SHEET_UNITS_TO_PIXELS * viewportScale,
-      height: polygonBounds.height * SHEET_UNITS_TO_PIXELS * viewportScale,
-    };
-  }, [polygonBounds, viewportScale]);
-
+/** Renders a polygon, ellipse, or rectangle shape to the screen. Just draws the shape - all other
+ * extra ui elements are left to the caller to layer on top. */
+export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendererProps> = (props) => {
   const drawPolygon = useCallback(
-    (graphics: Graphics) => {
+    (graphics: Graphics, segments: Array<PolygonSegment>, closed: boolean) => {
       if (segments.length < 2) {
         return;
       }
+
+      const polygonBounds = BoundingBox.fromPoints(segments.map((s) => s.point));
+      const polygonBoundsInPixels = {
+        width: polygonBounds.width * SHEET_UNITS_TO_PIXELS * props.viewportScale,
+        height: polygonBounds.height * SHEET_UNITS_TO_PIXELS * props.viewportScale,
+      };
 
       graphics.clear();
 
@@ -201,9 +77,9 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
         polygonBoundsInPixels.width < MIN_POLYGON_HIGH_FIDELITY_SIZE_PX &&
         polygonBoundsInPixels.height < MIN_POLYGON_HIGH_FIDELITY_SIZE_PX;
 
-      if (closed && typeof fillColor !== 'undefined') {
-        if (fillColor !== null) {
-          graphics.setFillStyle({ color: fillColor });
+      if (closed && typeof props.fillColor !== 'undefined') {
+        if (props.fillColor !== null) {
+          graphics.setFillStyle({ color: props.fillColor });
         } else {
           graphics.setFillStyle({ color: 0x000000, alpha: 0 });
         }
@@ -213,7 +89,7 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
         } else {
           // Build fill path with proper curve commands
           graphics.moveTo(viewportPoints[0].x, viewportPoints[0].y);
-          for (let i = 1; i < segments.length; i++) {
+          for (let i = 1; i < segments.length; i += 1) {
             const seg = segments[i];
             if (seg.type === 'point') {
               graphics.lineTo(
@@ -266,10 +142,10 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
         }
       }
 
-      if (showHintStroke) {
+      if (props.showHintStroke) {
         graphics.setStrokeStyle({
-          color: stroke,
-          width: SELECTION_HINT_WIDTH_PX / viewportScale,
+          color: props.stroke ?? 0x000000,
+          width: SELECTION_HINT_WIDTH_PX / props.viewportScale,
           alpha: 0.3,
           alignment: 1,
         });
@@ -327,11 +203,11 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
       }
 
       graphics.setStrokeStyle({
-        color: stroke,
-        width: strokeWidth / viewportScale,
+        color: props.stroke ?? 0x000000,
+        width: (props.strokeWidth ?? 1) / props.viewportScale,
       });
       graphics.moveTo(viewportPoints[0].x, viewportPoints[0].y);
-      for (let i = 1; i < segments.length; i++) {
+      for (let i = 1; i < segments.length; i += 1) {
         const seg = segments[i];
         if (seg.type === 'point') {
           graphics.lineTo(seg.point.x * SHEET_UNITS_TO_PIXELS, seg.point.y * SHEET_UNITS_TO_PIXELS);
@@ -380,24 +256,128 @@ const PolygonShapeRenderer: React.FunctionComponent<PolygonRendererProps> = ({
       graphics.stroke();
     },
     [
-      viewportScale,
-      segments,
-      closed,
-      fillColor,
-      stroke,
-      strokeWidth,
-      polygonBoundsInPixels,
-      showHintStroke,
+      props.viewportScale,
+      props.fillColor,
+      props.stroke,
+      props.strokeWidth,
+      props.showHintStroke,
     ],
   );
 
+  const drawEllipse = useCallback(
+    (graphics: Graphics, center: SheetPosition, args: { showCenterCrosshairs?: boolean; radiusX: number; radiusY: number }) => {
+      graphics.clear();
+
+      const centerX = center.x * SHEET_UNITS_TO_PIXELS;
+      const centerY = center.y * SHEET_UNITS_TO_PIXELS;
+      const radiusXPixels = args.radiusX * SHEET_UNITS_TO_PIXELS;
+      const radiusYPixels = args.radiusY * SHEET_UNITS_TO_PIXELS;
+
+      if (typeof props.fillColor !== 'undefined') {
+        if (props.fillColor !== null) {
+          graphics.setFillStyle({ color: props.fillColor });
+        } else {
+          graphics.setFillStyle({ color: 0x000000, alpha: 0 });
+        }
+        graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
+        graphics.fill();
+      }
+
+      if (props.showHintStroke) {
+        graphics.setStrokeStyle({
+          color: props.stroke ?? 0x000000,
+          width: SELECTION_HINT_WIDTH_PX / props.viewportScale,
+          alpha: 0.3,
+          alignment: 1,
+        });
+        graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
+        graphics.stroke();
+      }
+
+      graphics.setStrokeStyle({
+        color: props.stroke ?? 0x000000,
+        width: (props.strokeWidth ?? 1) / props.viewportScale,
+      });
+      graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
+      graphics.stroke();
+
+      // For ellipses that are selected, render a little crosshairs marker at the geometry's center.
+      if (args.showCenterCrosshairs) {
+        graphics.setStrokeStyle({ color: 0x666666, width: 1 / props.viewportScale });
+        graphics.moveTo(centerX - CIRCLE_CENTER_MARKER_SIZE_PX / props.viewportScale, centerY);
+        graphics.lineTo(centerX + CIRCLE_CENTER_MARKER_SIZE_PX / props.viewportScale, centerY);
+        graphics.moveTo(centerX, centerY - CIRCLE_CENTER_MARKER_SIZE_PX / props.viewportScale);
+        graphics.lineTo(centerX, centerY + CIRCLE_CENTER_MARKER_SIZE_PX / props.viewportScale);
+        graphics.stroke();
+      }
+    },
+    [props.fillColor, props.stroke, props.strokeWidth, props.viewportScale, props.showHintStroke],
+  );
+
+  const drawRectangle = useCallback(
+    (graphics: Graphics, upperLeft: SheetPosition, lowerRight: SheetPosition) => {
+      graphics.clear();
+
+      const x = upperLeft.x * SHEET_UNITS_TO_PIXELS;
+      const y = upperLeft.y * SHEET_UNITS_TO_PIXELS;
+      const width = (lowerRight.x - upperLeft.x) * SHEET_UNITS_TO_PIXELS;
+      const height = (lowerRight.y - upperLeft.y) * SHEET_UNITS_TO_PIXELS;
+
+      if (typeof props.fillColor !== 'undefined') {
+        if (props.fillColor !== null) {
+          graphics.setFillStyle({ color: props.fillColor });
+        } else {
+          graphics.setFillStyle({ color: 0x000000, alpha: 0 });
+        }
+        graphics.rect(x, y, width, height);
+        graphics.fill();
+      }
+
+      if (props.showHintStroke) {
+        graphics.setStrokeStyle({
+          color: props.stroke ?? 0x000000,
+          width: SELECTION_HINT_WIDTH_PX / props.viewportScale,
+          alpha: 0.3,
+          alignment: 1,
+        });
+        graphics.rect(x, y, width, height);
+        graphics.stroke();
+      }
+
+      graphics.setStrokeStyle({
+        color: props.stroke ?? 0x000000,
+        width: (props.strokeWidth ?? 1) / props.viewportScale,
+      });
+      graphics.rect(x, y, width, height);
+      graphics.stroke();
+    },
+    [props.fillColor, props.stroke, props.strokeWidth, props.viewportScale, props.showHintStroke],
+  );
+
+  const draw = useCallback((g: Graphics) => {
+    switch (props.type) {
+      case 'polygon':
+        drawPolygon(g, props.segments, props.closed ?? false);
+        break;
+      case 'ellipse':
+        drawEllipse(g, props.center, { showCenterCrosshairs: props.showCenterCrosshairs, radiusX: props.radiusX, radiusY: props.radiusY });
+        break;
+      case 'rectangle':
+        drawRectangle(g, props.upperLeft, props.lowerRight);
+        break;
+      default:
+        props satisfies never;
+        break;
+    }
+  }, [props, drawPolygon, drawEllipse, drawRectangle]);
+
   return (
     <pixiGraphics
-      draw={drawPolygon}
-      eventMode={eventMode}
-      onPointerDown={onFillPointerDown}
-      onPointerOver={onFillPointerOver}
-      onPointerOut={onFillPointerOut}
+      draw={draw}
+      eventMode={props.eventMode}
+      onPointerDown={props.onFillPointerDown}
+      onPointerOver={props.onFillPointerOver}
+      onPointerOut={props.onFillPointerOut}
     />
   );
 };
@@ -416,22 +396,22 @@ const MIN_POLYGON_HIGH_FIDELITY_SIZE_PX = 48;
  * This makes it easier to select edges on non-closed, non-selected polygons. */
 const PROXIMITY_EDGE_DETECTOR_RADIUS_PX = 64;
 
-const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }) => {
+const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geometry }) => {
   const { activeTool, viewportControls, viewportScale, mouseScreenPos, highlightedGeometryId } =
     useViewportContext();
-  const polygonData = PolygonComponent.get(polygon);
+  const geometryData = GeometryComponent.get(geometry);
 
-  let fillColor = FillColorComponent.getOptional(polygon);
+  let fillColor = FillColorComponent.getOptional(geometry);
   let stroke = 0x000000;
   let strokeWidth = 1;
-  if (highlightedGeometryId === polygon.id) {
+  if (highlightedGeometryId === geometry.id) {
     fillColor = HIGHLIGHT_COLOR_FILL;
     stroke = HIGHLIGHT_COLOR_STROKE;
     strokeWidth = HIGHLIGHT_STROKE_WIDTH;
   }
 
   const selectedIds = useSelectionManagerSelectedIds();
-  const isSelected = selectedIds.includes(polygon.id);
+  const isSelected = selectedIds.includes(geometry.id);
 
   const onFillPointerDown = useCallback(
     (e: FederatedPointerEvent) => {
@@ -442,7 +422,7 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
       const shouldCancel = activeTool.handleGeometryFillPointerDown(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
-        polygon.id,
+        geometry.id,
       );
 
       if (shouldCancel) {
@@ -455,14 +435,12 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
   );
 
   const onFillPointerOver = useCallback(() => {
-    activeTool.handleGeometryFillEnter(polygon.id);
-  }, [activeTool, polygon.id]);
+    activeTool.handleGeometryFillEnter(geometry.id);
+  }, [activeTool, geometry.id]);
 
   const onFillPointerOut = useCallback(() => {
-    activeTool.handleGeometryFillLeave(polygon.id);
-  }, [activeTool, polygon.id]);
-
-  const segments = polygonData.points;
+    activeTool.handleGeometryFillLeave(geometry.id);
+  }, [activeTool, geometry.id]);
 
   /** Bounding box for mouse proximity culling of edge detectors on non-selected, non-closed polygons.
    * Only computed in select mode when mouse position is available.
@@ -486,105 +464,148 @@ const PolygonSolid: React.FunctionComponent<{ polygon: Polygon }> = ({ polygon }
     );
   }, [activeTool.type, viewportControls, viewportScale, mouseScreenPos]);
 
-  return (
-    <>
-      <PolygonShapeRenderer
-        segments={polygonData.points}
-        closed={polygonData.closed}
-        fillColor={fillColor}
-        stroke={stroke}
-        strokeWidth={strokeWidth}
-        viewportScale={viewportScale}
-        showHintStroke={isSelected && selectedIds.length > 1}
-        eventMode="static"
-        onFillPointerDown={onFillPointerDown}
-        onFillPointerOver={onFillPointerOver}
-        onFillPointerOut={onFillPointerOut}
-      />
-
-      {/* Edge detectors for non-closed, non-selected polygons based on mouse proximity.
-       * Only renders detectors for segments that might intersect the proximity AABB.
-       * This makes it easier to select edges on open polygons. */}
-      {!closed && !isSelected && mousePositionProximityAABB ? (
+  switch (geometryData.type) {
+    case 'polygon':
+      return (
         <>
-          {segments.slice(1).map((seg, i) => {
-            const prevSeg = segments[i];
-            if (!prevSeg) {
-              return null;
-            }
+          <GeometryShapeRenderer
+            type="polygon"
+            segments={geometryData.points}
+            closed={geometryData.closed}
+            fillColor={fillColor}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            viewportScale={viewportScale}
+            showHintStroke={isSelected && selectedIds.length > 1}
+            eventMode="static"
+            onFillPointerDown={onFillPointerDown}
+            onFillPointerOver={onFillPointerOver}
+            onFillPointerOut={onFillPointerOut}
+          />
 
-            // Use Cohen-Sutherland to quickly cull segments that don't intersect the proximity box
-            if (seg.type === 'point') {
-              const segment = { start: prevSeg.point, end: seg.point };
-              if (
-                !CohenSutherland.lineSegmentMightIntersectBoundingBox(
-                  segment,
-                  mousePositionProximityAABB,
-                )
-              ) {
+          {/* Edge detectors for non-closed, non-selected polygons based on mouse proximity.
+           * Only renders detectors for segments that might intersect the proximity AABB.
+           * This makes it easier to select edges on open polygons. */}
+          {!closed && !isSelected && mousePositionProximityAABB ? (
+            <>
+              {geometryData.points.slice(1).map((seg, i) => {
+                const prevSeg = geometryData.points[i];
+                if (!prevSeg) {
+                  return null;
+                }
+
+                // Use Cohen-Sutherland to quickly cull segments that don't intersect the proximity box
+                if (seg.type === 'point') {
+                  const segment = { start: prevSeg.point, end: seg.point };
+                  if (
+                    !CohenSutherland.lineSegmentMightIntersectBoundingBox(
+                      segment,
+                      mousePositionProximityAABB,
+                    )
+                  ) {
+                    return null;
+                  }
+                  return (
+                    <LineSegmentEdgeHitDetector
+                      key={`prox-edge-${i}`}
+                      startPosition={prevSeg.point}
+                      endPosition={seg.point}
+                      scale={viewportScale}
+                      onPointerDown={onFillPointerDown}
+                    />
+                  );
+                } else if (seg.type === 'arc-quadratic') {
+                  const curve: QuadraticCurve<SheetPosition> = {
+                    start: prevSeg.point,
+                    end: seg.point,
+                    controlPoint: seg.controlPoint,
+                  };
+                  if (
+                    !CohenSutherland.quadraticCurveMightIntersectBoundingBox(
+                      curve,
+                      mousePositionProximityAABB,
+                    )
+                  ) {
+                    return null;
+                  }
+                  return (
+                    <CurveEdgeHitDetector
+                      key={`prox-curve-edge-${i}`}
+                      curve={curve}
+                      scale={viewportScale}
+                      onPointerDown={onFillPointerDown}
+                    />
+                  );
+                } else if (seg.type === 'arc-cubic') {
+                  const curve: CubicCurve<SheetPosition> = {
+                    start: prevSeg.point,
+                    end: seg.point,
+                    controlPointA: seg.controlPointA,
+                    controlPointB: seg.controlPointB,
+                  };
+                  if (
+                    !CohenSutherland.cubicCurveMightIntersectBoundingBox(
+                      curve,
+                      mousePositionProximityAABB,
+                    )
+                  ) {
+                    return null;
+                  }
+                  return (
+                    <CurveEdgeHitDetector
+                      key={`prox-curve-edge-${i}`}
+                      curve={curve}
+                      scale={viewportScale}
+                      onPointerDown={onFillPointerDown}
+                    />
+                  );
+                }
                 return null;
-              }
-              return (
-                <LineSegmentEdgeHitDetector
-                  key={`prox-edge-${i}`}
-                  startPosition={prevSeg.point}
-                  endPosition={seg.point}
-                  scale={viewportScale}
-                  onPointerDown={onFillPointerDown}
-                />
-              );
-            } else if (seg.type === 'arc-quadratic') {
-              const curve: QuadraticCurve<SheetPosition> = {
-                start: prevSeg.point,
-                end: seg.point,
-                controlPoint: seg.controlPoint,
-              };
-              if (
-                !CohenSutherland.quadraticCurveMightIntersectBoundingBox(
-                  curve,
-                  mousePositionProximityAABB,
-                )
-              ) {
-                return null;
-              }
-              return (
-                <CurveEdgeHitDetector
-                  key={`prox-curve-edge-${i}`}
-                  curve={curve}
-                  scale={viewportScale}
-                  onPointerDown={onFillPointerDown}
-                />
-              );
-            } else if (seg.type === 'arc-cubic') {
-              const curve: CubicCurve<SheetPosition> = {
-                start: prevSeg.point,
-                end: seg.point,
-                controlPointA: seg.controlPointA,
-                controlPointB: seg.controlPointB,
-              };
-              if (
-                !CohenSutherland.cubicCurveMightIntersectBoundingBox(
-                  curve,
-                  mousePositionProximityAABB,
-                )
-              ) {
-                return null;
-              }
-              return (
-                <CurveEdgeHitDetector
-                  key={`prox-curve-edge-${i}`}
-                  curve={curve}
-                  scale={viewportScale}
-                  onPointerDown={onFillPointerDown}
-                />
-              );
-            }
-            return null;
-          })}
+              })}
+            </>
+          ) : null}
         </>
-      ) : null}
-    </>
-  );
+      );
+    case 'rectangle':
+      return (
+        <GeometryShapeRenderer
+          type="rectangle"
+          upperLeft={geometryData.upperLeft}
+          lowerRight={geometryData.lowerRight}
+          fillColor={fillColor}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          viewportScale={viewportScale}
+          showHintStroke={isSelected && selectedIds.length > 1}
+          eventMode="static"
+          onFillPointerDown={onFillPointerDown}
+          onFillPointerOver={onFillPointerOver}
+          onFillPointerOut={onFillPointerOut}
+        />
+      );
+    case 'ellipse':
+      return (
+        <GeometryShapeRenderer
+          type="ellipse"
+          center={geometryData.center}
+          radiusX={geometryData.radiusX}
+          radiusY={geometryData.radiusY}
+          showCenterCrosshairs={isSelected}
+          fillColor={fillColor}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          viewportScale={viewportScale}
+          showHintStroke={isSelected && selectedIds.length > 1}
+          eventMode="static"
+          onFillPointerDown={onFillPointerDown}
+          onFillPointerOver={onFillPointerOver}
+          onFillPointerOut={onFillPointerOut}
+        />
+      );
+    default:
+      geometryData satisfies never;
+      break;
+  }
 };
 
 type PolygonDecorationsRendererProps = {
@@ -670,7 +691,7 @@ function BezierLines({ segments, scale }: { segments: Array<PolygonSegment>; sca
 }
 
 /** Renders visual accessories on top of the polygon, like handles, bezier lines, etc. */
-const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRendererProps> = ({
+export const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRendererProps> = ({
   segments,
   closed,
   viewportScale,
@@ -718,14 +739,27 @@ const PolygonOverlay: React.FunctionComponent = () => {
   const draggingShapeState = useDraggingShapeState();
   const closestPointToSegment = useClosestPointToSegment();
 
-  const polygons = usePolygons(geometryStore);
-  const selectedPolygons = useMemo(
-    () => polygons.filter((e) => selectedIds.includes(e.id)),
-    [polygons, selectedIds],
+  const geometries = useGeometries(geometryStore);
+  const idPolygonDataPairs = useMemo(
+    () => geometries.flatMap((g) => {
+      const data = GeometryComponent.get(g);
+      if (data.type === 'polygon') {
+        return [[g.id, data] as const];
+      } else {
+        return [];
+      }
+    }),
+    [geometries],
+  );
+  const selectedIdPolygonDataPairs = useMemo(
+    () => idPolygonDataPairs.filter(([id, _data]) => {
+      return selectedIds.includes(id);
+    }),
+    [idPolygonDataPairs, selectedIds],
   );
 
   const onLineSegmentEdgeHitDetectorPointerDown = useCallback(
-    (polygon: Polygon, segmentIndex: number) => {
+    (polygonId: Geometry['id'], segmentIndex: number) => {
       if (activeTool.type !== 'select') {
         return;
       }
@@ -735,28 +769,28 @@ const PolygonOverlay: React.FunctionComponent = () => {
       if (!closestPointToSegment) {
         return;
       }
-      activeTool.addPointOnLineSegmentEdge(polygon.id, segmentIndex, closestPointToSegment.point);
+      activeTool.addPointOnLineSegmentEdge(polygonId, segmentIndex, closestPointToSegment.point);
     },
     [activeTool, viewportControls, closestPointToSegment],
   );
   const onLineSegmentEdgeHitDetectorEnter = useCallback(
-    (polygon: Polygon, segmentIndex: number) => {
+    (polygonId: Geometry['id'], segmentIndex: number) => {
       if (activeTool.type === 'select' && viewportControls) {
-        activeTool.onEnterPolygonSegment(viewportControls, polygon.id, segmentIndex);
+        activeTool.onEnterPolygonSegment(viewportControls, polygonId, segmentIndex);
       }
     },
     [viewportControls],
   );
   const onLineSegmentEdgeHitDetectorLeave = useCallback(
-    (polygon: Polygon, segmentIndex: number) => {
+    (polygonId: Geometry['id'], segmentIndex: number) => {
       if (activeTool.type === 'select' && viewportControls) {
-        activeTool.onLeavePolygonSegment(viewportControls, polygon.id, segmentIndex);
+        activeTool.onLeavePolygonSegment(viewportControls, polygonId, segmentIndex);
       }
     },
     [activeTool, viewportControls],
   );
   const onQuadraticEdgeHitDetectorPointerDown = useCallback(
-    (polygon: Polygon, segmentIndex: number) => {
+    (polygonId: Geometry['id'], segmentIndex: number) => {
       if (activeTool.type !== 'select') {
         return;
       }
@@ -766,28 +800,28 @@ const PolygonOverlay: React.FunctionComponent = () => {
       if (!closestPointToSegment) {
         return;
       }
-      activeTool.addPointOnQuadraticEdge(polygon.id, segmentIndex, closestPointToSegment.point);
+      activeTool.addPointOnQuadraticEdge(polygonId, segmentIndex, closestPointToSegment.point);
     },
     [activeTool, viewportControls, closestPointToSegment],
   );
   const onQuadraticEdgeHitDetectorEnter = useCallback(
-    (polygon: Polygon, segmentIndex: number) => {
+    (polygonId: Geometry['id'], segmentIndex: number) => {
       if (activeTool.type === 'select' && viewportControls) {
-        activeTool.onEnterPolygonSegment(viewportControls, polygon.id, segmentIndex);
+        activeTool.onEnterPolygonSegment(viewportControls, polygonId, segmentIndex);
       }
     },
     [activeTool, viewportControls],
   );
   const onQuadraticEdgeHitDetectorLeave = useCallback(
-    (polygon: Polygon, segmentIndex: number) => {
+    (polygonId: Geometry['id'], segmentIndex: number) => {
       if (activeTool.type === 'select' && viewportControls) {
-        activeTool.onLeavePolygonSegment(viewportControls, polygon.id, segmentIndex);
+        activeTool.onLeavePolygonSegment(viewportControls, polygonId, segmentIndex);
       }
     },
     [viewportControls, activeTool],
   );
   const onCubicEdgeHitDetectorPointerDown = useCallback(
-    (polygon: Polygon, segmentIndex: number) => {
+    (polygonId: Geometry['id'], segmentIndex: number) => {
       if (activeTool.type !== 'select') {
         return;
       }
@@ -797,46 +831,45 @@ const PolygonOverlay: React.FunctionComponent = () => {
       if (!closestPointToSegment) {
         return;
       }
-      activeTool.addPointOnCubicEdge(polygon.id, segmentIndex, closestPointToSegment.point);
+      activeTool.addPointOnCubicEdge(polygonId, segmentIndex, closestPointToSegment.point);
     },
     [activeTool, viewportControls, closestPointToSegment],
   );
   const onCubicEdgeHitDetectorEnter = useCallback(
-    (polygon: Polygon, segmentIndex: number) => {
+    (polygonId: Geometry['id'], segmentIndex: number) => {
       if (activeTool.type === 'select' && viewportControls) {
-        activeTool.onEnterPolygonSegment(viewportControls, polygon.id, segmentIndex);
+        activeTool.onEnterPolygonSegment(viewportControls, polygonId, segmentIndex);
       }
     },
     [activeTool, viewportControls],
   );
   const onCubicEdgeHitDetectorLeave = useCallback(
-    (polygon: Polygon, segmentIndex: number) => {
+    (polygonId: Geometry['id'], segmentIndex: number) => {
       if (activeTool.type === 'select' && viewportControls) {
-        activeTool.onLeavePolygonSegment(viewportControls, polygon.id, segmentIndex);
+        activeTool.onLeavePolygonSegment(viewportControls, polygonId, segmentIndex);
       }
     },
     [activeTool, viewportControls],
   );
 
   // By default, render decorations for all selected polygons
-  let decoratedPolygons = selectedPolygons;
+  let decoratedPolygons = selectedIdPolygonDataPairs;
   if (activeTool.type === 'polygon') {
     // If the polygon tool is active though, render decorations for all non closed polygons
     // This is needed so that a user can extend a polygon from any point
     //
     // FIXME: actually though, what is really wanted here is I think only rendering the start / end
     // ppint of non closed polygons in this situation...
-    decoratedPolygons = polygons.filter((p) => !PolygonComponent.get(p).closed);
+    decoratedPolygons = idPolygonDataPairs.filter(([_id, data]) => !data.closed);
   }
 
   return (
     <>
-      {decoratedPolygons.map((polygon) => {
-        const polygonData = PolygonComponent.get(polygon);
+      {decoratedPolygons.map(([id, polygonData]) => {
         const segments = polygonData.points;
 
         return (
-          <Fragment key={polygon.id}>
+          <Fragment key={id}>
             {activeTool.type === 'select' ? (
               <>
                 {/* line segment edge detectors */}
@@ -854,9 +887,9 @@ const PolygonOverlay: React.FunctionComponent = () => {
                       startPosition={prevSeg.point}
                       endPosition={seg.point}
                       scale={viewportScale}
-                      onPointerEnter={() => onLineSegmentEdgeHitDetectorEnter(polygon, i)}
-                      onPointerLeave={() => onLineSegmentEdgeHitDetectorLeave(polygon, i)}
-                      onPointerDown={() => onLineSegmentEdgeHitDetectorPointerDown(polygon, i)}
+                      onPointerEnter={() => onLineSegmentEdgeHitDetectorEnter(id, i)}
+                      onPointerLeave={() => onLineSegmentEdgeHitDetectorLeave(id, i)}
+                      onPointerDown={() => onLineSegmentEdgeHitDetectorPointerDown(id, i)}
                     />
                   );
                 })}
@@ -882,9 +915,9 @@ const PolygonOverlay: React.FunctionComponent = () => {
                         key={`curve-edge-${i}`}
                         curve={curve}
                         scale={viewportScale}
-                        onPointerEnter={() => onQuadraticEdgeHitDetectorEnter?.(polygon, i)}
-                        onPointerLeave={() => onQuadraticEdgeHitDetectorLeave?.(polygon, i)}
-                        onPointerDown={() => onQuadraticEdgeHitDetectorPointerDown?.(polygon, i)}
+                        onPointerEnter={() => onQuadraticEdgeHitDetectorEnter(id, i)}
+                        onPointerLeave={() => onQuadraticEdgeHitDetectorLeave(id, i)}
+                        onPointerDown={() => onQuadraticEdgeHitDetectorPointerDown(id, i)}
                       />
                     );
                   } else if (seg.type === 'arc-cubic' && onCubicEdgeHitDetectorPointerDown) {
@@ -899,9 +932,9 @@ const PolygonOverlay: React.FunctionComponent = () => {
                         key={`curve-edge-${i}`}
                         curve={curve}
                         scale={viewportScale}
-                        onPointerEnter={() => onCubicEdgeHitDetectorEnter?.(polygon, i)}
-                        onPointerLeave={() => onCubicEdgeHitDetectorLeave?.(polygon, i)}
-                        onPointerDown={() => onCubicEdgeHitDetectorPointerDown?.(polygon, i)}
+                        onPointerEnter={() => onCubicEdgeHitDetectorEnter(id, i)}
+                        onPointerLeave={() => onCubicEdgeHitDetectorLeave(id, i)}
+                        onPointerDown={() => onCubicEdgeHitDetectorPointerDown(id, i)}
                       />
                     );
                   }
@@ -916,20 +949,20 @@ const PolygonOverlay: React.FunctionComponent = () => {
               viewportScale={viewportScale}
               isDragging={
                 draggingShapeState?.type === 'polygon' &&
-                draggingShapeState.polygonId === polygon.id
+                draggingShapeState.polygonId === id
               }
               onVertexEnter={(_e, index) => {
                 if (activeTool.type === 'polygon') {
                   if (index === 0) {
                     activeTool.setHoveringEndpointOfPolygon({
-                      polygonId: polygon.id,
+                      polygonId: id,
                       pointIndex: 0,
                       isStartPoint: true,
                     });
                   }
                   if (index === polygonData.points.length - 1) {
                     activeTool.setHoveringEndpointOfPolygon({
-                      polygonId: polygon.id,
+                      polygonId: id,
                       pointIndex: 0,
                       isStartPoint: false,
                     });
@@ -956,7 +989,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
                 activeTool.onVertexPointerDown(
                   new ScreenPosition(e.clientX, e.clientY),
                   viewportControls,
-                  polygon.id,
+                  id,
                   segmentIndex,
                 );
               }}
@@ -970,7 +1003,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
                 activeTool.onControlPointerDown(
                   new ScreenPosition(e.clientX, e.clientY),
                   viewportControls,
-                  polygon.id,
+                  id,
                   segmentIndex,
                   pointKey,
                 );
@@ -984,7 +1017,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
 };
 
 /** Renders all polygons currently on the sheet. */
-export const PolygonLayers: ListLayers<Polygon, React.ReactNode> = {
-  [RendererLayers.Solids]: (polygon) => <PolygonSolid polygon={polygon} />,
+export const GeometryLayers: ListLayers<Geometry, React.ReactNode> = {
+  [RendererLayers.Solids]: (geometry) => <GeometrySolid geometry={geometry} />,
   [RendererLayers.Overlays]: <PolygonOverlay />,
 };

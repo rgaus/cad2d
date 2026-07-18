@@ -6,11 +6,9 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { ConstraintLayers } from '@/components/ConstraintsRenderer';
 import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
 import { DatumLayers, WorkingDatumLayers } from '@/components/DatumRenderer';
-import { EllipseLayers, WorkingEllipseLayers } from '@/components/EllipseRenderer';
+import { GeometryLayers } from '@/components/GeometryRenderer';
 import { FilterLayers } from '@/components/FilterRenderer';
 import { HandleSprites } from '@/components/HandleSprites';
-import { PolygonLayers, WorkingPolygonLayers } from '@/components/PolygonRenderer';
-import { RectangleLayers, WorkingRectangleLayers } from '@/components/RectangleRenderer';
 import { SelectionBoxOverlay } from '@/components/SelectionBoxOverlay';
 import { SheetRenderer } from '@/components/SheetRenderer';
 import { SnapsHintLayers } from '@/components/SnapHintsLayers';
@@ -21,15 +19,12 @@ import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from '@/lib/detect
 import {
   type Datum,
   DatumComponent,
-  type Ellipse,
-  EllipseComponent,
   Entity,
   FillColorComponent,
+  GeometryComponent,
   type Id,
   LinkDimensionsComponent,
-  PolygonComponent,
   type Rectangle,
-  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/entity';
 import { KeyCombo } from '@/lib/index-mapper';
@@ -76,6 +71,9 @@ import CornerOverlay from './CornerOverlay';
 import FitToScreenButton from './FitToScreenButton';
 import { HoverTooltip } from './HoverTooltip';
 import { KeyboardShortcut } from './KeyboardShortcut';
+import { WorkingPolygonLayers } from '@/components/WorkingPolygonRenderer';
+import { WorkingEllipseLayers } from '@/components/WorkingEllipseRenderer';
+import { WorkingRectangleLayers } from '@/components/WorkingRectangleRenderer';
 
 extend({
   Container,
@@ -299,11 +297,9 @@ export default function ViewportRenderer2D({
     width: number;
     height: number;
   } | null>(null);
-  const [polygons, setPolygons] = useState<Array<Entity<PolygonComponent>>>([]);
+  const [geometries, setGeometries] = useState<Array<Rectangle>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
-  const [rectangles, setRectangles] = useState<Array<Rectangle>>([]);
   const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
-  const [ellipses, setEllipses] = useState<Array<Ellipse>>([]);
   const [datums, setDatums] = useState<Array<Datum>>([]);
   const [workingEllipse, setWorkingEllipse] = useState<WorkingEllipse | null>(null);
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
@@ -369,23 +365,14 @@ export default function ViewportRenderer2D({
     geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
 
     const refreshAll = () => {
-      setRectangles(
+      setGeometries(
         geometryStore.listWithComponents(
-          RectangleComponent,
+          GeometryComponent,
           FillColorComponent,
           LinkDimensionsComponent,
           RenderOrderComponent,
         ),
       );
-      setEllipses(
-        geometryStore.listWithComponents(
-          EllipseComponent,
-          FillColorComponent,
-          LinkDimensionsComponent,
-          RenderOrderComponent,
-        ),
-      );
-      setPolygons(geometryStore.listWithComponent(PolygonComponent));
       setDatums(geometryStore.listWithComponent(DatumComponent));
     };
     geometryStore.on('geometryAdded', refreshAll);
@@ -772,9 +759,7 @@ export default function ViewportRenderer2D({
       <ListLayersRenderer
         layersItemsPairs={[
           // FIXME: address type issues
-          [PolygonLayers, polygons] as unknown as ListLayersItemsPair,
-          [EllipseLayers, ellipses] as unknown as ListLayersItemsPair,
-          [RectangleLayers, rectangles] as unknown as ListLayersItemsPair,
+          [GeometryLayers, geometries] as unknown as ListLayersItemsPair,
           [DatumLayers, datums] as unknown as ListLayersItemsPair,
         ]}
         layerName={layerName}

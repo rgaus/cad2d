@@ -3,6 +3,7 @@ import {
   EllipseComponent,
   Entity,
   FillColorComponent,
+  GeometryComponent,
   type Id,
   Polygon,
   PolygonComponent,
@@ -12,6 +13,8 @@ import {
 } from '@/lib/entity';
 import { type Length, type SerializedLength, type UnitType } from '@/lib/units/length';
 import type { SheetPosition } from '@/lib/viewport/types';
+import { RectangleData } from '../entity/geometry/rectangle';
+import { EllipseData } from '../entity/geometry/ellipse';
 
 export type TransactionEntity = {
   type: 'transaction';
@@ -165,7 +168,7 @@ export type PolygonBoundingBoxResizeEntry = {
 
 /** Recorded when a rectangle is converted to a polygon. */
 export type RectangleToPolygonEntry<
-  R extends Entity<RectangleComponent> = Entity<RectangleComponent>,
+  R extends Entity<GeometryComponent<RectangleData>> = Entity<GeometryComponent<RectangleData>>,
 > = {
   type: 'rectangle-to-polygon';
   rectangle: R;
@@ -173,7 +176,7 @@ export type RectangleToPolygonEntry<
 };
 
 /** Recorded when an ellipse is converted to a polygon. */
-export type EllipseToPolygonEntry<E extends Entity<EllipseComponent> = Entity<EllipseComponent>> = {
+export type EllipseToPolygonEntry<E extends Entity<GeometryComponent<EllipseData>> = Entity<GeometryComponent<EllipseData>>> = {
   type: 'ellipse-to-polygon';
   ellipse: E;
   polygon: Polygon;
@@ -509,7 +512,7 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry for converting a rectangle to a polygon. */
-  export function rectangleToPolygon<R extends Entity<RectangleComponent>>(
+  export function rectangleToPolygon<R extends Entity<GeometryComponent<RectangleData>>>(
     rectangle: R,
     polygon: Polygon,
   ): RectangleToPolygonEntry<R> {
@@ -517,7 +520,7 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry for converting an ellipse to a polygon. */
-  export function ellipseToPolygon<E extends Entity<EllipseComponent>>(
+  export function ellipseToPolygon<E extends Entity<GeometryComponent<EllipseData>>>(
     ellipse: E,
     polygon: Polygon,
   ): EllipseToPolygonEntry {

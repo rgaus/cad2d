@@ -1,4 +1,4 @@
-import { Rect, SheetPosition } from '@/lib/viewport/types';
+import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { type GeometryData } from '../geometry';
 import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
@@ -80,7 +80,7 @@ export namespace GeometryComponent {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(geometry: Entity<GeometryComponent>) {
+  export function keyPoints(geometry: Entity<GeometryComponent>): KeyPoints<SheetPosition, string> {
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
