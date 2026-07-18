@@ -4,6 +4,7 @@ import {
   EllipseComponent,
   Entity,
   FillColorComponent,
+  GeometryComponent,
   PolygonComponent,
   PolygonSegment,
   RectangleComponent,
@@ -75,7 +76,7 @@ export type ShapePreviewHighlight =
   | { type: 'segment'; index: number; color?: string };
 
 type ShapePreviewProps = {
-  shape: Entity<RectangleComponent> | Entity<EllipseComponent> | Entity<PolygonComponent>;
+  shape: Entity<GeometryComponent>;
   highlight?: ShapePreviewHighlight | null;
   hoveredPointIndex?: number;
   editingDimension?: ShapePreviewEditingDimension | null;
@@ -116,74 +117,79 @@ export default function ShapePreview({
   };
   let points: Array<{ x: number; y: number }> = [];
 
-  if (Entity.hasComponent(shape, RectangleComponent)) {
-    const rect = RectangleComponent.get(shape);
-    bounds = {
-      minX: rect.upperLeft.x,
-      minY: rect.upperLeft.y,
-      maxX: rect.lowerRight.x,
-      maxY: rect.lowerRight.y,
-      width: rect.lowerRight.x - rect.upperLeft.x,
-      height: rect.lowerRight.y - rect.upperLeft.y,
-    };
-    points = [
-      { x: rect.upperLeft.x, y: rect.upperLeft.y },
-      { x: rect.lowerRight.x, y: rect.upperLeft.y },
-      { x: rect.lowerRight.x, y: rect.lowerRight.y },
-      { x: rect.upperLeft.x, y: rect.lowerRight.y },
-    ];
-  } else if (Entity.hasComponent(shape, EllipseComponent)) {
-    const ellipse = EllipseComponent.get(shape);
-    bounds = {
-      minX: ellipse.center.x - ellipse.radiusX,
-      minY: ellipse.center.y - ellipse.radiusY,
-      maxX: ellipse.center.x + ellipse.radiusX,
-      maxY: ellipse.center.y + ellipse.radiusY,
-      width: ellipse.radiusX * 2,
-      height: ellipse.radiusY * 2,
-    };
-  } else {
-    const polygonData = PolygonComponent.get(shape);
-    const polygonBounds = BoundingBox.fromPoints(
-      polygonData.points.flatMap((point, index) => {
-        const nextPoint = polygonData.points[index + 1];
-        if (PolygonSegment.isQuadratic(point) && nextPoint) {
-          return [
-            point.point,
-            // Use midpoint of curve to get bounding box extents:
-            DeCasteljau.getQuadraticBezierPointAt(
-              { start: point.point, end: nextPoint.point, controlPoint: point.controlPoint },
-              0.5,
-            ),
-          ];
-        } else if (PolygonSegment.isCubic(point) && nextPoint) {
-          return [
-            point.point,
-            // Use midpoint of curve to get bounding box extents:
-            DeCasteljau.getCubicBezierPointAt(
-              {
-                start: point.point,
-                end: nextPoint.point,
-                controlPointA: point.controlPointA,
-                controlPointB: point.controlPointB,
-              },
-              0.5,
-            ),
-          ];
-        } else {
-          return [point.point];
-        }
-      }),
-    );
-    bounds = {
-      minX: polygonBounds.position.x,
-      minY: polygonBounds.position.y,
-      maxX: polygonBounds.position.x + polygonBounds.width,
-      maxY: polygonBounds.position.y + polygonBounds.height,
-      width: polygonBounds.width,
-      height: polygonBounds.height,
-    };
-    points = polygonData.points.map((s: PolygonSegment) => ({ x: s.point.x, y: s.point.y }));
+  const geometryData = GeometryComponent.get(shape);
+  switch (geometryData.type) {
+    case 'polygon':
+      const polygonBounds = BoundingBox.fromPoints(
+        geometryData.points.flatMap((point, index) => {
+          const nextPoint = geometryData.points[index + 1];
+          if (PolygonSegment.isQuadratic(point) && nextPoint) {
+            return [
+              point.point,
+              // Use midpoint of curve to get bounding box extents:
+              DeCasteljau.getQuadraticBezierPointAt(
+                { start: point.point, end: nextPoint.point, controlPoint: point.controlPoint },
+                0.5,
+              ),
+            ];
+          } else if (PolygonSegment.isCubic(point) && nextPoint) {
+            return [
+              point.point,
+              // Use midpoint of curve to get bounding box extents:
+              DeCasteljau.getCubicBezierPointAt(
+                {
+                  start: point.point,
+                  end: nextPoint.point,
+                  controlPointA: point.controlPointA,
+                  controlPointB: point.controlPointB,
+                },
+                0.5,
+              ),
+            ];
+          } else {
+            return [point.point];
+          }
+        }),
+      );
+      bounds = {
+        minX: polygonBounds.position.x,
+        minY: polygonBounds.position.y,
+        maxX: polygonBounds.position.x + polygonBounds.width,
+        maxY: polygonBounds.position.y + polygonBounds.height,
+        width: polygonBounds.width,
+        height: polygonBounds.height,
+      };
+      points = geometryData.points.map((s: PolygonSegment) => ({ x: s.point.x, y: s.point.y }));
+      break;
+    case 'rectangle':
+      bounds = {
+        minX: geometryData.upperLeft.x,
+        minY: geometryData.upperLeft.y,
+        maxX: geometryData.lowerRight.x,
+        maxY: geometryData.lowerRight.y,
+        width: geometryData.lowerRight.x - geometryData.upperLeft.x,
+        height: geometryData.lowerRight.y - geometryData.upperLeft.y,
+      };
+      points = [
+        { x: geometryData.upperLeft.x, y: geometryData.upperLeft.y },
+        { x: geometryData.lowerRight.x, y: geometryData.upperLeft.y },
+        { x: geometryData.lowerRight.x, y: geometryData.lowerRight.y },
+        { x: geometryData.upperLeft.x, y: geometryData.lowerRight.y },
+      ];
+      break;
+    case 'ellipse':
+      bounds = {
+        minX: geometryData.center.x - geometryData.radiusX,
+        minY: geometryData.center.y - geometryData.radiusY,
+        maxX: geometryData.center.x + geometryData.radiusX,
+        maxY: geometryData.center.y + geometryData.radiusY,
+        width: geometryData.radiusX * 2,
+        height: geometryData.radiusY * 2,
+      };
+      break;
+    default:
+      geometryData satisfies never;
+      throw new Error(`ShapePreview: Unknown geometry data type ${(geometryData as any).type}`);
   }
 
   const boundsWidth = bounds.maxX - bounds.minX || 1;

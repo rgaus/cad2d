@@ -20,14 +20,15 @@ import {
   EllipseComponent,
   Entity,
   FillColorComponent,
+  GeometryComponent,
   type Id,
   LinkDimensionsComponent,
-  type Polygon,
   PolygonComponent,
   type PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/entity';
+import { type Geometry } from '@/lib/entity/geometry';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
@@ -43,6 +44,10 @@ import FloatingPanel from './FloatingPanel';
 import LabeledRow from './LabeledRow';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from './ShapePreview';
+import { GeometryData } from '@/lib/entity/geometry';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
+import { EllipseData } from '@/lib/entity/geometry/ellipse';
 
 type SelectionInspectorProps = {
   sheet: Sheet;
@@ -84,17 +89,25 @@ const RectangleInspector: React.FunctionComponent<{
   sheetDefaultUnit: UnitType;
   actionsManager: ActionsManager;
 }> = ({ rectangleId, geometryStore, sheetUnitPlaces, sheetDefaultUnit, actionsManager }) => {
-  const [geometry, setGeometry] = useState<Entity<
-    RectangleComponent & LinkDimensionsComponent
-  > | null>(null);
-  const rectangle = useMemo(() => (geometry ? RectangleComponent.get(geometry) : null), [geometry]);
+  const [geometry, setGeometry] = useState<Entity<GeometryComponent<RectangleData> & LinkDimensionsComponent> | null>(() => {
+    const geometry = geometryStore.getByIdWithComponents(rectangleId, GeometryComponent, LinkDimensionsComponent);
+    if (!geometry) {
+      return null;
+    }
+    if (!GeometryComponent.isRectangle(geometry)) {
+      return null;
+    }
+    return geometry;
+  });
+
+  const rectangle = useMemo(() => (geometry ? GeometryComponent.get(geometry) : null), [geometry]);
   const linkDimensions = useMemo(
     () => (geometry ? LinkDimensionsComponent.get(geometry) : null),
     [geometry],
   );
   useEffect(() => {
-    const geom = geometryStore.getById(rectangleId);
-    if (geom && Entity.hasComponents(geom, RectangleComponent, LinkDimensionsComponent)) {
+    const geom = geometryStore.getByIdWithComponents(rectangleId, GeometryComponent, LinkDimensionsComponent);
+    if (geom && GeometryComponent.isRectangle(geom)) {
       setGeometry(geom);
     }
   }, [geometryStore, rectangleId]);
@@ -141,8 +154,9 @@ const RectangleInspector: React.FunctionComponent<{
     const debouncedHandler = debounce((geometry: Entity) => {
       if (
         geometry.id !== rectangleId ||
-        !Entity.hasComponent(geometry, RectangleComponent) ||
-        !Entity.hasComponent(geometry, LinkDimensionsComponent)
+        !Entity.hasComponent(geometry, GeometryComponent) ||
+        !Entity.hasComponent(geometry, LinkDimensionsComponent) ||
+        !GeometryComponent.isRectangle(geometry)
       ) {
         return;
       }
@@ -330,17 +344,25 @@ const EllipseInspector: React.FunctionComponent<{
   sheetDefaultUnit: UnitType;
   actionsManager: ActionsManager;
 }> = ({ ellipseId, geometryStore, sheetUnitPlaces, sheetDefaultUnit, actionsManager }) => {
-  const [geometry, setGeometry] = useState<Entity<
-    EllipseComponent & LinkDimensionsComponent
-  > | null>(null);
-  const ellipse = useMemo(() => (geometry ? EllipseComponent.get(geometry) : null), [geometry]);
+  const [geometry, setGeometry] = useState<Entity<GeometryComponent<EllipseData> & LinkDimensionsComponent> | null>(() => {
+    const geometry = geometryStore.getByIdWithComponents(ellipseId, GeometryComponent, LinkDimensionsComponent);
+    if (!geometry) {
+      return null;
+    }
+    if (!GeometryComponent.isEllipse(geometry)) {
+      return null;
+    }
+    return geometry;
+  });
+
+  const ellipse = useMemo(() => (geometry ? GeometryComponent.get(geometry) : null), [geometry]);
   const linkDimensions = useMemo(
     () => (geometry ? LinkDimensionsComponent.get(geometry) : null),
     [geometry],
   );
   useEffect(() => {
-    const geom = geometryStore.getById(ellipseId);
-    if (geom && Entity.hasComponents(geom, EllipseComponent, LinkDimensionsComponent)) {
+    const geom = geometryStore.getByIdWithComponents(ellipseId, GeometryComponent, LinkDimensionsComponent);
+    if (geom && GeometryComponent.isEllipse(geom)) {
       setGeometry(geom);
     }
   }, [geometryStore, ellipseId]);
@@ -385,7 +407,9 @@ const EllipseInspector: React.FunctionComponent<{
     const debouncedHandler = debounce((geometry: Entity) => {
       if (
         geometry.id !== ellipseId ||
-        !Entity.hasComponents(geometry, EllipseComponent, LinkDimensionsComponent)
+        !Entity.hasComponent(geometry, GeometryComponent) ||
+        !Entity.hasComponent(geometry, LinkDimensionsComponent) ||
+        !GeometryComponent.isEllipse(geometry)
       ) {
         return;
       }
@@ -830,9 +854,17 @@ const PolygonInspector: React.FunctionComponent<{
   sheetDefaultUnit,
   actionsManager,
 }) => {
-  const [polygon, setPolygon] = useState<Entity<PolygonComponent> | null>(() =>
-    geometryStore.getByIdWithComponent(polygonId, PolygonComponent),
-  );
+  const [polygon, setPolygon] = useState<Entity<GeometryComponent<PolygonData>> | null>(() => {
+    const geometry = geometryStore.getByIdWithComponent(polygonId, GeometryComponent);
+    if (!geometry) {
+      return null;
+    }
+    if (!GeometryComponent.isPolygon(geometry)) {
+      return null;
+    }
+    return geometry;
+  });
+
   const [shapePreviewHighlight, setShapePreviewHighlight] = useState<ShapePreviewHighlight | null>(
     null,
   );
@@ -844,10 +876,15 @@ const PolygonInspector: React.FunctionComponent<{
   const pointInputRefs = useRef<Map<number, PointRowRefs>>(new Map());
 
   useEffect(() => {
-    const polygon = geometryStore.getByIdWithComponent(polygonId, PolygonComponent);
-    if (polygon) {
-      setPolygon(polygon);
+    const geometry = geometryStore.getByIdWithComponent(polygonId, GeometryComponent);
+    if (!geometry) {
+      return;
     }
+    const data = GeometryComponent.get<GeometryData>(geometry);
+    if (data.type === 'polygon') {
+      return;
+    }
+    setPolygon(geometry as Entity<GeometryComponent<PolygonData>>);
   }, [geometryStore, polygonId]);
 
   useEffect(() => {
@@ -879,7 +916,7 @@ const PolygonInspector: React.FunctionComponent<{
           return null;
         }
 
-        const oldData = PolygonComponent.get(oldPolygon);
+        const oldData = GeometryComponent.get(oldPolygon);
         let newPolygon = oldPolygon;
         if (
           Entity.hasComponent(newPolygon, FillColorComponent) &&
@@ -896,7 +933,7 @@ const PolygonInspector: React.FunctionComponent<{
           oldData.openAtIndex !== updatedData.openAtIndex ||
           oldData.points.length !== updatedData.points.length
         ) {
-          newPolygon = PolygonComponent.update(newPolygon, updatedData);
+          newPolygon = GeometryComponent.update(newPolygon, updatedData);
         }
 
         return newPolygon;
@@ -910,10 +947,15 @@ const PolygonInspector: React.FunctionComponent<{
 
   useEffect(() => {
     const debouncedHandler = debounce((geometry: Entity) => {
-      if (geometry.id !== polygonId || !Entity.hasComponent(geometry, PolygonComponent)) {
+      if (
+        geometry.id !== polygonId ||
+        !Entity.hasComponent(geometry, GeometryComponent) ||
+        !Entity.hasComponent(geometry, LinkDimensionsComponent) ||
+        !GeometryComponent.isPolygon(geometry)
+      ) {
         return;
       }
-      setPolygon(geometry as Polygon);
+      setPolygon(geometry);
     }, GEOMETRY_UPDATE_DEBOUNCE_MS);
 
     geometryStore.on('geometryUpdated', debouncedHandler);
@@ -925,7 +967,7 @@ const PolygonInspector: React.FunctionComponent<{
   const bounds = useMemo(
     () =>
       polygon
-        ? BoundingBox.fromPoints(PolygonComponent.get(polygon).points.map((s) => s.point))
+        ? BoundingBox.fromPoints(GeometryComponent.get(polygon).points.map((s) => s.point))
         : null,
     [polygon],
   );
@@ -1003,7 +1045,7 @@ const PolygonInspector: React.FunctionComponent<{
         if (!prev) {
           return prev;
         }
-        const prevData = PolygonComponent.get(prev);
+        const prevData = GeometryComponent.get(prev);
         const seg = prevData.points[index];
         const nextSeg = prevData.points[index + 1];
         if (!seg || !nextSeg) {
@@ -1028,7 +1070,7 @@ const PolygonInspector: React.FunctionComponent<{
       if (!polygon) {
         return;
       }
-      const polygonData = PolygonComponent.get(polygon);
+      const polygonData = GeometryComponent.get(polygon);
       const beforePoint = (polygonData.points[index] as any)[pointKey];
       const sheetVal = len.toSheetUnits(sheetDefaultUnit).magnitude;
       const afterPoint =
@@ -1090,7 +1132,7 @@ const PolygonInspector: React.FunctionComponent<{
         width: newWidth,
         height: bounds.height,
       };
-      const polygonData = PolygonComponent.get(polygon);
+      const polygonData = GeometryComponent.get(polygon);
       const afterSegments = BoundingBox.interpolatePoints(polygonData.points, bounds, newBounds);
 
       historyManager.apply(
@@ -1115,7 +1157,7 @@ const PolygonInspector: React.FunctionComponent<{
         width: bounds.width,
         height: newHeight,
       };
-      const polygonData = PolygonComponent.get(polygon);
+      const polygonData = GeometryComponent.get(polygon);
       const afterSegments = BoundingBox.interpolatePoints(polygonData.points, bounds, newBounds);
 
       historyManager.apply(
@@ -1127,7 +1169,7 @@ const PolygonInspector: React.FunctionComponent<{
 
   const handleCloseOpen = useCallback(() => {
     if (!polygon) return;
-    const polygonData = PolygonComponent.get(polygon);
+    const polygonData = GeometryComponent.get(polygon);
     if (polygonData.closed) {
       actionsManager.execute('open-close-polygon');
       setOpenAtIndexDragging(false);
@@ -1143,7 +1185,7 @@ const PolygonInspector: React.FunctionComponent<{
     }
     setOpenAtIndexDragging(true);
 
-    const polygonData = PolygonComponent.get(polygon);
+    const polygonData = GeometryComponent.get(polygon);
     const initialOpenAtIndex = polygonData.openAtIndex;
     const initialPoints = polygonData.points;
     let newOpenAtIndex = initialOpenAtIndex;
@@ -1218,7 +1260,7 @@ const PolygonInspector: React.FunctionComponent<{
     return null;
   }
 
-  const polygonData = PolygonComponent.get(polygon);
+  const polygonData = GeometryComponent.get(polygon);
   const displayedPoints = polygonData.closed ? polygonData.points.slice(0, -1) : polygonData.points;
 
   return (
