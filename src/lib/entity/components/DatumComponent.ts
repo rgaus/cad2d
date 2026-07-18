@@ -61,6 +61,23 @@ export namespace DatumComponent {
     return DatumComponent.update(geometry, state.position);
   }
 
+  export function translate(
+    state: Entity<DatumComponent>,
+    transform: (input: SheetPosition) => SheetPosition,
+  ) {
+    return DatumComponent.update(state, transform(DatumComponent.get(state)));
+  }
+
+  export function getOrigin(entity: Entity<DatumComponent>): SheetPosition {
+    return DatumComponent.get(entity);
+  }
+
+  export function equals(a: Entity<DatumComponent>, b: Entity<DatumComponent>) {
+    const aPosition = DatumComponent.get(a);
+    const bPosition = DatumComponent.get(b);
+    return aPosition.x === bPosition.x && aPosition.y === bPosition.y;
+  }
+
   export function layoutStateTranslate(
     state: ReturnType<typeof getLayoutState>,
     transform: (input: SheetPosition) => SheetPosition,

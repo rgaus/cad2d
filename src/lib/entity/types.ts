@@ -67,6 +67,29 @@ export namespace Entity {
     );
   }
 
+  export function pickComponent<C extends {}, O extends {}>(entity: Entity<C & O>, component: { readonly key: keyof C }): Entity<C> {
+    return {
+      ...entity,
+      components: {
+        [component.key]: entity.components[component.key] as C,
+      },
+    };
+  }
+
+  export function assignComponent<C extends {}, O extends {} >(
+    entity: Entity<O>,
+    component: { readonly key: keyof C },
+    source: Entity<C>,
+  ): Entity<C & O> {
+    return {
+      ...entity,
+      components: {
+        ...entity.components,
+        [component.key]: source.components[component.key],
+      } as O & C,
+    };
+  }
+
   export function keyPoints(
     geometry: Entity<GeometryComponent<PolygonData>>,
   ): ReturnType<typeof PolygonData.keyPoints>;

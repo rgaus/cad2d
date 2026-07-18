@@ -52,6 +52,10 @@ export namespace EllipseData {
     return GeometryComponent.update(geometry, { center: transform(center) });
   }
 
+  export function getOrigin(geometry: Entity<GeometryComponent<EllipseData>>): SheetPosition {
+    return GeometryComponent.get(geometry).center;
+  }
+
   export function equals(a: Entity<GeometryComponent<EllipseData>>, b: Entity<GeometryComponent>) {
     const aData = GeometryComponent.get(a);
     const bData = GeometryComponent.get(b);

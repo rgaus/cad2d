@@ -64,6 +64,10 @@ export namespace RectangleData {
     });
   }
 
+  export function getOrigin(geometry: Entity<GeometryComponent<RectangleData>>): SheetPosition {
+    return GeometryComponent.get(geometry).upperLeft;
+  }
+
   export function equals(
     a: Entity<GeometryComponent<RectangleData>>,
     b: Entity<GeometryComponent>,
