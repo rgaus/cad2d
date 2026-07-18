@@ -1,5 +1,7 @@
 import { createContext, useContext } from 'react';
 import { type Entity } from '@/lib/entity';
+import { type Geometry } from '@/lib/entity/geometry';
+import { type Filter } from '@/lib/entity/filters';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { type SnapHintsVisibility } from '@/lib/tools/BaseTool';
@@ -20,6 +22,7 @@ export type ViewportContextData = {
   mouseScreenPos: ScreenPosition | null;
   snapHintsVisibility: SnapHintsVisibility | null;
   highlightedGeometryId: Entity['id'] | null;
+  filtersByGeometryId: Map<Geometry['id'], Array<Filter>>;
 };
 const ViewportContext = createContext<ViewportContextData | null>(null);
 

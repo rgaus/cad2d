@@ -5,6 +5,8 @@ import { PolygonData, PolygonSegment } from '../geometry/polygon';
 import { RectangleData } from '../geometry/rectangle';
 import { type Entity, type EntityComponent, ResizeParams } from '../types';
 import { ConstraintComponent } from './ConstraintComponent';
+import { Filter } from '../filters';
+import { FilterComponent } from './FilterComponent';
 
 export type RenderShape =
   | { shape: 'polygon'; key: string; primary: boolean; points: Array<PolygonSegment>, closed: boolean }
@@ -498,6 +500,7 @@ export namespace GeometryComponent {
 
   export function getRenderShapes(
     geometry: Entity<GeometryComponent<GeometryData>>,
+    filters: Array<Filter> = [],
   ): Array<RenderShape> {
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
