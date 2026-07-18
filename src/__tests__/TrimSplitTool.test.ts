@@ -969,11 +969,8 @@ describe('TrimSplitTool', () => {
 
       // Rectangles are now converted to polygons
       const polygons = geometryStore
-        .listWithComponent<{ geometry: unknown }>({ key: 'geometry' })
-        .filter((g) => {
-          const data = GeometryComponent.get(g as Entity<GeometryComponent>);
-          return data.type === 'polygon';
-        });
+        .listWithComponent(GeometryComponent)
+        .filter(GeometryComponent.isPolygon);
       expect(polygons.length).toBeGreaterThanOrEqual(2);
 
       // Make sure both rectangles were converted into polygons properly.
