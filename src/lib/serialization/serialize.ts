@@ -11,6 +11,9 @@ import {
   type PolygonSegment,
   RectangleComponent,
   RenderOrderComponent,
+  type Rectangle,
+  type Ellipse,
+  GeometryComponent,
 } from '@/lib/entity';
 import {
   type ColinearConstraintData,
@@ -39,6 +42,7 @@ import {
 } from '../units/length';
 import { type SheetPosition } from '../viewport/types';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION, type SerializedState } from './versions';
+import { GeometryData } from '../entity/geometry';
 
 /** Converts a SheetPosition to pixels (world coordinates). */
 function positionToPixels(pos: SheetPosition): { x: number; y: number } {
@@ -89,17 +93,17 @@ function segmentsToPathData(segments: Array<PolygonSegment>): string {
 /** Serializes a polygon to an SVG <path> element string. */
 export function serializePolygon(polygon: Polygon): string {
   const fillColor = colorToHex(FillColorComponent.getOptional(polygon) ?? null);
+  const polygonData = GeometryComponent.get(polygon);
 
   const attrs: Array<string> = [
     `data-type="polygon"`,
     `fill="${fillColor}"`,
     `stroke="#000"`,
     `stroke-width="2"`,
-    `data-open-at-index="${PolygonComponent.get(polygon).openAtIndex}"`,
+    `data-open-at-index="${polygonData.openAtIndex}"`,
     `data-render-order="${RenderOrderComponent.get(polygon)}"`,
   ];
 
-  const polygonData = PolygonComponent.get(polygon);
   if (polygonData.closed && polygonData.points.every((p) => p.type === 'point')) {
     // For closed fully linear polygons, render as a polygon element
     // This is a more compact / human readable representation, especially for large polygons
@@ -122,14 +126,10 @@ export function serializePolygon(polygon: Polygon): string {
 }
 
 /** Serializes a rectangle to an SVG <rect> element string. */
-export function serializeRectangle(
-  geometry: Entity<
-    RectangleComponent & LinkDimensionsComponent & FillColorComponent & RenderOrderComponent
-  >,
-): string {
-  const rectangle = RectangleComponent.get(geometry);
-  const upperLeft = positionToPixels(rectangle.upperLeft);
-  const lowerRight = positionToPixels(rectangle.lowerRight);
+export function serializeRectangle(geometry: Rectangle): string {
+  const rectangleData = GeometryComponent.get(geometry);
+  const upperLeft = positionToPixels(rectangleData.upperLeft);
+  const lowerRight = positionToPixels(rectangleData.lowerRight);
   const width = Math.abs(lowerRight.x - upperLeft.x);
   const height = Math.abs(lowerRight.y - upperLeft.y);
   const x = Math.min(upperLeft.x, lowerRight.x);
@@ -149,12 +149,8 @@ export function serializeRectangle(
 }
 
 /** Serializes an ellipse to an SVG <ellipse> element string. */
-export function serializeEllipse(
-  ellipse: Entity<
-    EllipseComponent & LinkDimensionsComponent & FillColorComponent & RenderOrderComponent
-  >,
-): string {
-  const ellipseData = EllipseComponent.get(ellipse);
+export function serializeEllipse(ellipse: Ellipse): string {
+  const ellipseData = GeometryComponent.get(ellipse);
   const center = positionToPixels(ellipseData.center);
   const fillColor = colorToHex(FillColorComponent.get(ellipse));
 
@@ -549,33 +545,31 @@ export function serializeToSvg(
 
   // Collect all shapes and sort by render order (ascending, lower = further back)
   const allShapes: Array<{ renderOrder: number; serialize: () => string }> = [];
-  for (const rect of geometryStore.listWithComponents(
-    RectangleComponent,
-    FillColorComponent,
-    LinkDimensionsComponent,
-    RenderOrderComponent,
-  )) {
-    allShapes.push({
-      renderOrder: RenderOrderComponent.get(rect),
-      serialize: () => serializeRectangle(rect),
-    });
-  }
-  for (const ellipse of geometryStore.listWithComponents(
-    EllipseComponent,
-    FillColorComponent,
-    LinkDimensionsComponent,
-    RenderOrderComponent,
-  )) {
-    allShapes.push({
-      renderOrder: RenderOrderComponent.get(ellipse),
-      serialize: () => serializeEllipse(ellipse),
-    });
-  }
-  for (const polygon of geometryStore.listWithComponents(PolygonComponent, RenderOrderComponent)) {
-    allShapes.push({
-      renderOrder: RenderOrderComponent.get(polygon),
-      serialize: () => serializePolygon(polygon),
-    });
+  for (const geometry of geometryStore.listWithComponents(GeometryComponent, RenderOrderComponent)) {
+    const data = GeometryComponent.get<GeometryData>(geometry);
+    switch (data.type) {
+      case 'polygon':
+        allShapes.push({
+          renderOrder: RenderOrderComponent.get(geometry),
+          serialize: () => serializePolygon(geometry as Polygon),
+        });
+        break;
+      case 'rectangle':
+        allShapes.push({
+          renderOrder: RenderOrderComponent.get(geometry),
+          serialize: () => serializeRectangle(geometry as Rectangle),
+        });
+        break;
+      case 'ellipse':
+        allShapes.push({
+          renderOrder: RenderOrderComponent.get(geometry),
+          serialize: () => serializeEllipse(geometry as Ellipse),
+        });
+        break;
+      default:
+        data satisfies never;
+        break;
+    }
   }
   allShapes.sort((a, b) => a.renderOrder - b.renderOrder);
   for (const shape of allShapes) {

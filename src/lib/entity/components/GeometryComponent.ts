@@ -1,9 +1,10 @@
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import { type GeometryData } from '../geometry';
+import { type Geometry, type GeometryData } from '../geometry';
 import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
 import { RectangleData } from '../geometry/rectangle';
 import { ResizeParams, type Entity, type EntityComponent } from '../types';
+import { ConstraintComponent } from './ConstraintComponent';
 
 /**
  * Entity component for a geometry - a rectangle, ellipse, or polygon.
@@ -58,6 +59,18 @@ export namespace GeometryComponent {
 
   export function get<D extends GeometryData = GeometryData>(geometry: Entity<GeometryComponent<D>>): D {
     return geometry.components.geometry;
+  }
+
+  export function isPolygon(geometry: Geometry): geometry is Entity<GeometryComponent<PolygonData>> {
+    return geometry.components.geometry.type === 'polygon';
+  }
+
+  export function isRectangle(geometry: Geometry): geometry is Entity<GeometryComponent<RectangleData>> {
+    return geometry.components.geometry.type === 'rectangle';
+  }
+
+  export function isEllipse(geometry: Geometry): geometry is Entity<GeometryComponent<EllipseData>> {
+    return geometry.components.geometry.type === 'ellipse';
   }
 
   export function update<
@@ -160,5 +173,14 @@ export namespace GeometryComponent {
         state satisfies never;
         throw new Error(`GeometryComponent.resize: Unknown polygon data type ${(state as any).type}`);
     }
+  }
+
+  export function addPointOnEdge<G extends Entity<GeometryComponent<PolygonData>>>(
+    geometry: G,
+    constraints: Array<Entity<ConstraintComponent>>,
+    segmentIndex: number,
+    newPointPosition: { type: 't'; t: number } | { type: 'point'; point: SheetPosition },
+  ) {
+    return PolygonData.addPointOnEdge(geometry, constraints, segmentIndex, newPointPosition);
   }
 }

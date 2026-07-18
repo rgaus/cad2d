@@ -9,6 +9,7 @@ import {
   EllipseComponent,
   type Entity,
   FillColorComponent,
+  GeometryComponent,
   type Id,
   Polygon,
   PolygonComponent,
@@ -28,8 +29,8 @@ import {
   closestPointOnSegment,
 } from '@/lib/math';
 import { Intersection } from '@/lib/math';
-import { UndoEntry } from '../history/types';
-import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
+import { UndoEntry } from '@/lib/history/types';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import {
   CubicCurve,
   LineSegment,
@@ -37,8 +38,9 @@ import {
   ScreenPosition,
   SheetPosition,
   ViewportState,
-} from '../viewport/types';
+} from '@/lib/viewport/types';
 import { BaseTool } from './BaseTool';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 
 /** Default pixel threshold for detecting intersection points. */
 const DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX = 16;
@@ -169,11 +171,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
         const allHistoryEvents: Array<UndoEntry> = [];
 
         const targetType = shapeTargets[0].type;
-        let polygon: Entity<PolygonComponent>;
+        let polygon: Entity<GeometryComponent<PolygonData>>;
         switch (targetType) {
           case 'polygon':
-            const found = geometryStore.getByIdWithComponent(id, PolygonComponent);
-            if (!found) {
+            const found = geometryStore.getByIdWithComponent(id, GeometryComponent);
+            if (!found || !GeometryComponent.isPolygon(found)) {
               continue;
             }
             polygon = found;
@@ -213,7 +215,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
         uniqueTargets.sort((a, b) => b.segmentIndex - a.segmentIndex);
 
         for (const target of uniqueTargets) {
-          const result = PolygonComponent.addPointOnEdge(
+          const result = GeometryComponent.addPointOnEdge(
             polygon,
             currentConstraints,
             target.segmentIndex - 1,

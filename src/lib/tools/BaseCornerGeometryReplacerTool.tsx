@@ -7,6 +7,7 @@ import {
   DatumComponent,
   EllipseComponent,
   Entity,
+  GeometryComponent,
   HorizontalConstraint,
   type Id,
   Polygon,
@@ -23,6 +24,7 @@ import { applyKeyPointSnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
 import { BaseTool } from './BaseTool';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 
 export type CornerState =
   | {
@@ -52,20 +54,12 @@ export type CornerReplacementToolEvents = {
   activeCornerChange: (state: CornerState | null) => void;
 };
 
-/**
- * Results from resolveGeometryAndIndices: resolves the polygon geometry and computes
- * center/pointA/pointB indices, handling both direct polygon selection and rectangle
- * shortcut modes. Also migrates any existing constraints attached to the center point
- * to a new datum.
- */
-type PolygonData = PolygonComponent[keyof PolygonComponent];
-
 export type ResolveGeometryAndIndicesResults = {
   /** The ID of the polygon geometry being used. May differ from the input ID if a
    *  rectangle was converted to a polygon. */
   geometryId: Id;
   /** The resolved polygon geometry with PolygonComponent. */
-  polygon: Entity<PolygonComponent>;
+  polygon: Entity<GeometryComponent<PolygonData>>;
   /** The raw polygon data (points array and closed flag) from PolygonComponent.get. */
   polygonData: PolygonData;
   /** Zero-based index of the center (corner) vertex in polygon.points. */
@@ -117,7 +111,7 @@ export type ValidateOffsetResults = {
  */
 type SplitEdgesAtOffsetResults = {
   /** The updated polygon geometry after both edge splits. */
-  geometry: Entity<PolygonComponent>;
+  geometry: Entity<GeometryComponent<PolygonData>>;
   /** Sheet position where the first edge was split (center->pointA side). */
   splitAPos: SheetPosition;
   /** Sheet position where the second edge was split (center->pointB side). */
@@ -663,7 +657,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     const geometryStore = this.getGeometryStore();
 
     let geometryId = pending.geometryId;
-    let geometry: Entity<PolygonComponent>;
+    let geometry: Entity<GeometryComponent<PolygonData>>;
     let polygonData: PolygonData;
     let centerDatumId: Datum['id'] | null = null;
     let centerIndex: number = -1;
@@ -673,16 +667,17 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     let pointBIsAfterCenter: boolean;
     switch (pending.mode) {
       case 'polygon': {
-        geometry = geometryStore.getByIdWithComponent(
+        const result = geometryStore.getByIdWithComponent(
           geometryId,
-          PolygonComponent,
-        ) as Entity<PolygonComponent>;
-        if (!geometry) {
+          GeometryComponent,
+        );
+        if (!result || !GeometryComponent.isPolygon(result)) {
           throw new Error(
             'BaseCornerGeometryReplacerTool.resolveGeometryAndIndices: polygon not found',
           );
         }
-        polygonData = PolygonComponent.get(geometry);
+        geometry = result;
+        polygonData = GeometryComponent.get(geometry);
 
         centerIndex = pending.centerIndex;
         pointAIndex = pending.pointAIndex;
@@ -774,7 +769,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           insertConstraints: false,
         });
         geometryId = geometry.id;
-        polygonData = PolygonComponent.get(geometry);
+        polygonData = GeometryComponent.get(geometry);
 
         // Find all three point indices by position in the new polygon
         for (
@@ -937,7 +932,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
 
     for (const { index, t } of sortedSplits) {
       const currentConstraints = geometryStore.findConstraintsByGeometryId(geometryId);
-      const result = PolygonComponent.addPointOnEdge(geometry, currentConstraints, index, {
+      const result = GeometryComponent.addPointOnEdge(geometry, currentConstraints, index, {
         type: 't',
         t,
       });
@@ -960,7 +955,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     const splitAPos = Vector2.lerp(step2.centerPos, step2.pointAPos, step2.offset / step2.lenA);
     const splitBPos = Vector2.lerp(step2.centerPos, step2.pointBPos, step2.offset / step2.lenB);
 
-    const currentPoints = PolygonComponent.get(geometry).points;
+    const currentPoints = GeometryComponent.get(geometry).points;
     const splitAIdx = this.findPointIndexByPos(currentPoints, splitAPos);
     const splitBIdx = this.findPointIndexByPos(currentPoints, splitBPos);
     const centerIdxFirst = this.findPointIndexByPos(currentPoints, step2.centerPos);
@@ -1038,7 +1033,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     // Compute tangents from polygon edge directions at the split points.
     // The tangent at P0 matches the direction from the previous vertex toward P0;
     // the tangent at P3 matches the direction from P3 toward the next vertex.
-    const pts = PolygonComponent.get(step3.geometry).points;
+    const pts = GeometryComponent.get(step3.geometry).points;
     let p0: SheetPosition;
     let p3: SheetPosition;
     let tStart: SheetPosition;
