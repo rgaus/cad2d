@@ -72,6 +72,7 @@ import CornerOverlay from './CornerOverlay';
 import FitToScreenButton from './FitToScreenButton';
 import { HoverTooltip } from './HoverTooltip';
 import { KeyboardShortcut } from './KeyboardShortcut';
+import { type Filter } from '@/lib/entity/filters';
 
 extend({
   Container,
@@ -299,6 +300,7 @@ export default function ViewportRenderer2D({
     height: number;
   } | null>(null);
   const [geometries, setGeometries] = useState<Array<Geometry>>([]);
+  const [filtersByGeometryId, setFiltersByGeometryId] = useState<Map<Geometry['id'], Array<Filter>>>(new Map());
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
   const [datums, setDatums] = useState<Array<Datum>>([]);
@@ -366,7 +368,14 @@ export default function ViewportRenderer2D({
     geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
 
     const refreshAll = () => {
-      setGeometries(geometryStore.listWithComponents(GeometryComponent, RenderOrderComponent));
+      const geometries = geometryStore.listWithComponents(GeometryComponent, RenderOrderComponent);
+      setGeometries(geometries);
+
+      setFiltersByGeometryId(new Map(geometries.map((geom) => {
+        const filters = geometryStore.findFiltersByGeometryId(geom.id);
+        return [geom.id, filters] as const;
+      })));
+
       setDatums(geometryStore.listWithComponent(DatumComponent));
     };
     geometryStore.on('geometryAdded', refreshAll);
@@ -728,6 +737,7 @@ export default function ViewportRenderer2D({
         mouseScreenPos, // FIXME: break this out into another context, it will change often
         snapHintsVisibility,
         highlightedGeometryId,
+        filtersByGeometryId,
       }) satisfies ViewportContextData,
     [
       sheet,
@@ -736,6 +746,7 @@ export default function ViewportRenderer2D({
       activeTool,
       selectionManager,
       mouseScreenPos,
+      filtersByGeometryId,
     ],
   );
 

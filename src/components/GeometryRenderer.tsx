@@ -1,5 +1,5 @@
 import { EventMode, FederatedPointerEvent, Graphics } from 'pixi.js';
-import { Fragment, useCallback, useMemo } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useClosestPointToSegment } from '@/hooks/useClosestPointToSegment';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
@@ -28,6 +28,8 @@ import { CurveControlPointHandlesSprites } from './CurveControlPointHandlesSprit
 import { CurveEdgeHitDetector } from './CurveEdgeHitDetector';
 import { HandleSprites } from './HandleSprites';
 import { LineSegmentEdgeHitDetector } from './LineSegmentEdgeHitDetector';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { type Filter } from '@/lib/entity/filters';
 
 /** Size of the center corsshairs rendered on ellipses. */
 const CIRCLE_CENTER_MARKER_SIZE_PX = 8;
@@ -418,9 +420,8 @@ const MIN_POLYGON_HIGH_FIDELITY_SIZE_PX = 48;
 const PROXIMITY_EDGE_DETECTOR_RADIUS_PX = 64;
 
 const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geometry }) => {
-  const { activeTool, viewportControls, viewportScale, mouseScreenPos, highlightedGeometryId } =
+  const { activeTool, viewportControls, viewportScale, mouseScreenPos, highlightedGeometryId, filtersByGeometryId } =
     useViewportContext();
-  const geometryData = GeometryComponent.get(geometry);
 
   let fillColor = FillColorComponent.getOptional(geometry);
   let stroke = 0x000000;
@@ -485,7 +486,10 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
     );
   }, [activeTool.type, viewportControls, viewportScale, mouseScreenPos]);
 
-  const renderShapes = useMemo(() => GeometryComponent.getRenderShapes(geometry), [geometry]);
+  const filters = useMemo(() => filtersByGeometryId.get(geometry.id), [filtersByGeometryId, geometry.id]);
+  const renderShapes = useMemo(() => {
+    return GeometryComponent.getRenderShapes(geometry, filters);
+  }, [geometry, filters]);
 
   return (
     <>

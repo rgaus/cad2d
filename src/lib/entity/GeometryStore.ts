@@ -797,6 +797,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return matches;
   }
 
+  /** Returns all filters who are attached to the given geometry id. */
+  findFiltersByGeometryId(geometryId: Geometry['id']): Array<Entity<FilterComponent>> {
+    return this.listWithComponent(FilterComponent).filter((f) => {
+      const data = FilterComponent.get(f);
+      return data.geometryId === geometryId;
+    });
+  }
+
   /** Returns all constraints whose endpoints reference the given geometry ID
    *  (via locked-rectangle, locked-ellipse, or locked-polygon). */
   findConstraintsByGeometryId(geometryId: Id): Array<Entity<ConstraintComponent>> {
