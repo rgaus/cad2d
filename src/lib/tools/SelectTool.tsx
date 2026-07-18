@@ -1887,7 +1887,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         };
 
         // Compute new union bounding box
-        const newUnionBBox = LayoutState.resizeBBox(unionBBox, params);
+        const newUnionBBox = GeometryComponent.resizeBBox(unionBBox, params);
         if (!newUnionBBox) {
           return;
         }

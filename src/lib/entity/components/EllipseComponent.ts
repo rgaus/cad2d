@@ -1,6 +1,7 @@
 import { ellipsePoints } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { Entity, EntityComponent, LayoutState, type ResizeParams } from '../types';
+import { GeometryComponent } from './GeometryComponent';
 
 /**
  * Geometry component containing rendering metadata about an elliptical shaped geometry.
@@ -128,7 +129,7 @@ export namespace EllipseComponent {
       };
     }
 
-    const newBBox = LayoutState.resizeBBox(originalBBox, params);
+    const newBBox = GeometryComponent.resizeBBox(originalBBox, params);
     if (!newBBox) {
       return null;
     }

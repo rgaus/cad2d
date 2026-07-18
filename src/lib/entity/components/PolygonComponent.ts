@@ -33,6 +33,7 @@ import {
 } from '../types';
 import { ConstraintComponent } from './ConstraintComponent';
 import { FillColorComponent } from './FillColorComponent';
+import { GeometryComponent } from './GeometryComponent';
 
 /**
  * Geometry component containing rendering metadata about a polygonal shaped geometry.
@@ -495,7 +496,7 @@ export namespace PolygonComponent {
       originalBBox = BoundingBox.fromPoints(pointsArray);
     }
 
-    const newBBox = LayoutState.resizeBBox(originalBBox, params);
+    const newBBox = GeometryComponent.resizeBBox(originalBBox, params);
     if (!newBBox) {
       return null;
     }
