@@ -4,12 +4,10 @@ import {
   Datum,
   DatumComponent,
   Ellipse,
-  EllipseComponent,
+  GeometryComponent,
   Polygon,
-  PolygonComponent,
   type PolygonSegment,
   Rectangle,
-  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/entity';
 import { DCELShapeIndex } from '@/lib/entity/DCELShapeIndex';
@@ -1088,7 +1086,7 @@ describe('DCELShapeIndex', () => {
         openAtIndex: 0,
         fillColor: null,
       });
-      const polygonData = PolygonComponent.get(polygon);
+      const polygonData = GeometryComponent.get(polygon);
       // Polygon.create returns exactly the points given; any closing duplicate
       // would be added later by closePath(). So we have 4 original points.
       expect(polygonData.points.length).toBeGreaterThanOrEqual(4);
@@ -1171,7 +1169,7 @@ describe('DCELShapeIndex', () => {
       index.addGeometry(polyA);
       index.addGeometry(polyB);
 
-      // pointIndex 2 of polyA → (150, 150) in PolygonComponent.points.
+      // pointIndex 2 of polyA -> (150, 150) in GeometryComponent.get(polyA).points.
       // constraintEndpointToVertexId should resolve to the vertex at (150, 150)
       // despite the reversed vertexIds ordering.
       const refDatum: Datum = {

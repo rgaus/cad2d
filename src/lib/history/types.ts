@@ -13,8 +13,8 @@ import {
 } from '@/lib/entity';
 import { type Length, type SerializedLength, type UnitType } from '@/lib/units/length';
 import type { SheetPosition } from '@/lib/viewport/types';
-import { RectangleData } from '../entity/geometry/rectangle';
 import { EllipseData } from '../entity/geometry/ellipse';
+import { RectangleData } from '../entity/geometry/rectangle';
 
 export type TransactionEntity = {
   type: 'transaction';
@@ -176,7 +176,9 @@ export type RectangleToPolygonEntry<
 };
 
 /** Recorded when an ellipse is converted to a polygon. */
-export type EllipseToPolygonEntry<E extends Entity<GeometryComponent<EllipseData>> = Entity<GeometryComponent<EllipseData>>> = {
+export type EllipseToPolygonEntry<
+  E extends Entity<GeometryComponent<EllipseData>> = Entity<GeometryComponent<EllipseData>>,
+> = {
   type: 'ellipse-to-polygon';
   ellipse: E;
   polygon: Polygon;

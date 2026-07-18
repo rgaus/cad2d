@@ -25,10 +25,7 @@ export namespace ConstraintComponent {
   export function update<
     Data extends ConstraintData = ConstraintData,
     Ent extends Entity<ConstraintComponent<Data>> = Entity<ConstraintComponent<Data>>,
-  >(
-    geometry: Ent,
-    partial: Partial<Data>,
-  ): Ent {
+  >(geometry: Ent, partial: Partial<Data>): Ent {
     const merged = { ...geometry.components.constraint, ...partial } as ConstraintData;
     return {
       ...geometry,

@@ -1,10 +1,10 @@
-import { useCallback } from 'react';
 import { Graphics } from 'pixi.js';
+import { useCallback } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
-import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { SheetPosition } from '@/lib/viewport/types';
 import { useWorkingEllipse } from '@/hooks/useWorkingEllipse';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { SheetPosition } from '@/lib/viewport/types';
 
 /** Render the currently being drawn ellipse, or nothing is no ellipse is being drawn. */
 export const WorkingEllipseRenderer: React.FunctionComponent = () => {
@@ -65,4 +65,3 @@ export const WorkingEllipseRenderer: React.FunctionComponent = () => {
 export const WorkingEllipseLayers: SingleLayers<React.ReactNode> = {
   [RendererLayers.Overlays]: <WorkingEllipseRenderer />,
 };
-

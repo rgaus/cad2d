@@ -1,6 +1,7 @@
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { DatumComponent } from './components/DatumComponent';
 import { EllipseComponent } from './components/EllipseComponent';
+import { GeometryComponent } from './components/GeometryComponent';
 import { PolygonComponent } from './components/PolygonComponent';
 import { RectangleComponent } from './components/RectangleComponent';
 
@@ -75,12 +76,8 @@ export namespace Entity {
     geometry: Entity<DatumComponent>,
   ): ReturnType<typeof DatumComponent.keyPoints>;
   export function keyPoints(geometry: Entity): KeyPoints<SheetPosition, any> {
-    if (Entity.hasComponent(geometry, PolygonComponent)) {
-      return PolygonComponent.keyPoints(geometry);
-    } else if (Entity.hasComponent(geometry, EllipseComponent)) {
-      return EllipseComponent.keyPoints(geometry);
-    } else if (Entity.hasComponent(geometry, RectangleComponent)) {
-      return RectangleComponent.keyPoints(geometry);
+    if (Entity.hasComponent(geometry, GeometryComponent)) {
+      return GeometryComponent.keyPoints(geometry as Entity<GeometryComponent>);
     } else if (Entity.hasComponent(geometry, DatumComponent)) {
       return DatumComponent.keyPoints(geometry);
     }
@@ -92,12 +89,8 @@ export namespace Entity {
   export function boundingBox(geometry: Entity<EllipseComponent>): Rect<SheetPosition>;
   export function boundingBox(geometry: Entity<DatumComponent>): Rect<SheetPosition>;
   export function boundingBox(geometry: Entity): Rect<SheetPosition> {
-    if (Entity.hasComponent(geometry, PolygonComponent)) {
-      return PolygonComponent.boundingBox(geometry);
-    } else if (Entity.hasComponent(geometry, EllipseComponent)) {
-      return EllipseComponent.boundingBox(geometry);
-    } else if (Entity.hasComponent(geometry, RectangleComponent)) {
-      return RectangleComponent.boundingBox(geometry);
+    if (Entity.hasComponent(geometry, GeometryComponent)) {
+      return GeometryComponent.boundingBox(geometry as Entity<GeometryComponent>);
     } else if (Entity.hasComponent(geometry, DatumComponent)) {
       return DatumComponent.boundingBox(geometry);
     }

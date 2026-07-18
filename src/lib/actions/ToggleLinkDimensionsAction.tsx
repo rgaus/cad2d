@@ -1,12 +1,8 @@
 import { Link2 } from 'lucide-react';
 import React from 'react';
-import {
-  EllipseComponent,
-  Entity,
-  LinkDimensionsComponent,
-  PolygonComponent,
-  RectangleComponent,
-} from '@/lib/entity';
+import { Entity, GeometryComponent, LinkDimensionsComponent } from '@/lib/entity';
+import { EllipseData } from '@/lib/entity/geometry/ellipse';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
@@ -27,15 +23,18 @@ export class ToggleLinkDimensionsAction extends BaseAction {
     const selectedIds = this.getSelectionManager().getSelectedIds();
 
     const geometryStore = this.getGeometryStore();
-    const rectangleIds = selectedIds.filter(
-      (id) => geometryStore.getByIdWithComponent(id, RectangleComponent) !== null,
-    );
-    const ellipseIds = selectedIds.filter(
-      (id) => geometryStore.getByIdWithComponent(id, EllipseComponent) !== null,
-    );
-    const polygonIds = selectedIds.filter(
-      (id) => geometryStore.getByIdWithComponent(id, PolygonComponent) !== null,
-    );
+    const rectangleIds = selectedIds.filter((id) => {
+      const g = geometryStore.getByIdWithComponent(id, GeometryComponent);
+      return g !== null && GeometryComponent.get(g).type === 'rectangle';
+    });
+    const ellipseIds = selectedIds.filter((id) => {
+      const g = geometryStore.getByIdWithComponent(id, GeometryComponent);
+      return g !== null && GeometryComponent.get(g).type === 'ellipse';
+    });
+    const polygonIds = selectedIds.filter((id) => {
+      const g = geometryStore.getByIdWithComponent(id, GeometryComponent);
+      return g !== null && GeometryComponent.get(g).type === 'polygon';
+    });
 
     // This should only be enabled if only rectangles / ellipses are selected, disabled otherwise
     const enabled = (rectangleIds.length >= 1 || ellipseIds.length >= 1) && polygonIds.length === 0;
@@ -66,43 +65,50 @@ export class ToggleLinkDimensionsAction extends BaseAction {
           continue;
         }
 
-        if (Entity.hasComponents(geometry, RectangleComponent, LinkDimensionsComponent)) {
-          const newLink = !LinkDimensionsComponent.get(geometry);
-          if (newLink) {
-            const rectangle = RectangleComponent.get(geometry);
-            const w = rectangle.lowerRight.x - rectangle.upperLeft.x;
-            const h = rectangle.lowerRight.y - rectangle.upperLeft.y;
-            const dimension = Math.max(w, h);
-            geometryStore.setLinkDimensions(geometry.id, true);
-            geometryStore.updateById(geometry.id, (old) =>
-              RectangleComponent.update(old as Entity<RectangleComponent>, {
-                lowerRight: new SheetPosition(
-                  rectangle.upperLeft.x + dimension,
-                  rectangle.upperLeft.y + dimension,
-                ),
-              }),
-            );
-          } else {
-            geometryStore.setLinkDimensions(geometry.id, false);
-          }
-          continue;
-        }
+        if (
+          Entity.hasComponent(geometry, GeometryComponent) &&
+          Entity.hasComponent(geometry, LinkDimensionsComponent)
+        ) {
+          const geomData = GeometryComponent.get(geometry as Entity<GeometryComponent>);
 
-        if (Entity.hasComponents(geometry, EllipseComponent, LinkDimensionsComponent)) {
-          const newLink = !LinkDimensionsComponent.get(geometry as any);
-          if (newLink) {
-            const ellipseData = EllipseComponent.get(geometry);
-            geometryStore.setLinkDimensions(geometry.id, true);
-            geometryStore.updateById(geometry.id, (old) =>
-              EllipseComponent.update(old as Entity<EllipseComponent>, {
-                radiusX: ellipseData.radiusX,
-                radiusY: ellipseData.radiusX,
-              }),
-            );
-          } else {
-            geometryStore.setLinkDimensions(geometry.id, false);
+          if (geomData.type === 'rectangle') {
+            const rectData = geomData;
+            const newLink = !LinkDimensionsComponent.get(geometry);
+            if (newLink) {
+              const w = rectData.lowerRight.x - rectData.upperLeft.x;
+              const h = rectData.lowerRight.y - rectData.upperLeft.y;
+              const dimension = Math.max(w, h);
+              geometryStore.setLinkDimensions(geometry.id, true);
+              geometryStore.updateById(geometry.id, (old) =>
+                GeometryComponent.update(old as Entity<GeometryComponent<RectangleData>>, {
+                  lowerRight: new SheetPosition(
+                    rectData.upperLeft.x + dimension,
+                    rectData.upperLeft.y + dimension,
+                  ),
+                }),
+              );
+            } else {
+              geometryStore.setLinkDimensions(geometry.id, false);
+            }
+            continue;
           }
-          continue;
+
+          if (geomData.type === 'ellipse') {
+            const ellipseData = geomData;
+            const newLink = !LinkDimensionsComponent.get(geometry);
+            if (newLink) {
+              geometryStore.setLinkDimensions(geometry.id, true);
+              geometryStore.updateById(geometry.id, (old) =>
+                GeometryComponent.update(old as Entity<GeometryComponent<EllipseData>>, {
+                  radiusX: ellipseData.radiusX,
+                  radiusY: ellipseData.radiusX,
+                }),
+              );
+            } else {
+              geometryStore.setLinkDimensions(geometry.id, false);
+            }
+            continue;
+          }
         }
       }
     });

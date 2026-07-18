@@ -6,12 +6,15 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { ConstraintLayers } from '@/components/ConstraintsRenderer';
 import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
 import { DatumLayers, WorkingDatumLayers } from '@/components/DatumRenderer';
-import { GeometryLayers } from '@/components/GeometryRenderer';
 import { FilterLayers } from '@/components/FilterRenderer';
+import { GeometryLayers } from '@/components/GeometryRenderer';
 import { HandleSprites } from '@/components/HandleSprites';
 import { SelectionBoxOverlay } from '@/components/SelectionBoxOverlay';
 import { SheetRenderer } from '@/components/SheetRenderer';
 import { SnapsHintLayers } from '@/components/SnapHintsLayers';
+import { WorkingEllipseLayers } from '@/components/WorkingEllipseRenderer';
+import { WorkingPolygonLayers } from '@/components/WorkingPolygonRenderer';
+import { WorkingRectangleLayers } from '@/components/WorkingRectangleRenderer';
 import { ViewportContextData, ViewportContextProvider } from '@/contexts/viewport-context';
 import { useDevicePixelRatio } from '@/hooks';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
@@ -71,9 +74,6 @@ import CornerOverlay from './CornerOverlay';
 import FitToScreenButton from './FitToScreenButton';
 import { HoverTooltip } from './HoverTooltip';
 import { KeyboardShortcut } from './KeyboardShortcut';
-import { WorkingPolygonLayers } from '@/components/WorkingPolygonRenderer';
-import { WorkingEllipseLayers } from '@/components/WorkingEllipseRenderer';
-import { WorkingRectangleLayers } from '@/components/WorkingRectangleRenderer';
 
 extend({
   Container,

@@ -1,11 +1,17 @@
 import { useMemo } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
-import { EllipseComponent, type Entity, GeometryComponent, PolygonComponent, RectangleComponent } from '@/lib/entity';
+import { useGeometries } from '@/hooks/useGeoemtries';
+import {
+  EllipseComponent,
+  type Entity,
+  GeometryComponent,
+  PolygonComponent,
+  RectangleComponent,
+} from '@/lib/entity';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SPRITE_SCALE_FACTOR, SnapHintDiamondTexture } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
-import { useGeometries } from '@/hooks/useGeoemtries';
 
 const ShapsHintOverlaps: React.FunctionComponent = () => {
   const { viewportScale, geometryStore, snapHintsVisibility } = useViewportContext();

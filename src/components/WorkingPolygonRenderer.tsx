@@ -3,14 +3,11 @@ import { useViewportContext } from '@/contexts/viewport-context';
 import { useWorkingPolygon } from '@/hooks/useWorkingPolygon';
 import { KeyCombo } from '@/lib/index-mapper';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
-import {
-  IntersectionVertexHandleTexture,
-  VertexHandleTexture,
-} from '@/lib/textures';
+import { IntersectionVertexHandleTexture, VertexHandleTexture } from '@/lib/textures';
 import { PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SheetPosition } from '@/lib/viewport/types';
-import { HandleSprites } from './HandleSprites';
 import { GeometryShapeRenderer, PolygonDecorationsRenderer } from './GeometryRenderer';
+import { HandleSprites } from './HandleSprites';
 
 export const WorkingPolygonRenderer: React.FunctionComponent = () => {
   const { viewportScale, activeTool } = useViewportContext();
@@ -46,7 +43,11 @@ export const WorkingPolygonRenderer: React.FunctionComponent = () => {
 
   return (
     <>
-      <GeometryShapeRenderer type="polygon" segments={workingPolygon.points} viewportScale={viewportScale} />
+      <GeometryShapeRenderer
+        type="polygon"
+        segments={workingPolygon.points}
+        viewportScale={viewportScale}
+      />
 
       <PolygonDecorationsRenderer
         segments={workingPolygon.points}

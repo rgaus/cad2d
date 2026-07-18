@@ -2,13 +2,11 @@ import {
   Datum,
   DatumComponent,
   Ellipse,
-  EllipseComponent,
   FillColorComponent,
+  GeometryComponent,
   type PointSegment,
   Polygon,
-  PolygonComponent,
   Rectangle,
-  RectangleComponent,
 } from '@/lib/entity';
 import { ConstraintComponent } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
@@ -42,9 +40,9 @@ describe('GeometryStore', () => {
           fillColor: null,
         }),
       );
-      expect(store.listWithComponent(PolygonComponent)).toHaveLength(1);
-      expect(store.listWithComponent(PolygonComponent)[0].id).toBe(polygon.id);
-      expect(PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points).toEqual([
+      expect(store.listWithComponent(GeometryComponent)).toHaveLength(1);
+      expect(store.listWithComponent(GeometryComponent)[0].id).toBe(polygon.id);
+      expect(GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points).toEqual([
         makePoint(0, 0),
         makePoint(1, 0),
       ]);
@@ -111,11 +109,13 @@ describe('GeometryStore', () => {
           fillColor: null,
         }),
       );
-      const id = store.listWithComponent(PolygonComponent)[0].id;
-      store.updateByIdWithComponentDirect(id, PolygonComponent, (old) =>
-        PolygonComponent.update(old, { closed: true }),
+      const id = store.listWithComponent(GeometryComponent)[0].id;
+      store.updateByIdWithComponentDirect(id, GeometryComponent, (old) =>
+        GeometryComponent.update(old, { closed: true }),
       );
-      expect(PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).closed).toBe(true);
+      expect(GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).closed).toBe(
+        true,
+      );
     });
 
     it('does nothing for non-existent id', () => {
@@ -127,10 +127,12 @@ describe('GeometryStore', () => {
           fillColor: null,
         }),
       );
-      store.updateByIdWithComponentDirect('nonexistent' as any, PolygonComponent, (old) =>
-        PolygonComponent.update(old, { closed: true }),
+      store.updateByIdWithComponentDirect('nonexistent' as any, GeometryComponent, (old) =>
+        GeometryComponent.update(old, { closed: true }),
       );
-      expect(PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).closed).toBe(false);
+      expect(GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).closed).toBe(
+        false,
+      );
     });
   });
 
@@ -153,7 +155,7 @@ describe('GeometryStore', () => {
         }),
       );
       store.deleteById(polygon.id);
-      expect(store.listWithComponent(PolygonComponent)).toHaveLength(1);
+      expect(store.listWithComponent(GeometryComponent)).toHaveLength(1);
     });
   });
 
@@ -217,13 +219,13 @@ describe('GeometryStore', () => {
           openAtIndex: 0,
         }),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(5);
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[1].point,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[1].point,
       ).toEqual(new SheetPosition(5, 0));
     });
 
@@ -236,13 +238,13 @@ describe('GeometryStore', () => {
           openAtIndex: 0,
         }),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(7, 3));
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[2].point.x,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[2].point.x,
       ).toBeCloseTo(7, 5);
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[2].point.y,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[2].point.y,
       ).toBeCloseTo(3, 5);
     });
 
@@ -255,25 +257,25 @@ describe('GeometryStore', () => {
           openAtIndex: 0,
         }),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[0].point.x,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[0].point.x,
       ).toBeCloseTo(0, 5);
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[0].point.y,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[0].point.y,
       ).toBeCloseTo(0, 5);
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[1].point.x,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[1].point.x,
       ).toBeCloseTo(5, 5);
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[1].point.y,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[1].point.y,
       ).toBeCloseTo(0, 5);
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[2].point.x,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[2].point.x,
       ).toBeCloseTo(10, 5);
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[2].point.y,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[2].point.y,
       ).toBeCloseTo(0, 5);
     });
 
@@ -288,7 +290,7 @@ describe('GeometryStore', () => {
       );
       store.addPointOnLineSegmentEdge('nonexistent' as any, 0, new SheetPosition(5, 0));
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(2);
     });
 
@@ -309,12 +311,12 @@ describe('GeometryStore', () => {
         ),
       );
       store.addPointOnLineSegmentEdge(
-        store.listWithComponent(PolygonComponent)[0].id,
+        store.listWithComponent(GeometryComponent)[0].id,
         0,
         new SheetPosition(5, 0),
       );
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(3);
     });
 
@@ -327,7 +329,7 @@ describe('GeometryStore', () => {
           openAtIndex: 0,
         }),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
       store.addPointOnLineSegmentEdge(polygonId, 1, new SheetPosition(10, 5));
       expect(historyManager.canUndo()).toBe(true);
     });
@@ -341,22 +343,22 @@ describe('GeometryStore', () => {
           openAtIndex: 0,
         }),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
-      const originalPoint = PolygonComponent.get(store.listWithComponent(PolygonComponent)[0])
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
+      const originalPoint = GeometryComponent.get(store.listWithComponent(GeometryComponent)[0])
         .points[0].point;
       store.addPointOnLineSegmentEdge(polygonId, 0, new SheetPosition(5, 0));
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(5);
 
       historyManager.undo();
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(4);
 
       historyManager.redo();
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(5);
     });
 
@@ -370,7 +372,7 @@ describe('GeometryStore', () => {
           openAtIndex: 0,
         }),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
 
       // Add a linear constraint locked to p2 (index 2) and p3 (index 3) — both should shift
       store.add(
@@ -404,7 +406,7 @@ describe('GeometryStore', () => {
           openAtIndex: 0,
         }),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
 
       // Add a constraint locked to p0 (index 0) and p1 (index 1) — before the insertion, should NOT shift
       store.add(
@@ -436,7 +438,7 @@ describe('GeometryStore', () => {
           openAtIndex: 0,
         }),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
 
       store.add(
         ID_PREFIXES.constraint,
@@ -457,16 +459,16 @@ describe('GeometryStore', () => {
 
       // Undo should revert both geometry AND constraints
       historyManager.undo();
-      const polygonAfterUndo = store.listWithComponent(PolygonComponent)[0];
-      expect(PolygonComponent.get(polygonAfterUndo).points).toHaveLength(4);
+      const polygonAfterUndo = store.listWithComponent(GeometryComponent)[0];
+      expect(GeometryComponent.get(polygonAfterUndo).points).toHaveLength(4);
       constraints = store.findConstraintsByGeometryId(polygonId);
       expect((ConstraintComponent.get(constraints[0]).pointA as any).pointIndex).toBe(2);
       expect((ConstraintComponent.get(constraints[0]).pointB as any).pointIndex).toBe(3);
 
       // Redo should restore both
       historyManager.redo();
-      const polygonAfterRedo = store.listWithComponent(PolygonComponent)[0];
-      expect(PolygonComponent.get(polygonAfterRedo).points).toHaveLength(5);
+      const polygonAfterRedo = store.listWithComponent(GeometryComponent)[0];
+      expect(GeometryComponent.get(polygonAfterRedo).points).toHaveLength(5);
       constraints = store.findConstraintsByGeometryId(polygonId);
       expect((ConstraintComponent.get(constraints[0]).pointA as any).pointIndex).toBe(3);
       expect((ConstraintComponent.get(constraints[0]).pointB as any).pointIndex).toBe(4);
@@ -493,19 +495,19 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5);
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(3);
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[0].type,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[0].type,
       ).toBe('point');
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[1].type,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[1].type,
       ).toBe('arc-quadratic');
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[2].type,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[2].type,
       ).toBe('arc-quadratic');
     });
 
@@ -524,7 +526,7 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5);
       expect(historyManager.canUndo()).toBe(true);
     });
@@ -544,20 +546,20 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
       store.addPointOnQuadraticEdge(polygonId, 0, 0.5);
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(3);
 
       historyManager.undo();
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(2);
 
       historyManager.redo();
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(3);
     });
 
@@ -578,7 +580,7 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
 
       // Constraint referencing p2 (index 2) — should shift to index 3 after split
       store.add(
@@ -616,19 +618,19 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5);
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(3);
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[0].type,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[0].type,
       ).toBe('point');
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[1].type,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[1].type,
       ).toBe('arc-cubic');
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points[2].type,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[2].type,
       ).toBe('arc-cubic');
     });
 
@@ -648,7 +650,7 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5);
       expect(historyManager.canUndo()).toBe(true);
     });
@@ -669,20 +671,20 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
       store.addPointOnCubicEdge(polygonId, 0, 0.5);
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(3);
 
       historyManager.undo();
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(2);
 
       historyManager.redo();
       expect(
-        PolygonComponent.get(store.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(3);
     });
 
@@ -704,7 +706,7 @@ describe('GeometryStore', () => {
           { closed: false, openAtIndex: 0, fillColor: null },
         ),
       );
-      const polygonId = store.listWithComponent(PolygonComponent)[0].id;
+      const polygonId = store.listWithComponent(GeometryComponent)[0].id;
 
       // Constraint referencing p2 (index 2) — should shift to index 3 after split
       store.add(
@@ -734,13 +736,13 @@ describe('GeometryStore', () => {
           linkDimensions: false,
         }),
       );
-      expect(store.listWithComponent(RectangleComponent)).toHaveLength(1);
-      expect(store.listWithComponent(RectangleComponent)[0].id).toBe(rectangle.id);
+      expect(store.listWithComponent(GeometryComponent)).toHaveLength(1);
+      expect(store.listWithComponent(GeometryComponent)[0].id).toBe(rectangle.id);
       expect(
-        RectangleComponent.get(store.listWithComponent(RectangleComponent)[0]).upperLeft,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).upperLeft,
       ).toEqual(new SheetPosition(0, 0));
       expect(
-        RectangleComponent.get(store.listWithComponent(RectangleComponent)[0]).lowerRight,
+        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).lowerRight,
       ).toEqual(new SheetPosition(10, 10));
     });
 
@@ -786,13 +788,13 @@ describe('GeometryStore', () => {
           linkDimensions: false,
         }),
       );
-      expect(store.listWithComponent(EllipseComponent)).toHaveLength(1);
-      expect(store.listWithComponent(EllipseComponent)[0].id).toBe(ellipse.id);
-      expect(EllipseComponent.get(store.listWithComponent(EllipseComponent)[0]).center).toEqual(
+      expect(store.listWithComponent(GeometryComponent)).toHaveLength(1);
+      expect(store.listWithComponent(GeometryComponent)[0].id).toBe(ellipse.id);
+      expect(GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).center).toEqual(
         new SheetPosition(5, 5),
       );
-      expect(EllipseComponent.get(store.listWithComponent(EllipseComponent)[0]).radiusX).toBe(5);
-      expect(EllipseComponent.get(store.listWithComponent(EllipseComponent)[0]).radiusY).toBe(3);
+      expect(GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).radiusX).toBe(5);
+      expect(GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).radiusY).toBe(3);
     });
 
     it('generates a stable id for new ellipses', () => {
@@ -889,8 +891,8 @@ describe('GeometryStore', () => {
       store.reconstrain('cm', []);
 
       // The closing duplicate should mirror the first point
-      const afterData = PolygonComponent.get(
-        store.getByIdWithComponent(polygon.id, PolygonComponent)!,
+      const afterData = GeometryComponent.get(
+        store.getByIdWithComponent(polygon.id, GeometryComponent)!,
       );
       const points = afterData.points;
       if (afterData.closed && points.length > 1) {
@@ -917,15 +919,15 @@ describe('GeometryStore', () => {
       );
       store.add(ID_PREFIXES.constraint, constraint);
 
-      const preData = RectangleComponent.get(
-        store.getByIdWithComponent(rect.id, RectangleComponent)!,
+      const preData = GeometryComponent.get(
+        store.getByIdWithComponent(rect.id, GeometryComponent)!,
       );
 
       // reconstrain must complete without error
       expect(() => store.reconstrain('cm', [])).not.toThrow();
 
-      const postData = RectangleComponent.get(
-        store.getByIdWithComponent(rect.id, RectangleComponent)!,
+      const postData = GeometryComponent.get(
+        store.getByIdWithComponent(rect.id, GeometryComponent)!,
       );
       const postUpperRight = new SheetPosition(postData.lowerRight.x, postData.upperLeft.y);
       // The constraint moved the geometry — distance should have changed from its starting value
@@ -961,11 +963,11 @@ describe('GeometryStore', () => {
       // Should complete without error
       expect(() => store.reconstrain('cm', [])).not.toThrow();
 
-      const postAData = RectangleComponent.get(
-        store.getByIdWithComponent(rectA.id, RectangleComponent)!,
+      const postAData = GeometryComponent.get(
+        store.getByIdWithComponent(rectA.id, GeometryComponent)!,
       );
-      const postBData = RectangleComponent.get(
-        store.getByIdWithComponent(rectB.id, RectangleComponent)!,
+      const postBData = GeometryComponent.get(
+        store.getByIdWithComponent(rectB.id, GeometryComponent)!,
       );
       // Both rectangles should still exist (not deleted)
       expect(postAData).toBeDefined();
@@ -993,8 +995,8 @@ describe('GeometryStore', () => {
       store.add(ID_PREFIXES.constraint, constraint);
 
       // Save pre-solve state
-      const preData = RectangleComponent.get(
-        store.getByIdWithComponent(rect.id, RectangleComponent)!,
+      const preData = GeometryComponent.get(
+        store.getByIdWithComponent(rect.id, GeometryComponent)!,
       );
 
       // Run reconstrain
@@ -1004,8 +1006,8 @@ describe('GeometryStore', () => {
       // Undo — geometry should revert to pre-solve state
       historyManager.undo();
 
-      const afterUndo = RectangleComponent.get(
-        store.getByIdWithComponent(rect.id, RectangleComponent)!,
+      const afterUndo = GeometryComponent.get(
+        store.getByIdWithComponent(rect.id, GeometryComponent)!,
       );
       expect(afterUndo.upperLeft.x).toBeCloseTo(preData.upperLeft.x, 2);
       expect(afterUndo.upperLeft.y).toBeCloseTo(preData.upperLeft.y, 2);
@@ -1016,8 +1018,8 @@ describe('GeometryStore', () => {
       expect(historyManager.canRedo()).toBe(true);
       historyManager.redo();
 
-      const afterRedo = RectangleComponent.get(
-        store.getByIdWithComponent(rect.id, RectangleComponent)!,
+      const afterRedo = GeometryComponent.get(
+        store.getByIdWithComponent(rect.id, GeometryComponent)!,
       );
       // After redo, the constraint should have been re-applied (geometry
       // differs from the pre-solve state restored by undo).

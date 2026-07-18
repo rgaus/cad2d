@@ -3,6 +3,7 @@ import { Fragment, useCallback, useMemo } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useClosestPointToSegment } from '@/hooks/useClosestPointToSegment';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
+import { useGeometries } from '@/hooks/useGeoemtries';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { FillColorComponent, GeometryComponent, PolygonSegment } from '@/lib/entity';
 import { type Geometry } from '@/lib/entity/geometry';
@@ -27,7 +28,6 @@ import { CurveControlPointHandlesSprites } from './CurveControlPointHandlesSprit
 import { CurveEdgeHitDetector } from './CurveEdgeHitDetector';
 import { HandleSprites } from './HandleSprites';
 import { LineSegmentEdgeHitDetector } from './LineSegmentEdgeHitDetector';
-import { useGeometries } from '@/hooks/useGeoemtries';
 
 /** Size of the center corsshairs rendered on ellipses. */
 const CIRCLE_CENTER_MARKER_SIZE_PX = 8;
@@ -45,13 +45,29 @@ type GeometryShapeRendererCommonProps = {
 };
 
 type GeometryShapeRendererProps =
-  | (GeometryShapeRendererCommonProps & { type: 'polygon'; segments: Array<PolygonSegment>; closed?: boolean })
-  | (GeometryShapeRendererCommonProps & { type: 'rectangle'; upperLeft: SheetPosition; lowerRight: SheetPosition })
-  | (GeometryShapeRendererCommonProps & { type: 'ellipse'; center: SheetPosition; radiusX: number; radiusY: number; showCenterCrosshairs?: boolean });
+  | (GeometryShapeRendererCommonProps & {
+      type: 'polygon';
+      segments: Array<PolygonSegment>;
+      closed?: boolean;
+    })
+  | (GeometryShapeRendererCommonProps & {
+      type: 'rectangle';
+      upperLeft: SheetPosition;
+      lowerRight: SheetPosition;
+    })
+  | (GeometryShapeRendererCommonProps & {
+      type: 'ellipse';
+      center: SheetPosition;
+      radiusX: number;
+      radiusY: number;
+      showCenterCrosshairs?: boolean;
+    });
 
 /** Renders a polygon, ellipse, or rectangle shape to the screen. Just draws the shape - all other
  * extra ui elements are left to the caller to layer on top. */
-export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendererProps> = (props) => {
+export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendererProps> = (
+  props,
+) => {
   const drawPolygon = useCallback(
     (graphics: Graphics, segments: Array<PolygonSegment>, closed: boolean) => {
       if (segments.length < 2) {
@@ -255,17 +271,15 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
       }
       graphics.stroke();
     },
-    [
-      props.viewportScale,
-      props.fillColor,
-      props.stroke,
-      props.strokeWidth,
-      props.showHintStroke,
-    ],
+    [props.viewportScale, props.fillColor, props.stroke, props.strokeWidth, props.showHintStroke],
   );
 
   const drawEllipse = useCallback(
-    (graphics: Graphics, center: SheetPosition, args: { showCenterCrosshairs?: boolean; radiusX: number; radiusY: number }) => {
+    (
+      graphics: Graphics,
+      center: SheetPosition,
+      args: { showCenterCrosshairs?: boolean; radiusX: number; radiusY: number },
+    ) => {
       graphics.clear();
 
       const centerX = center.x * SHEET_UNITS_TO_PIXELS;
@@ -354,22 +368,29 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
     [props.fillColor, props.stroke, props.strokeWidth, props.viewportScale, props.showHintStroke],
   );
 
-  const draw = useCallback((g: Graphics) => {
-    switch (props.type) {
-      case 'polygon':
-        drawPolygon(g, props.segments, props.closed ?? false);
-        break;
-      case 'ellipse':
-        drawEllipse(g, props.center, { showCenterCrosshairs: props.showCenterCrosshairs, radiusX: props.radiusX, radiusY: props.radiusY });
-        break;
-      case 'rectangle':
-        drawRectangle(g, props.upperLeft, props.lowerRight);
-        break;
-      default:
-        props satisfies never;
-        break;
-    }
-  }, [props, drawPolygon, drawEllipse, drawRectangle]);
+  const draw = useCallback(
+    (g: Graphics) => {
+      switch (props.type) {
+        case 'polygon':
+          drawPolygon(g, props.segments, props.closed ?? false);
+          break;
+        case 'ellipse':
+          drawEllipse(g, props.center, {
+            showCenterCrosshairs: props.showCenterCrosshairs,
+            radiusX: props.radiusX,
+            radiusY: props.radiusY,
+          });
+          break;
+        case 'rectangle':
+          drawRectangle(g, props.upperLeft, props.lowerRight);
+          break;
+        default:
+          props satisfies never;
+          break;
+      }
+    },
+    [props, drawPolygon, drawEllipse, drawRectangle],
+  );
 
   return (
     <pixiGraphics
@@ -691,7 +712,9 @@ function BezierLines({ segments, scale }: { segments: Array<PolygonSegment>; sca
 }
 
 /** Renders visual accessories on top of the polygon, like handles, bezier lines, etc. */
-export const PolygonDecorationsRenderer: React.FunctionComponent<PolygonDecorationsRendererProps> = ({
+export const PolygonDecorationsRenderer: React.FunctionComponent<
+  PolygonDecorationsRendererProps
+> = ({
   segments,
   closed,
   viewportScale,
@@ -741,20 +764,22 @@ const PolygonOverlay: React.FunctionComponent = () => {
 
   const geometries = useGeometries(geometryStore);
   const idPolygonDataPairs = useMemo(
-    () => geometries.flatMap((g) => {
-      const data = GeometryComponent.get(g);
-      if (data.type === 'polygon') {
-        return [[g.id, data] as const];
-      } else {
-        return [];
-      }
-    }),
+    () =>
+      geometries.flatMap((g) => {
+        const data = GeometryComponent.get(g);
+        if (data.type === 'polygon') {
+          return [[g.id, data] as const];
+        } else {
+          return [];
+        }
+      }),
     [geometries],
   );
   const selectedIdPolygonDataPairs = useMemo(
-    () => idPolygonDataPairs.filter(([id, _data]) => {
-      return selectedIds.includes(id);
-    }),
+    () =>
+      idPolygonDataPairs.filter(([id, _data]) => {
+        return selectedIds.includes(id);
+      }),
     [idPolygonDataPairs, selectedIds],
   );
 
@@ -948,8 +973,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
               closed={polygonData.closed}
               viewportScale={viewportScale}
               isDragging={
-                draggingShapeState?.type === 'polygon' &&
-                draggingShapeState.polygonId === id
+                draggingShapeState?.type === 'polygon' && draggingShapeState.polygonId === id
               }
               onVertexEnter={(_e, index) => {
                 if (activeTool.type === 'polygon') {

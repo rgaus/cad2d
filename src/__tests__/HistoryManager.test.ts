@@ -4,6 +4,7 @@ import {
   Ellipse,
   EllipseComponent,
   FillColorComponent,
+  GeometryComponent,
   LinearConstraint,
   LinearConstraintData,
   LinkDimensionsComponent,
@@ -394,7 +395,7 @@ describe('HistoryManager', () => {
         ),
       );
 
-      const beforeSegments = PolygonComponent.get(polygon).points;
+      const beforeSegments = GeometryComponent.get(polygon).points;
       const afterSegments: Array<PolygonSegment> = [
         { type: 'point', point: new SheetPosition(0, 0) },
         { type: 'point', point: new SheetPosition(200, 0) },
@@ -485,7 +486,7 @@ describe('HistoryManager', () => {
         ),
       );
 
-      const beforeSegments = PolygonComponent.get(polygon).points;
+      const beforeSegments = GeometryComponent.get(polygon).points;
       // Double width and height: (0,0)-(200,0)-(200,100)-(0,100)
       const afterSegments: Array<PolygonSegment> = [
         { type: 'point', point: new SheetPosition(0, 0) },
@@ -929,7 +930,7 @@ describe('HistoryManager', () => {
           ),
         );
         const pid = polygon.id;
-        const initialLen = PolygonComponent.get(polygon).points.length;
+        const initialLen = GeometryComponent.get(polygon).points.length;
 
         historyManager.apply(UndoEntry.polygonClose(pid, false, true));
 
@@ -1125,8 +1126,8 @@ describe('HistoryManager', () => {
         historyManager.apply(
           UndoEntry.rectangleMove(
             'rect-1',
-            RectangleComponent.get(before),
-            RectangleComponent.get(after),
+            GeometryComponent.get(before),
+            GeometryComponent.get(after),
           ),
         );
 
@@ -1392,8 +1393,8 @@ describe('HistoryManager', () => {
         historyManager.apply(
           UndoEntry.ellipseMove(
             'ellipse-1',
-            EllipseComponent.get(before),
-            EllipseComponent.get(after),
+            GeometryComponent.get(before),
+            GeometryComponent.get(after),
           ),
         );
 

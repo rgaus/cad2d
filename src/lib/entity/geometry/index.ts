@@ -1,8 +1,8 @@
 import { GeometryComponent } from '../components/GeometryComponent';
 import { Entity } from '../types';
+import { EllipseData } from './ellipse';
 import { PolygonData } from './polygon';
 import { RectangleData } from './rectangle';
-import { EllipseData } from './ellipse';
 
 export type GeometryData = PolygonData | RectangleData | EllipseData;
 

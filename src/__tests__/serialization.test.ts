@@ -2,16 +2,14 @@ import {
   ConstraintComponent,
   type CubicBezierSegment,
   Ellipse,
-  EllipseComponent,
   type Entity,
   FillColorComponent,
+  GeometryComponent,
   LinkDimensionsComponent,
   type PointSegment,
   Polygon,
-  PolygonComponent,
   type QuadraticBezierSegment,
   Rectangle,
-  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/entity';
 import {
@@ -74,8 +72,8 @@ function comparePositions(a: SheetPosition, b: SheetPosition): boolean {
 }
 
 function comparePolygons(a: Polygon, b: Polygon): boolean {
-  const aData = PolygonComponent.get(a);
-  const bData = PolygonComponent.get(b);
+  const aData = GeometryComponent.get(a);
+  const bData = GeometryComponent.get(b);
   if (a.id !== b.id) return false;
   if (aData.closed !== bData.closed) return false;
   if (FillColorComponent.getOptional(a) !== FillColorComponent.getOptional(b)) return false;
@@ -101,8 +99,8 @@ function comparePolygons(a: Polygon, b: Polygon): boolean {
 }
 
 function compareRectangles(a: Rectangle, b: Rectangle): boolean {
-  const aRectangle = RectangleComponent.get(a),
-    bRectangle = RectangleComponent.get(b);
+  const aRectangle = GeometryComponent.get(a),
+    bRectangle = GeometryComponent.get(b);
   if (!comparePositions(aRectangle.upperLeft, bRectangle.upperLeft)) return false;
   if (!comparePositions(aRectangle.lowerRight, bRectangle.lowerRight)) return false;
   if (FillColorComponent.get(a) !== FillColorComponent.get(b)) return false;
@@ -111,8 +109,8 @@ function compareRectangles(a: Rectangle, b: Rectangle): boolean {
 }
 
 function compareEllipses(a: Ellipse, b: Ellipse): boolean {
-  const aEllipse = EllipseComponent.get(a),
-    bEllipse = EllipseComponent.get(b);
+  const aEllipse = GeometryComponent.get(a),
+    bEllipse = GeometryComponent.get(b);
   if (!comparePositions(aEllipse.center, bEllipse.center)) return false;
   if (Math.abs(aEllipse.radiusX - bEllipse.radiusX) > 0.001) return false;
   if (Math.abs(aEllipse.radiusY - bEllipse.radiusY) > 0.001) return false;
@@ -253,22 +251,22 @@ describe('parseSvg', () => {
       expect(result.polygons).toHaveLength(1);
       const poly = result.polygons[0];
       expect(poly.id).toBe('p1');
-      expect(PolygonComponent.get(poly).closed).toBe(true);
+      expect(GeometryComponent.get(poly).closed).toBe(true);
       expect(FillColorComponent.getOptional(poly)).toBeNull();
-      expect(PolygonComponent.get(poly).openAtIndex).toBe(0);
-      expect(PolygonComponent.get(poly).points).toHaveLength(4);
-      expect(PolygonComponent.get(poly).points[0].type).toBe('point');
+      expect(GeometryComponent.get(poly).openAtIndex).toBe(0);
+      expect(GeometryComponent.get(poly).points).toHaveLength(4);
+      expect(GeometryComponent.get(poly).points[0].type).toBe('point');
       expect(
-        comparePositions(PolygonComponent.get(poly).points[0].point, new SheetPosition(0, 0)),
+        comparePositions(GeometryComponent.get(poly).points[0].point, new SheetPosition(0, 0)),
       ).toBe(true);
       expect(
-        comparePositions(PolygonComponent.get(poly).points[1].point, new SheetPosition(1, 0)),
+        comparePositions(GeometryComponent.get(poly).points[1].point, new SheetPosition(1, 0)),
       ).toBe(true);
       expect(
-        comparePositions(PolygonComponent.get(poly).points[2].point, new SheetPosition(1, 1)),
+        comparePositions(GeometryComponent.get(poly).points[2].point, new SheetPosition(1, 1)),
       ).toBe(true);
       expect(
-        comparePositions(PolygonComponent.get(poly).points[3].point, new SheetPosition(0, 1)),
+        comparePositions(GeometryComponent.get(poly).points[3].point, new SheetPosition(0, 1)),
       ).toBe(true);
     });
 
@@ -280,25 +278,25 @@ describe('parseSvg', () => {
       expect(result.polygons).toHaveLength(1);
       const poly = result.polygons[0];
       expect(poly.id).toBe('p1');
-      expect(PolygonComponent.get(poly).closed).toBe(true);
+      expect(GeometryComponent.get(poly).closed).toBe(true);
       expect(FillColorComponent.getOptional(poly)).toBeNull();
-      expect(PolygonComponent.get(poly).openAtIndex).toBe(0);
-      expect(PolygonComponent.get(poly).points).toHaveLength(5);
-      expect(PolygonComponent.get(poly).points[0].type).toBe('point');
+      expect(GeometryComponent.get(poly).openAtIndex).toBe(0);
+      expect(GeometryComponent.get(poly).points).toHaveLength(5);
+      expect(GeometryComponent.get(poly).points[0].type).toBe('point');
       expect(
-        comparePositions(PolygonComponent.get(poly).points[0].point, new SheetPosition(0, 0)),
+        comparePositions(GeometryComponent.get(poly).points[0].point, new SheetPosition(0, 0)),
       ).toBe(true);
       expect(
-        comparePositions(PolygonComponent.get(poly).points[1].point, new SheetPosition(1, 0)),
+        comparePositions(GeometryComponent.get(poly).points[1].point, new SheetPosition(1, 0)),
       ).toBe(true);
       expect(
-        comparePositions(PolygonComponent.get(poly).points[2].point, new SheetPosition(1, 1)),
+        comparePositions(GeometryComponent.get(poly).points[2].point, new SheetPosition(1, 1)),
       ).toBe(true);
       expect(
-        comparePositions(PolygonComponent.get(poly).points[3].point, new SheetPosition(0, 1)),
+        comparePositions(GeometryComponent.get(poly).points[3].point, new SheetPosition(0, 1)),
       ).toBe(true);
       expect(
-        comparePositions(PolygonComponent.get(poly).points[4].point, new SheetPosition(0, 0)),
+        comparePositions(GeometryComponent.get(poly).points[4].point, new SheetPosition(0, 0)),
       ).toBe(true);
     });
 
@@ -308,7 +306,7 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
-      const poly = PolygonComponent.get(result.polygons[0]);
+      const poly = GeometryComponent.get(result.polygons[0]);
       expect(poly.closed).toBe(false);
       expect(poly.points).toHaveLength(3);
     });
@@ -319,7 +317,7 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
-      expect(PolygonComponent.get(result.polygons[0]).points).toHaveLength(2);
+      expect(GeometryComponent.get(result.polygons[0]).points).toHaveLength(2);
     });
 
     it('parses 2-point path with Z at end as non closed', () => {
@@ -328,8 +326,8 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
-      expect(PolygonComponent.get(result.polygons[0]).points).toHaveLength(2);
-      expect(PolygonComponent.get(result.polygons[0]).closed).toBe(false);
+      expect(GeometryComponent.get(result.polygons[0]).points).toHaveLength(2);
+      expect(GeometryComponent.get(result.polygons[0]).closed).toBe(false);
     });
 
     it('rejects 1-point path', () => {
@@ -363,7 +361,7 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
-      const poly = PolygonComponent.get(result.polygons[0]);
+      const poly = GeometryComponent.get(result.polygons[0]);
       expect(poly.points).toHaveLength(5);
       expect(comparePositions(poly.points[0].point, new SheetPosition(0, 0))).toBe(true);
       expect(comparePositions(poly.points[1].point, new SheetPosition(1, 0))).toBe(true);
@@ -377,7 +375,7 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
-      const poly = PolygonComponent.get(result.polygons[0]);
+      const poly = GeometryComponent.get(result.polygons[0]);
       expect(poly.points).toHaveLength(5);
       expect(comparePositions(poly.points[0].point, new SheetPosition(0, 0))).toBe(true);
       expect(comparePositions(poly.points[1].point, new SheetPosition(1, 0))).toBe(true);
@@ -391,7 +389,7 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
-      const poly = PolygonComponent.get(result.polygons[0]);
+      const poly = GeometryComponent.get(result.polygons[0]);
       expect(poly.points).toHaveLength(5);
       expect(comparePositions(poly.points[0].point, new SheetPosition(0, 0))).toBe(true);
       expect(comparePositions(poly.points[1].point, new SheetPosition(1, 0))).toBe(true);
@@ -407,7 +405,7 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
-      const poly = PolygonComponent.get(result.polygons[0]);
+      const poly = GeometryComponent.get(result.polygons[0]);
       expect(poly.points).toHaveLength(5);
       expect(poly.points[0].type).toBe('point');
       expect(poly.points[1].type).toBe('arc-quadratic');
@@ -422,7 +420,7 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
-      const poly = PolygonComponent.get(result.polygons[0]);
+      const poly = GeometryComponent.get(result.polygons[0]);
       expect(poly.points[1].type).toBe('arc-cubic');
       const arcSeg = poly.points[1] as CubicBezierSegment;
       expect(comparePositions(arcSeg.point, new SheetPosition(1, 0))).toBe(true);
@@ -439,13 +437,13 @@ describe('parseSvg', () => {
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
       const poly = result.polygons[0];
-      expect(PolygonComponent.get(poly).closed).toBe(true);
-      expect(PolygonComponent.get(poly).openAtIndex).toBe(2);
+      expect(GeometryComponent.get(poly).closed).toBe(true);
+      expect(GeometryComponent.get(poly).openAtIndex).toBe(2);
       expect(FillColorComponent.getOptional(poly)).toBe(0x00ff00);
       // Should have duplicated first point at end
-      expect(PolygonComponent.get(poly).points).toHaveLength(5);
+      expect(GeometryComponent.get(poly).points).toHaveLength(5);
       expect(
-        comparePositions(PolygonComponent.get(poly).points[4].point, new SheetPosition(0, 0)),
+        comparePositions(GeometryComponent.get(poly).points[4].point, new SheetPosition(0, 0)),
       ).toBe(true);
     });
 
@@ -463,7 +461,7 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(1);
-      const poly = PolygonComponent.get(result.polygons[0]);
+      const poly = GeometryComponent.get(result.polygons[0]);
       expect(poly.points).toHaveLength(4); // 3 + duplicate
       expect(
         comparePositions(
@@ -483,11 +481,11 @@ describe('parseSvg', () => {
       expect(result.rectangles).toHaveLength(1);
       const rect = result.rectangles[0];
       expect(rect.id).toBe('r1');
+      expect(comparePositions(GeometryComponent.get(rect).upperLeft, new SheetPosition(0, 0))).toBe(
+        true,
+      );
       expect(
-        comparePositions(RectangleComponent.get(rect).upperLeft, new SheetPosition(0, 0)),
-      ).toBe(true);
-      expect(
-        comparePositions(RectangleComponent.get(rect).lowerRight, new SheetPosition(1, 0.5)),
+        comparePositions(GeometryComponent.get(rect).lowerRight, new SheetPosition(1, 0.5)),
       ).toBe(true);
       expect(FillColorComponent.get(rect)).toBe(0xff0000);
       expect(LinkDimensionsComponent.get(rect)).toBe(true);
@@ -529,10 +527,10 @@ describe('parseSvg', () => {
       const ellipse = result.ellipses[0];
       expect(ellipse.id).toBe('e1');
       expect(
-        comparePositions(EllipseComponent.get(ellipse).center, new SheetPosition(0.5, 0.5)),
+        comparePositions(GeometryComponent.get(ellipse).center, new SheetPosition(0.5, 0.5)),
       ).toBe(true);
-      expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(1, 3);
-      expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(0.5, 3);
+      expect(GeometryComponent.get(ellipse).radiusX).toBeCloseTo(1, 3);
+      expect(GeometryComponent.get(ellipse).radiusY).toBeCloseTo(0.5, 3);
       expect(FillColorComponent.get(ellipse)).toBe(0x0000ff);
       expect(LinkDimensionsComponent.get(ellipse)).toBe(false);
     });
@@ -1177,7 +1175,7 @@ describe('round-trip', () => {
       0,
     );
 
-    const original = geometryStore.listWithComponent(PolygonComponent)[0] as Polygon;
+    const original = geometryStore.listWithComponent(GeometryComponent)[0] as unknown as Polygon;
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
@@ -1204,8 +1202,8 @@ describe('round-trip', () => {
     const result = parseSvg(svg, generateStableId);
 
     expect(result.polygons).toHaveLength(1);
-    expect(PolygonComponent.get(result.polygons[0]).closed).toBe(false);
-    expect(PolygonComponent.get(result.polygons[0]).points).toHaveLength(3);
+    expect(GeometryComponent.get(result.polygons[0]).closed).toBe(false);
+    expect(GeometryComponent.get(result.polygons[0]).points).toHaveLength(3);
   });
 
   it('polygon with quadratic arc preserves arc type', () => {
@@ -1230,8 +1228,8 @@ describe('round-trip', () => {
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
-    expect(PolygonComponent.get(result.polygons[0]).points[1].type).toBe('arc-quadratic');
-    const arcSeg = PolygonComponent.get(result.polygons[0]).points[1] as QuadraticBezierSegment;
+    expect(GeometryComponent.get(result.polygons[0]).points[1].type).toBe('arc-quadratic');
+    const arcSeg = GeometryComponent.get(result.polygons[0]).points[1] as QuadraticBezierSegment;
     expect(comparePositions(arcSeg.point, new SheetPosition(1, 0))).toBe(true);
     expect(comparePositions(arcSeg.controlPoint, new SheetPosition(0.5, 1))).toBe(true);
   });
@@ -1259,8 +1257,8 @@ describe('round-trip', () => {
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
-    expect(PolygonComponent.get(result.polygons[0]).points[1].type).toBe('arc-cubic');
-    const arcSeg = PolygonComponent.get(result.polygons[0]).points[1] as CubicBezierSegment;
+    expect(GeometryComponent.get(result.polygons[0]).points[1].type).toBe('arc-cubic');
+    const arcSeg = GeometryComponent.get(result.polygons[0]).points[1] as CubicBezierSegment;
     expect(comparePositions(arcSeg.controlPointA, new SheetPosition(0.25, 1))).toBe(true);
     expect(comparePositions(arcSeg.controlPointB, new SheetPosition(0.75, 1))).toBe(true);
   });
@@ -1276,8 +1274,8 @@ describe('round-trip', () => {
     );
 
     const original = Array.from(
-      geometryStore.listWithComponent(RectangleComponent),
-    )[0] as Rectangle;
+      geometryStore.listWithComponent(GeometryComponent),
+    )[0] as unknown as Rectangle;
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
 
@@ -1298,7 +1296,7 @@ describe('round-trip', () => {
     );
 
     const original = Array.from(
-      geometryStore.listWithComponent(EllipseComponent),
+      geometryStore.listWithComponent(GeometryComponent),
     )[0] as unknown as Ellipse;
     const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
     const result = parseSvg(svg, generateStableId);
@@ -1438,7 +1436,7 @@ describe('round-trip', () => {
     // Closed polygons duplicate the first point at the end of the array
     expect(result.polygons).toHaveLength(1);
     expect(result.polygons[0].id).toStrictEqual(polygon.id);
-    const polygonData = PolygonComponent.get(result.polygons[0]);
+    const polygonData = GeometryComponent.get(result.polygons[0]);
     expect(polygonData.closed).toBe(true);
     expect(polygonData.points).toHaveLength(5);
     expect(polygonData.points[0].point.x).toBeCloseTo(0, 5);
@@ -1817,23 +1815,7 @@ describe('round-trip', () => {
 
     // Collect all original IDs
     const originalGeometryIds = new Set<string>();
-    for (const g of geometryStore.listWithComponents(PolygonComponent, RenderOrderComponent)) {
-      originalGeometryIds.add(g.id);
-    }
-    for (const g of geometryStore.listWithComponents(
-      RectangleComponent,
-      FillColorComponent,
-      LinkDimensionsComponent,
-      RenderOrderComponent,
-    )) {
-      originalGeometryIds.add(g.id);
-    }
-    for (const g of geometryStore.listWithComponents(
-      EllipseComponent,
-      FillColorComponent,
-      LinkDimensionsComponent,
-      RenderOrderComponent,
-    )) {
+    for (const g of geometryStore.listWithComponent(GeometryComponent)) {
       originalGeometryIds.add(g.id);
     }
     const originalConstraintIds = new Set(
@@ -1946,14 +1928,14 @@ describe('round-trip', () => {
     expect(fcData.constrainedLength.magnitude).toBeCloseTo(3, 5);
 
     // Geometry data should be preserved (positions, shapes, fill colors)
-    const parsedPolyData = PolygonComponent.get(result.polygons[0]);
+    const parsedPolyData = GeometryComponent.get(result.polygons[0]);
     expect(parsedPolyData.closed).toBe(true);
     expect(parsedPolyData.points).toHaveLength(5);
     expect(parsedPolyData.points[0].point.x).toBeCloseTo(0, 5);
     expect(parsedPolyData.points[0].point.y).toBeCloseTo(0, 5);
     expect(FillColorComponent.getOptional(result.polygons[0])).toBe(0xff0000);
 
-    const parsedRectData = RectangleComponent.get(result.rectangles[0]);
+    const parsedRectData = GeometryComponent.get(result.rectangles[0]);
     expect(parsedRectData.upperLeft.x).toBeCloseTo(0, 5);
     expect(parsedRectData.upperLeft.y).toBeCloseTo(0, 5);
     expect(parsedRectData.lowerRight.x).toBeCloseTo(1, 5);
@@ -1961,7 +1943,7 @@ describe('round-trip', () => {
     expect(FillColorComponent.get(result.rectangles[0])).toBe(0x00ff00);
     expect(LinkDimensionsComponent.get(result.rectangles[0])).toBe(true);
 
-    const parsedEllipseData = EllipseComponent.get(result.ellipses[0]);
+    const parsedEllipseData = GeometryComponent.get(result.ellipses[0]);
     expect(parsedEllipseData.center.x).toBeCloseTo(3, 5);
     expect(parsedEllipseData.center.y).toBeCloseTo(3, 5);
     expect(parsedEllipseData.radiusX).toBeCloseTo(0.5, 5);

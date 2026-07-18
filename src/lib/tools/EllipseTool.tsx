@@ -1,10 +1,10 @@
 import { EllipseIcon } from 'lucide-react';
-import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
-} from '@/lib/entity/constraints';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { Ellipse } from '@/lib/entity/ellipse';
 import { applySnapping } from '@/lib/snapping';
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';

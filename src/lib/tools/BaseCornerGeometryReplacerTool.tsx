@@ -5,18 +5,17 @@ import {
   ConstraintEndpoint,
   Datum,
   DatumComponent,
-  EllipseComponent,
   Entity,
   GeometryComponent,
   HorizontalConstraint,
   type Id,
   Polygon,
-  PolygonComponent,
-  RectangleComponent,
   VerticalConstraint,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { FilletFilter } from '@/lib/entity/filters';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { PolygonSegment } from '@/lib/entity/polygon';
 import { type RectangleEndpoint } from '@/lib/entity/rectangle';
 import { Vector2 } from '@/lib/math';
@@ -24,7 +23,6 @@ import { applyKeyPointSnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
 import { BaseTool } from './BaseTool';
-import { PolygonData } from '@/lib/entity/geometry/polygon';
 
 export type CornerState =
   | {
@@ -667,10 +665,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     let pointBIsAfterCenter: boolean;
     switch (pending.mode) {
       case 'polygon': {
-        const result = geometryStore.getByIdWithComponent(
-          geometryId,
-          GeometryComponent,
-        );
+        const result = geometryStore.getByIdWithComponent(geometryId, GeometryComponent);
         if (!result || !GeometryComponent.isPolygon(result)) {
           throw new Error(
             'BaseCornerGeometryReplacerTool.resolveGeometryAndIndices: polygon not found',

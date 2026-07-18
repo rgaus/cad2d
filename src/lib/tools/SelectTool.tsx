@@ -10,6 +10,7 @@ import {
   Entity,
   EntityOmitComponents,
   FillColorComponent,
+  GeometryComponent,
   type Id,
   LayoutState,
   LinkDimensionsComponent,
@@ -32,6 +33,9 @@ import {
   ConstraintEndpoint,
 } from '@/lib/entity/constraints';
 import { Filter, FilterData } from '@/lib/entity/filters';
+import { EllipseData } from '@/lib/entity/geometry/ellipse';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { UndoEntry } from '@/lib/history/types';
 import {
   BoundingBox,
@@ -455,10 +459,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     let minDist = Infinity;
 
     for (const id of selectedIds) {
-      const polygon = this.getGeometryStore().getByIdWithComponent(id, PolygonComponent);
-      if (!polygon) continue;
+      const geom = this.getGeometryStore().getByIdWithComponent(id, GeometryComponent);
+      if (!geom || !GeometryComponent.isPolygon(geom)) continue;
 
-      const polygonData = PolygonComponent.get(polygon);
+      const polygonData = GeometryComponent.get(geom);
       const pointCount = polygonData.points.length;
       if (pointCount < 2) continue;
 
@@ -519,14 +523,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     polygonId: Id,
     segmentIndex: number,
   ) {
-    const polygon = this.getGeometryStore().getByIdWithComponent(polygonId, PolygonComponent);
-    if (!polygon) {
+    const polygonGeom = this.getGeometryStore().getByIdWithComponent(polygonId, GeometryComponent);
+    if (!polygonGeom || !GeometryComponent.isPolygon(polygonGeom)) {
       return;
     }
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
-    const polygonData = PolygonComponent.get(polygon);
+    const polygonData = GeometryComponent.get(polygonGeom);
     const beforePoint = polygonData.points[segmentIndex].point;
 
     this.draggingPolygonId = polygonId;
@@ -542,14 +546,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const matchingPoints = this.getGeometryStore().findMatchingPoints(beforePoint, polygonId);
     for (const match of matchingPoints) {
       this.lockedPoints.push({ polygonId: match.polygonId, segmentIndex: match.segmentIndex });
-      const otherPolygon = this.getGeometryStore().getByIdWithComponent(
+      const otherGeom = this.getGeometryStore().getByIdWithComponent(
         match.polygonId,
-        PolygonComponent,
+        GeometryComponent,
       );
-      if (otherPolygon) {
+      if (otherGeom && GeometryComponent.isPolygon(otherGeom)) {
         this.originalLockedPolygonStates.set(
           match.polygonId,
-          PolygonComponent.get(otherPolygon).points.slice(),
+          GeometryComponent.get(otherGeom).points.slice(),
         );
       }
     }
@@ -597,33 +601,32 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           this.getSheet()?.epsilon ?? 0.001,
         );
 
-        this.getGeometryStore().updateByIdWithComponentDirect(
-          this.draggingPolygonId,
-          PolygonComponent,
-          (prev) => {
-            const prevData = PolygonComponent.get(prev);
-            const points = prevData.points.slice();
-            const isFirstPointAndAtSamePositionAslastPoint =
-              this.draggingSegmentIndex === 0 &&
-              points.at(-1)?.point.x === points[0].point.x &&
-              points.at(-1)?.point.y === points[0].point.y;
+        this.getGeometryStore().updateByIdDirect(this.draggingPolygonId, (prev) => {
+          if (!Entity.hasComponent(prev, GeometryComponent) || !GeometryComponent.isPolygon(prev)) {
+            return prev;
+          }
+          const prevData = GeometryComponent.get(prev);
+          const points = prevData.points.slice();
+          const isFirstPointAndAtSamePositionAslastPoint =
+            this.draggingSegmentIndex === 0 &&
+            points.at(-1)?.point.x === points[0].point.x &&
+            points.at(-1)?.point.y === points[0].point.y;
 
-            points[this.draggingSegmentIndex] = {
-              ...points[this.draggingSegmentIndex],
-              point: snapped,
-            };
+          points[this.draggingSegmentIndex] = {
+            ...points[this.draggingSegmentIndex],
+            point: snapped,
+          };
 
-            // If dragging the furst point, also drag the last point too, if the last point is at the
-            // same position. This ensures that the first point of closed polygons (which have a final
-            // point at the same position as the first point) can be moved properly without the last
-            // point getting "stuck.
-            if (isFirstPointAndAtSamePositionAslastPoint) {
-              points[points.length - 1] = { ...points[points.length - 1], point: snapped };
-            }
+          // If dragging the furst point, also drag the last point too, if the last point is at the
+          // same position. This ensures that the first point of closed polygons (which have a final
+          // point at the same position as the first point) can be moved properly without the last
+          // point getting "stuck.
+          if (isFirstPointAndAtSamePositionAslastPoint) {
+            points[points.length - 1] = { ...points[points.length - 1], point: snapped };
+          }
 
-            return PolygonComponent.update(prev, { ...prevData, points });
-          },
-        );
+          return GeometryComponent.update(prev, { points }) as Entity;
+        });
 
         // Move points which are at the same position in the same way as the selected polygon.
         for (const locked of this.lockedPoints) {
@@ -631,29 +634,31 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             continue;
           }
 
-          this.getGeometryStore().updateByIdWithComponentDirect(
-            locked.polygonId,
-            PolygonComponent,
-            (prev) => {
-              const prevData = PolygonComponent.get(prev);
-              const points = prevData.points.slice();
-              const isFirstPointAndAtSamePositionAsLastPoint =
-                locked.segmentIndex === 0 &&
-                points.at(-1)?.point.x === points[0].point.x &&
-                points.at(-1)?.point.y === points[0].point.y;
+          this.getGeometryStore().updateByIdDirect(locked.polygonId, (prev) => {
+            if (
+              !Entity.hasComponent(prev, GeometryComponent) ||
+              !GeometryComponent.isPolygon(prev)
+            ) {
+              return prev;
+            }
+            const prevData = GeometryComponent.get(prev);
+            const points = prevData.points.slice();
+            const isFirstPointAndAtSamePositionAsLastPoint =
+              locked.segmentIndex === 0 &&
+              points.at(-1)?.point.x === points[0].point.x &&
+              points.at(-1)?.point.y === points[0].point.y;
 
-              points[locked.segmentIndex] = {
-                ...points[locked.segmentIndex],
-                point: snapped,
-              };
+            points[locked.segmentIndex] = {
+              ...points[locked.segmentIndex],
+              point: snapped,
+            };
 
-              if (isFirstPointAndAtSamePositionAsLastPoint) {
-                points[points.length - 1] = { ...points[points.length - 1], point: snapped };
-              }
+            if (isFirstPointAndAtSamePositionAsLastPoint) {
+              points[points.length - 1] = { ...points[points.length - 1], point: snapped };
+            }
 
-              return PolygonComponent.update(prev, { ...prevData, points });
-            },
-          );
+            return GeometryComponent.update(prev, { points }) as Entity;
+          });
         }
       },
       onCommit: (sp) => {
@@ -681,10 +686,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
           const mainPolygon = this.getGeometryStore().getByIdWithComponent(
             this.draggingPolygonId,
-            PolygonComponent,
+            GeometryComponent,
           );
-          if (mainPolygon && this.draggingSegmentIndex === 0) {
-            const mainPolygonData = PolygonComponent.get(mainPolygon);
+          if (
+            mainPolygon &&
+            GeometryComponent.isPolygon(mainPolygon) &&
+            this.draggingSegmentIndex === 0
+          ) {
+            const mainPolygonData = GeometryComponent.get(mainPolygon);
             const isFirstPointAndAtSamePositionAsLastPoint =
               mainPolygonData.points.at(-1)?.point.x === beforePoint.x &&
               mainPolygonData.points.at(-1)?.point.y === beforePoint.y;
@@ -750,15 +759,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.originalPolygonState) {
-          this.getGeometryStore().updateByIdWithComponentDirect(
-            this.draggingPolygonId,
-            PolygonComponent,
-            (prev) => {
-              return PolygonComponent.update(prev, {
-                points: this.originalPolygonState!.points.slice(),
-              });
-            },
-          );
+          this.getGeometryStore().updateByIdDirect(this.draggingPolygonId, (prev) => {
+            if (
+              !Entity.hasComponent(prev, GeometryComponent) ||
+              !GeometryComponent.isPolygon(prev)
+            ) {
+              return prev;
+            }
+            return GeometryComponent.update(prev, {
+              points: this.originalPolygonState!.points.slice(),
+            }) as Entity;
+          });
         }
 
         for (const locked of this.lockedPoints) {
@@ -767,13 +778,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
           const originalState = this.originalLockedPolygonStates.get(locked.polygonId);
           if (originalState) {
-            this.getGeometryStore().updateByIdWithComponentDirect(
-              locked.polygonId,
-              PolygonComponent,
-              (prev) => {
-                return PolygonComponent.update(prev, { points: originalState.slice() });
-              },
-            );
+            this.getGeometryStore().updateByIdDirect(locked.polygonId, (prev) => {
+              if (
+                !Entity.hasComponent(prev, GeometryComponent) ||
+                !GeometryComponent.isPolygon(prev)
+              ) {
+                return prev;
+              }
+              return GeometryComponent.update(prev, { points: originalState.slice() }) as Entity;
+            });
           }
         }
 
@@ -791,14 +804,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     segmentIndex: number,
     pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB',
   ): void {
-    const polygon = this.getGeometryStore().getByIdWithComponent(polygonId, PolygonComponent);
-    if (!polygon) {
+    const geom = this.getGeometryStore().getByIdWithComponent(polygonId, GeometryComponent);
+    if (!geom || !GeometryComponent.isPolygon(geom)) {
       return;
     }
 
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
-    const ctrlPolygonData = PolygonComponent.get(polygon);
+    const ctrlPolygonData = GeometryComponent.get(geom);
     let beforePoint: SheetPosition;
     if (pointKey === 'controlPoint') {
       beforePoint = (ctrlPolygonData.points[segmentIndex] as QuadraticBezierSegment).controlPoint;
@@ -830,22 +843,21 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           superHeld: false,
         });
 
-        this.getGeometryStore().updateByIdWithComponentDirect(
-          this.draggingPolygonId,
-          PolygonComponent,
-          (prev) => {
-            const prevData = PolygonComponent.get(prev);
-            const segments = prevData.points.slice();
-            if (this.draggingPointKey === 'controlPoint') {
-              const seg = segments[this.draggingSegmentIndex] as QuadraticBezierSegment;
-              segments[this.draggingSegmentIndex] = { ...seg, controlPoint: snapped };
-            } else {
-              const seg = segments[this.draggingSegmentIndex] as CubicBezierSegment;
-              segments[this.draggingSegmentIndex] = { ...seg, [this.draggingPointKey]: snapped };
-            }
-            return PolygonComponent.update(prev, { ...prevData, points: segments });
-          },
-        );
+        this.getGeometryStore().updateByIdDirect(this.draggingPolygonId, (prev) => {
+          if (!Entity.hasComponent(prev, GeometryComponent) || !GeometryComponent.isPolygon(prev)) {
+            return prev;
+          }
+          const prevData = GeometryComponent.get(prev);
+          const segments = prevData.points.slice();
+          if (this.draggingPointKey === 'controlPoint') {
+            const seg = segments[this.draggingSegmentIndex] as QuadraticBezierSegment;
+            segments[this.draggingSegmentIndex] = { ...seg, controlPoint: snapped };
+          } else {
+            const seg = segments[this.draggingSegmentIndex] as CubicBezierSegment;
+            segments[this.draggingSegmentIndex] = { ...seg, [this.draggingPointKey]: snapped };
+          }
+          return GeometryComponent.update(prev, { points: segments }) as Entity;
+        });
       },
       onCommit: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
@@ -870,15 +882,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.originalPolygonState) {
-          this.getGeometryStore().updateByIdWithComponentDirect(
-            this.draggingPolygonId,
-            PolygonComponent,
-            (prev) => {
-              return PolygonComponent.update(prev, {
-                points: this.originalPolygonState!.points.slice(),
-              });
-            },
-          );
+          this.getGeometryStore().updateByIdDirect(this.draggingPolygonId, (prev) => {
+            if (
+              !Entity.hasComponent(prev, GeometryComponent) ||
+              !GeometryComponent.isPolygon(prev)
+            ) {
+              return prev;
+            }
+            return GeometryComponent.update(prev, {
+              points: this.originalPolygonState!.points.slice(),
+            }) as Entity;
+          });
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -1595,30 +1609,37 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           // And also log any position changes
           if (!LayoutState.equals(state, newState)) {
             // FIXME: replace with one single event
-            if (state.for === 'polygon' && Entity.hasComponent(geometry, PolygonComponent)) {
+            if (state.for === 'polygon' && Entity.hasComponent(geometry, GeometryComponent)) {
               forwardsActions.push(
-                UndoEntry.polygonMove(id, state.points, PolygonComponent.get(geometry).points),
+                UndoEntry.polygonMove(id, state.points, GeometryComponent.get(geometry).points),
               );
-            } else if (state.for === 'ellipse' && Entity.hasComponent(geometry, EllipseComponent)) {
+            } else if (
+              state.for === 'ellipse' &&
+              Entity.hasComponent(geometry, GeometryComponent)
+            ) {
+              const afterData = GeometryComponent.get(geometry);
+              const { type: _type, ...after } = afterData;
               forwardsActions.push(
                 UndoEntry.ellipseMove(
                   id,
-                  EllipseComponent.create(state.center, {
+                  GeometryComponent.createEllipse(state.center, {
                     radiusX: state.radiusX,
                     radiusY: state.radiusY,
-                  }).ellipse,
-                  EllipseComponent.get(geometry),
+                  }).geometry,
+                  after as GeometryComponent<EllipseData>['geometry'],
                 ),
               );
             } else if (
               state.for === 'rectangle' &&
-              Entity.hasComponent(geometry, RectangleComponent)
+              Entity.hasComponent(geometry, GeometryComponent)
             ) {
+              const afterData = GeometryComponent.get(geometry);
+              const { type: _type, ...after } = afterData;
               forwardsActions.push(
                 UndoEntry.rectangleMove(
                   id,
-                  RectangleComponent.create(state.upperLeft, state.lowerRight).rectangle,
-                  RectangleComponent.get(geometry),
+                  GeometryComponent.createRectangle(state.upperLeft, state.lowerRight).geometry,
+                  after as GeometryComponent<RectangleData>['geometry'],
                 ),
               );
             } else if (state.for === 'datum' && Entity.hasComponent(geometry, DatumComponent)) {
@@ -1896,39 +1917,51 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
               if (
                 originalState.for === 'polygon' &&
-                Entity.hasComponent(afterGeometry, PolygonComponent)
+                Entity.hasComponent(afterGeometry, GeometryComponent)
               ) {
+                const geomData = GeometryComponent.get(afterGeometry as Entity<GeometryComponent>);
+                if (geomData.type !== 'polygon') {
+                  continue;
+                }
                 this.getHistoryManager().push(
-                  UndoEntry.polygonMove(
-                    id,
-                    originalState.points,
-                    PolygonComponent.get(afterGeometry).points,
-                  ),
+                  UndoEntry.polygonMove(id, originalState.points, geomData.points),
                 );
               } else if (
                 originalState.for === 'ellipse' &&
-                Entity.hasComponent(afterGeometry, EllipseComponent)
+                Entity.hasComponent(afterGeometry, GeometryComponent)
               ) {
+                const geomData = GeometryComponent.get(afterGeometry as Entity<GeometryComponent>);
+                if (geomData.type !== 'ellipse') {
+                  continue;
+                }
+                const { type: _type, ...after } = geomData;
                 this.getHistoryManager().push(
                   UndoEntry.ellipseMove(
                     id,
-                    EllipseComponent.create(originalState.center, {
+                    GeometryComponent.createEllipse(originalState.center, {
                       radiusX: originalState.radiusX,
                       radiusY: originalState.radiusY,
-                    }).ellipse,
-                    EllipseComponent.get(afterGeometry),
+                    }).geometry,
+                    after as GeometryComponent<EllipseData>['geometry'],
                   ),
                 );
               } else if (
                 originalState.for === 'rectangle' &&
-                Entity.hasComponent(afterGeometry, RectangleComponent)
+                Entity.hasComponent(afterGeometry, GeometryComponent)
               ) {
+                const geomData = GeometryComponent.get(afterGeometry as Entity<GeometryComponent>);
+                if (geomData.type !== 'rectangle') {
+                  continue;
+                }
+                const { type: _type, ...after } = geomData;
                 this.getHistoryManager().push(
                   UndoEntry.rectangleMove(
                     id,
-                    RectangleComponent.create(originalState.upperLeft, originalState.lowerRight)
-                      .rectangle,
-                    RectangleComponent.get(afterGeometry),
+                    GeometryComponent.createRectangle(
+                      originalState.upperLeft,
+                      originalState.lowerRight,
+                    ).geometry,
+                    after as GeometryComponent<RectangleData>['geometry'],
                   ),
                 );
               }
@@ -2229,12 +2262,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Adds a point on the specified quadratic arc edge of a polygon at the given click position.
    * The t parameter is computed from the sheet position. */
   addPointOnQuadraticEdge(polygonId: Id, segmentIndex: number, sheetPos: SheetPosition): void {
-    const polygon = this.getGeometryStore().getByIdWithComponent(polygonId, PolygonComponent);
-    if (!polygon) {
+    const geom = this.getGeometryStore().getByIdWithComponent(polygonId, GeometryComponent);
+    if (!geom || !GeometryComponent.isPolygon(geom)) {
       return;
     }
 
-    const quadPolygonData = PolygonComponent.get(polygon);
+    const quadPolygonData = GeometryComponent.get(geom);
     const pointSegment = quadPolygonData.points[segmentIndex];
     const arcSegment = quadPolygonData.points[segmentIndex + 1];
     if (
@@ -2260,12 +2293,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Adds a point on the specified cubic arc edge of a polygon at the given click position.
    * The t parameter is computed from the sheet position. */
   addPointOnCubicEdge(polygonId: Id, segmentIndex: number, sheetPos: SheetPosition): void {
-    const polygon = this.getGeometryStore().getByIdWithComponent(polygonId, PolygonComponent);
-    if (!polygon) {
+    const geom = this.getGeometryStore().getByIdWithComponent(polygonId, GeometryComponent);
+    if (!geom || !GeometryComponent.isPolygon(geom)) {
       return;
     }
 
-    const cubicPolygonData = PolygonComponent.get(polygon);
+    const cubicPolygonData = GeometryComponent.get(geom);
     const pointSegment = cubicPolygonData.points[segmentIndex];
     const arcSegment = cubicPolygonData.points[segmentIndex + 1];
     if (
