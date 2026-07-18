@@ -1,7 +1,6 @@
 import { DEFAULT_COLOR } from './colors';
 import { FillColorComponent } from './components/FillColorComponent';
 import { GeometryComponent } from './components/GeometryComponent';
-import { PolygonComponent } from './components/PolygonComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
 import {
   type CubicBezierSegment,
@@ -42,10 +41,6 @@ export namespace Polygon {
           ? FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR)
           : {}),
         ...GeometryComponent.createPolygon(points, {
-          closed,
-          openAtIndex,
-        }),
-        ...PolygonComponent.create(points, {
           closed,
           openAtIndex,
         }),
