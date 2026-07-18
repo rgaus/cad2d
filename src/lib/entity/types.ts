@@ -63,16 +63,24 @@ export namespace Entity {
     );
   }
 
-  export function pickComponent<C extends {}, O extends {}>(entity: Entity<C & O>, component: { readonly key: keyof C }): Entity<C> {
+  /** Given a {@link Entity} with a given component, generate an entity with exclusively that
+    * component. Very similar in concept to Pick<{ a: 1, b: 2}, 'a'> */
+  export function pickComponent<C extends {}, O extends {}>(
+    entity: Entity<C & O>,
+    component: { readonly key: keyof C },
+  ): Entity<C> {
     return {
       ...entity,
       components: {
-        [component.key]: entity.components[component.key] as C,
-      },
+        [component.key]: entity.components[component.key],
+      } as C,
     };
   }
 
-  export function assignComponent<C extends {}, O extends {} >(
+  /** Given a {@link Entity} and a given component that another {@link Entity} contains, take the
+    * value of the component from the first entity and copy it into the second. Conceptually similar
+    * to Object.assign(entity, source). */
+  export function assignComponent<C extends {}, O extends {}>(
     entity: Entity<O>,
     component: { readonly key: keyof C },
     source: Entity<C>,
