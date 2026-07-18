@@ -1,14 +1,11 @@
 import {
   type ConstraintEndpoint,
-  EllipseComponent,
   Entity,
   FillColorComponent,
   GeometryComponent,
   type Id,
   Polygon,
-  PolygonComponent,
   PolygonSegment,
-  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/entity';
 import { type Length, type SerializedLength, type UnitType } from '@/lib/units/length';
@@ -72,16 +69,16 @@ export type PolygonMoveEntry = {
 export type RectangleMoveEntry = {
   type: 'rectangle-move';
   id: Id;
-  before: RectangleComponent[keyof RectangleComponent];
-  after: RectangleComponent[keyof RectangleComponent];
+  before: { upperLeft: SheetPosition; lowerRight: SheetPosition };
+  after: { upperLeft: SheetPosition; lowerRight: SheetPosition };
 };
 
 /** Recorded when an ellipse is moved or resized. */
 export type EllipseMoveEntry = {
   type: 'ellipse-move';
   id: Id;
-  before: EllipseComponent[keyof EllipseComponent];
-  after: EllipseComponent[keyof EllipseComponent];
+  before: { center: SheetPosition; radiusX: number; radiusY: number };
+  after: { center: SheetPosition; radiusX: number; radiusY: number };
 };
 
 /** Recorded when a datum is moved. */
@@ -461,8 +458,8 @@ export namespace UndoEntry {
   /** Creates an entry for moving or resizing a rectangle. */
   export function rectangleMove(
     id: Id,
-    before: RectangleComponent[keyof RectangleComponent],
-    after: RectangleComponent[keyof RectangleComponent],
+    before: { upperLeft: SheetPosition; lowerRight: SheetPosition },
+    after: { upperLeft: SheetPosition; lowerRight: SheetPosition },
   ): RectangleMoveEntry {
     return { type: 'rectangle-move', id, before, after };
   }
@@ -470,8 +467,8 @@ export namespace UndoEntry {
   /** Creates an entry for moving or resizing an ellipse. */
   export function ellipseMove(
     id: Id,
-    before: EllipseComponent[keyof EllipseComponent],
-    after: EllipseComponent[keyof EllipseComponent],
+    before: { center: SheetPosition; radiusX: number; radiusY: number },
+    after: { center: SheetPosition; radiusX: number; radiusY: number },
   ): EllipseMoveEntry {
     return { type: 'ellipse-move', id, before, after };
   }

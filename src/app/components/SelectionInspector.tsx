@@ -133,7 +133,11 @@ const RectangleInspector: React.FunctionComponent<{
   const hInputRef = useRef<LengthInputHandle>(null);
   useEffect(() => {
     const handler = (geometry: Entity) => {
-      if (geometry.id !== rectangleId || !Entity.hasComponent(geometry, GeometryComponent) || !GeometryComponent.isRectangle(geometry)) {
+      if (
+        geometry.id !== rectangleId ||
+        !Entity.hasComponent(geometry, GeometryComponent) ||
+        !GeometryComponent.isRectangle(geometry)
+      ) {
         return;
       }
       const updated = GeometryComponent.get(geometry);
@@ -398,7 +402,11 @@ const EllipseInspector: React.FunctionComponent<{
   const ryInputRef = useRef<LengthInputHandle>(null);
   useEffect(() => {
     const handler = (geometry: Entity) => {
-      if (geometry.id !== ellipseId || !Entity.hasComponent(geometry, GeometryComponent) || !GeometryComponent.isEllipse(geometry)) {
+      if (
+        geometry.id !== ellipseId ||
+        !Entity.hasComponent(geometry, GeometryComponent) ||
+        !GeometryComponent.isEllipse(geometry)
+      ) {
         return;
       }
       const updated = GeometryComponent.get(geometry);
@@ -905,7 +913,11 @@ const PolygonInspector: React.FunctionComponent<{
 
   useEffect(() => {
     const handler = (updated: Entity) => {
-      if (updated.id !== polygonId || !Entity.hasComponent(updated, GeometryComponent) || !GeometryComponent.isPolygon(updated)) {
+      if (
+        updated.id !== polygonId ||
+        !Entity.hasComponent(updated, GeometryComponent) ||
+        !GeometryComponent.isPolygon(updated)
+      ) {
         return;
       }
       const updatedData = GeometryComponent.get(updated);
@@ -949,7 +961,10 @@ const PolygonInspector: React.FunctionComponent<{
           oldData.openAtIndex !== updatedData.openAtIndex ||
           oldData.points.length !== updatedData.points.length
         ) {
-          newPolygon = GeometryComponent.update<PolygonData, Entity<GeometryComponent<PolygonData>>>(newPolygon, updatedData);
+          newPolygon = GeometryComponent.update<
+            PolygonData,
+            Entity<GeometryComponent<PolygonData>>
+          >(newPolygon, updatedData);
         }
 
         return newPolygon;
@@ -1480,13 +1495,16 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
 
   const [singleRectangle, singleEllipse, singlePolygon] = useMemo(() => {
     const rectangles = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<GeometryComponent<RectangleData>> => Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isRectangle(g),
+      (g): g is Entity<GeometryComponent<RectangleData>> =>
+        Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isRectangle(g),
     );
     const ellipses = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<GeometryComponent<EllipseData>> => Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isEllipse(g),
+      (g): g is Entity<GeometryComponent<EllipseData>> =>
+        Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isEllipse(g),
     );
     const polygons = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<GeometryComponent<PolygonData>> => Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isPolygon(g),
+      (g): g is Entity<GeometryComponent<PolygonData>> =>
+        Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isPolygon(g),
     );
 
     const singleRectangle =

@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  FillColorComponent,
   GeometryComponent,
-  LinkDimensionsComponent,
   RenderOrderComponent,
 } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
@@ -15,8 +13,6 @@ export const useGeometries = (geometryStore: GeometryStore) => {
       setGeometries(
         geometryStore.listWithComponents(
           GeometryComponent,
-          FillColorComponent,
-          LinkDimensionsComponent,
           RenderOrderComponent,
         ),
       );

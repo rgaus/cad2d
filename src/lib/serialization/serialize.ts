@@ -3,16 +3,13 @@ import {
   type ConstraintEndpoint,
   DatumComponent,
   type Ellipse,
-  EllipseComponent,
   Entity,
   FillColorComponent,
   GeometryComponent,
   LinkDimensionsComponent,
   type Polygon,
-  PolygonComponent,
   type PolygonSegment,
   type Rectangle,
-  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/entity';
 import {

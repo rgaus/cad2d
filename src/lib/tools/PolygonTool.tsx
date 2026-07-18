@@ -7,7 +7,6 @@ import {
   GeometryComponent,
   type Id,
   Polygon,
-  PolygonComponent,
   PolygonSegment,
 } from '@/lib/entity';
 import { QuerySegmentIntersectionPoint } from '@/lib/entity/DCELShapeIndex';
@@ -1719,16 +1718,12 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         let polygonId;
         if (source.type === 'existing-polygon') {
           polygonId = source.polygonId;
-          geometryStore.updateByIdWithComponentDirect(source.polygonId, PolygonComponent, (old) => {
-            const updated = PolygonComponent.update(old, {
+          geometryStore.updateByIdWithComponentDirect(source.polygonId, GeometryComponent, (old) =>
+            GeometryComponent.update(old as Entity<GeometryComponent<PolygonData>>, {
               points: pointsCopyWithIntersections,
               closed,
-            });
-            return GeometryComponent.update(
-              updated as unknown as Entity<GeometryComponent<PolygonData>>,
-              { points: pointsCopyWithIntersections, closed },
-            ) as unknown as Entity<PolygonComponent>;
-          });
+            }),
+          );
 
           // When closing a previously open polygon, add FillColorComponent
           if (closed) {
