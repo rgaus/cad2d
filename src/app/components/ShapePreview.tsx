@@ -1,14 +1,6 @@
 'use client';
 
-import {
-  EllipseComponent,
-  Entity,
-  FillColorComponent,
-  GeometryComponent,
-  PolygonComponent,
-  PolygonSegment,
-  RectangleComponent,
-} from '@/lib/entity';
+import { Entity, FillColorComponent, GeometryComponent, PolygonSegment } from '@/lib/entity';
 import { BoundingBox, DeCasteljau } from '@/lib/math';
 
 /**
@@ -315,11 +307,11 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'radiusX' && Entity.hasComponent(shape, EllipseComponent) ? (
+      {editingDimension === 'radiusX' && GeometryComponent.isEllipse(shape) ? (
         <polyline
           points={[
-            [toSvgX(EllipseComponent.get(shape).center.x), toSvgY(bounds.minY) - 2],
-            [toSvgX(EllipseComponent.get(shape).center.x), toSvgY(bounds.minY) - 5],
+            [toSvgX(GeometryComponent.get(shape).center.x), toSvgY(bounds.minY) - 2],
+            [toSvgX(GeometryComponent.get(shape).center.x), toSvgY(bounds.minY) - 5],
             [toSvgX(bounds.minX), toSvgY(bounds.minY) - 5],
             [toSvgX(bounds.minX), toSvgY(bounds.minY) - 2],
           ]
@@ -345,11 +337,11 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'radiusY' && Entity.hasComponent(shape, EllipseComponent) ? (
+      {editingDimension === 'radiusY' && GeometryComponent.isEllipse(shape) ? (
         <polyline
           points={[
-            [toSvgX(bounds.minX) - 2, toSvgY(EllipseComponent.get(shape).center.y)],
-            [toSvgX(bounds.minX) - 5, toSvgY(EllipseComponent.get(shape).center.y)],
+            [toSvgX(bounds.minX) - 2, toSvgY(GeometryComponent.get(shape).center.y)],
+            [toSvgX(bounds.minX) - 5, toSvgY(GeometryComponent.get(shape).center.y)],
             [toSvgX(bounds.minX) - 5, toSvgY(bounds.minY)],
             [toSvgX(bounds.minX) - 2, toSvgY(bounds.minY)],
           ]
@@ -360,27 +352,27 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'origin' && Entity.hasComponent(shape, EllipseComponent) ? (
+      {editingDimension === 'origin' && GeometryComponent.isEllipse(shape) ? (
         <>
           <line
-            x1={toSvgX(EllipseComponent.get(shape).center.x)}
+            x1={toSvgX(GeometryComponent.get(shape).center.x)}
             y1={toSvgY(bounds.minY)}
-            x2={toSvgX(EllipseComponent.get(shape).center.x)}
+            x2={toSvgX(GeometryComponent.get(shape).center.x)}
             y2={toSvgY(bounds.maxY)}
             stroke="rgba(0,0,0,0.2)"
             strokeWidth={1}
           />
           <line
             x1={toSvgX(bounds.minX)}
-            y1={toSvgY(EllipseComponent.get(shape).center.y)}
+            y1={toSvgY(GeometryComponent.get(shape).center.y)}
             x2={toSvgX(bounds.maxX)}
-            y2={toSvgY(EllipseComponent.get(shape).center.y)}
+            y2={toSvgY(GeometryComponent.get(shape).center.y)}
             stroke="rgba(0,0,0,0.2)"
             strokeWidth={1}
           />
           <rect
-            x={toSvgX(EllipseComponent.get(shape).center.x) - vertexSizeInPx / 2}
-            y={toSvgY(EllipseComponent.get(shape).center.y) - vertexSizeInPx / 2}
+            x={toSvgX(GeometryComponent.get(shape).center.x) - vertexSizeInPx / 2}
+            y={toSvgY(GeometryComponent.get(shape).center.y) - vertexSizeInPx / 2}
             width={vertexSizeInPx}
             height={vertexSizeInPx}
             fill="white"
@@ -389,7 +381,7 @@ export default function ShapePreview({
           />
         </>
       ) : null}
-      {editingDimension === 'origin' && Entity.hasComponent(shape, RectangleComponent) ? (
+      {editingDimension === 'origin' && GeometryComponent.isRectangle(shape) ? (
         <rect
           x={toSvgX(bounds.minX) - vertexSizeInPx / 2}
           y={toSvgY(bounds.minY) - vertexSizeInPx / 2}

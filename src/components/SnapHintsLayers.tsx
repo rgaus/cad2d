@@ -1,13 +1,7 @@
 import { useMemo } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useGeometries } from '@/hooks/useGeoemtries';
-import {
-  EllipseComponent,
-  type Entity,
-  GeometryComponent,
-  PolygonComponent,
-  RectangleComponent,
-} from '@/lib/entity';
+import { GeometryComponent } from '@/lib/entity';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SPRITE_SCALE_FACTOR, SnapHintDiamondTexture } from '@/lib/textures';

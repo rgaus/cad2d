@@ -2,17 +2,18 @@ import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintComponent,
   ConstraintEndpoint,
+  Entity,
   FillColorComponent,
   GeometryComponent,
   LinearConstraint,
   type PointSegment,
   Polygon,
-  PolygonComponent,
   type PolygonSegment,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -157,12 +158,18 @@ describe('PolygonTool', () => {
       polygonTool.setHoveringFirstHandle(false);
 
       // Should be closed
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).closed,
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
+      expect(
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).closed,
       ).toBe(true);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points,
       ).toHaveLength(4);
 
       // Make sure no working constraints are active
@@ -192,25 +199,39 @@ describe('PolygonTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
 
       // Polygon should be closed
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).closed,
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
+      expect(
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).closed,
       ).toBe(true);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points,
       ).toHaveLength(4);
 
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[2].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[3].type,
       ).toStrictEqual('arc-quadratic');
 
       // Make sure STILL no working cosntraints are shown
@@ -230,15 +251,23 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       // Polygon should be added to store
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).closed,
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
+      expect(
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).closed,
       ).toBe(false);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points,
       ).toHaveLength(2);
       expect(
-        FillColorComponent.getOptional(geometryStore.listWithComponent(PolygonComponent)[0]),
+        FillColorComponent.getOptional(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ),
       ).toBeUndefined(); // Non closed polygons are not filled
       expect(geometryStore.workingPolygon).toBeNull();
 
@@ -253,11 +282,15 @@ describe('PolygonTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
+      expect(
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
       expect(geometryStore.workingPolygon).toBeNull();
 
-      const polygon = geometryStore.listWithComponent(PolygonComponent)[0];
-      const polygonData = PolygonComponent.get(polygon);
+      const polygon = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter(GeometryComponent.isPolygon)[0];
+      const polygonData = GeometryComponent.get(polygon);
       expect(polygonData.closed).toBe(false);
       expect(FillColorComponent.getOptional(polygon)).toBeUndefined();
 
@@ -280,10 +313,14 @@ describe('PolygonTool', () => {
       toolManager.handleMouseDown(startScreen, viewport);
       polygonTool.setHoveringFirstHandle(false);
 
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
+      expect(
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
 
-      const updated = geometryStore.listWithComponent(PolygonComponent)[0];
-      expect(PolygonComponent.get(updated).closed).toBe(true);
+      const updated = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter(GeometryComponent.isPolygon)[0];
+      expect(GeometryComponent.get(updated).closed).toBe(true);
       expect(FillColorComponent.getOptional(updated)).toBe(DEFAULT_COLOR);
     });
 
@@ -300,7 +337,9 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
 
       // Polygon state should be gone
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(0);
+      expect(
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(0);
       expect(geometryStore.workingPolygon).toBeNull();
 
       // Working constraint should not be visible
@@ -407,7 +446,9 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
       // Verify: No polygon created
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(0);
+      expect(
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(0);
     });
 
     it('clicking same location twice adds consecutive point', () => {
@@ -484,89 +525,121 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Make sure there is a square in the polygon state:
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).closed,
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
+      expect(
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).closed,
       ).toBe(true);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points,
       ).toHaveLength(5 /* 4 points + 1 duplicate close point */);
 
       // Point one is upper left
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point two is upper right
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].point.x,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point three is the quadratic arc on the right side -> lower right
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[2].type,
       ).toStrictEqual('arc-quadratic');
       expect(
         (
-          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0])
-            .points[2] as any
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isPolygon)[0],
+          ).points[2] as any
         ).controlPoint.x,
       ).toBeCloseTo(50 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
         (
-          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0])
-            .points[2] as any
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isPolygon)[0],
+          ).points[2] as any
         ).controlPoint.y,
       ).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[2].point.x,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[2].point.y,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point four is the lower left
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[3].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[3].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[3].point.y,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point five is the upper left again
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[4].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[4].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[4].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[4].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[4].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[4].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2); // 30?
     });
 
@@ -629,101 +702,139 @@ describe('PolygonTool', () => {
       polygonTool.setHoveringFirstHandle(false);
 
       // Make sure there is a square in the polygon state:
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).closed,
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
+      expect(
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).closed,
       ).toBe(true);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points,
       ).toHaveLength(5 /* 4 points + 1 duplicate close point */);
 
       // Point one is upper left
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point two is upper right
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].point.x,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point three is the cubic arc on the right side -> lower right
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[2].type,
       ).toStrictEqual('arc-cubic');
       expect(
         (
-          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0])
-            .points[2] as any
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isPolygon)[0],
+          ).points[2] as any
         ).controlPointA.x,
       ).toBeCloseTo(50 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
         (
-          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0])
-            .points[2] as any
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isPolygon)[0],
+          ).points[2] as any
         ).controlPointA.y,
       ).toBeCloseTo(15 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
         (
-          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0])
-            .points[2] as any
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isPolygon)[0],
+          ).points[2] as any
         ).controlPointB.x,
       ).toBeCloseTo(50 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
         (
-          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0])
-            .points[2] as any
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isPolygon)[0],
+          ).points[2] as any
         ).controlPointB.y,
       ).toBeCloseTo(25 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[2].point.x,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[2].point.y,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point four is the lower left
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[3].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[3].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[3].point.y,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point five is the upper left again
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[4].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[4].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[4].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[4].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[4].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[4].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
     });
 
@@ -761,7 +872,9 @@ describe('PolygonTool', () => {
       toolManager.handleKeyDown({ key: 'Escape' } as KeyboardEvent);
 
       // The working polygon should be fully wiped out
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(0);
+      expect(
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(0);
       expect(geometryStore.workingPolygon).toBeNull();
 
       // Make the preview segment should also be gone
@@ -834,89 +947,121 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Make sure there is a square in the polygon state:
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).closed,
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
+      expect(
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).closed,
       ).toBe(true);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points,
       ).toHaveLength(5 /* 4 points + 1 duplicate close point */);
 
       // Point one is upper left
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point two is upper right
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].point.x,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point two is lower right
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[2].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[2].point.x,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[2].point.y,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point four is lower left
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[3].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[3].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[3].point.y,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point five is the quadratic arc on the right side -> upper left
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[4].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[4].type,
       ).toStrictEqual('arc-quadratic');
       expect(
         (
-          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0])
-            .points[4] as any
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isPolygon)[0],
+          ).points[4] as any
         ).controlPoint.x,
       ).toBeCloseTo(0 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
         (
-          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0])
-            .points[4] as any
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isPolygon)[0],
+          ).points[4] as any
         ).controlPoint.y,
       ).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[4].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[4].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[4].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[4].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
     });
 
@@ -958,101 +1103,139 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Make sure there is a square in the polygon state:
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).closed,
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
+      expect(
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).closed,
       ).toBe(true);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points,
       ).toHaveLength(5 /* 4 points + 1 duplicate close point */);
 
       // Point one is upper left
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point two is upper right
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].point.x,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point two is lower right
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[2].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[2].point.x,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[2].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[2].point.y,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point four is lower left
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[3].type,
       ).toStrictEqual('point');
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[3].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[3].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[3].point.y,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Point five is the quadratic arc on the right side -> upper left
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[4].type,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[4].type,
       ).toStrictEqual('arc-cubic');
       expect(
         (
-          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0])
-            .points[4] as any
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isPolygon)[0],
+          ).points[4] as any
         ).controlPointA.x,
       ).toBeCloseTo(0 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
         (
-          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0])
-            .points[4] as any
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isPolygon)[0],
+          ).points[4] as any
         ).controlPointA.y,
       ).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
         (
-          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0])
-            .points[4] as any
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isPolygon)[0],
+          ).points[4] as any
         ).controlPointB.x,
       ).toBeCloseTo(0 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
         (
-          PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0])
-            .points[4] as any
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isPolygon)[0],
+          ).points[4] as any
         ).controlPointB.y,
       ).toBeCloseTo(0 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[4].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[4].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[4].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[4].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
     });
 
@@ -1183,40 +1366,52 @@ describe('PolygonTool', () => {
 
       // Make sure there is one polygon still, and it has all the points
       expect(geometryStore.workingPolygon).toBeNull();
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).closed,
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
+      expect(
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).closed,
       ).toBeTruthy();
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points,
       ).toHaveLength(5);
 
       // The first point should be the final point of the existing segment
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.x,
       ).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
 
       // The original segment should be at the end
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points.at(-2)!
-          .point.x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points.at(-2)!.point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points.at(-2)!
-          .point.y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points.at(-2)!.point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points.at(-1)!
-          .point.x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points.at(-1)!.point.x,
       ).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points.at(-1)!
-          .point.y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points.at(-1)!.point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Make sure preview segment is not visible, drawing is done
@@ -1303,40 +1498,52 @@ describe('PolygonTool', () => {
 
       // Make sure there is one polygon still, and it has all the points
       expect(geometryStore.workingPolygon).toBeNull();
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).closed,
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
+      expect(
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).closed,
       ).toBeTruthy();
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points,
       ).toHaveLength(5);
 
       // The original segment should be at the end
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].point.x,
       ).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
-          .y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
 
       // The last point should be the final point of the initial segment
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points.at(-1)!
-          .point.x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points.at(-1)!.point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points.at(-1)!
-          .point.y,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points.at(-1)!.point.y,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Make sure preview segment is not visible, drawing is done
@@ -1811,18 +2018,27 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Verify: original polygon and constraint unaffected
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
-      expect(geometryStore.listWithComponent(PolygonComponent)[0].id).toStrictEqual(polygon.id);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points,
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
+      expect(
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0]
+          .id,
+      ).toStrictEqual(polygon.id);
+      expect(
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points,
       ).toHaveLength(2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].point.x,
       ).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
 
       const remainingConstraintGeoms = geometryStore
@@ -2192,18 +2408,27 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(0);
 
       // Verify: original polygon and constraint unaffected
-      expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
-      expect(geometryStore.listWithComponent(PolygonComponent)[0].id).toStrictEqual(polygon.id);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points,
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
+      expect(
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0]
+          .id,
+      ).toStrictEqual(polygon.id);
+      expect(
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points,
       ).toHaveLength(2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[0].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[0].point.x,
       ).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
       expect(
-        PolygonComponent.get(geometryStore.listWithComponent(PolygonComponent)[0]).points[1].point
-          .x,
+        GeometryComponent.get(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
+        ).points[1].point.x,
       ).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
 
       const remainingConstraintGeoms = geometryStore
@@ -2320,15 +2545,15 @@ describe('PolygonTool', () => {
       // Verify that the intersection point was added to the existing polygon, too
       const existingPolygon = geometryStore.getByIdWithComponent(
         existingPolygonId,
-        PolygonComponent,
-      );
-      expect(PolygonComponent.get(existingPolygon!).points).toHaveLength(3);
-      expect(PolygonComponent.get(existingPolygon!).points[0].point.x).toBeCloseTo(50, 2);
-      expect(PolygonComponent.get(existingPolygon!).points[0].point.y).toBeCloseTo(0, 2);
-      expect(PolygonComponent.get(existingPolygon!).points[1].point.x).toBeCloseTo(50, 2);
-      expect(PolygonComponent.get(existingPolygon!).points[1].point.y).toBeCloseTo(50, 2);
-      expect(PolygonComponent.get(existingPolygon!).points[2].point.x).toBeCloseTo(50, 2);
-      expect(PolygonComponent.get(existingPolygon!).points[2].point.y).toBeCloseTo(100, 2);
+        GeometryComponent,
+      ) as Entity<GeometryComponent<PolygonData>> | null;
+      expect(GeometryComponent.get(existingPolygon!).points).toHaveLength(3);
+      expect(GeometryComponent.get(existingPolygon!).points[0].point.x).toBeCloseTo(50, 2);
+      expect(GeometryComponent.get(existingPolygon!).points[0].point.y).toBeCloseTo(0, 2);
+      expect(GeometryComponent.get(existingPolygon!).points[1].point.x).toBeCloseTo(50, 2);
+      expect(GeometryComponent.get(existingPolygon!).points[1].point.y).toBeCloseTo(50, 2);
+      expect(GeometryComponent.get(existingPolygon!).points[2].point.x).toBeCloseTo(50, 2);
+      expect(GeometryComponent.get(existingPolygon!).points[2].point.y).toBeCloseTo(100, 2);
     });
     it.skip('should do an intersection with another linear polygon, forming a "+" shape, by extending a pre-existing other polygon from start', () => {
       const { id: existingPolygonId } = geometryStore.addOrdered(
@@ -2402,15 +2627,15 @@ describe('PolygonTool', () => {
       // Verify that the intersection point was added to the existing polygon, too
       const existingPolygon = geometryStore.getByIdWithComponent(
         existingPolygonId,
-        PolygonComponent,
-      );
-      expect(PolygonComponent.get(existingPolygon!).points).toHaveLength(3);
-      expect(PolygonComponent.get(existingPolygon!).points[0].point.x).toBeCloseTo(50, 2);
-      expect(PolygonComponent.get(existingPolygon!).points[0].point.y).toBeCloseTo(0, 2);
-      expect(PolygonComponent.get(existingPolygon!).points[1].point.x).toBeCloseTo(50, 2);
-      expect(PolygonComponent.get(existingPolygon!).points[1].point.y).toBeCloseTo(50, 2);
-      expect(PolygonComponent.get(existingPolygon!).points[2].point.x).toBeCloseTo(50, 2);
-      expect(PolygonComponent.get(existingPolygon!).points[2].point.y).toBeCloseTo(100, 2);
+        GeometryComponent,
+      ) as Entity<GeometryComponent<PolygonData>> | null;
+      expect(GeometryComponent.get(existingPolygon!).points).toHaveLength(3);
+      expect(GeometryComponent.get(existingPolygon!).points[0].point.x).toBeCloseTo(50, 2);
+      expect(GeometryComponent.get(existingPolygon!).points[0].point.y).toBeCloseTo(0, 2);
+      expect(GeometryComponent.get(existingPolygon!).points[1].point.x).toBeCloseTo(50, 2);
+      expect(GeometryComponent.get(existingPolygon!).points[1].point.y).toBeCloseTo(50, 2);
+      expect(GeometryComponent.get(existingPolygon!).points[2].point.x).toBeCloseTo(50, 2);
+      expect(GeometryComponent.get(existingPolygon!).points[2].point.y).toBeCloseTo(100, 2);
     });
   });
 
@@ -2578,7 +2803,7 @@ describe('PolygonTool', () => {
   //     toolManager.handleMouseDown(new ScreenPosition(80, 80), viewport);
 
   //     // Verify: Target polygon has new point inserted
-  //     const updated = geometryStore.listWithComponent(PolygonComponent).find((p) => p.id === targetPoly.id);
+  //     const updated = geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon).find((p) => p.id === targetPoly.id);
   //     expect(updated!.points.length).toBeGreaterThan(initialPointCount);
   //   });
 
@@ -2613,7 +2838,7 @@ describe('PolygonTool', () => {
   //     toolManager.handleMouseDown(new ScreenPosition(80, 80), viewport);
 
   //     // Verify: Target polygon unchanged
-  //     const updated = geometryStore.listWithComponent(PolygonComponent).find((p) => p.id === targetPoly.id);
+  //     const updated = geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon).find((p) => p.id === targetPoly.id);
   //     expect(updated!.points.length).toBe(initialPointCount);
   //   });
 
@@ -2915,7 +3140,7 @@ describe('PolygonTool', () => {
   //     toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
 
   //     // Verify: Polygon created without crash
-  //     expect(geometryStore.listWithComponent(PolygonComponent)).toHaveLength(1);
+  //     expect(geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)).toHaveLength(1);
   //   });
   // });
 
@@ -3032,7 +3257,9 @@ describe('PolygonTool', () => {
       expect(linearConstraintGeoms).toHaveLength(2);
 
       // Verify constraints are locked to polygon points
-      const polygon = geometryStore.listWithComponent(PolygonComponent)[0];
+      const polygon = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter(GeometryComponent.isPolygon)[0];
       expect(polygon).toBeDefined();
       for (const g of linearConstraintGeoms) {
         const c = ConstraintComponent.get(g);

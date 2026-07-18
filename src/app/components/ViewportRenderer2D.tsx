@@ -297,7 +297,7 @@ export default function ViewportRenderer2D({
     width: number;
     height: number;
   } | null>(null);
-  const [geometries, setGeometries] = useState<Array<Rectangle>>([]);
+  const [geometries, setGeometries] = useState<Array<Entity>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
   const [datums, setDatums] = useState<Array<Datum>>([]);
@@ -368,8 +368,6 @@ export default function ViewportRenderer2D({
       setGeometries(
         geometryStore.listWithComponents(
           GeometryComponent,
-          FillColorComponent,
-          LinkDimensionsComponent,
           RenderOrderComponent,
         ),
       );

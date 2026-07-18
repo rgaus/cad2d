@@ -5,13 +5,9 @@ import {
   ConstraintComponent,
   type ConstraintEndpoint,
   DatumComponent,
-  EllipseComponent,
   type EllipseEndpoint,
   Entity,
   GeometryComponent,
-  type Id,
-  PolygonComponent,
-  RectangleComponent,
   type RectangleEndpoint,
 } from '@/lib/entity';
 import { type Geometry } from '@/lib/entity/geometry';
@@ -313,16 +309,11 @@ function snapNearestKeyPoint(
     if (!GeometryComponent.isPolygon(polygon as unknown as Geometry)) {
       continue;
     }
-    let polygonData: { points: Array<{ point: SheetPosition }> };
-    if (Entity.hasComponent(polygon, GeometryComponent)) {
-      const geomData = GeometryComponent.get(polygon as unknown as Entity<GeometryComponent>);
-      if (geomData.type !== 'polygon') {
-        continue;
-      }
-      polygonData = geomData;
-    } else {
-      polygonData = PolygonComponent.get(polygon as Entity<PolygonComponent>);
+    const geomData = GeometryComponent.get(polygon as unknown as Entity<GeometryComponent>);
+    if (geomData.type !== 'polygon') {
+      continue;
     }
+    const polygonData = geomData;
     for (let i = 0; i < polygonData.points.length; i += 1) {
       const point = polygonData.points[i].point;
       consider(
