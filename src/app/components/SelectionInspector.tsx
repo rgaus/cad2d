@@ -26,7 +26,6 @@ import {
   RenderOrderComponent,
 } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
-import { GeometryData } from '@/lib/entity/geometry';
 import { EllipseData } from '@/lib/entity/geometry/ellipse';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
@@ -904,7 +903,7 @@ const PolygonInspector: React.FunctionComponent<{
     if (!geometry) {
       return;
     }
-    const data = GeometryComponent.get<GeometryData>(geometry);
+    const data = GeometryComponent.get(geometry);
     if (data.type === 'polygon') {
       return;
     }

@@ -4,6 +4,7 @@ import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { Entity, GeometryComponent } from '@/lib/entity';
+import { type GeometryData } from '@/lib/entity/geometry';
 import { Vector2 } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { MirrorFilterIconTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
@@ -83,8 +84,7 @@ export default function MirrorFilterIndicator({
       if (targetGeometry && Entity.hasComponent(targetGeometry, GeometryComponent)) {
         graphics.setStrokeStyle({ color, width: lineWidth });
 
-        const geometryData: import('@/lib/entity/geometry').GeometryData =
-          GeometryComponent.get(targetGeometry);
+        const geometryData = GeometryComponent.get<GeometryData>(targetGeometry);
         switch (geometryData.type) {
           case 'polygon': {
             const pts = geometryData.points.map((s) => ({
