@@ -36,7 +36,7 @@ import {
   VerticalConstraint,
 } from './constraints';
 import { Ellipse } from './ellipse';
-import { type Geometry, GeometryData } from './geometry';
+import { type Geometry, type GeometryData } from './geometry';
 import { EllipseData } from './geometry/ellipse';
 import { PolygonData } from './geometry/polygon';
 import { RectangleData } from './geometry/rectangle';

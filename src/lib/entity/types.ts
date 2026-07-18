@@ -1,6 +1,9 @@
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { DatumComponent } from './components/DatumComponent';
+import { EllipseComponent } from './components/EllipseComponent';
 import { GeometryComponent } from './components/GeometryComponent';
+import { PolygonComponent } from './components/PolygonComponent';
+import { RectangleComponent } from './components/RectangleComponent';
 import { type GeometryData } from './geometry';
 import { EllipseData } from './geometry/ellipse';
 import { PolygonData } from './geometry/polygon';
@@ -65,8 +68,14 @@ export namespace Entity {
   }
 
   export function keyPoints(
-    geometry: Entity<GeometryComponent>,
-  ): ReturnType<typeof GeometryComponent.keyPoints>;
+    geometry: Entity<GeometryComponent<PolygonData>>,
+  ): ReturnType<typeof PolygonData.keyPoints>;
+  export function keyPoints(
+    geometry: Entity<GeometryComponent<RectangleData>>,
+  ): ReturnType<typeof PolygonData.keyPoints>;
+  export function keyPoints(
+    geometry: Entity<GeometryComponent<EllipseData>>,
+  ): ReturnType<typeof EllipseData.keyPoints>;
   export function keyPoints(
     geometry: Entity<DatumComponent>,
   ): ReturnType<typeof DatumComponent.keyPoints>;
@@ -79,8 +88,6 @@ export namespace Entity {
     throw new Error(`Geometry.keyPoints: unknown geometry type for id=${geometry.id}`);
   }
 
-  export function boundingBox(geometry: Entity<GeometryComponent>): Rect<SheetPosition>;
-  export function boundingBox(geometry: Entity<DatumComponent>): Rect<SheetPosition>;
   export function boundingBox(geometry: Entity): Rect<SheetPosition> {
     if (Entity.hasComponent(geometry, GeometryComponent)) {
       return GeometryComponent.boundingBox(geometry as Entity<GeometryComponent>);
@@ -198,36 +205,13 @@ export namespace LayoutState {
   ) {
     switch (state.for) {
       case 'ellipse':
-        return { ...state, center: transform(state.center) } as LayoutState;
+        return EllipseComponent.layoutStateTranslate(state, transform);
       case 'rectangle':
-        return {
-          ...state,
-          upperLeft: transform(state.upperLeft),
-          lowerRight: new SheetPosition(
-            transform(state.upperLeft).x + (state.lowerRight.x - state.upperLeft.x),
-            transform(state.upperLeft).y + (state.lowerRight.y - state.upperLeft.y),
-          ),
-        } as LayoutState;
+        return RectangleComponent.layoutStateTranslate(state, transform);
       case 'polygon':
-        return {
-          ...state,
-          points: state.points.map((seg) => {
-            const newSeg = { ...seg, point: transform(seg.point) } as typeof seg;
-            if (newSeg.type === 'arc-quadratic') {
-              return { ...newSeg, controlPoint: transform((seg as any).controlPoint) };
-            }
-            if (newSeg.type === 'arc-cubic') {
-              return {
-                ...newSeg,
-                controlPointA: transform((seg as any).controlPointA),
-                controlPointB: transform((seg as any).controlPointB),
-              };
-            }
-            return newSeg;
-          }),
-        } as LayoutState;
+        return PolygonComponent.layoutStateTranslate(state, transform);
       case 'datum':
-        return { ...state, position: transform(state.position) } as LayoutState;
+        return DatumComponent.layoutStateTranslate(state, transform);
       default:
         state satisfies never;
         console.warn(
@@ -307,47 +291,13 @@ export namespace LayoutState {
     params: ResizeParams,
     originalBBox?: Rect<SheetPosition>,
   ): LayoutState | null {
-    if (!originalBBox) {
-      originalBBox = LayoutState.getBoundingBox(state);
-    }
-    const newBBox = GeometryComponent.resizeBBox(originalBBox, params);
-    if (!newBBox) {
-      return null;
-    }
     switch (state.for) {
       case 'ellipse':
-        return {
-          ...state,
-          center: new SheetPosition(
-            newBBox.position.x + newBBox.width / 2,
-            newBBox.position.y + newBBox.height / 2,
-          ),
-          radiusX: newBBox.width / 2,
-          radiusY: newBBox.height / 2,
-        } as LayoutState;
+        return EllipseComponent.layoutStateResize(state, params, originalBBox);
       case 'rectangle':
-        return {
-          ...state,
-          upperLeft: newBBox.position,
-          lowerRight: new SheetPosition(
-            newBBox.position.x + newBBox.width,
-            newBBox.position.y + newBBox.height,
-          ),
-        } as LayoutState;
-      case 'polygon': {
-        const factorX = newBBox.width / originalBBox.width;
-        const factorY = newBBox.height / originalBBox.height;
-        return {
-          ...state,
-          points: state.points.map((p) => ({
-            ...p,
-            point: new SheetPosition(
-              newBBox.position.x + (p.point.x - originalBBox.position.x) * factorX,
-              newBBox.position.y + (p.point.y - originalBBox.position.y) * factorY,
-            ),
-          })),
-        } as LayoutState;
-      }
+        return RectangleComponent.layoutStateResize(state, params, originalBBox);
+      case 'polygon':
+        return PolygonComponent.layoutStateResize(state, params, originalBBox);
       case 'datum':
         return null;
       default:
@@ -362,30 +312,13 @@ export namespace LayoutState {
   export function equals(a: LayoutState, b: LayoutState) {
     switch (a.for) {
       case 'ellipse':
-        return (
-          b.for === 'ellipse' &&
-          a.center.x === b.center.x &&
-          a.center.y === b.center.y &&
-          a.radiusX === b.radiusX &&
-          a.radiusY === b.radiusY
-        );
+        return EllipseComponent.layoutStateEqual(a, b as any);
       case 'rectangle':
-        return (
-          b.for === 'rectangle' &&
-          a.upperLeft.x === b.upperLeft.x &&
-          a.upperLeft.y === b.upperLeft.y &&
-          a.lowerRight.x === b.lowerRight.x &&
-          a.lowerRight.y === b.lowerRight.y
-        );
+        return RectangleComponent.layoutStateEqual(a, b as any);
       case 'polygon':
-        if (b.for !== 'polygon' || a.points.length !== b.points.length) {
-          return false;
-        }
-        return a.points.every(
-          (p, i) => p.point.x === b.points[i].point.x && p.point.y === b.points[i].point.y,
-        );
+        return PolygonComponent.layoutStateEqual(a, b as any);
       case 'datum':
-        return b.for === 'datum' && a.position.x === b.position.x && a.position.y === b.position.y;
+        return DatumComponent.layoutStateEqual(a, b as any);
       default:
         a satisfies never;
         console.warn(`LayoutState.equals: Unknown state.for ${(a as any)?.for}. Returning false.`);

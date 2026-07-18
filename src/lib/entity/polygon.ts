@@ -17,9 +17,7 @@ export type PolygonTemplate = Omit<EntityOmitComponents<Polygon, RenderOrderComp
 
 /** A completed polygon with an id, segments, and closed state. */
 export type Polygon = Entity<
-  GeometryComponent<PolygonData> &
-    Partial<FillColorComponent> &
-    RenderOrderComponent
+  GeometryComponent<PolygonData> & Partial<FillColorComponent> & RenderOrderComponent
 >;
 
 export namespace Polygon {

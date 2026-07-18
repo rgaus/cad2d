@@ -69,16 +69,16 @@ export type PolygonMoveEntry = {
 export type RectangleMoveEntry = {
   type: 'rectangle-move';
   id: Id;
-  before: { upperLeft: SheetPosition; lowerRight: SheetPosition };
-  after: { upperLeft: SheetPosition; lowerRight: SheetPosition };
+  before: RectangleData;
+  after: RectangleData;
 };
 
 /** Recorded when an ellipse is moved or resized. */
 export type EllipseMoveEntry = {
   type: 'ellipse-move';
   id: Id;
-  before: { center: SheetPosition; radiusX: number; radiusY: number };
-  after: { center: SheetPosition; radiusX: number; radiusY: number };
+  before: EllipseData;
+  after: EllipseData;
 };
 
 /** Recorded when a datum is moved. */
@@ -458,18 +458,14 @@ export namespace UndoEntry {
   /** Creates an entry for moving or resizing a rectangle. */
   export function rectangleMove(
     id: Id,
-    before: { upperLeft: SheetPosition; lowerRight: SheetPosition },
-    after: { upperLeft: SheetPosition; lowerRight: SheetPosition },
+    before: RectangleData,
+    after: RectangleData,
   ): RectangleMoveEntry {
     return { type: 'rectangle-move', id, before, after };
   }
 
   /** Creates an entry for moving or resizing an ellipse. */
-  export function ellipseMove(
-    id: Id,
-    before: { center: SheetPosition; radiusX: number; radiusY: number },
-    after: { center: SheetPosition; radiusX: number; radiusY: number },
-  ): EllipseMoveEntry {
+  export function ellipseMove(id: Id, before: EllipseData, after: EllipseData): EllipseMoveEntry {
     return { type: 'ellipse-move', id, before, after };
   }
 

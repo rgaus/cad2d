@@ -1718,11 +1718,18 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         let polygonId;
         if (source.type === 'existing-polygon') {
           polygonId = source.polygonId;
-          geometryStore.updateByIdWithComponentDirect(source.polygonId, GeometryComponent, (old) =>
-            GeometryComponent.update(old as Entity<GeometryComponent<PolygonData>>, {
-              points: pointsCopyWithIntersections,
-              closed,
-            }),
+          geometryStore.updateByIdWithComponentDirect(
+            source.polygonId,
+            GeometryComponent,
+            (old) => {
+              if (!GeometryComponent.isPolygon(old)) {
+                return old;
+              }
+              return GeometryComponent.update(old, {
+                points: pointsCopyWithIntersections,
+                closed,
+              });
+            },
           );
 
           // When closing a previously open polygon, add FillColorComponent
