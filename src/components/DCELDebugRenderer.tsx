@@ -4,9 +4,9 @@ import { useViewportContext } from '@/contexts/viewport-context';
 import { FaceId, HalfEdge, HalfEdgeId } from '@/lib/dcel';
 import { Vector2 } from '@/lib/math';
 import { SingleLayers } from '@/lib/renderer';
+import { SPRITE_SCALE_FACTOR } from '@/lib/textures';
 import { getDimensionTextTexture } from '@/lib/viewport/dimensionUtils';
 import { WorldPosition } from '@/lib/viewport/types';
-import { SPRITE_SCALE_FACTOR } from '@/lib/textures';
 
 const FACE_COLORS = [0xee0000, 0x00ee00, 0x0000ee, 0xeeee00, 0x00eeee, 0xee00ee];
 const FACE_TEXT_COLORS = [0x000000, 0xffffff, 0xffffff, 0x000000, 0x000000, 0x000000];

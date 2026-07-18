@@ -95,7 +95,7 @@ export namespace RectangleData {
       };
     }
 
-    const newBBox = LayoutState.resizeBBox(originalBBox, params);
+    const newBBox = GeometryComponent.resizeBBox(originalBBox, params);
     if (!newBBox) {
       return null;
     }

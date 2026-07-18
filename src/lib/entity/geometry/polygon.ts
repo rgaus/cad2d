@@ -405,7 +405,7 @@ export namespace PolygonData {
 
     // FIXME: get rid of layout state, all its functionality should be handled now by the
     // GeometryComponent hierarchy.
-    const newBBox = LayoutState.resizeBBox(originalBBox, params);
+    const newBBox = GeometryComponent.resizeBBox(originalBBox, params);
     if (!newBBox) {
       return null;
     }
