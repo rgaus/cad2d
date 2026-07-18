@@ -138,22 +138,36 @@ export namespace GeometryComponent {
   export function translate(
     geometry: Entity<GeometryComponent>,
     transform: (input: SheetPosition) => SheetPosition,
-  ): Entity<GeometryComponent> {
+  ) {
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
         return PolygonData.translate(geometry as Entity<GeometryComponent<PolygonData>>, transform);
       case 'rectangle':
-        return RectangleData.translate(
-          geometry as Entity<GeometryComponent<RectangleData>>,
-          transform,
-        );
+        return RectangleData.translate(geometry as Entity<GeometryComponent<RectangleData>>, transform);
       case 'ellipse':
         return EllipseData.translate(geometry as Entity<GeometryComponent<EllipseData>>, transform);
       default:
         state satisfies never;
         throw new Error(
-          `GeometryComponent.translate: Unknown polygon data type ${(state as any).type}`,
+          `GeometryComponent.translate: Unknown geometry data type ${(state as any).type}`,
+        );
+    }
+  }
+
+  export function getOrigin(geometry: Entity<GeometryComponent>): SheetPosition {
+    const state = GeometryComponent.get(geometry);
+    switch (state.type) {
+      case 'polygon':
+        return PolygonData.getOrigin(geometry as Entity<GeometryComponent<PolygonData>>);
+      case 'rectangle':
+        return RectangleData.getOrigin(geometry as Entity<GeometryComponent<RectangleData>>);
+      case 'ellipse':
+        return EllipseData.getOrigin(geometry as Entity<GeometryComponent<EllipseData>>);
+      default:
+        state satisfies never;
+        throw new Error(
+          `GeometryComponent.getOrigin: Unknown geometry data type ${(state as any).type}`,
         );
     }
   }

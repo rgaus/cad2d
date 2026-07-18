@@ -377,6 +377,13 @@ export namespace PolygonData {
     return GeometryComponent.update(geometry, { points: newPoints });
   }
 
+  export function getOrigin(geometry: Entity<GeometryComponent<PolygonData>>): SheetPosition {
+    const state = GeometryComponent.get(geometry);
+    const xs = state.points.map((p) => p.point.x);
+    const ys = state.points.map((p) => p.point.y);
+    return new SheetPosition(Math.min(...xs), Math.min(...ys));
+  }
+
   export function equals(a: Entity<GeometryComponent<PolygonData>>, b: Entity<GeometryComponent>) {
     const aData = GeometryComponent.get(a);
     const bData = GeometryComponent.get(b);
