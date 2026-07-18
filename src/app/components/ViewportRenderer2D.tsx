@@ -261,6 +261,9 @@ function ListLayersRenderer<Pairs extends Array<ListLayersItemsPair>>(props: {
   const items = props.layersItemsPairs
     .flatMap(([layers, items], index) => {
       const layer = layers[props.layerName];
+      if (typeof layer === 'undefined') {
+        return [];
+      }
       if (typeof layer !== 'function') {
         return [{ key: `${index}`, renderOrder: 0, jsx: layer }];
       }
