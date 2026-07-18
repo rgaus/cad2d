@@ -40,25 +40,20 @@ import {
   type Rect,
   SheetPosition,
 } from '@/lib/viewport/types';
-// Adjust the import path to wherever your shape types live.
 import {
-  type Constraint,
   ConstraintComponent,
   type ConstraintEndpoint,
   type CubicBezierSegment,
   DatumComponent,
-  Ellipse,
-  EllipseComponent,
   Entity,
-  FillColorComponent,
+  GeometryComponent,
   type Id,
-  LinkDimensionsComponent,
-  type Polygon,
-  PolygonComponent,
   PolygonSegment,
-  RectangleComponent,
-  RenderOrderComponent,
 } from './index';
+import { type Geometry } from './geometry';
+import { PolygonData } from './geometry/polygon';
+import { RectangleData } from './geometry/rectangle';
+import { EllipseData } from './geometry/ellipse';
 
 // ============================================================
 // Internal tracking types
@@ -1018,12 +1013,12 @@ export class DCELShapeIndex {
    * vertices (or shared if they coincide with existing ones) and the four
    * edges are added as half-edge pairs.
    */
-  addRectangle(rect: Entity<RectangleComponent>): void {
+  addRectangle(rect: Entity<GeometryComponent<RectangleData>>): void {
     if (this.shapes.has(rect.id)) {
       // Guard against accidental double-registration
       this.removeRectangle(rect.id);
     }
-    const { perimeter, perimeterLabels } = RectangleComponent.keyPoints(rect);
+    const { perimeter, perimeterLabels } = GeometryComponent.keyPoints(rect);
     // Rectangle extras (e.g. center) are derived from perimeter vertices.
     // They are resolved and registered on-demand in constraintEndpointToVertexId
     // when a constraint actually references them.
@@ -1044,7 +1039,7 @@ export class DCELShapeIndex {
    * Update a rectangle that was previously registered. Internally this is
    * a remove + re-add, which correctly handles vertex sharing.
    */
-  updateRectangle(rect: Entity<RectangleComponent>): void {
+  updateRectangle(rect: Entity<GeometryComponent<RectangleData>>): void {
     this.updateGeometry(rect);
   }
 
@@ -1061,12 +1056,12 @@ export class DCELShapeIndex {
    * Register an ellipse with the index. The ellipse is approximated as a
    * closed polygon with _ellipseSegments evenly-spaced vertices.
    */
-  addEllipse(ellipse: Entity<EllipseComponent>): void {
+  addEllipse(ellipse: Entity<GeometryComponent<EllipseData>>): void {
     if (this.shapes.has(ellipse.id)) {
       this.removeEllipse(ellipse.id);
     }
-    const { perimeter, perimeterLabels } = EllipseComponent.keyPoints(ellipse);
-    const ellipseData = EllipseComponent.get(ellipse);
+    const { perimeter, perimeterLabels } = GeometryComponent.keyPoints(ellipse);
+    const ellipseData = GeometryComponent.get(ellipse);
     const ellipseSegs = ellipseToPolygon(
       ellipseData.center,
       ellipseData.radiusX,
@@ -1096,7 +1091,7 @@ export class DCELShapeIndex {
   }
 
   /** Update an ellipse that was previously registered. */
-  updateEllipse(ellipse: Ellipse): void {
+  updateEllipse(ellipse: Entity<GeometryComponent<EllipseData>>): void {
     this.updateGeometry(ellipse);
   }
 
@@ -1113,11 +1108,11 @@ export class DCELShapeIndex {
    * Register a polygon with the index. Bezier arc segments are linearized
    * into _bezierSamples straight-line segments each.
    */
-  addPolygon(polygon: Polygon): void {
+  addPolygon(polygon: Entity<GeometryComponent<PolygonData>>): void {
+    const polygonData = GeometryComponent.get(polygon);
     if (this.shapes.has(polygon.id)) {
       this.removePolygon(polygon.id);
     }
-    const polygonData = PolygonComponent.get(polygon);
     const { positions, curveContexts, reversed } = this._polygonPoints(
       polygonData.points,
       polygonData.closed,
@@ -1134,7 +1129,7 @@ export class DCELShapeIndex {
   }
 
   /** Update a polygon that was previously registered. */
-  updatePolygon(polygon: Polygon): void {
+  updatePolygon(polygon: Entity<GeometryComponent<PolygonData>>): void {
     this.updateGeometry(polygon);
   }
 
@@ -1190,32 +1185,32 @@ export class DCELShapeIndex {
    * Register any geometry shape with the DCEL index. Internally dispatches
    * to the correct per-shape logic based on type guards.
    */
-  addGeometry(geometry: Entity): void {
+  addGeometry(geometry: Geometry | Entity<DatumComponent>): void {
     if (Entity.hasComponent(geometry, DatumComponent)) {
       this.addDatum(geometry);
       return;
     }
-    if (Entity.hasComponents(geometry, PolygonComponent, RenderOrderComponent)) {
-      this.addPolygon(geometry);
-    } else if (
-      Entity.hasComponents(
-        geometry,
-        RectangleComponent,
-        FillColorComponent,
-        LinkDimensionsComponent,
-        RenderOrderComponent,
-      )
-    ) {
-      this.addRectangle(geometry);
-    } else if (Entity.hasComponent(geometry, EllipseComponent)) {
-      this.addEllipse(geometry);
+    const data = GeometryComponent.get(geometry);
+    switch (data.type) {
+      case 'polygon':
+        this.addPolygon(geometry as Entity<GeometryComponent<PolygonData>>);
+        break;
+      case 'rectangle':
+        this.addRectangle(geometry as Entity<GeometryComponent<RectangleData>>);
+        break;
+      case 'ellipse':
+        this.addEllipse(geometry as Entity<GeometryComponent<EllipseData>>);
+        break;
+      default:
+        data satisfies never;
+        break;
     }
   }
 
   /**
    * Remove and re-register a geometry shape. Handles vertex sharing correctly.
    */
-  updateGeometry(geometry: Entity): void {
+  updateGeometry(geometry: Geometry | Entity<DatumComponent>): void {
     this.removeGeometry(geometry.id);
     this.addGeometry(geometry);
   }
