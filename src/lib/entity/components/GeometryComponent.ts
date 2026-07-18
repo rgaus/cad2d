@@ -6,6 +6,23 @@ import { RectangleData } from '../geometry/rectangle';
 import { type Entity, type EntityComponent, ResizeParams } from '../types';
 import { ConstraintComponent } from './ConstraintComponent';
 
+export type RenderShape =
+  | { shape: 'polygon'; key: string; primary: boolean; points: Array<PolygonSegment>, closed: boolean }
+  | { shape: 'rectangle'; key: string; upperLeft: SheetPosition; lowerRight: SheetPosition }
+  | { shape: 'ellipse'; key: string; center: SheetPosition; radiusX: number; radiusY: number };
+
+namespace RenderShape {
+  export function polygon(key: string, points: Array<PolygonSegment>, closed: boolean, options?: { primary?: boolean }) {
+    return { shape: 'polygon' as const, key, primary: options?.primary ?? false, points, closed };
+  }
+  export function rectangle(key: string, upperLeft: SheetPosition, lowerRight: SheetPosition) {
+    return { shape: 'rectangle' as const, key, upperLeft, lowerRight };
+  }
+  export function ellipse(key: string, center: SheetPosition, args: { radiusX: number, radiusY: number }) {
+    return { shape: 'ellipse' as const, key, center, radiusX: args.radiusX, radiusY: args.radiusY };
+  }
+}
+
 /**
  * Entity component for a geometry - a rectangle, ellipse, or polygon.
  */
@@ -113,7 +130,7 @@ export namespace GeometryComponent {
       default:
         state satisfies never;
         throw new Error(
-          `GeometryComponent.keyPoints: Unknown polygon data type ${(state as any).type}`,
+          `GeometryComponent.keyPoints: Unknown geometry data type ${(state as any).type}`,
         );
     }
   }
@@ -130,7 +147,7 @@ export namespace GeometryComponent {
       default:
         state satisfies never;
         throw new Error(
-          `GeometryComponent.boundingBox: Unknown polygon data type ${(state as any).type}`,
+          `GeometryComponent.boundingBox: Unknown geometry data type ${(state as any).type}`,
         );
     }
   }
@@ -184,7 +201,7 @@ export namespace GeometryComponent {
       default:
         state satisfies never;
         throw new Error(
-          `GeometryComponent.equals: Unknown polygon data type ${(state as any).type}`,
+          `GeometryComponent.equals: Unknown geometry data type ${(state as any).type}`,
         );
     }
   }
@@ -217,7 +234,7 @@ export namespace GeometryComponent {
       default:
         state satisfies never;
         throw new Error(
-          `GeometryComponent.resize: Unknown polygon data type ${(state as any).type}`,
+          `GeometryComponent.resize: Unknown geometry data type ${(state as any).type}`,
         );
     }
   }
@@ -477,5 +494,28 @@ export namespace GeometryComponent {
     newPointPosition: { type: 't'; t: number } | { type: 'point'; point: SheetPosition },
   ) {
     return PolygonData.addPointOnEdge(geometry, constraints, segmentIndex, newPointPosition);
+  }
+
+  export function getRenderShapes(
+    geometry: Entity<GeometryComponent<GeometryData>>,
+  ): Array<RenderShape> {
+    const state = GeometryComponent.get(geometry);
+    switch (state.type) {
+      case 'polygon':
+        return [
+          RenderShape.polygon(geometry.id, state.points, state.closed, { primary: true }),
+        ];
+      case 'rectangle':
+        return [
+          RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight),
+        ];
+      case 'ellipse':
+        return [RenderShape.ellipse(geometry.id, state.center, { radiusX: state.radiusX, radiusY: state.radiusY })];
+      default:
+        state satisfies never;
+        throw new Error(
+          `GeometryComponent.getRenderShapes: Unknown geometry data type ${(state as any).type}`,
+        );
+    }
   }
 }
