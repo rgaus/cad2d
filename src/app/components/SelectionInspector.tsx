@@ -17,19 +17,15 @@ import { Button } from '@/components/ui/button';
 import { useGeometriesById } from '@/hooks/useGeometryById';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
-  EllipseComponent,
   Entity,
   FillColorComponent,
   GeometryComponent,
   type Id,
   LinkDimensionsComponent,
-  PolygonComponent,
   type PolygonSegment,
-  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
-import { type Geometry } from '@/lib/entity/geometry';
 import { GeometryData } from '@/lib/entity/geometry';
 import { EllipseData } from '@/lib/entity/geometry/ellipse';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
@@ -137,10 +133,10 @@ const RectangleInspector: React.FunctionComponent<{
   const hInputRef = useRef<LengthInputHandle>(null);
   useEffect(() => {
     const handler = (geometry: Entity) => {
-      if (geometry.id !== rectangleId || !Entity.hasComponent(geometry, RectangleComponent)) {
+      if (geometry.id !== rectangleId || !Entity.hasComponent(geometry, GeometryComponent) || !GeometryComponent.isRectangle(geometry)) {
         return;
       }
-      const updated = RectangleComponent.get(geometry);
+      const updated = GeometryComponent.get(geometry);
 
       // Update frequently updating fields directly via refs
       xInputRef.current?.setDisplayValue(
@@ -199,8 +195,8 @@ const RectangleInspector: React.FunctionComponent<{
 
       const upperLeft = new SheetPosition(newX, rectangle.upperLeft.y);
       const lowerRight = new SheetPosition(rectangle.lowerRight.x + deltaX, rectangle.lowerRight.y);
-      geometryStore.updateByIdWithComponent(rectangleId, RectangleComponent, (old) =>
-        RectangleComponent.update(old, { upperLeft, lowerRight }),
+      geometryStore.updateByIdWithComponent(rectangleId, GeometryComponent, (old) =>
+        GeometryComponent.update(old, { upperLeft, lowerRight }),
       );
     },
     [geometryStore, rectangle, sheetDefaultUnit],
@@ -215,8 +211,8 @@ const RectangleInspector: React.FunctionComponent<{
       const deltaY = newY - rectangle.upperLeft.y;
       const upperLeft = new SheetPosition(rectangle.upperLeft.x, newY);
       const lowerRight = new SheetPosition(rectangle.lowerRight.x, rectangle.lowerRight.y + deltaY);
-      geometryStore.updateByIdWithComponent(rectangleId, RectangleComponent, (old) =>
-        RectangleComponent.update(old, { upperLeft, lowerRight }),
+      geometryStore.updateByIdWithComponent(rectangleId, GeometryComponent, (old) =>
+        GeometryComponent.update(old, { upperLeft, lowerRight }),
       );
     },
     [geometryStore, rectangle, sheetDefaultUnit],
@@ -234,8 +230,8 @@ const RectangleInspector: React.FunctionComponent<{
         newLowerRight.y = rectangle.upperLeft.y + w;
       }
 
-      geometryStore.updateByIdWithComponent(rectangleId, RectangleComponent, (old) =>
-        RectangleComponent.update(old, { lowerRight: newLowerRight }),
+      geometryStore.updateByIdWithComponent(rectangleId, GeometryComponent, (old) =>
+        GeometryComponent.update(old, { lowerRight: newLowerRight }),
       );
     },
     [geometryStore, rectangleId, rectangle, linkDimensions, sheetDefaultUnit],
@@ -253,8 +249,8 @@ const RectangleInspector: React.FunctionComponent<{
         newLowerRight.x = rectangle.upperLeft.x + h;
       }
 
-      geometryStore.updateByIdWithComponent(rectangleId, RectangleComponent, (old) =>
-        RectangleComponent.update(old, { lowerRight: newLowerRight }),
+      geometryStore.updateByIdWithComponent(rectangleId, GeometryComponent, (old) =>
+        GeometryComponent.update(old, { lowerRight: newLowerRight }),
       );
     },
     [geometryStore, rectangleId, rectangle, linkDimensions, sheetDefaultUnit],
@@ -402,10 +398,10 @@ const EllipseInspector: React.FunctionComponent<{
   const ryInputRef = useRef<LengthInputHandle>(null);
   useEffect(() => {
     const handler = (geometry: Entity) => {
-      if (geometry.id !== ellipseId || !Entity.hasComponent(geometry, EllipseComponent)) {
+      if (geometry.id !== ellipseId || !Entity.hasComponent(geometry, GeometryComponent) || !GeometryComponent.isEllipse(geometry)) {
         return;
       }
-      const updated = EllipseComponent.get(geometry);
+      const updated = GeometryComponent.get(geometry);
 
       // Update frequently updating fields directly via refs
       cxInputRef.current?.setDisplayValue(
@@ -455,9 +451,9 @@ const EllipseInspector: React.FunctionComponent<{
         return;
       }
       const newCX = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updateByIdWithComponent(ellipseId, EllipseComponent, (old) =>
-        EllipseComponent.update(old, {
-          center: new SheetPosition(newCX, EllipseComponent.get(old).center.y),
+      geometryStore.updateByIdWithComponent(ellipseId, GeometryComponent, (old) =>
+        GeometryComponent.update(old, {
+          center: new SheetPosition(newCX, GeometryComponent.get(old).center.y),
         }),
       );
     },
@@ -470,9 +466,9 @@ const EllipseInspector: React.FunctionComponent<{
         return;
       }
       const newCY = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updateByIdWithComponent(ellipseId, EllipseComponent, (old) =>
-        EllipseComponent.update(old, {
-          center: new SheetPosition(EllipseComponent.get(old).center.x, newCY),
+      geometryStore.updateByIdWithComponent(ellipseId, GeometryComponent, (old) =>
+        GeometryComponent.update(old, {
+          center: new SheetPosition(GeometryComponent.get(old).center.x, newCY),
         }),
       );
     },
@@ -486,12 +482,12 @@ const EllipseInspector: React.FunctionComponent<{
       }
       const rx = len.toSheetUnits(sheetDefaultUnit).magnitude;
       if (linkDimensions) {
-        geometryStore.updateByIdWithComponent(ellipseId, EllipseComponent, (old) =>
-          EllipseComponent.update(old, { radiusX: rx, radiusY: rx }),
+        geometryStore.updateByIdWithComponent(ellipseId, GeometryComponent, (old) =>
+          GeometryComponent.update(old, { radiusX: rx, radiusY: rx }),
         );
       } else {
-        geometryStore.updateByIdWithComponent(ellipseId, EllipseComponent, (old) =>
-          EllipseComponent.update(old, { radiusX: rx }),
+        geometryStore.updateByIdWithComponent(ellipseId, GeometryComponent, (old) =>
+          GeometryComponent.update(old, { radiusX: rx }),
         );
       }
     },
@@ -505,12 +501,12 @@ const EllipseInspector: React.FunctionComponent<{
       }
       const ry = len.toSheetUnits(sheetDefaultUnit).magnitude;
       if (linkDimensions) {
-        geometryStore.updateByIdWithComponent(ellipseId, EllipseComponent, (old) =>
-          EllipseComponent.update(old, { radiusX: ry, radiusY: ry }),
+        geometryStore.updateByIdWithComponent(ellipseId, GeometryComponent, (old) =>
+          GeometryComponent.update(old, { radiusX: ry, radiusY: ry }),
         );
       } else {
-        geometryStore.updateByIdWithComponent(ellipseId, EllipseComponent, (old) =>
-          EllipseComponent.update(old, { radiusY: ry }),
+        geometryStore.updateByIdWithComponent(ellipseId, GeometryComponent, (old) =>
+          GeometryComponent.update(old, { radiusY: ry }),
         );
       }
     },
@@ -909,10 +905,10 @@ const PolygonInspector: React.FunctionComponent<{
 
   useEffect(() => {
     const handler = (updated: Entity) => {
-      if (updated.id !== polygonId || !Entity.hasComponent(updated, PolygonComponent)) {
+      if (updated.id !== polygonId || !Entity.hasComponent(updated, GeometryComponent) || !GeometryComponent.isPolygon(updated)) {
         return;
       }
-      const updatedData = PolygonComponent.get(updated);
+      const updatedData = GeometryComponent.get(updated);
       // Update frequently updating point fields directly via refs
       const refs = pointInputRefs.current;
       for (let i = 0; i < updatedData.points.length; i++) {
@@ -953,7 +949,7 @@ const PolygonInspector: React.FunctionComponent<{
           oldData.openAtIndex !== updatedData.openAtIndex ||
           oldData.points.length !== updatedData.points.length
         ) {
-          newPolygon = GeometryComponent.update(newPolygon, updatedData);
+          newPolygon = GeometryComponent.update<PolygonData, Entity<GeometryComponent<PolygonData>>>(newPolygon, updatedData);
         }
 
         return newPolygon;
@@ -998,8 +994,11 @@ const PolygonInspector: React.FunctionComponent<{
         return;
       }
       const newX = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updateByIdWithComponent(polygon.id, PolygonComponent, (prev) => {
-        const prevData = PolygonComponent.get(prev);
+      geometryStore.updateByIdWithComponent(polygon.id, GeometryComponent, (prev) => {
+        if (!GeometryComponent.isPolygon(prev)) {
+          return prev;
+        }
+        const prevData = GeometryComponent.get(prev);
         const segments = prevData.points.map((s, i) => {
           // First point of closed polygons updates the first and last points
           if (prevData.closed && index === 0 && (i === 0 || i === prevData.points.length - 1)) {
@@ -1013,7 +1012,7 @@ const PolygonInspector: React.FunctionComponent<{
 
           return s;
         });
-        return PolygonComponent.update(prev, {
+        return GeometryComponent.update(prev, {
           points: segments,
         });
       });
@@ -1025,15 +1024,18 @@ const PolygonInspector: React.FunctionComponent<{
     (index: number, len: Length) => {
       if (!polygon) return;
       const newY = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updateByIdWithComponent(polygon.id, PolygonComponent, (prev) => {
-        const prevData = PolygonComponent.get(prev);
+      geometryStore.updateByIdWithComponent(polygon.id, GeometryComponent, (prev) => {
+        if (!GeometryComponent.isPolygon(prev)) {
+          return prev;
+        }
+        const prevData = GeometryComponent.get(prev);
         const segments = prevData.points.map((s, i) => {
           if (i !== index) {
             return s;
           }
           return { ...s, point: new SheetPosition(s.point.x, newY) };
         });
-        return PolygonComponent.update(prev, {
+        return GeometryComponent.update(prev, {
           points: segments,
         });
       });
@@ -1047,9 +1049,12 @@ const PolygonInspector: React.FunctionComponent<{
         if (!prev) {
           return prev;
         }
-        geometryStore.updateByIdWithComponent(prev.id, PolygonComponent, (old) => {
-          const oldData = PolygonComponent.get(old);
-          return PolygonComponent.update(old, {
+        geometryStore.updateByIdWithComponent(prev.id, GeometryComponent, (old) => {
+          if (!GeometryComponent.isPolygon(old)) {
+            return prev;
+          }
+          const oldData = GeometryComponent.get(old);
+          return GeometryComponent.update(old, {
             points: oldData.points.filter((_, i) => i !== index),
           });
         });
@@ -1245,8 +1250,8 @@ const PolygonInspector: React.FunctionComponent<{
       const bounded = Math.min(Math.max(index, 0), initialPoints.length);
 
       newOpenAtIndex = bounded;
-      geometryStore.updateByIdWithComponentDirect(polygon.id, PolygonComponent, (old) =>
-        PolygonComponent.update(old, {
+      geometryStore.updateByIdWithComponentDirect(polygon.id, GeometryComponent, (old) =>
+        GeometryComponent.update(old, {
           openAtIndex: newOpenAtIndex,
         }),
       );
@@ -1475,13 +1480,13 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
 
   const [singleRectangle, singleEllipse, singlePolygon] = useMemo(() => {
     const rectangles = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<RectangleComponent> => Entity.hasComponent(g, RectangleComponent),
+      (g): g is Entity<GeometryComponent<RectangleData>> => Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isRectangle(g),
     );
     const ellipses = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<EllipseComponent> => Entity.hasComponent(g, EllipseComponent),
+      (g): g is Entity<GeometryComponent<EllipseData>> => Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isEllipse(g),
     );
     const polygons = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<PolygonComponent> => Entity.hasComponent(g, PolygonComponent),
+      (g): g is Entity<GeometryComponent<PolygonData>> => Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isPolygon(g),
     );
 
     const singleRectangle =
