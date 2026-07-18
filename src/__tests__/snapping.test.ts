@@ -3,6 +3,7 @@ import {
   ConstraintEndpoint,
   Datum,
   DatumComponent,
+  GeometryComponent,
   LinearConstraint,
   Rectangle,
   RenderOrderComponent,
@@ -392,9 +393,7 @@ describe('applyKeyPointSnapping', () => {
       secondaryGridSize: null,
       superHeld: false,
       manager: { emit: () => true },
-      rectangles: [rect as any],
-      ellipses: [],
-      polygons: [],
+      geometries: [rect],
       constraints: [],
       datums: [],
     };
@@ -425,9 +424,7 @@ describe('applyKeyPointSnapping', () => {
       secondaryGridSize: null,
       superHeld: false,
       manager: { emit: () => true },
-      rectangles: [rect as any],
-      ellipses: [],
-      polygons: [],
+      geometries: [rect],
       constraints: [],
       datums: [],
     };
@@ -453,9 +450,7 @@ describe('applyKeyPointSnapping', () => {
       secondaryGridSize: null,
       superHeld: false,
       manager: { emit: () => true },
-      rectangles: [rect as any],
-      ellipses: [],
-      polygons: [],
+      geometries: [rect],
       constraints: [],
       datums: [],
     };
@@ -484,9 +479,7 @@ describe('applyKeyPointSnapping', () => {
       secondaryGridSize: null,
       superHeld: false,
       manager: { emit: () => true },
-      rectangles: [],
-      ellipses: [],
-      polygons: [],
+      geometries: [],
       constraints: [],
       datums: [datum],
     };
@@ -512,9 +505,7 @@ describe('applyKeyPointSnapping', () => {
       secondaryGridSize: null,
       superHeld: false,
       manager: { emit: () => true },
-      rectangles: [],
-      ellipses: [],
-      polygons: [],
+      geometries: [],
       constraints: [
         {
           ...LinearConstraint.create(

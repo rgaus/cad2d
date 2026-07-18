@@ -2383,15 +2383,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             superHeld: false,
             viewportScale: liveViewport.scale,
             manager: this,
-            rectangles: this.getGeometryStore().listWithComponent<{ geometry: unknown }>({
-              key: 'geometry',
-            }),
-            ellipses: this.getGeometryStore().listWithComponent<{ geometry: unknown }>({
-              key: 'geometry',
-            }),
-            polygons: this.getGeometryStore().listWithComponent<{ geometry: unknown }>({
-              key: 'geometry',
-            }),
+            geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
             constraints: this.getGeometryStore()
               .listWithComponent(ConstraintComponent)
               .filter((g) => g.id !== constraintId),
@@ -2429,15 +2421,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 superHeld: false,
                 manager: this,
                 viewportScale: liveViewport.scale,
-                rectangles: this.getGeometryStore().listWithComponent<{ geometry: unknown }>({
-                  key: 'geometry',
-                }),
-                ellipses: this.getGeometryStore().listWithComponent<{ geometry: unknown }>({
-                  key: 'geometry',
-                }),
-                polygons: this.getGeometryStore().listWithComponent<{ geometry: unknown }>({
-                  key: 'geometry',
-                }),
+                geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
                 constraints: this.getGeometryStore()
                   .listWithComponent(ConstraintComponent)
                   .filter((g) => g.id !== constraintId),

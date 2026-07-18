@@ -365,12 +365,7 @@ export default function ViewportRenderer2D({
     geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
 
     const refreshAll = () => {
-      setGeometries(
-        geometryStore.listWithComponents(
-          GeometryComponent,
-          RenderOrderComponent,
-        ),
-      );
+      setGeometries(geometryStore.listWithComponents(GeometryComponent, RenderOrderComponent));
       setDatums(geometryStore.listWithComponent(DatumComponent));
     };
     geometryStore.on('geometryAdded', refreshAll);

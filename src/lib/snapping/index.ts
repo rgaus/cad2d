@@ -160,9 +160,7 @@ export type KeyPointSnappingOptions = {
   /** Manager on which {@link applyKeyPointSnapping} emits `keyPointSnapChange` events. */
   manager: KeyPointSnapManager;
 
-  rectangles: Array<Entity>;
-  ellipses: Array<Entity>;
-  polygons: Array<Entity>;
+  geometries: Array<Geometry>;
   /** All user constraints. Their free-floating (point-type) endpoints are checked as snap targets. */
   constraints: Array<Entity<ConstraintComponent>>;
   /** Existing datums — checked as snap targets after constraint endpoints. */
@@ -197,15 +195,12 @@ export type KeyPointShouldCreateDatum = {
  * Finds the nearest geometry key point, constraint free endpoint, or datum point
  * within the given threshold distance (in sheet units).
  *
- * Check order: rectangles → ellipses → polygons → constraint endpoints → datums.
  * At equal distance, geometry wins over constraint endpoints, which wins over datums.
  */
 function snapNearestKeyPoint(
   pos: SheetPosition,
   threshold: number,
-  rectangles: Array<Entity>,
-  ellipses: Array<Entity>,
-  polygons: Array<Entity>,
+  geometries: Array<Geometry>,
   constraints: Array<Entity<ConstraintComponent>>,
   datums: Array<Entity<DatumComponent>>,
 ): {
@@ -233,98 +228,73 @@ function snapNearestKeyPoint(
     }
   }
 
-  for (const rect of rectangles) {
-    if (!GeometryComponent.isRectangle(rect as unknown as Geometry)) {
-      continue;
-    }
-    const kp = GeometryComponent.keyPoints(rect as unknown as Geometry);
-    for (let i = 0; i < kp.perimeter.length; i += 1) {
-      const label = kp.perimeterLabels[i];
-      if (label === null) {
-        continue;
+  for (const geometry of geometries) {
+    const data = GeometryComponent.get(geometry);
+    switch (data.type) {
+      case 'rectangle': {
+        const kp = GeometryComponent.keyPoints(geometry);
+        for (let i = 0; i < kp.perimeter.length; i += 1) {
+          const label = kp.perimeterLabels[i];
+          if (label === null) {
+            continue;
+          }
+          const point = kp.perimeter[i];
+          consider(
+            Vector2.distance(pos, point),
+            { type: 'locked-rectangle', id: geometry.id, point: label as RectangleEndpoint },
+            point,
+          );
+        }
+        for (const [name, point] of Object.entries(kp.extras) as Array<
+          [RectangleEndpoint, SheetPosition]
+        >) {
+          consider(
+            Vector2.distance(pos, point),
+            { type: 'locked-rectangle', id: geometry.id, point: name },
+            point,
+          );
+        }
+        break;
       }
-      const point = kp.perimeter[i];
-      consider(
-        Vector2.distance(pos, point),
-        {
-          type: 'locked-rectangle',
-          id: rect.id,
-          point: label as RectangleEndpoint,
-        },
-        point,
-      );
-    }
-    for (const [name, point] of Object.entries(kp.extras) as Array<
-      [RectangleEndpoint, SheetPosition]
-    >) {
-      consider(
-        Vector2.distance(pos, point),
-        {
-          type: 'locked-rectangle',
-          id: rect.id,
-          point: name,
-        },
-        point,
-      );
-    }
-  }
-
-  for (const ellipse of ellipses) {
-    if (!GeometryComponent.isEllipse(ellipse as unknown as Geometry)) {
-      continue;
-    }
-    const kp = GeometryComponent.keyPoints(ellipse as unknown as Geometry);
-    for (let i = 0; i < kp.perimeter.length; i += 1) {
-      const label = kp.perimeterLabels[i];
-      if (label === null) {
-        continue;
+      case 'ellipse': {
+        const kp = GeometryComponent.keyPoints(geometry);
+        for (let i = 0; i < kp.perimeter.length; i += 1) {
+          const label = kp.perimeterLabels[i];
+          if (label === null) {
+            continue;
+          }
+          const point = kp.perimeter[i];
+          consider(
+            Vector2.distance(pos, point),
+            { type: 'locked-ellipse', id: geometry.id, point: label as EllipseEndpoint },
+            point,
+          );
+        }
+        for (const [name, point] of Object.entries(kp.extras) as Array<
+          [EllipseEndpoint, SheetPosition]
+        >) {
+          consider(
+            Vector2.distance(pos, point),
+            { type: 'locked-ellipse', id: geometry.id, point: name },
+            point,
+          );
+        }
+        break;
       }
-      const point = kp.perimeter[i];
-      consider(
-        Vector2.distance(pos, point),
-        {
-          type: 'locked-ellipse',
-          id: ellipse.id,
-          point: label as EllipseEndpoint,
-        },
-        point,
-      );
-    }
-    for (const [name, point] of Object.entries(kp.extras) as Array<
-      [EllipseEndpoint, SheetPosition]
-    >) {
-      consider(
-        Vector2.distance(pos, point),
-        {
-          type: 'locked-ellipse',
-          id: ellipse.id,
-          point: name,
-        },
-        point,
-      );
-    }
-  }
-
-  for (const polygon of polygons) {
-    if (!GeometryComponent.isPolygon(polygon as unknown as Geometry)) {
-      continue;
-    }
-    const geomData = GeometryComponent.get(polygon as unknown as Entity<GeometryComponent>);
-    if (geomData.type !== 'polygon') {
-      continue;
-    }
-    const polygonData = geomData;
-    for (let i = 0; i < polygonData.points.length; i += 1) {
-      const point = polygonData.points[i].point;
-      consider(
-        Vector2.distance(pos, point),
-        {
-          type: 'locked-polygon',
-          id: polygon.id,
-          pointIndex: i,
-        },
-        point,
-      );
+      case 'polygon': {
+        for (let i = 0; i < data.points.length; i += 1) {
+          const point = data.points[i].point;
+          consider(
+            Vector2.distance(pos, point),
+            { type: 'locked-polygon', id: geometry.id, pointIndex: i },
+            point,
+          );
+        }
+        break;
+      }
+      default:
+        data satisfies never;
+        break;
     }
   }
 
@@ -400,9 +370,7 @@ export function applyKeyPointSnapping(
   const match = snapNearestKeyPoint(
     pos,
     threshold,
-    options.rectangles,
-    options.ellipses,
-    options.polygons,
+    options.geometries,
     options.constraints,
     options.datums,
   );
