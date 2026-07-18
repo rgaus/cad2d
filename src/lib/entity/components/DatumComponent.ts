@@ -1,5 +1,5 @@
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import { Entity, EntityComponent, LayoutState, type ResizeParams } from '../types';
+import { Entity, EntityComponent, type ResizeParams } from '../types';
 
 /**
  * Geometry component for a datum — a single anchor point that constraints can lock to.
@@ -49,16 +49,6 @@ export namespace DatumComponent {
 
   export function getLayoutState(geometry: Entity<DatumComponent>) {
     return { for: 'datum' as const, position: DatumComponent.get(geometry) };
-  }
-
-  export function setLayoutState(
-    geometry: Entity<DatumComponent>,
-    state: LayoutState,
-  ): Entity<DatumComponent> {
-    if (state.for !== 'datum') {
-      return geometry;
-    }
-    return DatumComponent.update(geometry, state.position);
   }
 
   export function translate(
