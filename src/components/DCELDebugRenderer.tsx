@@ -6,6 +6,7 @@ import { Vector2 } from '@/lib/math';
 import { SingleLayers } from '@/lib/renderer';
 import { getDimensionTextTexture } from '@/lib/viewport/dimensionUtils';
 import { WorldPosition } from '@/lib/viewport/types';
+import { SPRITE_SCALE_FACTOR } from '@/lib/textures';
 
 const FACE_COLORS = [0xee0000, 0x00ee00, 0x0000ee, 0xeeee00, 0x00eeee, 0xee00ee];
 const FACE_TEXT_COLORS = [0x000000, 0xffffff, 0xffffff, 0x000000, 0x000000, 0x000000];
@@ -262,7 +263,7 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
     return null;
   }
 
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * SPRITE_SCALE_FACTOR);
 
   return (
     <pixiContainer>
