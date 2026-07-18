@@ -23,13 +23,11 @@ import {
   type Datum,
   DatumComponent,
   Entity,
-  FillColorComponent,
   GeometryComponent,
   type Id,
-  LinkDimensionsComponent,
-  type Rectangle,
   RenderOrderComponent,
 } from '@/lib/entity';
+import { type Geometry } from '@/lib/entity/geometry';
 import { KeyCombo } from '@/lib/index-mapper';
 import {
   ListLayers,
@@ -297,7 +295,7 @@ export default function ViewportRenderer2D({
     width: number;
     height: number;
   } | null>(null);
-  const [geometries, setGeometries] = useState<Array<Entity>>([]);
+  const [geometries, setGeometries] = useState<Array<Geometry>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
   const [datums, setDatums] = useState<Array<Datum>>([]);
