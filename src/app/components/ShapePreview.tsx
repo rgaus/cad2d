@@ -218,7 +218,7 @@ export default function ShapePreview({
       className="w-full aspect-square"
       style={{ backgroundColor: '#fafafa', borderRadius: '4px' }}
     >
-      {Entity.hasComponent(shape, RectangleComponent) && (
+      {GeometryComponent.isRectangle(shape) && (
         <rect
           x={toSvg(bounds.minX, bounds.minY)[0]}
           y={toSvg(bounds.minX, bounds.minY)[1]}
@@ -229,7 +229,7 @@ export default function ShapePreview({
           strokeWidth="1"
         />
       )}
-      {Entity.hasComponent(shape, EllipseComponent) && (
+      {GeometryComponent.isEllipse(shape) && (
         <ellipse
           cx={toSvg((bounds.minX + bounds.maxX) / 2, 0)[0]}
           cy={toSvg(0, (bounds.minY + bounds.maxY) / 2)[1]}
@@ -240,16 +240,16 @@ export default function ShapePreview({
           strokeWidth="1"
         />
       )}
-      {Entity.hasComponent(shape, PolygonComponent) && (
+      {GeometryComponent.isPolygon(shape) && (
         <>
           {points.length >= 2 ? (
             <path
               d={buildPolygonPath(
-                PolygonComponent.get(shape).points,
+                GeometryComponent.get(shape).points,
                 toSvg,
-                PolygonComponent.get(shape).closed,
+                GeometryComponent.get(shape).closed,
               )}
-              fill={PolygonComponent.get(shape).closed && fill !== 'none' ? fill : 'none'}
+              fill={GeometryComponent.get(shape).closed && fill !== 'none' ? fill : 'none'}
               stroke={stroke}
               strokeWidth="1"
               strokeLinejoin="round"
