@@ -27,11 +27,17 @@ const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry })
       if (!viewportControls) {
         return;
       }
-      activeTool.handleGeometryFillPointerDown?.(
+      const shouldCancel = activeTool.handleDatumRingPointerDown(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         geometry.id,
       );
+
+      if (shouldCancel) {
+        // Don't trigger handleMouseDown too
+        e.preventDefault();
+        e.stopPropagation();
+      }
     },
     [activeTool, geometry.id],
   );
