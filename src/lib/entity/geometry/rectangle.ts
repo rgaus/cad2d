@@ -47,10 +47,10 @@ export namespace RectangleData {
     };
   }
 
-  export function translate(
-    geometry: Entity<GeometryComponent<RectangleData>>,
+  export function translate<E extends Entity<GeometryComponent<RectangleData>>>(
+    geometry: E,
     transform: (input: SheetPosition) => SheetPosition,
-  ) {
+  ): E {
     const state = GeometryComponent.get(geometry);
     const upperLeft = transform(state.upperLeft);
     return GeometryComponent.update(geometry, {
@@ -85,11 +85,11 @@ export namespace RectangleData {
     );
   }
 
-  export function resize(
-    geometry: Entity<GeometryComponent<RectangleData>>,
+  export function resize<E extends Entity<GeometryComponent<RectangleData>>>(
+    geometry: E,
     params: ResizeParams,
     originalBBox?: Rect<SheetPosition>,
-  ): Entity<GeometryComponent<RectangleData>> | null {
+  ): E | null {
     const state = GeometryComponent.get(geometry);
     if (!originalBBox) {
       originalBBox = {
