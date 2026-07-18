@@ -4,6 +4,10 @@ import { EllipseComponent } from './components/EllipseComponent';
 import { GeometryComponent } from './components/GeometryComponent';
 import { PolygonComponent } from './components/PolygonComponent';
 import { RectangleComponent } from './components/RectangleComponent';
+import { type GeometryData } from './geometry';
+import { EllipseData } from './geometry/ellipse';
+import { PolygonData } from './geometry/polygon';
+import { RectangleData } from './geometry/rectangle';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -98,12 +102,28 @@ export namespace Entity {
   }
 
   export function getLayoutState(geometry: Entity) {
-    if (Entity.hasComponent(geometry, EllipseComponent)) {
-      return EllipseComponent.getLayoutState(geometry);
-    } else if (Entity.hasComponent(geometry, RectangleComponent)) {
-      return RectangleComponent.getLayoutState(geometry);
-    } else if (Entity.hasComponent(geometry, PolygonComponent)) {
-      return PolygonComponent.getLayoutState(geometry);
+    if (Entity.hasComponent(geometry, GeometryComponent)) {
+      const data = GeometryComponent.get(geometry) as GeometryData;
+      switch (data.type) {
+        case 'ellipse':
+          return {
+            for: 'ellipse' as const,
+            center: data.center,
+            radiusX: data.radiusX,
+            radiusY: data.radiusY,
+          };
+        case 'rectangle':
+          return {
+            for: 'rectangle' as const,
+            upperLeft: data.upperLeft,
+            lowerRight: data.lowerRight,
+          };
+        case 'polygon':
+          return { for: 'polygon' as const, points: data.points };
+        default:
+          data satisfies never;
+          return null;
+      }
     } else if (Entity.hasComponent(geometry, DatumComponent)) {
       return DatumComponent.getLayoutState(geometry);
     }
@@ -113,23 +133,29 @@ export namespace Entity {
   export function setLayoutState(geometry: Entity, state: LayoutState) {
     switch (state.for) {
       case 'ellipse':
-        if (Entity.hasComponent(geometry, EllipseComponent)) {
-          return EllipseComponent.setLayoutState(geometry, state);
-        } else {
-          return geometry;
+        if (Entity.hasComponent(geometry, GeometryComponent)) {
+          return GeometryComponent.update(geometry as Entity<GeometryComponent<EllipseData>>, {
+            center: state.center,
+            radiusX: state.radiusX,
+            radiusY: state.radiusY,
+          });
         }
+        return geometry;
       case 'rectangle':
-        if (Entity.hasComponent(geometry, RectangleComponent)) {
-          return RectangleComponent.setLayoutState(geometry, state);
-        } else {
-          return geometry;
+        if (Entity.hasComponent(geometry, GeometryComponent)) {
+          return GeometryComponent.update(geometry as Entity<GeometryComponent<RectangleData>>, {
+            upperLeft: state.upperLeft,
+            lowerRight: state.lowerRight,
+          });
         }
+        return geometry;
       case 'polygon':
-        if (Entity.hasComponent(geometry, PolygonComponent)) {
-          return PolygonComponent.setLayoutState(geometry, state);
-        } else {
-          return geometry;
+        if (Entity.hasComponent(geometry, GeometryComponent)) {
+          return GeometryComponent.update(geometry as Entity<GeometryComponent<PolygonData>>, {
+            points: state.points,
+          });
         }
+        return geometry;
       case 'datum':
         if (Entity.hasComponent(geometry, DatumComponent)) {
           return DatumComponent.setLayoutState(geometry, state);

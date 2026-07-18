@@ -6,6 +6,7 @@ import {
   GeometryComponent,
   PointSegment,
   Polygon,
+  type PolygonSegment,
   Rectangle,
 } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
@@ -631,7 +632,7 @@ describe('FilletTool', () => {
         // This should cause the first fillet to get committed
         let polygonGeometry = geometryStore.listWithComponent(GeometryComponent)[0];
         let points = GeometryComponent.get(polygonGeometry).points;
-        expect(points.filter((p) => p.type === 'arc-cubic')).toHaveLength(1);
+        expect(points.filter((p: PolygonSegment) => p.type === 'arc-cubic')).toHaveLength(1);
 
         // And the second fillet to get made active.
         // First a no-op event:
@@ -668,7 +669,7 @@ describe('FilletTool', () => {
         // This should cause the first fillet to get committed
         let polygonGeometry = geometryStore.listWithComponent(GeometryComponent)[0];
         let points = GeometryComponent.get(polygonGeometry).points;
-        expect(points.filter((p) => p.type === 'arc-cubic')).toHaveLength(1);
+        expect(points.filter((p: PolygonSegment) => p.type === 'arc-cubic')).toHaveLength(1);
 
         // And the second fillet to get made active.
         // First a no-op event:

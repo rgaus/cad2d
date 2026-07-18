@@ -160,7 +160,11 @@ describe('ToggleLinkDimensionsAction', () => {
 
     await actionsManager.execute('toggle-link-dimensions');
 
-    const rect = geometryStore.getByIdWithComponents(rectId, GeometryComponent, LinkDimensionsComponent);
+    const rect = geometryStore.getByIdWithComponents(
+      rectId,
+      GeometryComponent,
+      LinkDimensionsComponent,
+    );
     expect(rect).not.toBeNull();
     expect(LinkDimensionsComponent.get(rect!)).toBe(true);
     expect(
@@ -234,7 +238,11 @@ describe('ToggleLinkDimensionsAction', () => {
 
     await actionsManager.execute('toggle-link-dimensions');
 
-    const ellipse = geometryStore.getByIdWithComponents(ellipseId, GeometryComponent, LinkDimensionsComponent);
+    const ellipse = geometryStore.getByIdWithComponents(
+      ellipseId,
+      GeometryComponent,
+      LinkDimensionsComponent,
+    );
     expect(ellipse).not.toBeNull();
     expect(LinkDimensionsComponent.get(ellipse!)).toBe(true);
   });
@@ -256,7 +264,11 @@ describe('ToggleLinkDimensionsAction', () => {
 
     await actionsManager.execute('toggle-link-dimensions');
 
-    const ellipse = geometryStore.getByIdWithComponents(ellipseId, GeometryComponent, LinkDimensionsComponent);
+    const ellipse = geometryStore.getByIdWithComponents(
+      ellipseId,
+      GeometryComponent,
+      LinkDimensionsComponent,
+    );
     expect(ellipse).not.toBeNull();
     expect(LinkDimensionsComponent.get(ellipse!)).toBe(true);
     expect(GeometryComponent.get(ellipse!).radiusX).toBe(10);

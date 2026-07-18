@@ -2,7 +2,6 @@ import {
   ConstraintComponent,
   ConstraintEndpoint,
   Ellipse,
-  EllipseComponent,
   FillColorComponent,
   GeometryComponent,
   LinearConstraint,
@@ -12,7 +11,6 @@ import {
   PolygonComponent,
   PolygonSegment,
   Rectangle,
-  RectangleComponent,
   RenderOrderComponent,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
@@ -1090,16 +1088,26 @@ describe('HistoryManager', () => {
           }),
         );
 
-        expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(1);
-        expect(geometryStore.listWithComponent(RectangleComponent)[0].id).toBe(rectangle.id);
+        expect(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isRectangle),
+        ).toHaveLength(1);
+        expect(
+          geometryStore
+            .listWithComponent(GeometryComponent)
+            .filter(GeometryComponent.isRectangle)[0].id,
+        ).toBe(rectangle.id);
 
         historyManager.undo();
 
-        expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(0);
+        expect(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isRectangle),
+        ).toHaveLength(0);
 
         historyManager.redo();
 
-        expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(1);
+        expect(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isRectangle),
+        ).toHaveLength(1);
       });
     });
 
@@ -1132,58 +1140,94 @@ describe('HistoryManager', () => {
         );
 
         expect(
-          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).upperLeft
-            .x,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0],
+          ).upperLeft.x,
         ).toBe(5);
         expect(
-          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).upperLeft
-            .y,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0],
+          ).upperLeft.y,
         ).toBe(5);
         expect(
-          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).lowerRight
-            .x,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0],
+          ).lowerRight.x,
         ).toBe(15);
         expect(
-          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).lowerRight
-            .y,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0],
+          ).lowerRight.y,
         ).toBe(25);
 
         historyManager.undo();
 
         expect(
-          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).upperLeft
-            .x,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0],
+          ).upperLeft.x,
         ).toBe(0);
         expect(
-          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).upperLeft
-            .y,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0],
+          ).upperLeft.y,
         ).toBe(0);
         expect(
-          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).lowerRight
-            .x,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0],
+          ).lowerRight.x,
         ).toBe(10);
         expect(
-          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).lowerRight
-            .y,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0],
+          ).lowerRight.y,
         ).toBe(20);
 
         historyManager.redo();
 
         expect(
-          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).upperLeft
-            .x,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0],
+          ).upperLeft.x,
         ).toBe(5);
         expect(
-          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).upperLeft
-            .y,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0],
+          ).upperLeft.y,
         ).toBe(5);
         expect(
-          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).lowerRight
-            .x,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0],
+          ).lowerRight.x,
         ).toBe(15);
         expect(
-          RectangleComponent.get(geometryStore.listWithComponent(RectangleComponent)[0]).lowerRight
-            .y,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0],
+          ).lowerRight.y,
         ).toBe(25);
       });
     });
@@ -1200,15 +1244,21 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.deleteGeometry(rectangle));
 
-        expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(0);
+        expect(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isRectangle),
+        ).toHaveLength(0);
 
         historyManager.undo();
 
-        expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(1);
+        expect(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isRectangle),
+        ).toHaveLength(1);
 
         historyManager.redo();
 
-        expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(0);
+        expect(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isRectangle),
+        ).toHaveLength(0);
       });
     });
 
@@ -1225,19 +1275,31 @@ describe('HistoryManager', () => {
         historyManager.apply(UndoEntry.fillColor(rectangle.id, null, 0x00ff00));
 
         expect(
-          FillColorComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+          FillColorComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0] as any,
+          ),
         ).toBe(0x00ff00);
 
         historyManager.undo();
 
         expect(
-          FillColorComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+          FillColorComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0] as any,
+          ),
         ).toBeNull();
 
         historyManager.redo();
 
         expect(
-          FillColorComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+          FillColorComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0] as any,
+          ),
         ).toBe(0x00ff00);
       });
       it('clears rectangle fill color and undos/redos correctly', () => {
@@ -1254,19 +1316,31 @@ describe('HistoryManager', () => {
         );
 
         expect(
-          FillColorComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+          FillColorComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0] as any,
+          ),
         ).toBeNull();
 
         historyManager.undo();
 
         expect(
-          FillColorComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+          FillColorComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0] as any,
+          ),
         ).toBe(0xff00ff);
 
         historyManager.redo();
 
         expect(
-          FillColorComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+          FillColorComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0] as any,
+          ),
         ).toBeNull();
       });
     });
@@ -1285,7 +1359,9 @@ describe('HistoryManager', () => {
 
         expect(
           LinkDimensionsComponent.get(
-            geometryStore.listWithComponent(RectangleComponent)[0] as any,
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0] as any,
           ),
         ).toBe(true);
 
@@ -1293,7 +1369,9 @@ describe('HistoryManager', () => {
 
         expect(
           LinkDimensionsComponent.get(
-            geometryStore.listWithComponent(RectangleComponent)[0] as any,
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0] as any,
           ),
         ).toBe(false);
 
@@ -1301,7 +1379,9 @@ describe('HistoryManager', () => {
 
         expect(
           LinkDimensionsComponent.get(
-            geometryStore.listWithComponent(RectangleComponent)[0] as any,
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0] as any,
           ),
         ).toBe(true);
       });
@@ -1322,19 +1402,31 @@ describe('HistoryManager', () => {
         historyManager.apply(UndoEntry.renderOrder('rect-1', 0, 3));
 
         expect(
-          RenderOrderComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+          RenderOrderComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0] as any,
+          ),
         ).toBe(3);
 
         historyManager.undo();
 
         expect(
-          RenderOrderComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+          RenderOrderComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0] as any,
+          ),
         ).toBe(0);
 
         historyManager.redo();
 
         expect(
-          RenderOrderComponent.get(geometryStore.listWithComponent(RectangleComponent)[0] as any),
+          RenderOrderComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isRectangle)[0] as any,
+          ),
         ).toBe(3);
       });
     });
@@ -1355,16 +1447,25 @@ describe('HistoryManager', () => {
           ),
         );
 
-        expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(1);
-        expect(geometryStore.listWithComponent(EllipseComponent)[0].id).toBe('ellipse-1');
+        expect(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isEllipse),
+        ).toHaveLength(1);
+        expect(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isEllipse)[0]
+            .id,
+        ).toBe('ellipse-1');
 
         historyManager.undo();
 
-        expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(0);
+        expect(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isEllipse),
+        ).toHaveLength(0);
 
         historyManager.redo();
 
-        expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(1);
+        expect(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isEllipse),
+        ).toHaveLength(1);
       });
     });
 
@@ -1399,46 +1500,94 @@ describe('HistoryManager', () => {
         );
 
         expect(
-          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).center.x,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0],
+          ).center.x,
         ).toBe(5);
         expect(
-          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).center.y,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0],
+          ).center.y,
         ).toBe(5);
         expect(
-          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).radiusX,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0],
+          ).radiusX,
         ).toBe(15);
         expect(
-          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).radiusY,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0],
+          ).radiusY,
         ).toBe(25);
 
         historyManager.undo();
 
         expect(
-          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).center.x,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0],
+          ).center.x,
         ).toBe(0);
         expect(
-          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).center.y,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0],
+          ).center.y,
         ).toBe(0);
         expect(
-          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).radiusX,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0],
+          ).radiusX,
         ).toBe(10);
         expect(
-          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).radiusY,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0],
+          ).radiusY,
         ).toBe(20);
 
         historyManager.redo();
 
         expect(
-          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).center.x,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0],
+          ).center.x,
         ).toBe(5);
         expect(
-          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).center.y,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0],
+          ).center.y,
         ).toBe(5);
         expect(
-          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).radiusX,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0],
+          ).radiusX,
         ).toBe(15);
         expect(
-          EllipseComponent.get(geometryStore.listWithComponent(EllipseComponent)[0]).radiusY,
+          GeometryComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0],
+          ).radiusY,
         ).toBe(25);
       });
     });
@@ -1457,15 +1606,21 @@ describe('HistoryManager', () => {
 
         historyManager.apply(UndoEntry.deleteGeometry(ellipse));
 
-        expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(0);
+        expect(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isEllipse),
+        ).toHaveLength(0);
 
         historyManager.undo();
 
-        expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(1);
+        expect(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isEllipse),
+        ).toHaveLength(1);
 
         historyManager.redo();
 
-        expect(geometryStore.listWithComponent(EllipseComponent)).toHaveLength(0);
+        expect(
+          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isEllipse),
+        ).toHaveLength(0);
       });
     });
 
@@ -1484,19 +1639,31 @@ describe('HistoryManager', () => {
         historyManager.apply(UndoEntry.fillColor(ellipse.id, null, 0x0000ff));
 
         expect(
-          FillColorComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+          FillColorComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0] as any,
+          ),
         ).toBe(0x0000ff);
 
         historyManager.undo();
 
         expect(
-          FillColorComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+          FillColorComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0] as any,
+          ),
         ).toBeNull();
 
         historyManager.redo();
 
         expect(
-          FillColorComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+          FillColorComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0] as any,
+          ),
         ).toBe(0x0000ff);
       });
     });
@@ -1516,19 +1683,31 @@ describe('HistoryManager', () => {
         historyManager.apply(UndoEntry.linkDimensions(ellipse.id, false, true));
 
         expect(
-          LinkDimensionsComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+          LinkDimensionsComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0] as any,
+          ),
         ).toBe(true);
 
         historyManager.undo();
 
         expect(
-          LinkDimensionsComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+          LinkDimensionsComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0] as any,
+          ),
         ).toBe(false);
 
         historyManager.redo();
 
         expect(
-          LinkDimensionsComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+          LinkDimensionsComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0] as any,
+          ),
         ).toBe(true);
       });
     });
@@ -1549,19 +1728,31 @@ describe('HistoryManager', () => {
         historyManager.apply(UndoEntry.renderOrder('ellipse-1', 0, 2));
 
         expect(
-          RenderOrderComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+          RenderOrderComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0] as any,
+          ),
         ).toBe(2);
 
         historyManager.undo();
 
         expect(
-          RenderOrderComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+          RenderOrderComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0] as any,
+          ),
         ).toBe(0);
 
         historyManager.redo();
 
         expect(
-          RenderOrderComponent.get(geometryStore.listWithComponent(EllipseComponent)[0] as any),
+          RenderOrderComponent.get(
+            geometryStore
+              .listWithComponent(GeometryComponent)
+              .filter(GeometryComponent.isEllipse)[0] as any,
+          ),
         ).toBe(2);
       });
     });

@@ -1,12 +1,15 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintComponent,
+  ConstraintEndpoint,
   FillColorComponent,
+  GeometryComponent,
+  LinearConstraint,
   type PointSegment,
   Polygon,
   PolygonComponent,
+  type PolygonSegment,
 } from '@/lib/entity';
-import { ConstraintEndpoint, LinearConstraint } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';

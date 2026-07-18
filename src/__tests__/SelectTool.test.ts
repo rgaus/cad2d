@@ -3497,8 +3497,8 @@ describe('SelectTool', () => {
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
       const origPoints = GeometryComponent.get(origPoly).points;
-      const origMinX = Math.min(...origPoints.map((p) => p.point.x));
-      const origMinY = Math.min(...origPoints.map((p) => p.point.y));
+      const origMinX = Math.min(...origPoints.map((p: PolygonSegment) => p.point.x));
+      const origMinY = Math.min(...origPoints.map((p: PolygonSegment) => p.point.y));
 
       const clickScreenX = 3.3 * SHEET_UNITS_TO_PIXELS;
       const clickScreenY = 5.7 * SHEET_UNITS_TO_PIXELS;
@@ -3519,8 +3519,8 @@ describe('SelectTool', () => {
       const newPoints = GeometryComponent.get(polygon).points;
 
       // The bounding box origin (min x, min y) should be on grid
-      const newMinX = Math.min(...newPoints.map((p) => p.point.x));
-      const newMinY = Math.min(...newPoints.map((p) => p.point.y));
+      const newMinX = Math.min(...newPoints.map((p: PolygonSegment) => p.point.x));
+      const newMinY = Math.min(...newPoints.map((p: PolygonSegment) => p.point.y));
       expect(isOnGrid(newMinX)).toBe(true);
       expect(isOnGrid(newMinY)).toBe(true);
 
@@ -3751,8 +3751,8 @@ describe('SelectTool', () => {
       ).toBeTruthy();
 
       const selectedRectangles = Array.from(
-        geometryStore.getByIdsWithComponent(selectionManager.getSelectedIds(), RectangleComponent),
-      );
+        geometryStore.getByIdsWithComponent(selectionManager.getSelectedIds(), GeometryComponent),
+      ).filter(GeometryComponent.isRectangle);
       const selectedUpperLeftXValues = new Set(
         selectedRectangles.map((geometry) => GeometryComponent.get(geometry).upperLeft.x),
       );
