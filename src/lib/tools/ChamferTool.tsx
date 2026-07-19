@@ -1,5 +1,5 @@
 import React from 'react';
-import { PolygonSegment } from '@/lib/entity/polygon';
+import { CornerReplacement, type CornerSegmentFactory } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { BaseCornerGeometryReplacerTool } from './BaseCornerGeometryReplacerTool';
 
@@ -49,7 +49,6 @@ export class ChamferTool extends BaseCornerGeometryReplacerTool<'chamfer'> {
     return <ChamferIcon />;
   }
 
-  protected createCornerSegment(point: SheetPosition): PolygonSegment {
-    return { type: 'point', point };
-  }
+  protected cornerSegmentFactory: CornerSegmentFactory<SheetPosition> =
+    CornerReplacement.chamferLine;
 }

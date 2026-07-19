@@ -1,11 +1,7 @@
 import { SquareRoundCornerIcon } from 'lucide-react';
-import { PolygonSegment } from '@/lib/entity/polygon';
-import { Vector2, computeFilletArcControlPoints } from '@/lib/math';
-import { SheetPosition } from '@/lib/viewport/types';
-import {
-  BaseCornerGeometryReplacerTool,
-  type ValidateOffsetResults,
-} from './BaseCornerGeometryReplacerTool';
+import { CornerReplacement, type CornerSegmentFactory } from '@/lib/math';
+import { CubicCurve, SheetPosition } from '@/lib/viewport/types';
+import { BaseCornerGeometryReplacerTool } from './BaseCornerGeometryReplacerTool';
 
 /**
  * A tool for creating fillets (rounded corners) on polygon shapes.
@@ -28,31 +24,5 @@ export class FilletTool extends BaseCornerGeometryReplacerTool<'fillet'> {
     return <SquareRoundCornerIcon size={24} color="white" />;
   }
 
-  protected createCornerSegment(
-    point: SheetPosition,
-    p0: SheetPosition,
-    p3: SheetPosition,
-    tStart: SheetPosition,
-    tEnd: SheetPosition,
-    offset: number,
-    step2: ValidateOffsetResults,
-  ): PolygonSegment {
-    const { controlPointA, controlPointB } = computeFilletArcControlPoints(
-      p0,
-      p3,
-      tStart,
-      tEnd,
-      offset,
-      step2.centerPos,
-      step2.pointAPos,
-      step2.pointBPos,
-    );
-
-    return {
-      type: 'arc-cubic' as const,
-      point,
-      controlPointA,
-      controlPointB,
-    };
-  }
+  protected cornerSegmentFactory: CornerSegmentFactory<SheetPosition> = CornerReplacement.filletArc;
 }

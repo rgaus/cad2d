@@ -18,9 +18,10 @@ import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { PolygonSegment } from '@/lib/entity/polygon';
 import { type RectangleEndpoint } from '@/lib/entity/rectangle';
-import { Vector2 } from '@/lib/math';
+import { CornerReplacement, type CornerSegmentFactory, Vector2 } from '@/lib/math';
 import { applyKeyPointSnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
+import { CubicCurve, LineSegment, QuadraticCurve } from '@/lib/viewport/types';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
 import { BaseTool } from './BaseTool';
 
@@ -566,25 +567,25 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     }
 
     const offset = this.state.currentOffset.toSheetUnits(sheet.defaultUnit).magnitude;
-    const currentOffset = this.state.currentOffset;
+    // const currentOffset = this.state.currentOffset;
 
-    const filter =
-      pending.mode === 'rectangle'
-        ? FilletFilter.createOnRectangle(
-            pending.geometryId,
-            pending.pointAEndpoint,
-            pending.centerEndpoint,
-            pending.pointBEndpoint,
-            currentOffset,
-          )
-        : FilletFilter.createOnPolygon(
-            pending.geometryId,
-            pending.pointAIndex,
-            pending.centerIndex,
-            pending.pointBIndex,
-            currentOffset,
-          );
-    this.getGeometryStore().add(ID_PREFIXES.filter, filter);
+    // const filter =
+    //   pending.mode === 'rectangle'
+    //     ? FilletFilter.createOnRectangle(
+    //         pending.geometryId,
+    //         pending.pointAEndpoint,
+    //         pending.centerEndpoint,
+    //         pending.pointBEndpoint,
+    //         currentOffset,
+    //       )
+    //     : FilletFilter.createOnPolygon(
+    //         pending.geometryId,
+    //         pending.pointAIndex,
+    //         pending.centerIndex,
+    //         pending.pointBIndex,
+    //         currentOffset,
+    //       );
+    // this.getGeometryStore().add(ID_PREFIXES.filter, filter);
 
     const result = historyManager.applyTransaction(this.type, () => {
       return this.processCornerReplacement(pending, offset);
@@ -979,37 +980,16 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
   }
 
   /**
-   * Creates the polygon segment that replaces the corner vertex between two split points.
-   * The returned segment's `point` field should be set to the given `point` parameter
-   * (the destination position for this segment in the polygon).
-   *
-   * For FilletTool: returns a CubicBezierSegment with control points computed from
-   *   the tangents, offset, and corner angle.
-   * For ChamferTool: returns a simple PointSegment.
-   *
-   * @param point - Destination position for the segment in the polygon.
-   * @param p0 - Start position of the corner replacement curve.
-   * @param p3 - End position of the corner replacement curve.
-   * @param tStart - Unit tangent direction at the start point.
-   * @param tEnd - Unit tangent direction at the end point.
-   * @param offset - The fillet/chamfer offset distance.
-   * @param step2 - Results from validateOffset.
+   * Factory that creates the viewport segment (CubicCurve for fillet, LineSegment
+   * for chamfer) that replaces a polygon corner. Receives the split positions,
+   * tangents, offset, and corner geometry.
    */
-  protected abstract createCornerSegment(
-    point: SheetPosition,
-    p0: SheetPosition,
-    p3: SheetPosition,
-    tStart: SheetPosition,
-    tEnd: SheetPosition,
-    offset: number,
-    step2: ValidateOffsetResults,
-  ): PolygonSegment;
+  protected abstract cornerSegmentFactory: CornerSegmentFactory<SheetPosition>;
 
   /**
-   * Determines whether the arc wraps around the polygon seam or replaces the
-   * center in-place, computes tangent directions, and rebuilds the polygon with
-   * the corner replacement segment inserted at the correct position. Uses
-   * createCornerSegment to produce the actual segment geometry.
+   * Converts the polygon points to viewport segments, delegates the corner
+   * replacement to {@link CornerReplacement.applyToPolygon}, and converts
+   * the result back to PolygonSegments to update the geometry store.
    */
   private buildCornerSegment(
     step1: ResolveGeometryAndIndicesResults,
@@ -1018,109 +998,49 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
   ): BuildCornerSegmentResults {
     const geometryStore = this.getGeometryStore();
     const geometryId = step1.geometryId;
-    const centerPos = step2.centerPos;
-    const pointAPos = step2.pointAPos;
-    const pointBPos = step2.pointBPos;
-    const splitAPos = step3.splitAPos;
-    const splitBPos = step3.splitBPos;
-    const splitAIdx = step3.splitAIdx;
-    const splitBIdx = step3.splitBIdx;
-    const centerIdxFirst = step3.centerIdxFirst;
-    const offset = step2.offset;
 
-    const minSplitIdx = Math.min(splitAIdx, splitBIdx);
-    const maxSplitIdx = Math.max(splitAIdx, splitBIdx);
-    const isWrapping = !(minSplitIdx < centerIdxFirst && centerIdxFirst < maxSplitIdx);
+    // Use the PRE-SPLIT polygon points (before splitEdgesAtOffset added new vertices).
+    // applyToPolygon computes its own split points from the corner and far positions, so
+    // we must feed it the original polygon without the intermediate split vertices.
+    const preSplitPoints = step1.polygonData.points;
 
-    // Compute tangents from polygon edge directions at the split points.
-    // The tangent at P0 matches the direction from the previous vertex toward P0;
-    // the tangent at P3 matches the direction from P3 toward the next vertex.
-    const pts = GeometryComponent.get(step3.geometry).points;
-    let p0: SheetPosition;
-    let p3: SheetPosition;
-    let tStart: SheetPosition;
-    let tEnd: SheetPosition;
-
-    if (isWrapping) {
-      if (maxSplitIdx === splitAIdx) {
-        p0 = splitAPos;
-        p3 = splitBPos;
-      } else {
-        p0 = splitBPos;
-        p3 = splitAPos;
-      }
-      tStart = Vector2.norm(
-        Vector2.sub(p0, pts[(maxSplitIdx - 1 + pts.length) % pts.length].point),
+    // Convert pre-split polygon points to viewport segments (i -> (i, i+1) pairing)
+    const viewportSegs: Array<
+      LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>
+    > = [];
+    for (let i = 0; i < preSplitPoints.length - 1; i += 1) {
+      viewportSegs.push(
+        PolygonSegment.toLineSegmentOrCurve(preSplitPoints[i].point, preSplitPoints[i + 1]),
       );
-    } else if (maxSplitIdx === splitAIdx) {
-      p0 = splitBPos;
-      p3 = splitAPos;
-      tStart = Vector2.norm(Vector2.sub(p0, pts[splitBIdx - 1].point));
-    } else {
-      p0 = splitAPos;
-      p3 = splitBPos;
-      tStart = Vector2.norm(Vector2.sub(p0, pts[splitAIdx - 1].point));
     }
 
-    if (isWrapping) {
-      tEnd = Vector2.norm(Vector2.sub(pts[(minSplitIdx + 1) % pts.length].point, p3));
-    } else if (maxSplitIdx === splitAIdx) {
-      tEnd = Vector2.norm(Vector2.sub(pts[splitAIdx + 1].point, p3));
-    } else {
-      tEnd = Vector2.norm(Vector2.sub(pts[splitBIdx + 1].point, p3));
+    // The corner viewport segment index: the edge that ENDS at the center vertex.
+    // In a closed polygon with N+1 points (N segments), corner at polygon index k
+    // sits at the junction of viewport segments (k-1) and k (mod N).
+    const viewportLength = viewportSegs.length;
+    const cornerSegIndex = (step1.centerIndex - 1 + viewportLength) % viewportLength;
+
+    const result = CornerReplacement.applyToPolygon(
+      viewportSegs,
+      cornerSegIndex,
+      step2.offset,
+      this.cornerSegmentFactory,
+    );
+
+    // Convert viewport result back to polygon points
+    const newPoints: Array<PolygonSegment> = [];
+    const [firstPoint] = PolygonSegment.fromLineSegmentOrCurve(result.segments[0]);
+    newPoints.push({ type: 'point', point: firstPoint });
+    for (const seg of result.segments) {
+      const [, polySeg] = PolygonSegment.fromLineSegmentOrCurve(seg);
+      newPoints.push(polySeg);
     }
 
-    let addedSegmentIndex = -1;
+    const addedSegmentIndex = result.insertedSegmentIndex;
+
     geometryStore.updateById(geometryId, (old) => {
       if (!Entity.hasComponent(old, GeometryComponent)) {
         return old;
-      }
-      const oldPoints = GeometryComponent.get(old as Entity<GeometryComponent<PolygonData>>).points;
-      let newPoints: Array<PolygonSegment>;
-      if (isWrapping) {
-        const segment = this.createCornerSegment(
-          oldPoints[minSplitIdx].point,
-          p0,
-          p3,
-          tStart,
-          tEnd,
-          offset,
-          step2,
-        );
-        newPoints = [...oldPoints.slice(minSplitIdx, maxSplitIdx + 1), segment];
-        addedSegmentIndex = newPoints.length - 1;
-      } else if (maxSplitIdx === splitAIdx) {
-        const segment = this.createCornerSegment(
-          oldPoints[splitAIdx].point,
-          p0,
-          p3,
-          tStart,
-          tEnd,
-          offset,
-          step2,
-        );
-        newPoints = [
-          ...oldPoints.slice(0, splitAIdx - 1),
-          segment,
-          ...oldPoints.slice(splitBIdx + 3),
-        ];
-        addedSegmentIndex = splitAIdx - 2;
-      } else {
-        const segment = this.createCornerSegment(
-          oldPoints[splitBIdx].point,
-          p0,
-          p3,
-          tStart,
-          tEnd,
-          offset,
-          step2,
-        );
-        newPoints = [
-          ...oldPoints.slice(0, splitBIdx - 1),
-          segment,
-          ...oldPoints.slice(splitAIdx + 3),
-        ];
-        addedSegmentIndex = splitBIdx - 2;
       }
       return GeometryComponent.update(old as Entity<GeometryComponent<PolygonData>>, {
         points: newPoints,
