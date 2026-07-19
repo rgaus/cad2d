@@ -613,10 +613,12 @@ export namespace GeometryComponent {
                   data.pointA,
                   data.pointB,
                 );
-                return [RenderShape.ellipse(key, mirroredCenter, {
-                  radiusX: renderShape.radiusX,
-                  radiusY: renderShape.radiusY,
-                })]
+                return [
+                  RenderShape.ellipse(key, mirroredCenter, {
+                    radiusX: renderShape.radiusX,
+                    radiusY: renderShape.radiusY,
+                  }),
+                ];
               }
               case 'polygon': {
                 const mirroredPoints = renderShape.points.map((segment) => {
@@ -660,9 +662,11 @@ export namespace GeometryComponent {
                       );
                   }
                 });
-                return [RenderShape.polygon(key, mirroredPoints, renderShape.closed, {
-                  primary: false,
-                })];
+                return [
+                  RenderShape.polygon(key, mirroredPoints, renderShape.closed, {
+                    primary: false,
+                  }),
+                ];
               }
               default:
                 renderShape satisfies never;

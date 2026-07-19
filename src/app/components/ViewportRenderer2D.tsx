@@ -27,6 +27,7 @@ import {
   type Id,
   RenderOrderComponent,
 } from '@/lib/entity';
+import { type Filter } from '@/lib/entity/filters';
 import { type Geometry } from '@/lib/entity/geometry';
 import { KeyCombo } from '@/lib/index-mapper';
 import {
@@ -72,7 +73,6 @@ import CornerOverlay from './CornerOverlay';
 import FitToScreenButton from './FitToScreenButton';
 import { HoverTooltip } from './HoverTooltip';
 import { KeyboardShortcut } from './KeyboardShortcut';
-import { type Filter } from '@/lib/entity/filters';
 
 extend({
   Container,
@@ -300,7 +300,9 @@ export default function ViewportRenderer2D({
     height: number;
   } | null>(null);
   const [geometries, setGeometries] = useState<Array<Geometry>>([]);
-  const [filtersByGeometryId, setFiltersByGeometryId] = useState<Map<Geometry['id'], Array<Filter>>>(new Map());
+  const [filtersByGeometryId, setFiltersByGeometryId] = useState<
+    Map<Geometry['id'], Array<Filter>>
+  >(new Map());
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
   const [datums, setDatums] = useState<Array<Datum>>([]);
@@ -371,10 +373,14 @@ export default function ViewportRenderer2D({
       const geometries = geometryStore.listWithComponents(GeometryComponent, RenderOrderComponent);
       setGeometries(geometries);
 
-      setFiltersByGeometryId(new Map(geometries.map((geom) => {
-        const filters = geometryStore.findFiltersByGeometryId(geom.id);
-        return [geom.id, filters] as const;
-      })));
+      setFiltersByGeometryId(
+        new Map(
+          geometries.map((geom) => {
+            const filters = geometryStore.findFiltersByGeometryId(geom.id);
+            return [geom.id, filters] as const;
+          }),
+        ),
+      );
 
       setDatums(geometryStore.listWithComponent(DatumComponent));
     };

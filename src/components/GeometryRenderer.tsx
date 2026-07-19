@@ -6,6 +6,8 @@ import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useGeometries } from '@/hooks/useGeoemtries';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { FillColorComponent, GeometryComponent, PolygonSegment } from '@/lib/entity';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { type Filter } from '@/lib/entity/filters';
 import { type Geometry } from '@/lib/entity/geometry';
 import { BoundingBox, CohenSutherland } from '@/lib/math';
 import { ListLayers, RendererLayers } from '@/lib/renderer';
@@ -28,8 +30,6 @@ import { CurveControlPointHandlesSprites } from './CurveControlPointHandlesSprit
 import { CurveEdgeHitDetector } from './CurveEdgeHitDetector';
 import { HandleSprites } from './HandleSprites';
 import { LineSegmentEdgeHitDetector } from './LineSegmentEdgeHitDetector';
-import { FilterComponent } from '@/lib/entity/components/FilterComponent';
-import { type Filter } from '@/lib/entity/filters';
 
 /** Size of the center corsshairs rendered on ellipses. */
 const CIRCLE_CENTER_MARKER_SIZE_PX = 8;
@@ -420,8 +420,14 @@ const MIN_POLYGON_HIGH_FIDELITY_SIZE_PX = 48;
 const PROXIMITY_EDGE_DETECTOR_RADIUS_PX = 64;
 
 const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geometry }) => {
-  const { activeTool, viewportControls, viewportScale, mouseScreenPos, highlightedGeometryId, filtersByGeometryId } =
-    useViewportContext();
+  const {
+    activeTool,
+    viewportControls,
+    viewportScale,
+    mouseScreenPos,
+    highlightedGeometryId,
+    filtersByGeometryId,
+  } = useViewportContext();
 
   let fillColor = FillColorComponent.getOptional(geometry);
   let stroke = 0x000000;
@@ -486,7 +492,10 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
     );
   }, [activeTool.type, viewportControls, viewportScale, mouseScreenPos]);
 
-  const filters = useMemo(() => filtersByGeometryId.get(geometry.id), [filtersByGeometryId, geometry.id]);
+  const filters = useMemo(
+    () => filtersByGeometryId.get(geometry.id),
+    [filtersByGeometryId, geometry.id],
+  );
   const renderShapes = useMemo(() => {
     return GeometryComponent.getRenderShapes(geometry, filters);
   }, [geometry, filters]);
@@ -545,7 +554,7 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
                               onPointerDown={onFillPointerDown}
                             />
                           );
-                        case 'arc-quadratic': 
+                        case 'arc-quadratic':
                           const quadraticCurve: QuadraticCurve<SheetPosition> = {
                             start: prevSeg.point,
                             end: seg.point,
