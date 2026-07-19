@@ -131,6 +131,11 @@ export class ApplyFilterToGeometryAction extends BaseAction {
       this.type,
       () => {
         const selectedIds = [...this.getSelectionManager().getSelectedIds()];
+        // Tracks rectangle → polygon ID remapping when convertRectangleToPolygon
+        // generates a new ID. Filters that reference the old rectangle ID need
+        // to resolve against the new polygon.
+        const geometryIdRemap = new Map<Id, Id>();
+        const remappedPolygons = new Map<Id, Entity<GeometryComponent<PolygonData>>>();
 
         for (const id of selectedIds) {
           const filterGeom = this.getGeometryStore().getByIdWithComponent(id, FilterComponent);
@@ -144,12 +149,13 @@ export class ApplyFilterToGeometryAction extends BaseAction {
               const offset = filter.offset.toSheetUnits(this.getSheet().defaultUnit).magnitude;
               const factory: CornerSegmentFactory<SheetPosition> = CornerReplacement.filletArc;
 
-              const pending = this.buildCornerState(filter);
+              const pending = this.resolvePending(filter, geometryIdRemap, remappedPolygons);
               if (!pending) {
                 continue;
               }
 
               const step1 = this.resolveGeometryAndIndices(pending);
+
               const step2 = this.validateOffset(step1, offset);
               if (!step2) {
                 continue;
@@ -158,6 +164,8 @@ export class ApplyFilterToGeometryAction extends BaseAction {
               const step4 = this.buildCornerSegment(step1, step2, factory);
               this.addColinearConstraints(step1, step2, step3);
               this.addRectilinearConstraints(step1, step4);
+
+              this.recordRemap(pending, step4.geometry, geometryIdRemap, remappedPolygons);
 
               this.getGeometryStore().deleteById(id);
               this.getSelectionManager().deselect(id);
@@ -167,12 +175,13 @@ export class ApplyFilterToGeometryAction extends BaseAction {
               const offset = filter.offset.toSheetUnits(this.getSheet().defaultUnit).magnitude;
               const factory: CornerSegmentFactory<SheetPosition> = CornerReplacement.chamferLine;
 
-              const pending = this.buildCornerState(filter);
+              const pending = this.resolvePending(filter, geometryIdRemap, remappedPolygons);
               if (!pending) {
                 continue;
               }
 
               const step1 = this.resolveGeometryAndIndices(pending);
+
               const step2 = this.validateOffset(step1, offset);
               if (!step2) {
                 continue;
@@ -181,6 +190,8 @@ export class ApplyFilterToGeometryAction extends BaseAction {
               const step4 = this.buildCornerSegment(step1, step2, factory);
               this.addColinearConstraints(step1, step2, step3);
               this.addRectilinearConstraints(step1, step4);
+
+              this.recordRemap(pending, step4.geometry, geometryIdRemap, remappedPolygons);
 
               this.getGeometryStore().deleteById(id);
               this.getSelectionManager().deselect(id);
@@ -196,6 +207,80 @@ export class ApplyFilterToGeometryAction extends BaseAction {
       },
       { collapseIfSingle: true },
     );
+  }
+
+  /**
+   * If a rectangle was converted to a polygon during this step, record the
+   * remapping so subsequent filters (both in this batch and in future action
+   * invocations) can resolve against the new polygon.
+   */
+  private recordRemap(
+    pending: CornerState,
+    finalPolygon: Entity<GeometryComponent<PolygonData>>,
+    geometryIdRemap: Map<Id, Id>,
+    remappedPolygons: Map<Id, Entity<GeometryComponent<PolygonData>>>,
+  ): void {
+    if (pending.mode === 'rectangle' && finalPolygon.id !== pending.geometryId) {
+      geometryIdRemap.set(pending.geometryId, finalPolygon.id);
+      remappedPolygons.set(pending.geometryId, finalPolygon);
+
+      // Convert any other filter that still references the old rectangle into
+      // a polygon-mode filter so it acts just like a native polygon filter.
+      // This handles both same-execution multi-filter batches and separate
+      // sequential action invocations.
+      const allFilters = this.getGeometryStore().listWithComponent(FilterComponent);
+      for (const f of allFilters) {
+        const otherFilter = FilterComponent.get(f);
+        if (
+          otherFilter.geometryType !== 'rectangle' ||
+          otherFilter.geometryId !== pending.geometryId
+        ) {
+          continue;
+        }
+
+        const cornerState = this.buildCornerStateFromPolygon(finalPolygon, otherFilter);
+        if (!cornerState || cornerState.mode !== 'polygon') {
+          continue;
+        }
+
+        this.getGeometryStore().updateByIdWithComponent(f.id, FilterComponent, (g) =>
+          FilterComponent.update(g, {
+            type: otherFilter.type,
+            offset: otherFilter.offset,
+            geometryType: 'polygon' as const,
+            geometryId: finalPolygon.id,
+            pointAIndex: cornerState.pointAIndex,
+            pointCenterIndex: cornerState.centerIndex,
+            pointBIndex: cornerState.pointBIndex,
+          } as any),
+        );
+      }
+    }
+  }
+
+  /**
+   * Resolves a filter into a {@link CornerState}, first trying the filter's
+   * own geometry reference, then falling back to a previously remapped polygon
+   * if a prior filter already converted the rectangle into a polygon.
+   */
+  private resolvePending(
+    filter: FilletFilterData | ChamferFilterData,
+    geometryIdRemap: Map<Id, Id>,
+    remappedPolygons: Map<Id, Entity<GeometryComponent<PolygonData>>>,
+  ): CornerState | null {
+    const pending = this.buildCornerState(filter);
+    if (pending) {
+      return pending;
+    }
+
+    // If the filter references a rectangle that was already converted to a
+    // polygon by a previous filter in this batch, resolve against the polygon.
+    if (filter.geometryType === 'rectangle' && geometryIdRemap.has(filter.geometryId)) {
+      const poly = remappedPolygons.get(filter.geometryId)!;
+      return this.buildCornerStateFromPolygon(poly, filter);
+    }
+
+    return null;
   }
 
   private buildCornerState(filter: FilletFilterData | ChamferFilterData): CornerState | null {
@@ -227,31 +312,151 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     }
 
     if (filter.geometryType === 'rectangle') {
-      const centerPos = store.resolveConstraintEndpoint(
-        ConstraintEndpoint.lockedToRectangle(filter.geometryId, filter.pointCenterKeyPoint),
-      );
-      const posA = store.resolveConstraintEndpoint(
-        ConstraintEndpoint.lockedToRectangle(filter.geometryId, filter.pointAKeyPoint),
-      );
-      const posB = store.resolveConstraintEndpoint(
-        ConstraintEndpoint.lockedToRectangle(filter.geometryId, filter.pointBKeyPoint),
-      );
-      if (!centerPos || !posA || !posB) {
+      const targetGeom = store.getByIdWithComponent(filter.geometryId, GeometryComponent);
+      if (!targetGeom) {
         return null;
       }
-      return {
-        mode: 'rectangle',
-        geometryId: filter.geometryId,
-        centerEndpoint: filter.pointCenterKeyPoint,
-        pointAEndpoint: filter.pointAKeyPoint,
-        pointBEndpoint: filter.pointBKeyPoint,
-        centerPos,
-        pointAPos: posA,
-        pointBPos: posB,
-      };
+
+      // Geometry is still a rectangle — resolve via lockedToRectangle
+      if (GeometryComponent.isRectangle(targetGeom)) {
+        const centerPos = store.resolveConstraintEndpoint(
+          ConstraintEndpoint.lockedToRectangle(filter.geometryId, filter.pointCenterKeyPoint),
+        );
+        const posA = store.resolveConstraintEndpoint(
+          ConstraintEndpoint.lockedToRectangle(filter.geometryId, filter.pointAKeyPoint),
+        );
+        const posB = store.resolveConstraintEndpoint(
+          ConstraintEndpoint.lockedToRectangle(filter.geometryId, filter.pointBKeyPoint),
+        );
+        if (!centerPos || !posA || !posB) {
+          return null;
+        }
+        return {
+          mode: 'rectangle',
+          geometryId: filter.geometryId,
+          centerEndpoint: filter.pointCenterKeyPoint,
+          pointAEndpoint: filter.pointAKeyPoint,
+          pointBEndpoint: filter.pointBKeyPoint,
+          centerPos,
+          pointAPos: posA,
+          pointBPos: posB,
+        };
+      }
+
+      // Rectangle was already converted to a polygon by a previous filter application.
+      // Infer corner positions from the polygon's bounding box, find the center vertex
+      // in the polygon, and traverse to find the actual adjacent vertices.
+      if (GeometryComponent.isPolygon(targetGeom)) {
+        return this.buildCornerStateFromPolygon(
+          targetGeom as Entity<GeometryComponent<PolygonData>>,
+          filter,
+        );
+      }
+
+      return null;
     }
 
     return null;
+  }
+
+  /**
+   * Fallback for a rectangle-mode filter whose target geometry has already been
+   * converted to a polygon by a previous filter application. Computes the corner
+   * positions from the polygon's bounding box, finds the center vertex in the
+   * polygon, and traverses to determine the actual adjacent non-collocated vertices.
+   */
+  private buildCornerStateFromPolygon(
+    polygon: Entity<GeometryComponent<PolygonData>>,
+    filter: FilletFilterData | ChamferFilterData,
+  ): CornerState | null {
+    const polygonData = GeometryComponent.get(polygon);
+
+    // Compute bounding box to infer the original rectangle's corner positions
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const pt of polygonData.points) {
+      if (pt.point.x < minX) {
+        minX = pt.point.x;
+      }
+      if (pt.point.y < minY) {
+        minY = pt.point.y;
+      }
+      if (pt.point.x > maxX) {
+        maxX = pt.point.x;
+      }
+      if (pt.point.y > maxY) {
+        maxY = pt.point.y;
+      }
+    }
+
+    const cornerPositions: Record<string, SheetPosition> = {
+      upperLeft: new SheetPosition(minX, minY),
+      upperRight: new SheetPosition(maxX, minY),
+      lowerRight: new SheetPosition(maxX, maxY),
+      lowerLeft: new SheetPosition(minX, maxY),
+    };
+
+    // The filter's rectangle-mode fields are named pointAKeyPoint, etc.
+    const filterRect = filter as unknown as {
+      pointCenterKeyPoint: string;
+      pointAKeyPoint: string;
+      pointBKeyPoint: string;
+    };
+    const centerPos = cornerPositions[filterRect.pointCenterKeyPoint];
+    if (!centerPos) {
+      return null;
+    }
+
+    // Find the center position in the current polygon
+    const centerIndex = this.findPointIndexByPos(polygonData.points, centerPos);
+    if (centerIndex < 0) {
+      // Corner was already filleted away
+      return null;
+    }
+
+    const centerPoint = polygonData.points[centerIndex].point;
+
+    // Traverse to find non-collocated adjacent vertices (same as tool's handleMouseDown)
+    let pointAIndex = centerIndex - 1;
+    while (pointAIndex < 0) {
+      pointAIndex += polygonData.points.length;
+    }
+    while (
+      polygonData.points[pointAIndex].point.x === centerPoint.x &&
+      polygonData.points[pointAIndex].point.y === centerPoint.y
+    ) {
+      pointAIndex -= 1;
+      while (pointAIndex < 0) {
+        pointAIndex += polygonData.points.length;
+      }
+    }
+
+    let pointBIndex = centerIndex + 1;
+    while (pointBIndex >= polygonData.points.length) {
+      pointBIndex -= polygonData.points.length;
+    }
+    while (
+      polygonData.points[pointBIndex].point.x === centerPoint.x &&
+      polygonData.points[pointBIndex].point.y === centerPoint.y
+    ) {
+      pointBIndex += 1;
+      while (pointBIndex >= polygonData.points.length) {
+        pointBIndex -= polygonData.points.length;
+      }
+    }
+
+    return {
+      mode: 'polygon',
+      geometryId: polygon.id,
+      centerIndex,
+      pointAIndex,
+      pointBIndex,
+      centerPos,
+      pointAPos: polygonData.points[pointAIndex].point,
+      pointBPos: polygonData.points[pointBIndex].point,
+    };
   }
 
   private resolveGeometryAndIndices(pending: CornerState): ResolveGeometryAndIndicesResults {
