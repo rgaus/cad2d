@@ -24,6 +24,11 @@ export function round(n: number, places: number = 0): number {
   return Math.round(n * power) / power;
 }
 
+/** Modular arithmetic helper that returns a non-negative remainder. */
+export function mod(n: number, m: number): number {
+  return ((n % m) + m) % m;
+}
+
 /** Points on an ellipse used for constraint syncing. */
 export type EllipsePoints<P extends Position> = {
   center: P;
