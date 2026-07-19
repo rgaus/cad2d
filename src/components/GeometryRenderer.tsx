@@ -6,12 +6,10 @@ import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useGeometries } from '@/hooks/useGeoemtries';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { FillColorComponent, GeometryComponent, PolygonSegment } from '@/lib/entity';
-import { FilterComponent } from '@/lib/entity/components/FilterComponent';
-import { type Filter } from '@/lib/entity/filters';
 import { type Geometry } from '@/lib/entity/geometry';
 import { BoundingBox, CohenSutherland } from '@/lib/math';
 import { ListLayers, RendererLayers } from '@/lib/renderer';
-import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import {
   HIGHLIGHT_COLOR_FILL,
   HIGHLIGHT_COLOR_STROKE,
@@ -427,6 +425,7 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
     mouseScreenPos,
     highlightedGeometryId,
     filtersByGeometryId,
+    sheet,
   } = useViewportContext();
 
   let fillColor = FillColorComponent.getOptional(geometry);
@@ -492,13 +491,21 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
     );
   }, [activeTool.type, viewportControls, viewportScale, mouseScreenPos]);
 
+  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<Sheet["defaultUnit"]>(sheet.defaultUnit);
+  useEffect(() => {
+    sheet.on('defaultUnitChange', setSheetDefaultUnit);
+    return () => {
+      sheet.off('defaultUnitChange', setSheetDefaultUnit);
+    };
+  }, [sheet]);
+
   const filters = useMemo(
     () => filtersByGeometryId.get(geometry.id),
     [filtersByGeometryId, geometry.id],
   );
   const renderShapes = useMemo(() => {
-    return GeometryComponent.getRenderShapes(geometry, filters);
-  }, [geometry, filters]);
+    return GeometryComponent.getRenderShapes(geometry, sheetDefaultUnit, filters);
+  }, [geometry, sheetDefaultUnit, filters]);
 
   return (
     <>
