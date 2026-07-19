@@ -1,26 +1,46 @@
+import { BoundingBox, rectangleToPolygon } from '@/lib/math';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
+import { Filter } from '../filters';
 import { type Geometry, type GeometryData } from '../geometry';
 import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
 import { RectangleData } from '../geometry/rectangle';
 import { type Entity, type EntityComponent, ResizeParams } from '../types';
 import { ConstraintComponent } from './ConstraintComponent';
-import { Filter } from '../filters';
 import { FilterComponent } from './FilterComponent';
 
 export type RenderShape =
-  | { shape: 'polygon'; key: string; primary: boolean; points: Array<PolygonSegment>, closed: boolean }
+  | {
+      shape: 'polygon';
+      key: string;
+      primary: boolean;
+      points: Array<PolygonSegment>;
+      closed: boolean;
+    }
   | { shape: 'rectangle'; key: string; upperLeft: SheetPosition; lowerRight: SheetPosition }
   | { shape: 'ellipse'; key: string; center: SheetPosition; radiusX: number; radiusY: number };
 
 namespace RenderShape {
-  export function polygon(key: string, points: Array<PolygonSegment>, closed: boolean, options?: { primary?: boolean }) {
+  export function polygon(
+    key: string,
+    points: Array<PolygonSegment>,
+    closed: boolean,
+    options?: { primary?: boolean },
+  ): RenderShape {
     return { shape: 'polygon' as const, key, primary: options?.primary ?? false, points, closed };
   }
-  export function rectangle(key: string, upperLeft: SheetPosition, lowerRight: SheetPosition) {
+  export function rectangle(
+    key: string,
+    upperLeft: SheetPosition,
+    lowerRight: SheetPosition,
+  ): RenderShape {
     return { shape: 'rectangle' as const, key, upperLeft, lowerRight };
   }
-  export function ellipse(key: string, center: SheetPosition, args: { radiusX: number, radiusY: number }) {
+  export function ellipse(
+    key: string,
+    center: SheetPosition,
+    args: { radiusX: number; radiusY: number },
+  ): RenderShape {
     return { shape: 'ellipse' as const, key, center, radiusX: args.radiusX, radiusY: args.radiusY };
   }
 }
@@ -161,11 +181,20 @@ export namespace GeometryComponent {
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
-        return PolygonData.translate(geometry as Entity<GeometryComponent<PolygonData>>, transform) as E;
+        return PolygonData.translate(
+          geometry as Entity<GeometryComponent<PolygonData>>,
+          transform,
+        ) as E;
       case 'rectangle':
-        return RectangleData.translate(geometry as Entity<GeometryComponent<RectangleData>>, transform) as E;
+        return RectangleData.translate(
+          geometry as Entity<GeometryComponent<RectangleData>>,
+          transform,
+        ) as E;
       case 'ellipse':
-        return EllipseData.translate(geometry as Entity<GeometryComponent<EllipseData>>, transform) as E;
+        return EllipseData.translate(
+          geometry as Entity<GeometryComponent<EllipseData>>,
+          transform,
+        ) as E;
       default:
         state satisfies never;
         throw new Error(
@@ -498,27 +527,163 @@ export namespace GeometryComponent {
     return PolygonData.addPointOnEdge(geometry, constraints, segmentIndex, newPointPosition);
   }
 
+  /** Mirrors a point over an infinite line defined by two points. */
+  function mirrorPointOverLine(
+    point: SheetPosition,
+    lineA: SheetPosition,
+    lineB: SheetPosition,
+  ): SheetPosition {
+    const dx = lineB.x - lineA.x;
+    const dy = lineB.y - lineA.y;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) {
+      return point;
+    }
+    const t = ((point.x - lineA.x) * dx + (point.y - lineA.y) * dy) / lenSq;
+    const projX = lineA.x + t * dx;
+    const projY = lineA.y + t * dy;
+    return new SheetPosition(2 * projX - point.x, 2 * projY - point.y);
+  }
+
   export function getRenderShapes(
     geometry: Entity<GeometryComponent<GeometryData>>,
     filters: Array<Filter> = [],
   ): Array<RenderShape> {
+    let shapes;
+
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
-        return [
-          RenderShape.polygon(geometry.id, state.points, state.closed, { primary: true }),
-        ];
+        shapes = [RenderShape.polygon(geometry.id, state.points, state.closed, { primary: true })];
+        break;
       case 'rectangle':
-        return [
-          RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight),
-        ];
+        shapes = [RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight)];
+        break;
       case 'ellipse':
-        return [RenderShape.ellipse(geometry.id, state.center, { radiusX: state.radiusX, radiusY: state.radiusY })];
+        shapes = [
+          RenderShape.ellipse(geometry.id, state.center, {
+            radiusX: state.radiusX,
+            radiusY: state.radiusY,
+          }),
+        ];
+        break;
       default:
         state satisfies never;
         throw new Error(
           `GeometryComponent.getRenderShapes: Unknown geometry data type ${(state as any).type}`,
         );
     }
+
+    let filterApplicationCounter = 0;
+    for (const filter of filters) {
+      const data = FilterComponent.get(filter);
+      switch (data.type) {
+        case 'mirror': {
+          const mirrorResults = shapes.flatMap((renderShape) => {
+            filterApplicationCounter += 1;
+            const key = `${filter.id}_${filterApplicationCounter}`;
+
+            switch (renderShape.shape) {
+              case 'rectangle': {
+                // IMPORTANT: the below algorithm does not properly handle flipping over non 90 or 45
+                // degree lines, since there isn't a way to represent a rotated rectangle currently.
+                //
+                // FIXME: Address this, it's a bug that is fairly noticable.
+                const corners = BoundingBox.cornersToArray(
+                  BoundingBox.corners(
+                    BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]),
+                  ),
+                );
+                const flippedCorners = corners.map((point) =>
+                  mirrorPointOverLine(point, data.pointA, data.pointB),
+                );
+                const ul = new SheetPosition(
+                  Math.min(...flippedCorners.map((p) => p.x)),
+                  Math.min(...flippedCorners.map((p) => p.y)),
+                );
+                const lr = new SheetPosition(
+                  Math.max(...flippedCorners.map((p) => p.x)),
+                  Math.max(...flippedCorners.map((p) => p.y)),
+                );
+                return [RenderShape.rectangle(key, ul, lr)];
+              }
+              case 'ellipse': {
+                const mirroredCenter = mirrorPointOverLine(
+                  renderShape.center,
+                  data.pointA,
+                  data.pointB,
+                );
+                return [RenderShape.ellipse(key, mirroredCenter, {
+                  radiusX: renderShape.radiusX,
+                  radiusY: renderShape.radiusY,
+                })]
+              }
+              case 'polygon': {
+                const mirroredPoints = renderShape.points.map((segment) => {
+                  const mirroredPoint = mirrorPointOverLine(
+                    segment.point,
+                    data.pointA,
+                    data.pointB,
+                  );
+                  switch (segment.type) {
+                    case 'point':
+                      return { type: 'point' as const, point: mirroredPoint };
+                    case 'arc-quadratic':
+                      return {
+                        type: 'arc-quadratic' as const,
+                        point: mirroredPoint,
+                        controlPoint: mirrorPointOverLine(
+                          segment.controlPoint,
+                          data.pointA,
+                          data.pointB,
+                        ),
+                      };
+                    case 'arc-cubic':
+                      return {
+                        type: 'arc-cubic' as const,
+                        point: mirroredPoint,
+                        controlPointA: mirrorPointOverLine(
+                          segment.controlPointA,
+                          data.pointA,
+                          data.pointB,
+                        ),
+                        controlPointB: mirrorPointOverLine(
+                          segment.controlPointB,
+                          data.pointA,
+                          data.pointB,
+                        ),
+                      };
+                    default:
+                      segment satisfies never;
+                      throw new Error(
+                        `getRenderShapes: Unknown polygon segment type ${(segment as any).type}`,
+                      );
+                  }
+                });
+                return [RenderShape.polygon(key, mirroredPoints, renderShape.closed, {
+                  primary: false,
+                })];
+              }
+              default:
+                renderShape satisfies never;
+                throw new Error(
+                  `getRenderShapes: Unknown render shape type ${(renderShape as any).shape}`,
+                );
+            }
+          });
+          shapes.push(...mirrorResults);
+          break;
+        }
+        case 'fillet':
+        case 'chamfer':
+          // TODO
+          break;
+        default:
+          data satisfies never;
+          break;
+      }
+    }
+
+    return shapes;
   }
 }

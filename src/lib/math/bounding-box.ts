@@ -1,4 +1,4 @@
-import { Entity, type PolygonSegment } from '@/lib/entity';
+import { type PolygonSegment } from '@/lib/entity';
 import { type Position, type Rect, type RectCorners, SheetPosition } from '@/lib/viewport/types';
 
 /** Namespace for axis-aligned bounding box (AABB) operations. */
