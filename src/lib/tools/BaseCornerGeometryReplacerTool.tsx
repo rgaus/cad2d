@@ -17,13 +17,13 @@ import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { PolygonSegment } from '@/lib/entity/polygon';
 import { type RectangleEndpoint } from '@/lib/entity/rectangle';
-import { CornerReplacement, type CornerSegmentFactory, mod, Vector2 } from '@/lib/math';
+import { CornerReplacement, type CornerSegmentFactory, Vector2, mod } from '@/lib/math';
 import { applyKeyPointSnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { CubicCurve, LineSegment, QuadraticCurve } from '@/lib/viewport/types';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
-import { BaseTool } from './BaseTool';
 import { FilletFilter, FilterTemplate } from '../entity/filters';
+import { BaseTool } from './BaseTool';
 
 export type CornerState =
   | {
@@ -540,7 +540,10 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       return;
     }
 
-    this.getGeometryStore().add(ID_PREFIXES.filter, this.createFilter(pending, this.state.currentOffset));
+    this.getGeometryStore().add(
+      ID_PREFIXES.filter,
+      this.createFilter(pending, this.state.currentOffset),
+    );
 
     this.lastCommittedOffset = this.state.currentOffset;
     this.abort();

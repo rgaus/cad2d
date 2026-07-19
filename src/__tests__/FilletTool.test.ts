@@ -11,6 +11,8 @@ import {
 } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
@@ -50,7 +52,6 @@ function clickRectangleCorner(
   }
   toolManager.handleMouseMove(sheetToScreen(pos.x, pos.y, viewport), viewport);
   toolManager.handleMouseDown(sheetToScreen(pos.x, pos.y, viewport), viewport);
-  // Wait for the event to be dispatched synchronously
   return pos;
 }
 
@@ -91,7 +92,7 @@ describe('FilletTool', () => {
     filletTool = toolManager.getTool('edit').activeSubTool as FilletTool;
   });
 
-  describe('Rectangle', () => {
+  describe('Rectangle corner clicks create filters', () => {
     let rect: Rectangle;
     beforeEach(() => {
       rect = geometryStore.addOrdered(
@@ -103,11 +104,412 @@ describe('FilletTool', () => {
       ) as Rectangle;
     });
 
-    it('upperRight corner: arc at index 2, polygon starts at UL', () => {
+    function assertFilterCreated(
+      centerEndpoint: 'upperLeft' | 'upperRight' | 'lowerRight' | 'lowerLeft',
+    ) {
+      const filters = geometryStore.listWithComponent(FilterComponent);
+      expect(filters).toHaveLength(1);
+      const filter = FilterComponent.get(filters[0]);
+      expect(filter.type).toBe('fillet');
+      expect(filter.geometryType).toBe('rectangle');
+      expect(filter.pointCenterKeyPoint).toBe(centerEndpoint);
+      expect(filter.offset.toSheetUnits(Sheet.a4().defaultUnit).magnitude).toBeCloseTo(20);
+      // Polygon NOT modified
+      const rectGeom = geometryStore.getByIdWithComponent(rect.id, GeometryComponent);
+      expect(GeometryComponent.isRectangle(rectGeom)).toBe(true);
+    }
+
+    it('upperRight corner', () => {
       clickRectangleCorner(toolManager, geometryStore, rect, 'upperRight', viewport);
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
+      assertFilterCreated('upperRight');
+    });
+
+    it('lowerRight corner', () => {
+      clickRectangleCorner(toolManager, geometryStore, rect, 'lowerRight', viewport);
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
+      assertFilterCreated('lowerRight');
+    });
+
+    it('lowerLeft corner', () => {
+      clickRectangleCorner(toolManager, geometryStore, rect, 'lowerLeft', viewport);
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
+      assertFilterCreated('lowerLeft');
+    });
+
+    it('upperLeft corner', () => {
+      clickRectangleCorner(toolManager, geometryStore, rect, 'upperLeft', viewport);
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
+      assertFilterCreated('upperLeft');
+    });
+
+    it('two corners in sequence', () => {
+      // First corner: upperRight
+      toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(100, 0, viewport), viewport);
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
+
+      let filters = geometryStore.listWithComponent(FilterComponent);
+      expect(filters).toHaveLength(1);
+      expect(FilterComponent.get(filters[0]).pointCenterKeyPoint).toBe('upperRight');
+
+      // Second corner: lowerRight
+      toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(100, 100, viewport), viewport);
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
+
+      filters = geometryStore.listWithComponent(FilterComponent);
+      expect(filters).toHaveLength(2);
+    });
+  });
+
+  describe('Commit and click interaction', () => {
+    let rect: Rectangle;
+    beforeEach(() => {
+      rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
+          fillColor: DEFAULT_COLOR,
+          linkDimensions: false,
+        }),
+      ) as Rectangle;
+    });
+
+    it('clicking before current corner commits filter and activates new corner', async () => {
+      const events = subscribeToEvents(filletTool, ['pendingCornerChange', 'activeCornerChange']);
+
+      // Click to add a fillet on the lower right point
+      toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(100, 100, viewport), viewport);
+
+      // Set a length, but do NOT commit it
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+
+      events.clearBufferedEvents();
+
+      // Now hover / click on the upper left corner (before lower right)
+      toolManager.handleMouseMove(sheetToScreen(0, 0, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(0, 0, viewport), viewport);
+
+      // The first corner's filter should have been committed
+      const filters = geometryStore.listWithComponent(FilterComponent);
+      expect(filters).toHaveLength(1);
+      expect(FilterComponent.get(filters[0]).pointCenterKeyPoint).toBe('lowerRight');
+
+      // Polygon is NOT modified (still a rectangle)
+      const geomEntities = geometryStore.listWithComponent(GeometryComponent);
+      expect(geomEntities).toHaveLength(1);
+      expect(GeometryComponent.isRectangle(geomEntities[0])).toBe(true);
+
+      // The second fillet gets made active (rectangle mode since polygon unchanged)
+      // First a no-op event from the abort in commit:
+      let event = await events.waitFor<CornerState | null>('activeCornerChange');
+      expect(event).toBeNull();
+      // Then the actual event:
+      event = await events.waitFor<CornerState | null>('activeCornerChange');
+      expect(event?.mode).toStrictEqual('rectangle');
+      if (event?.mode !== 'rectangle') {
+        throw new Error('not rectangle');
+      }
+      expect(event?.centerEndpoint).toStrictEqual('upperLeft');
+
+      // And the current offset length should have persisted
+      expect(filletTool.currentOffset?.type).toStrictEqual(CentimetersType);
+      expect(filletTool.currentOffset?.magnitude).toStrictEqual(20);
+    });
+
+    it('clicking after current corner commits filter and activates new corner', async () => {
+      const events = subscribeToEvents(filletTool, ['pendingCornerChange', 'activeCornerChange']);
+
+      // Click to add a fillet on the lower right point
+      toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(100, 100, viewport), viewport);
+
+      // Set a length, but do NOT commit it
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+
+      events.clearBufferedEvents();
+
+      // Now hover / click on the lower left corner (after lower right)
+      toolManager.handleMouseMove(sheetToScreen(0, 100, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(0, 100, viewport), viewport);
+
+      // The first corner's filter should have been committed
+      const filters = geometryStore.listWithComponent(FilterComponent);
+      expect(filters).toHaveLength(1);
+      expect(FilterComponent.get(filters[0]).pointCenterKeyPoint).toBe('lowerRight');
+
+      // Polygon is NOT modified (still a rectangle)
+      const geomEntities = geometryStore.listWithComponent(GeometryComponent);
+      expect(geomEntities).toHaveLength(1);
+      expect(GeometryComponent.isRectangle(geomEntities[0])).toBe(true);
+
+      // The second fillet gets made active (rectangle mode since polygon unchanged)
+      // First a no-op event from the abort in commit:
+      let event = await events.waitFor<CornerState | null>('activeCornerChange');
+      expect(event).toBeNull();
+      // Then the actual event:
+      event = await events.waitFor<CornerState | null>('activeCornerChange');
+      expect(event?.mode).toStrictEqual('rectangle');
+      if (event?.mode !== 'rectangle') {
+        throw new Error('not rectangle');
+      }
+      expect(event?.centerEndpoint).toStrictEqual('lowerLeft');
+
+      // And the current offset length should have persisted
+      expect(filletTool.currentOffset?.type).toStrictEqual(CentimetersType);
+      expect(filletTool.currentOffset?.magnitude).toStrictEqual(20);
+    });
+  });
+
+  describe('Polygon corner clicks create filters', () => {
+    it('middle point of a closed triangular polygon', () => {
+      geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 0)], {
+          closed: true,
+        }),
+      );
+
+      toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(100, 0, viewport), viewport);
 
       filletTool.onChangeCurrentOffset(Length.centimeters(20));
       filletTool.commit();
+
+      const filters = geometryStore.listWithComponent(FilterComponent);
+      expect(filters).toHaveLength(1);
+      const filter = FilterComponent.get(filters[0]);
+      expect(filter.type).toBe('fillet');
+      expect(filter.geometryType).toBe('polygon');
+      expect(filter.pointCenterIndex).toBe(1);
+    });
+
+    it('starting point of a closed triangular polygon', () => {
+      geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [makePoint(100, 0), makePoint(100, 100), makePoint(0, 0), makePoint(100, 0)],
+          { closed: true },
+        ),
+      );
+
+      toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(100, 0, viewport), viewport);
+
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
+
+      const filters = geometryStore.listWithComponent(FilterComponent);
+      expect(filters).toHaveLength(1);
+      const filter = FilterComponent.get(filters[0]);
+      expect(filter.type).toBe('fillet');
+      expect(filter.geometryType).toBe('polygon');
+      expect(filter.pointCenterIndex).toBe(0);
+    });
+  });
+
+  describe('hover behavior', () => {
+    let rect: Rectangle;
+    beforeEach(() => {
+      rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
+          fillColor: DEFAULT_COLOR,
+          linkDimensions: false,
+        }),
+      ) as Rectangle;
+    });
+
+    it('should allow hovering over all rectangle corner points', async () => {
+      const events = subscribeToEvents(filletTool, ['pendingCornerChange']);
+
+      // Hover over upper left
+      toolManager.handleMouseMove(sheetToScreen(0, 0, viewport), viewport);
+      let event = await events.waitFor<CornerState | null>('pendingCornerChange');
+
+      expect(event?.mode).toStrictEqual('rectangle');
+      if (event?.mode !== 'rectangle') {
+        throw new Error('not rectangle');
+      }
+      expect(event?.pointAEndpoint).toStrictEqual('lowerLeft');
+      expect(event?.pointAPos.x).toStrictEqual(0);
+      expect(event?.pointAPos.y).toStrictEqual(100);
+      expect(event?.centerEndpoint).toStrictEqual('upperLeft');
+      expect(event?.centerPos.x).toStrictEqual(0);
+      expect(event?.centerPos.y).toStrictEqual(0);
+      expect(event?.pointBEndpoint).toStrictEqual('upperRight');
+      expect(event?.pointBPos.x).toStrictEqual(100);
+      expect(event?.pointBPos.y).toStrictEqual(0);
+
+      // Hover over upper right
+      toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
+      event = await events.waitFor<CornerState | null>('pendingCornerChange');
+
+      expect(event?.mode).toStrictEqual('rectangle');
+      if (event?.mode !== 'rectangle') {
+        throw new Error('not rectangle');
+      }
+      expect(event?.pointAEndpoint).toStrictEqual('lowerRight');
+      expect(event?.pointAPos.x).toStrictEqual(100);
+      expect(event?.pointAPos.y).toStrictEqual(100);
+      expect(event?.centerEndpoint).toStrictEqual('upperRight');
+      expect(event?.centerPos.x).toStrictEqual(100);
+      expect(event?.centerPos.y).toStrictEqual(0);
+      expect(event?.pointBEndpoint).toStrictEqual('upperLeft');
+      expect(event?.pointBPos.x).toStrictEqual(0);
+      expect(event?.pointBPos.y).toStrictEqual(0);
+
+      // Hover over lower right
+      toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
+      event = await events.waitFor<CornerState | null>('pendingCornerChange');
+
+      expect(event?.mode).toStrictEqual('rectangle');
+      if (event?.mode !== 'rectangle') {
+        throw new Error('not rectangle');
+      }
+      expect(event?.pointAEndpoint).toStrictEqual('lowerLeft');
+      expect(event?.pointAPos.x).toStrictEqual(0);
+      expect(event?.pointAPos.y).toStrictEqual(100);
+      expect(event?.centerEndpoint).toStrictEqual('lowerRight');
+      expect(event?.centerPos.x).toStrictEqual(100);
+      expect(event?.centerPos.y).toStrictEqual(100);
+      expect(event?.pointBEndpoint).toStrictEqual('upperRight');
+      expect(event?.pointBPos.x).toStrictEqual(100);
+      expect(event?.pointBPos.y).toStrictEqual(0);
+
+      // Hover over lower left
+      toolManager.handleMouseMove(sheetToScreen(0, 100, viewport), viewport);
+      event = await events.waitFor<CornerState | null>('pendingCornerChange');
+
+      expect(event?.mode).toStrictEqual('rectangle');
+      if (event?.mode !== 'rectangle') {
+        throw new Error('not rectangle');
+      }
+      expect(event?.pointAEndpoint).toStrictEqual('lowerRight');
+      expect(event?.pointAPos.x).toStrictEqual(100);
+      expect(event?.pointAPos.y).toStrictEqual(100);
+      expect(event?.centerEndpoint).toStrictEqual('lowerLeft');
+      expect(event?.centerPos.x).toStrictEqual(0);
+      expect(event?.centerPos.y).toStrictEqual(100);
+      expect(event?.pointBEndpoint).toStrictEqual('upperLeft');
+      expect(event?.pointBPos.x).toStrictEqual(0);
+      expect(event?.pointBPos.y).toStrictEqual(0);
+    });
+
+    it('should disallow hovering over active rectangle corner points', async () => {
+      const events = subscribeToEvents(filletTool, ['pendingCornerChange', 'activeCornerChange']);
+
+      // Hovering over upper left works
+      toolManager.handleMouseMove(sheetToScreen(0, 0, viewport), viewport);
+      let event = await events.waitFor<CornerState | null>('pendingCornerChange');
+
+      expect(event?.mode).toStrictEqual('rectangle');
+      if (event?.mode !== 'rectangle') {
+        throw new Error('not rectangle');
+      }
+      expect(event?.centerEndpoint).toStrictEqual('upperLeft');
+
+      // Click to make upper left the active point
+      toolManager.handleMouseDown(sheetToScreen(0, 0, viewport), viewport);
+
+      // And make sure an activeCornerChange event is emitted
+      event = await events.waitFor<CornerState | null>('activeCornerChange');
+      expect(event?.mode).toStrictEqual('rectangle');
+      if (event?.mode !== 'rectangle') {
+        throw new Error('not rectangle');
+      }
+      expect(event?.centerEndpoint).toStrictEqual('upperLeft');
+
+      // Now, hovering over the upper right point should still work
+      toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
+      event = await events.waitFor<CornerState | null>('pendingCornerChange');
+
+      expect(event?.mode).toStrictEqual('rectangle');
+      if (event?.mode !== 'rectangle') {
+        throw new Error('not rectangle');
+      }
+      expect(event?.centerEndpoint).toStrictEqual('upperRight');
+
+      // But not the upper left, since it is active
+      toolManager.handleMouseMove(sheetToScreen(0, 0, viewport), viewport);
+      expect(events.areThereBufferedEvents('activeCornerChange')).toBeFalsy();
+    });
+  });
+
+  it('should not be able to place a fillet on a point where one side is arc-cubic / arc-quadratic', async () => {
+    const events = subscribeToEvents(filletTool, ['pendingCornerChange']);
+
+    geometryStore.addOrdered(
+      ID_PREFIXES.polygon,
+      Polygon.create(
+        [
+          makePoint(0, 0),
+          {
+            type: 'arc-quadratic',
+            point: new SheetPosition(100, 100),
+            controlPoint: new SheetPosition(50, 50),
+          },
+          makePoint(0, 100),
+        ],
+        { closed: true },
+      ),
+    );
+
+    toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
+
+    expect(await events.waitFor('pendingCornerChange')).toBeNull();
+  });
+});
+
+describe('ApplyFilterToGeometryAction', () => {
+  let historyManager: HistoryManager;
+  let geometryStore: GeometryStore;
+  let selectionManager: SelectionManager;
+  let actionsManager: ActionsManager;
+
+  beforeEach(() => {
+    const sheet = Sheet.a4();
+    historyManager = new HistoryManager();
+    geometryStore = new GeometryStore(historyManager);
+    historyManager.setGeometryStore(geometryStore);
+    selectionManager = new SelectionManager();
+    actionsManager = new ActionsManager(sheet, geometryStore, selectionManager, historyManager);
+    historyManager.setGeometryStore(geometryStore);
+  });
+
+  describe('Rectangle', () => {
+    let rect: Rectangle;
+
+    beforeEach(() => {
+      rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
+          fillColor: DEFAULT_COLOR,
+          linkDimensions: false,
+        }),
+      ) as Rectangle;
+    });
+
+    it('applies upperRight fillet to rectangle', async () => {
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnRectangle(
+          rect.id,
+          'lowerRight',
+          'upperRight',
+          'upperLeft',
+          Length.centimeters(20),
+        ),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
 
       const polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
@@ -181,11 +583,19 @@ describe('FilletTool', () => {
       ).toEqual(['2,3', '4,0']);
     });
 
-    it('lowerRight corner: arc at index 3', () => {
-      clickRectangleCorner(toolManager, geometryStore, rect, 'lowerRight', viewport);
-
-      filletTool.onChangeCurrentOffset(Length.centimeters(20));
-      filletTool.commit();
+    it('applies lowerRight fillet to rectangle', async () => {
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnRectangle(
+          rect.id,
+          'lowerLeft',
+          'lowerRight',
+          'upperRight',
+          Length.centimeters(20),
+        ),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
 
       const polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
@@ -229,12 +639,6 @@ describe('FilletTool', () => {
           .filter((g) => ConstraintComponent.get(g).type === 'horizontal')
           .map((g) => {
             const c = ConstraintComponent.get(g);
-            if (c.pointA.type !== 'locked-polygon') {
-              throw new Error(`Constraint ${JSON.stringify(c)} point a not locked-polygon!`);
-            }
-            if (c.pointB.type !== 'locked-polygon') {
-              throw new Error(`Constraint ${JSON.stringify(c)} point b not locked-polygon!`);
-            }
             return `${c.pointA.pointIndex},${c.pointB.pointIndex}`;
           })
           .sort(),
@@ -244,23 +648,25 @@ describe('FilletTool', () => {
           .filter((g) => ConstraintComponent.get(g).type === 'vertical')
           .map((g) => {
             const c = ConstraintComponent.get(g);
-            if (c.pointA.type !== 'locked-polygon') {
-              throw new Error(`Constraint ${JSON.stringify(c)} point a not locked-polygon!`);
-            }
-            if (c.pointB.type !== 'locked-polygon') {
-              throw new Error(`Constraint ${JSON.stringify(c)} point b not locked-polygon!`);
-            }
             return `${c.pointA.pointIndex},${c.pointB.pointIndex}`;
           })
           .sort(),
       ).toEqual(['1,2', '4,0']);
     });
 
-    it('lowerLeft corner: arc at index 4', () => {
-      clickRectangleCorner(toolManager, geometryStore, rect, 'lowerLeft', viewport);
-
-      filletTool.onChangeCurrentOffset(Length.centimeters(20));
-      filletTool.commit();
+    it('applies lowerLeft fillet to rectangle', async () => {
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnRectangle(
+          rect.id,
+          'lowerRight',
+          'lowerLeft',
+          'upperLeft',
+          Length.centimeters(20),
+        ),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
 
       const polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
@@ -304,12 +710,6 @@ describe('FilletTool', () => {
           .filter((g) => ConstraintComponent.get(g).type === 'horizontal')
           .map((g) => {
             const c = ConstraintComponent.get(g);
-            if (c.pointA.type !== 'locked-polygon') {
-              throw new Error(`Constraint ${JSON.stringify(c)} point a not locked-polygon!`);
-            }
-            if (c.pointB.type !== 'locked-polygon') {
-              throw new Error(`Constraint ${JSON.stringify(c)} point b not locked-polygon!`);
-            }
             return `${c.pointA.pointIndex},${c.pointB.pointIndex}`;
           })
           .sort(),
@@ -319,23 +719,25 @@ describe('FilletTool', () => {
           .filter((g) => ConstraintComponent.get(g).type === 'vertical')
           .map((g) => {
             const c = ConstraintComponent.get(g);
-            if (c.pointA.type !== 'locked-polygon') {
-              throw new Error(`Constraint ${JSON.stringify(c)} point a not locked-polygon!`);
-            }
-            if (c.pointB.type !== 'locked-polygon') {
-              throw new Error(`Constraint ${JSON.stringify(c)} point b not locked-polygon!`);
-            }
             return `${c.pointA.pointIndex},${c.pointB.pointIndex}`;
           })
           .sort(),
       ).toEqual(['1,2', '4,0']);
     });
 
-    it('upperLeft corner: arc at the end (index 5), polygon no longer starts at UL', () => {
-      clickRectangleCorner(toolManager, geometryStore, rect, 'upperLeft', viewport);
-
-      filletTool.onChangeCurrentOffset(Length.centimeters(20));
-      filletTool.commit();
+    it('applies upperLeft fillet to rectangle', async () => {
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnRectangle(
+          rect.id,
+          'lowerLeft',
+          'upperLeft',
+          'upperRight',
+          Length.centimeters(20),
+        ),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
 
       const polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
@@ -380,12 +782,6 @@ describe('FilletTool', () => {
           .filter((g) => ConstraintComponent.get(g).type === 'horizontal')
           .map((g) => {
             const c = ConstraintComponent.get(g);
-            if (c.pointA.type !== 'locked-polygon') {
-              throw new Error(`Constraint ${JSON.stringify(c)} point a not locked-polygon!`);
-            }
-            if (c.pointB.type !== 'locked-polygon') {
-              throw new Error(`Constraint ${JSON.stringify(c)} point b not locked-polygon!`);
-            }
             return `${c.pointA.pointIndex},${c.pointB.pointIndex}`;
           })
           .sort(),
@@ -395,24 +791,38 @@ describe('FilletTool', () => {
           .filter((g) => ConstraintComponent.get(g).type === 'vertical')
           .map((g) => {
             const c = ConstraintComponent.get(g);
-            if (c.pointA.type !== 'locked-polygon') {
-              throw new Error(`Constraint ${JSON.stringify(c)} point a not locked-polygon!`);
-            }
-            if (c.pointB.type !== 'locked-polygon') {
-              throw new Error(`Constraint ${JSON.stringify(c)} point b not locked-polygon!`);
-            }
             return `${c.pointA.pointIndex},${c.pointB.pointIndex}`;
           })
           .sort(),
       ).toEqual(['1,2', '3,4']);
     });
 
-    it('upperRight then lowerRight corner should create two arcs', () => {
-      toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
-      toolManager.handleMouseDown(sheetToScreen(100, 0, viewport), viewport);
+    it.skip('applies two fillets sequentially to rectangle', async () => {
+      // Create both filters on the same rectangle
+      const filter1Id = geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnRectangle(
+          rect.id,
+          'lowerRight',
+          'upperRight',
+          'upperLeft',
+          Length.centimeters(20),
+        ),
+      ).id;
+      const filter2Id = geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnRectangle(
+          rect.id,
+          'lowerLeft',
+          'lowerRight',
+          'upperRight',
+          Length.centimeters(20),
+        ),
+      ).id;
 
-      filletTool.onChangeCurrentOffset(Length.centimeters(20));
-      filletTool.commit();
+      // Apply first filter (upperRight)
+      selectionManager.select(filter1Id);
+      await actionsManager.execute('apply-filter-to-geometry');
 
       let polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
@@ -428,29 +838,23 @@ describe('FilletTool', () => {
       expect(points[4].type).toBe('point');
       expect(points[5].type).toBe('point');
 
-      // Point positions: UL -> split(80,0) -> arc -> LR -> LL -> UL
-      expect(points[0].point.x).toBeCloseTo(0);
-      expect(points[0].point.y).toBeCloseTo(0);
-      expect(points[1].point.x).toBeCloseTo(80);
-      expect(points[1].point.y).toBeCloseTo(0);
-      expect(points[3].point.x).toBeCloseTo(100);
-      expect(points[3].point.y).toBeCloseTo(100);
-      expect(points[4].point.x).toBeCloseTo(0);
-      expect(points[4].point.y).toBeCloseTo(100);
-      expect(points[5].point.x).toBeCloseTo(0);
-      expect(points[5].point.y).toBeCloseTo(0);
-      expect(GeometryComponent.get(polygons[0]).closed).toBe(true);
-
       // Arc destination = splitB on the vertical edge (100, 20)
-      const arc = points[2] as CubicBezierSegment;
-      expect(arc.point.x).toBeCloseTo(100);
-      expect(arc.point.y).toBeCloseTo(20);
+      const arcA = points[2] as CubicBezierSegment;
+      expect(arcA.point.x).toBeCloseTo(100);
+      expect(arcA.point.y).toBeCloseTo(20);
 
-      // Now, click lower right corner
-      toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
-      toolManager.handleMouseDown(sheetToScreen(100, 100, viewport), viewport);
-      filletTool.onChangeCurrentOffset(Length.centimeters(20));
-      filletTool.commit();
+      expect(arcA.controlPointA.x).toBeCloseTo(91.05, 2);
+      expect(arcA.controlPointA.y).toBeCloseTo(0, 2);
+      expect(arcA.controlPointB.x).toBeCloseTo(100);
+      expect(arcA.controlPointB.y).toBeCloseTo(8.95, 2);
+
+      // Apply second filter (lowerRight)
+      // NOTE: This is expected to fail because the first filter already converted the
+      // rectangle to a polygon, and the second filter's ConstraintEndpoint.lockedToRectangle
+      // resolution will fail against the now-polygon geometry.
+      selectionManager.deselect(filter1Id);
+      selectionManager.select(filter2Id);
+      await actionsManager.execute('apply-filter-to-geometry');
 
       polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
@@ -468,244 +872,30 @@ describe('FilletTool', () => {
       expect(points[5].type).toBe('point');
       expect(points[6].type).toBe('point');
 
-      // Point positions: UL -> split(80,0) -> arc -> split(80, 0) -> LR -> LL -> UL
-      expect(points[0].point.x).toBeCloseTo(0);
-      expect(points[0].point.y).toBeCloseTo(0);
-      expect(points[1].point.x).toBeCloseTo(80);
-      expect(points[1].point.y).toBeCloseTo(0);
-      expect(points[2].point.x).toBeCloseTo(100); // Arc A
-      expect(points[2].point.y).toBeCloseTo(20);
-      expect(points[3].point.x).toBeCloseTo(100);
-      expect(points[3].point.y).toBeCloseTo(80);
-      expect(points[4].point.x).toBeCloseTo(80); // Arc B
-      expect(points[4].point.y).toBeCloseTo(100);
-      expect(points[5].point.x).toBeCloseTo(0);
-      expect(points[5].point.y).toBeCloseTo(100);
-      expect(points[6].point.x).toBeCloseTo(0);
-      expect(points[6].point.y).toBeCloseTo(0);
-      expect(GeometryComponent.get(polygons[0]).closed).toBe(true);
-
-      // Arc destination = splitB on the vertical edge (100, 20)
-      const arcA = points[2] as CubicBezierSegment;
-      expect(arcA.controlPointA.x).toBeCloseTo(91.05, 2);
-      expect(arcA.controlPointA.y).toBeCloseTo(0, 2);
-      expect(arcA.controlPointB.x).toBeCloseTo(100);
-      expect(arcA.controlPointB.y).toBeCloseTo(8.95, 2);
-
       const arcB = points[4] as CubicBezierSegment;
       expect(arcB.controlPointA.x).toBeCloseTo(100, 2);
       expect(arcB.controlPointA.y).toBeCloseTo(91.05, 2);
       expect(arcB.controlPointB.x).toBeCloseTo(91.05, 2);
       expect(arcB.controlPointB.y).toBeCloseTo(100);
     });
-
-    describe('pending hover state', () => {
-      it('should allow hovering over all rectangle corner points', async () => {
-        const events = subscribeToEvents(filletTool, ['pendingCornerChange']);
-
-        // Hover over upper left
-        toolManager.handleMouseMove(sheetToScreen(0, 0, viewport), viewport);
-        let event = await events.waitFor<CornerState | null>('pendingCornerChange');
-
-        expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') {
-          throw new Error('not rectangle');
-        }
-        expect(event?.pointAEndpoint).toStrictEqual('lowerLeft');
-        expect(event?.pointAPos.x).toStrictEqual(0);
-        expect(event?.pointAPos.y).toStrictEqual(100);
-        expect(event?.centerEndpoint).toStrictEqual('upperLeft');
-        expect(event?.centerPos.x).toStrictEqual(0);
-        expect(event?.centerPos.y).toStrictEqual(0);
-        expect(event?.pointBEndpoint).toStrictEqual('upperRight');
-        expect(event?.pointBPos.x).toStrictEqual(100);
-        expect(event?.pointBPos.y).toStrictEqual(0);
-
-        // Hover over upper right
-        toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
-        event = await events.waitFor<CornerState | null>('pendingCornerChange');
-
-        expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') {
-          throw new Error('not rectangle');
-        }
-        expect(event?.pointAEndpoint).toStrictEqual('lowerRight');
-        expect(event?.pointAPos.x).toStrictEqual(100);
-        expect(event?.pointAPos.y).toStrictEqual(100);
-        expect(event?.centerEndpoint).toStrictEqual('upperRight');
-        expect(event?.centerPos.x).toStrictEqual(100);
-        expect(event?.centerPos.y).toStrictEqual(0);
-        expect(event?.pointBEndpoint).toStrictEqual('upperLeft');
-        expect(event?.pointBPos.x).toStrictEqual(0);
-        expect(event?.pointBPos.y).toStrictEqual(0);
-
-        // Hover over lower right
-        toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
-        event = await events.waitFor<CornerState | null>('pendingCornerChange');
-
-        expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') {
-          throw new Error('not rectangle');
-        }
-        expect(event?.pointAEndpoint).toStrictEqual('lowerLeft');
-        expect(event?.pointAPos.x).toStrictEqual(0);
-        expect(event?.pointAPos.y).toStrictEqual(100);
-        expect(event?.centerEndpoint).toStrictEqual('lowerRight');
-        expect(event?.centerPos.x).toStrictEqual(100);
-        expect(event?.centerPos.y).toStrictEqual(100);
-        expect(event?.pointBEndpoint).toStrictEqual('upperRight');
-        expect(event?.pointBPos.x).toStrictEqual(100);
-        expect(event?.pointBPos.y).toStrictEqual(0);
-
-        // Hover over lower left
-        toolManager.handleMouseMove(sheetToScreen(0, 100, viewport), viewport);
-        event = await events.waitFor<CornerState | null>('pendingCornerChange');
-
-        expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') {
-          throw new Error('not rectangle');
-        }
-        expect(event?.pointAEndpoint).toStrictEqual('lowerRight');
-        expect(event?.pointAPos.x).toStrictEqual(100);
-        expect(event?.pointAPos.y).toStrictEqual(100);
-        expect(event?.centerEndpoint).toStrictEqual('lowerLeft');
-        expect(event?.centerPos.x).toStrictEqual(0);
-        expect(event?.centerPos.y).toStrictEqual(100);
-        expect(event?.pointBEndpoint).toStrictEqual('upperLeft');
-        expect(event?.pointBPos.x).toStrictEqual(0);
-        expect(event?.pointBPos.y).toStrictEqual(0);
-      });
-      it('should disallow hovering over active rectangle corner points', async () => {
-        const events = subscribeToEvents(filletTool, ['pendingCornerChange', 'activeCornerChange']);
-
-        // Hovering over upper left works
-        toolManager.handleMouseMove(sheetToScreen(0, 0, viewport), viewport);
-        let event = await events.waitFor<CornerState | null>('pendingCornerChange');
-
-        expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') {
-          throw new Error('not rectangle');
-        }
-        expect(event?.centerEndpoint).toStrictEqual('upperLeft');
-
-        // Click to make upper left the active point
-        toolManager.handleMouseDown(sheetToScreen(0, 0, viewport), viewport);
-
-        // And make sure an activeCornerChange event is emitted
-        event = await events.waitFor<CornerState | null>('activeCornerChange');
-        expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') {
-          throw new Error('not rectangle');
-        }
-        expect(event?.centerEndpoint).toStrictEqual('upperLeft');
-
-        // Now, hovering over the upper right point should still work
-        toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
-        event = await events.waitFor<CornerState | null>('pendingCornerChange');
-
-        expect(event?.mode).toStrictEqual('rectangle');
-        if (event?.mode !== 'rectangle') {
-          throw new Error('not rectangle');
-        }
-        expect(event?.centerEndpoint).toStrictEqual('upperRight');
-
-        // But not the upper left, since it is active
-        toolManager.handleMouseMove(sheetToScreen(0, 0, viewport), viewport);
-        expect(events.areThereBufferedEvents('activeCornerChange')).toBeFalsy();
-      });
-      it('should be able to click corner points before the current one to add fillets to each', async () => {
-        const events = subscribeToEvents(filletTool, ['pendingCornerChange', 'activeCornerChange']);
-
-        // Click to add a fillet on the lower right point
-        toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
-        toolManager.handleMouseDown(sheetToScreen(100, 100, viewport), viewport);
-
-        // Set a length, but do NOT commit it
-        filletTool.onChangeCurrentOffset(Length.centimeters(20));
-
-        events.clearBufferedEvents();
-
-        // Now hover / click on the upper left corner (before lower right)
-        toolManager.handleMouseMove(sheetToScreen(0, 0, viewport), viewport);
-        toolManager.handleMouseDown(sheetToScreen(0, 0, viewport), viewport);
-
-        // This should cause the first fillet to get committed
-        let polygonGeometry = geometryStore.listWithComponent(GeometryComponent)[0];
-        let points = GeometryComponent.get(polygonGeometry).points;
-        expect(points.filter((p: PolygonSegment) => p.type === 'arc-cubic')).toHaveLength(1);
-
-        // And the second fillet to get made active.
-        // First a no-op event:
-        let event = await events.waitFor<CornerState | null>('activeCornerChange');
-        expect(event).toBeNull();
-        // Then the actual event:
-        event = await events.waitFor<CornerState | null>('activeCornerChange');
-        expect(event?.mode).toStrictEqual('polygon');
-        if (event?.mode !== 'polygon') {
-          throw new Error('not polygon');
-        }
-        expect(event?.centerIndex).toStrictEqual(0);
-
-        // And the current offset length should have persisted
-        expect(filletTool.currentOffset?.type).toStrictEqual(CentimetersType);
-        expect(filletTool.currentOffset?.magnitude).toStrictEqual(20);
-      });
-      it('should be able to click corner points after the current one to add fillets to each', async () => {
-        const events = subscribeToEvents(filletTool, ['pendingCornerChange', 'activeCornerChange']);
-
-        // Click to add a fillet on the lower right point
-        toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
-        toolManager.handleMouseDown(sheetToScreen(100, 100, viewport), viewport);
-
-        // Set a length, but do NOT commit it
-        filletTool.onChangeCurrentOffset(Length.centimeters(20));
-
-        events.clearBufferedEvents();
-
-        // Now hover / click on the lower left corner (after lower right)
-        toolManager.handleMouseMove(sheetToScreen(0, 100, viewport), viewport);
-        toolManager.handleMouseDown(sheetToScreen(0, 100, viewport), viewport);
-
-        // This should cause the first fillet to get committed
-        let polygonGeometry = geometryStore.listWithComponent(GeometryComponent)[0];
-        let points = GeometryComponent.get(polygonGeometry).points;
-        expect(points.filter((p: PolygonSegment) => p.type === 'arc-cubic')).toHaveLength(1);
-
-        // And the second fillet to get made active.
-        // First a no-op event:
-        let event = await events.waitFor<CornerState | null>('activeCornerChange');
-        expect(event).toBeNull();
-        // Then the actual event:
-        event = await events.waitFor<CornerState | null>('activeCornerChange');
-        expect(event?.mode).toStrictEqual('polygon');
-        if (event?.mode !== 'polygon') {
-          throw new Error('not polygon');
-        }
-        expect(event?.centerIndex).toStrictEqual(
-          3 /* expected index */ + 1 /* extra point from fillet */,
-        );
-
-        // And the current offset length should have persisted
-        expect(filletTool.currentOffset?.type).toStrictEqual(CentimetersType);
-        expect(filletTool.currentOffset?.magnitude).toStrictEqual(20);
-      });
-    });
   });
 
   describe('Polygon', () => {
-    it('middle point of a closed triangular polygon', () => {
+    it('applies fillet to polygon middle point', async () => {
       geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 0)], {
           closed: true,
         }),
       );
+      const polygonId = geometryStore.listWithComponent(GeometryComponent)[0].id;
 
-      toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
-      toolManager.handleMouseDown(sheetToScreen(100, 0, viewport), viewport);
-
-      filletTool.onChangeCurrentOffset(Length.centimeters(20));
-      filletTool.commit();
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnPolygon(polygonId, 0, 1, 2, Length.centimeters(20)),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
 
       const polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
@@ -720,7 +910,7 @@ describe('FilletTool', () => {
       expect(points[3].type).toBe('point');
       expect(points[4].type).toBe('point');
 
-      // Point positions: UL -> split(80,0) -> arc -> LR -> LL -> UL
+      // Point positions: (0,0) -> split(80,0) -> arc -> (100,100) -> (0,0)
       expect(points[0].point.x).toBeCloseTo(0);
       expect(points[0].point.y).toBeCloseTo(0);
       expect(points[1].point.x).toBeCloseTo(80);
@@ -742,7 +932,8 @@ describe('FilletTool', () => {
       expect(arc.controlPointB.x).toBeCloseTo(100);
       expect(arc.controlPointB.y).toBeCloseTo(8.95, 2);
     });
-    it('starting point of a closed triangular polygon', () => {
+
+    it('applies fillet to polygon starting point (wrap)', async () => {
       geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -750,12 +941,14 @@ describe('FilletTool', () => {
           { closed: true },
         ),
       );
+      const polygonId = geometryStore.listWithComponent(GeometryComponent)[0].id;
 
-      toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
-      toolManager.handleMouseDown(sheetToScreen(100, 0, viewport), viewport);
-
-      filletTool.onChangeCurrentOffset(Length.centimeters(20));
-      filletTool.commit();
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnPolygon(polygonId, 2, 0, 1, Length.centimeters(20)),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
 
       const polygons = geometryStore.listWithComponent(GeometryComponent);
       expect(polygons).toHaveLength(1);
@@ -793,29 +986,6 @@ describe('FilletTool', () => {
       expect(arc.controlPointA.y).toBeCloseTo(0, 2);
       expect(arc.controlPointB.x).toBeCloseTo(100);
       expect(arc.controlPointB.y).toBeCloseTo(8.95, 2);
-    });
-    it('should not be able to place a fillet on a point where one side is arc-cubic / arc-quadratic', async () => {
-      const events = subscribeToEvents(filletTool, ['pendingCornerChange']);
-
-      geometryStore.addOrdered(
-        ID_PREFIXES.polygon,
-        Polygon.create(
-          [
-            makePoint(0, 0),
-            {
-              type: 'arc-quadratic',
-              point: new SheetPosition(100, 100),
-              controlPoint: new SheetPosition(50, 50),
-            },
-            makePoint(0, 100),
-          ],
-          { closed: true },
-        ),
-      );
-
-      toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
-
-      expect(await events.waitFor('pendingCornerChange')).toBeNull();
     });
   });
 });

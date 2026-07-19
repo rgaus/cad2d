@@ -1,9 +1,9 @@
 import React from 'react';
 import { CornerReplacement, type CornerSegmentFactory } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
-import { BaseCornerGeometryReplacerTool, CornerState } from './BaseCornerGeometryReplacerTool';
-import { Length } from '../units/length';
 import { ChamferFilter } from '../entity/filters/chamfer';
+import { Length } from '../units/length';
+import { BaseCornerGeometryReplacerTool, CornerState } from './BaseCornerGeometryReplacerTool';
 
 /**
  * Custom chamfer icon: a square with a 45-degree beveled corner (matches the
