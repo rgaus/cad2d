@@ -1,7 +1,7 @@
 import { SquareRoundCornerIcon } from 'lucide-react';
-import { CornerReplacement, type CornerSegmentFactory } from '@/lib/math';
-import { CubicCurve, SheetPosition } from '@/lib/viewport/types';
-import { BaseCornerGeometryReplacerTool } from './BaseCornerGeometryReplacerTool';
+import { BaseCornerGeometryReplacerTool, CornerState } from './BaseCornerGeometryReplacerTool';
+import { FilletFilter } from '../entity/filters';
+import { Length } from '../units/length';
 
 /**
  * A tool for creating fillets (rounded corners) on polygon shapes.
@@ -24,5 +24,23 @@ export class FilletTool extends BaseCornerGeometryReplacerTool<'fillet'> {
     return <SquareRoundCornerIcon size={24} color="white" />;
   }
 
-  protected cornerSegmentFactory: CornerSegmentFactory<SheetPosition> = CornerReplacement.filletArc;
+  protected createFilter(pending: CornerState, offset: Length) {
+    if (pending.mode === 'rectangle') {
+      return FilletFilter.createOnRectangle(
+        pending.geometryId,
+        pending.pointAEndpoint,
+        pending.centerEndpoint,
+        pending.pointBEndpoint,
+        offset,
+      );
+    } else {
+      return FilletFilter.createOnPolygon(
+        pending.geometryId,
+        pending.pointAIndex,
+        pending.centerIndex,
+        pending.pointBIndex,
+        offset,
+      );
+    }
+  }
 }
