@@ -13,12 +13,11 @@ import {
   VerticalConstraint,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
-import { FilletFilter } from '@/lib/entity/filters';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { PolygonSegment } from '@/lib/entity/polygon';
 import { type RectangleEndpoint } from '@/lib/entity/rectangle';
-import { CornerReplacement, type CornerSegmentFactory, Vector2 } from '@/lib/math';
+import { CornerReplacement, type CornerSegmentFactory, mod, Vector2 } from '@/lib/math';
 import { applyKeyPointSnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { CubicCurve, LineSegment, QuadraticCurve } from '@/lib/viewport/types';
@@ -648,7 +647,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       return null;
     }
     const step3 = this.splitEdgesAtOffset(step1, step2);
-    const step4 = this.buildCornerSegment(step1, step2, step3);
+    const step4 = this.buildCornerSegment(step1, step2);
     this.addColinearConstraints(step1, step2, step3);
     this.addRectilinearConstraints(step1, step4);
     return { outputPolygonId: step1.geometryId };
@@ -695,7 +694,6 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         // Get any constraints attached to the centerIndex, and move these to a datum
         const constraints = geometryStore.findConstraintsByGeometryId(geometryId);
         for (const c of constraints) {
-          const constraint = ConstraintComponent.get(c);
           const keys = Constraint.getPositionKeys(c);
           for (const key of keys) {
             const ep = Constraint.getEndpoint(c, key);
@@ -994,7 +992,6 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
   private buildCornerSegment(
     step1: ResolveGeometryAndIndicesResults,
     step2: ValidateOffsetResults,
-    step3: SplitEdgesAtOffsetResults,
   ): BuildCornerSegmentResults {
     const geometryStore = this.getGeometryStore();
     const geometryId = step1.geometryId;
@@ -1171,9 +1168,4 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     }
     return -1;
   }
-}
-
-/** Modular arithmetic helper that returns a non-negative remainder. */
-function mod(n: number, m: number): number {
-  return ((n % m) + m) % m;
 }
