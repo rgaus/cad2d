@@ -797,7 +797,7 @@ describe('ApplyFilterToGeometryAction', () => {
       ).toEqual(['1,2', '3,4']);
     });
 
-    it.skip('applies two fillets sequentially to rectangle', async () => {
+    it('applies two fillets sequentially to rectangle', async () => {
       // Create both filters on the same rectangle
       const filter1Id = geometryStore.add(
         ID_PREFIXES.filter,
@@ -848,10 +848,12 @@ describe('ApplyFilterToGeometryAction', () => {
       expect(arcA.controlPointB.x).toBeCloseTo(100);
       expect(arcA.controlPointB.y).toBeCloseTo(8.95, 2);
 
+      // Make sure filter2 was updated to point to newly created polygon
+      const filter2 = geometryStore.getByIdWithComponent(filter2Id, FilterComponent)!;
+      expect(FilterComponent.get(filter2).geometryId).toStrictEqual(polygons[0].id);
+      expect((FilterComponent.get(filter2) as any).geometryType).toStrictEqual('polygon');
+
       // Apply second filter (lowerRight)
-      // NOTE: This is expected to fail because the first filter already converted the
-      // rectangle to a polygon, and the second filter's ConstraintEndpoint.lockedToRectangle
-      // resolution will fail against the now-polygon geometry.
       selectionManager.deselect(filter1Id);
       selectionManager.select(filter2Id);
       await actionsManager.execute('apply-filter-to-geometry');
