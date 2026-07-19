@@ -2,14 +2,28 @@ import { type RectangleEndpoint } from '@/lib/entity/rectangle';
 import { CubicCurve, LineSegment, type Position, QuadraticCurve } from '@/lib/viewport/types';
 import { Vector2 } from './vector';
 
-/** Return type for applyToPolygon: the modified segment list and a map from old vertex indices to new vertex indices. */
+/** Factory callback that creates the corner replacement segment (arc or line). */
+export type CornerSegmentFactory<P extends Position> = (
+  p0: P,
+  p3: P,
+  tStart: P,
+  tEnd: P,
+  offset: number,
+  farAPos: P,
+  cornerPos: P,
+  farBPos: P,
+) => CubicCurve<P> | LineSegment<P> | QuadraticCurve<P>;
+
+/** Return type for applyToPolygon. */
 export type FilletChamferPolygonResult<P extends Position> = {
   segments: Array<LineSegment<P> | QuadraticCurve<P> | CubicCurve<P>>;
   /** Maps old vertex index (0..n-1, where vertex i = segments[i].start) to its index in the new segment list. */
   oldPointToNewPoint: Map<number, number>;
+  /** Index of the inserted corner segment in the viewport `segments` array. */
+  insertedSegmentIndex: number;
 };
 
-/** Return type for applyToRectangle: the full polygon segment list and a map from rectangle corner labels to new vertex indices. */
+/** Return type for applyToRectangle. */
 export type FilletChamferRectangleResult<P extends Position> = {
   segments: Array<LineSegment<P> | QuadraticCurve<P> | CubicCurve<P>>;
   /** Maps each rectangle corner label to its vertex index in the new segment list. The corner that was filleted/chamfered is excluded. */
@@ -139,15 +153,16 @@ function rectangleToSegments<P extends Position>(
   upperLeft: P,
   lowerRight: P,
 ): Array<LineSegment<P>> {
-  const corners = RECTANGLE_PERIMETER_ORDER.map((corner) => {
-    return getRectangleCornerPosition(upperLeft, lowerRight, corner);
-  });
+  const ul = getRectangleCornerPosition(upperLeft, lowerRight, 'upperLeft');
+  const ur = getRectangleCornerPosition(upperLeft, lowerRight, 'upperRight');
+  const lr = getRectangleCornerPosition(upperLeft, lowerRight, 'lowerRight');
+  const ll = getRectangleCornerPosition(upperLeft, lowerRight, 'lowerLeft');
 
   return [
-    { start: corners[0], end: corners[1] },
-    { start: corners[1], end: corners[2] },
-    { start: corners[2], end: corners[3] },
-    { start: corners[3], end: corners[4] },
+    { start: ul, end: ur },
+    { start: ur, end: lr },
+    { start: lr, end: ll },
+    { start: ll, end: ul },
   ];
 }
 
@@ -194,24 +209,64 @@ function buildOldToNewMap(n: number, cornerIndex: number): Map<number, number> {
 }
 
 // ---------------------------------------------------------------------------
-// Fillet namespace
+// CornerReplacement namespace
 // ---------------------------------------------------------------------------
 
-export namespace Fillet {
+export namespace CornerReplacement {
+  /** Pre-built factory: cubic bezier arc for a fillet. */
+  export function filletArc<P extends Position>(
+    p0: P,
+    p3: P,
+    tStart: P,
+    tEnd: P,
+    offset: number,
+    farAPos: P,
+    cornerPos: P,
+    farBPos: P,
+  ): CubicCurve<P> {
+    const { controlPointA, controlPointB } = computeFilletArcControlPoints(
+      p0,
+      p3,
+      tStart,
+      tEnd,
+      offset,
+      cornerPos,
+      farAPos,
+      farBPos,
+    );
+    return { start: p0, end: p3, controlPointA, controlPointB };
+  }
+
+  /** Pre-built factory: straight line for a chamfer. */
+  export function chamferLine<P extends Position>(
+    p0: P,
+    p3: P,
+    _tStart: P,
+    _tEnd: P,
+    _offset: number,
+    _farAPos: P,
+    _cornerPos: P,
+    _farBPos: P,
+  ): LineSegment<P> {
+    return { start: p0, end: p3 };
+  }
+
   /**
-   * Applies a fillet to a rectangle corner, returning the full polygon segment
-   * list that results from converting the rectangle to a polygon, then
-   * replacing the specified corner with a cubic bezier arc.
+   * Applies a corner replacement to a rectangle corner, returning the full
+   * polygon segment list that results from converting the rectangle to a
+   * polygon and replacing the specified corner with a segment created by
+   * the provided factory.
    */
   export function applyToRectangle<P extends Position>(
     upperLeft: P,
     lowerRight: P,
     corner: RectangleEndpoint,
     offset: number,
+    segmentFactory: CornerSegmentFactory<P>,
   ): FilletChamferRectangleResult<P> {
     const segments = rectangleToSegments(upperLeft, lowerRight);
     const cornerIndex = getRectangleCornerSegmentIndex(corner);
-    const result = applyToPolygon(segments, cornerIndex, offset);
+    const result = applyToPolygon(segments, cornerIndex, offset, segmentFactory);
 
     // Convert vertex-index map to RectangleEndpoint map
     const labelMap = new Map<RectangleEndpoint, number>();
@@ -223,37 +278,37 @@ export namespace Fillet {
   }
 
   /**
-   * Applies a fillet to a polygon corner by replacing the two edge segments
-   * that meet at the given index with truncated versions of those edges and
-   * a cubic bezier arc between them.
+   * Applies a corner replacement (fillet or chamfer) to a polygon corner
+   * by replacing the two edge segments that meet at the given index with
+   * truncated versions and a new segment created by the factory callback.
    *
    * The corner is at the junction between segments[cornerIndex] and the next
-   * segment (wrapping around for closed loops). Both segments must be plain
-   * line segments (no control points); if either is a bezier curve, the
-   * function returns the input and an identity map.
+   * segment (wrapping around). Both edge segments must be plain line
+   * segments (no control points); otherwise returns the input unchanged.
    */
   export function applyToPolygon<P extends Position>(
     segments: Array<LineSegment<P> | QuadraticCurve<P> | CubicCurve<P>>,
     cornerIndex: number,
     offset: number,
+    segmentFactory: CornerSegmentFactory<P>,
   ): FilletChamferPolygonResult<P> {
     const n = segments.length;
     if (n < 2) {
-      return { segments, oldPointToNewPoint: new Map() };
+      return { segments, oldPointToNewPoint: new Map(), insertedSegmentIndex: -1 };
     }
     const nextIdx = (cornerIndex + 1) % n;
 
     const segA = segments[cornerIndex];
     const segB = segments[nextIdx];
 
-    // Both segments must be plain line segments for the fillet to be applied
+    // Both segments must be plain line segments for the replacement to be applied
     if (
-      'controlPoint' in segA ||
-      'controlPointA' in segA ||
-      'controlPoint' in segB ||
-      'controlPointA' in segB
+      CubicCurve.isCubicCurve(segA) ||
+      QuadraticCurve.isQuadraticCurve(segA) ||
+      CubicCurve.isCubicCurve(segB) ||
+      QuadraticCurve.isQuadraticCurve(segB)
     ) {
-      return { segments, oldPointToNewPoint: new Map() };
+      return { segments, oldPointToNewPoint: new Map(), insertedSegmentIndex: -1 };
     }
 
     const cornerPos = segA.end;
@@ -272,128 +327,42 @@ export namespace Fillet {
     // Tangent at splitB points toward farBPos (same as dirB)
     const tEnd = dirB;
 
-    const { controlPointA, controlPointB } = computeFilletArcControlPoints(
+    const cornerSegment = segmentFactory(
       splitA,
       splitB,
       tStart,
       tEnd,
       offset,
-      cornerPos,
       farAPos,
+      cornerPos,
       farBPos,
     );
 
-    // Build the new segments list: truncate edge A at splitA, insert the arc,
-    // truncate edge B at splitB
     const truncatedA: LineSegment<P> = { start: farAPos, end: splitA };
-    const arc: CubicCurve<P> = { start: splitA, end: splitB, controlPointA, controlPointB };
     const truncatedB: LineSegment<P> = { start: splitB, end: farBPos };
 
     const isWrapping = nextIdx < cornerIndex;
     let result: Array<LineSegment<P> | QuadraticCurve<P> | CubicCurve<P>>;
+    let insertedSegmentIndex: number;
+
     if (isWrapping) {
-      result = [truncatedB, ...segments.slice(nextIdx + 1, cornerIndex), truncatedA, arc];
+      result = [truncatedB, ...segments.slice(nextIdx + 1, cornerIndex), truncatedA, cornerSegment];
+      insertedSegmentIndex = result.length - 1;
     } else {
       result = [
         ...segments.slice(0, cornerIndex),
         truncatedA,
-        arc,
+        cornerSegment,
         truncatedB,
         ...segments.slice(nextIdx + 1),
       ];
+      insertedSegmentIndex = cornerIndex + 1;
     }
 
-    return { segments: result, oldPointToNewPoint: buildOldToNewMap(n, cornerIndex) };
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Chamfer namespace
-// ---------------------------------------------------------------------------
-
-export namespace Chamfer {
-  /**
-   * Applies a chamfer to a rectangle corner, returning the full polygon segment
-   * list that results from converting the rectangle to a polygon, then
-   * replacing the specified corner with a straight line bevel.
-   */
-  export function applyToRectangle<P extends Position>(
-    upperLeft: P,
-    lowerRight: P,
-    corner: RectangleEndpoint,
-    offset: number,
-  ): FilletChamferRectangleResult<P> {
-    const segments = rectangleToSegments(upperLeft, lowerRight);
-    const cornerIndex = getRectangleCornerSegmentIndex(corner);
-    const result = applyToPolygon(segments, cornerIndex, offset);
-
-    // Convert vertex-index map to RectangleEndpoint map
-    const labelMap = new Map<RectangleEndpoint, number>();
-    for (const [oldIdx, newIdx] of result.oldPointToNewPoint) {
-      labelMap.set(RECTANGLE_PERIMETER_ORDER[oldIdx], newIdx);
-    }
-
-    return { segments: result.segments, oldPointToNewPoint: labelMap };
-  }
-
-  /**
-   * Applies a chamfer to a polygon corner by replacing the two edge segments
-   * that meet at the given index with truncated versions of those edges and a
-   * straight line segment between them.
-   *
-   * The corner is at the junction between segments[cornerIndex] and the next
-   * segment (wrapping around for closed loops). Both segments must be plain
-   * line segments (no control points); if either is a bezier curve, the
-   * function returns the input and an identity map.
-   */
-  export function applyToPolygon<P extends Position>(
-    segments: Array<LineSegment<P> | QuadraticCurve<P> | CubicCurve<P>>,
-    cornerIndex: number,
-    offset: number,
-  ): FilletChamferPolygonResult<P> {
-    const n = segments.length;
-    if (n < 2) {
-      return { segments, oldPointToNewPoint: new Map() };
-    }
-    const nextIdx = (cornerIndex + 1) % n;
-
-    const segA = segments[cornerIndex];
-    const segB = segments[nextIdx];
-
-    // Both segments must be plain line segments for the chamfer to be applied
-    if (
-      'controlPoint' in segA ||
-      'controlPointA' in segA ||
-      'controlPoint' in segB ||
-      'controlPointA' in segB
-    ) {
-      return { segments, oldPointToNewPoint: new Map() };
-    }
-
-    const cornerPos = segA.end;
-    const farAPos = segA.start;
-    const farBPos = segB.end;
-
-    const { splitA, splitB } = computeCornerSplitInfo(cornerPos, farAPos, farBPos, offset);
-
-    const truncatedA: LineSegment<P> = { start: farAPos, end: splitA };
-    const chamferLine: LineSegment<P> = { start: splitA, end: splitB };
-    const truncatedB: LineSegment<P> = { start: splitB, end: farBPos };
-
-    const isWrapping = nextIdx < cornerIndex;
-    let result: Array<LineSegment<P> | QuadraticCurve<P> | CubicCurve<P>>;
-    if (isWrapping) {
-      result = [truncatedB, ...segments.slice(nextIdx + 1, cornerIndex), truncatedA, chamferLine];
-    } else {
-      result = [
-        ...segments.slice(0, cornerIndex),
-        truncatedA,
-        chamferLine,
-        truncatedB,
-        ...segments.slice(nextIdx + 1),
-      ];
-    }
-
-    return { segments: result, oldPointToNewPoint: buildOldToNewMap(n, cornerIndex) };
+    return {
+      segments: result,
+      oldPointToNewPoint: buildOldToNewMap(n, cornerIndex),
+      insertedSegmentIndex,
+    };
   }
 }
