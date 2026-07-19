@@ -171,8 +171,8 @@ function isEndpointOnEdge(
 /** A representation of all entities which can be moved. The type is a union, and the associated
  * namespace has utility functions for computing metrics about the given entity in a generic way. */
 type DragState =
-  | { state: 'geometry', geometry: Entity<GeometryComponent> }
-  | { state: 'datum', entity: Entity<DatumComponent> };
+  | { state: 'geometry'; geometry: Entity<GeometryComponent> }
+  | { state: 'datum'; entity: Entity<DatumComponent> };
 
 namespace DragState {
   /** Extracts the {@link DragState} from the passed {@link Entity}, or null if nothing could be computed. */
@@ -276,14 +276,15 @@ namespace DragState {
   ): DragState | null {
     switch (state.state) {
       case 'geometry':
-        return { ...state, geometry: GeometryComponent.resize(state.geometry, params, originalBBox) };
+        return {
+          ...state,
+          geometry: GeometryComponent.resize(state.geometry, params, originalBBox),
+        };
       case 'datum':
         return null;
       default:
         state satisfies never;
-        console.warn(
-          `DragState.resize: Unknown state.for ${(state as any)?.for}. Doing nothing.`,
-        );
+        console.warn(`DragState.resize: Unknown state.for ${(state as any)?.for}. Doing nothing.`);
         return state;
     }
   }
@@ -1530,7 +1531,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     return this.handleFillPointerDown(screenPos, viewportControls, geometryId);
   }
 
-  private handleFillPointerDown (
+  private handleFillPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
     entityId: Entity['id'],
@@ -1736,15 +1737,24 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   // FIXME: add log
                   return;
                 }
-                if (GeometryComponent.isPolygon(state.geometry) && GeometryComponent.isPolygon(entity)) {
+                if (
+                  GeometryComponent.isPolygon(state.geometry) &&
+                  GeometryComponent.isPolygon(entity)
+                ) {
                   const before = GeometryComponent.get(state.geometry);
                   const after = GeometryComponent.get(entity);
                   forwardsActions.push(UndoEntry.polygonMove(id, before.points, after.points));
-                } else if (GeometryComponent.isEllipse(state.geometry) && GeometryComponent.isEllipse(entity)) {
+                } else if (
+                  GeometryComponent.isEllipse(state.geometry) &&
+                  GeometryComponent.isEllipse(entity)
+                ) {
                   const before = GeometryComponent.get(state.geometry);
                   const after = GeometryComponent.get(entity);
                   forwardsActions.push(UndoEntry.ellipseMove(id, before, after));
-                } else if (GeometryComponent.isRectangle(state.geometry) && GeometryComponent.isRectangle(entity)) {
+                } else if (
+                  GeometryComponent.isRectangle(state.geometry) &&
+                  GeometryComponent.isRectangle(entity)
+                ) {
                   const before = GeometryComponent.get(state.geometry);
                   const after = GeometryComponent.get(entity);
                   forwardsActions.push(UndoEntry.rectangleMove(id, before, after));
@@ -1758,7 +1768,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 const before = DatumComponent.get(state.entity);
                 const after = DatumComponent.get(entity);
                 // FIXME: make this history entry take just before / after, not wrapped in the object
-                forwardsActions.push(UndoEntry.datumMove(id, { position: before }, { position: after }));
+                forwardsActions.push(
+                  UndoEntry.datumMove(id, { position: before }, { position: after }),
+                );
                 break;
               default:
                 state satisfies never;
@@ -1785,9 +1797,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             if (!geometry) {
               continue;
             }
-            this.getGeometryStore().updateByIdDirect(id, (old) =>
-              DragState.apply(state, old),
-            );
+            this.getGeometryStore().updateByIdDirect(id, (old) => DragState.apply(state, old));
           }
         }
 
@@ -1978,9 +1988,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         for (const [id, originalState] of groupStates) {
           const newState = DragState.resize(originalState, params, unionBBox);
           if (newState) {
-            this.getGeometryStore().updateByIdDirect(id, (old) =>
-              DragState.apply(newState, old),
-            );
+            this.getGeometryStore().updateByIdDirect(id, (old) => DragState.apply(newState, old));
           }
         }
       },
@@ -2004,28 +2012,35 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                     // FIXME: add log
                     return;
                   }
-                  if (GeometryComponent.isPolygon(originalState.geometry) && GeometryComponent.isPolygon(afterGeometry)) {
+                  if (
+                    GeometryComponent.isPolygon(originalState.geometry) &&
+                    GeometryComponent.isPolygon(afterGeometry)
+                  ) {
                     const before = GeometryComponent.get(originalState.geometry);
                     const after = GeometryComponent.get(afterGeometry);
                     this.getHistoryManager().push(
-                      UndoEntry.polygonMove(id, before.points, after.points)
+                      UndoEntry.polygonMove(id, before.points, after.points),
                     );
-                  } else if (GeometryComponent.isEllipse(originalState.geometry) && GeometryComponent.isEllipse(afterGeometry)) {
+                  } else if (
+                    GeometryComponent.isEllipse(originalState.geometry) &&
+                    GeometryComponent.isEllipse(afterGeometry)
+                  ) {
                     const before = GeometryComponent.get(originalState.geometry);
                     const after = GeometryComponent.get(afterGeometry);
-                    this.getHistoryManager().push(
-                      UndoEntry.ellipseMove(id, before, after),
-                    );
-                  } else if (GeometryComponent.isRectangle(originalState.geometry) && GeometryComponent.isRectangle(afterGeometry)) {
+                    this.getHistoryManager().push(UndoEntry.ellipseMove(id, before, after));
+                  } else if (
+                    GeometryComponent.isRectangle(originalState.geometry) &&
+                    GeometryComponent.isRectangle(afterGeometry)
+                  ) {
                     const before = GeometryComponent.get(originalState.geometry);
                     const after = GeometryComponent.get(afterGeometry);
-                    this.getHistoryManager().push(
-                      UndoEntry.rectangleMove(id, before, after),
-                    );
+                    this.getHistoryManager().push(UndoEntry.rectangleMove(id, before, after));
                   }
                   break;
                 case 'datum':
-                  console.warn('SelectTool.onCommit: Datum was resized, but this should not be possible. Doing nothing.');
+                  console.warn(
+                    'SelectTool.onCommit: Datum was resized, but this should not be possible. Doing nothing.',
+                  );
                   break;
                 default:
                   originalState satisfies never;
