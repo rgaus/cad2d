@@ -1,7 +1,7 @@
 import { SquareRoundCornerIcon } from 'lucide-react';
-import { BaseCornerGeometryReplacerTool, CornerState } from './BaseCornerGeometryReplacerTool';
 import { FilletFilter } from '../entity/filters';
 import { Length } from '../units/length';
+import { BaseCornerGeometryReplacerTool, CornerState } from './BaseCornerGeometryReplacerTool';
 
 /**
  * A tool for creating fillets (rounded corners) on polygon shapes.
