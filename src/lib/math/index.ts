@@ -10,6 +10,7 @@ export { Vector2 } from './vector';
 export { BoundingBox } from './bounding-box';
 export { type CohenSutherlandOutcode, CohenSutherland } from './cohen-sutherland';
 export { DeCasteljau, cubicBezierAt } from './bezier';
+export { Fillet, Chamfer, computeFilletArcControlPoints } from './fillet-chamfer';
 
 /* Round a number to an arbitrary number of decimal places. */
 export function round(n: number, places: number = 0): number {
