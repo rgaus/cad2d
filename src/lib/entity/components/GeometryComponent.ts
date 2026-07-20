@@ -17,16 +17,28 @@ import { type Entity, type EntityComponent, ResizeParams } from '../types';
 import { ConstraintComponent } from './ConstraintComponent';
 import { FilterComponent } from './FilterComponent';
 
-export type RenderShape =
-  | {
-      shape: 'polygon';
-      key: string;
-      primary: boolean;
-      points: Array<PolygonSegment>;
-      closed: boolean;
-    }
-  | { shape: 'rectangle'; key: string; upperLeft: SheetPosition; lowerRight: SheetPosition }
-  | { shape: 'ellipse'; key: string; center: SheetPosition; radiusX: number; radiusY: number };
+export type RenderShapePolygon = {
+  shape: 'polygon';
+  key: string;
+  primary: boolean;
+  points: Array<PolygonSegment>;
+  closed: boolean;
+};
+export type RenderShapeRectangle = {
+  shape: 'rectangle';
+  key: string;
+  upperLeft: SheetPosition;
+  lowerRight: SheetPosition;
+};
+export type RenderShapeEllipse = {
+  shape: 'ellipse';
+  key: string;
+  center: SheetPosition;
+  radiusX: number;
+  radiusY: number;
+};
+
+export type RenderShape = RenderShapePolygon | RenderShapeRectangle | RenderShapeEllipse;
 
 namespace RenderShape {
   export function polygon(
