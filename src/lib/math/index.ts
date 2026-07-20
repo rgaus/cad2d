@@ -1,4 +1,9 @@
-import { RectangleCorner, RectangleEndpoint, type PointSegment, type PolygonSegment } from '@/lib/entity';
+import {
+  type PointSegment,
+  type PolygonSegment,
+  RectangleCorner,
+  RectangleEndpoint,
+} from '@/lib/entity';
 import { CubicCurve, Position, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
 import { DeCasteljau } from './bezier';
 import { Vector2 } from './vector';

@@ -13,9 +13,9 @@ import { type RectangleEndpoint } from '@/lib/entity/rectangle';
 import { applyKeyPointSnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
+import { FilterComponent } from '../entity/components/FilterComponent';
 import { FilterTemplate } from '../entity/filters';
 import { BaseTool } from './BaseTool';
-import { FilterComponent } from '../entity/components/FilterComponent';
 
 export type CornerState =
   | {
@@ -362,9 +362,11 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
 
         // Make sure there isn't an existing filter on this corner point
         // If so, then don't allow another filter to be placed on it.
-        const existingFilter = this.getGeometryStore().findFiltersByGeometryId(keyPointEndpoint.id).find(
-          (f) => FilterComponent.isLockedToRectangle(f, keyPointEndpoint.id, keyPointEndpoint.point)
-        );
+        const existingFilter = this.getGeometryStore()
+          .findFiltersByGeometryId(keyPointEndpoint.id)
+          .find((f) =>
+            FilterComponent.isLockedToRectangle(f, keyPointEndpoint.id, keyPointEndpoint.point),
+          );
         if (existingFilter) {
           this.emit('pendingCornerChange', null);
           return;
@@ -414,9 +416,11 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
 
         // Make sure there isn't an existing filter on this corner point
         // If so, then don't allow another filter to be placed on it.
-        const existingFilter = this.getGeometryStore().findFiltersByGeometryId(keyPointEndpoint.id).find(
-          (f) => FilterComponent.isLockedToPolygon(f, keyPointEndpoint.id, keyPointEndpoint.pointIndex)
-        );
+        const existingFilter = this.getGeometryStore()
+          .findFiltersByGeometryId(keyPointEndpoint.id)
+          .find((f) =>
+            FilterComponent.isLockedToPolygon(f, keyPointEndpoint.id, keyPointEndpoint.pointIndex),
+          );
         if (existingFilter) {
           this.emit('pendingCornerChange', null);
           return;

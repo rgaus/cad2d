@@ -1,10 +1,5 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import {
-  ConstraintEndpoint,
-  PointSegment,
-  Polygon,
-  Rectangle,
-} from '@/lib/entity';
+import { ConstraintEndpoint, PointSegment, Polygon, Rectangle } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
@@ -19,11 +14,7 @@ import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { CentimetersType, Length } from '@/lib/units/length';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
-import {
-  ScreenPosition,
-  SheetPosition,
-  type ViewportState,
-} from '@/lib/viewport/types';
+import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };
@@ -83,37 +74,37 @@ describe('FilletTool', () => {
       );
     });
 
-    it.each([
-      'upperRight',
-      'lowerRight',
-      'lowerLeft',
-      'upperLeft',
-    ] as const)('%s corner', (cornerLabel) => {
-      const endpoint = ConstraintEndpoint.lockedToRectangle(rect.id, cornerLabel);
-      const pos = geometryStore.resolveConstraintEndpoint(endpoint);
-      if (!pos) {
-        throw new Error(`Could not resolve corner ${cornerLabel}`);
-      }
+    it.each(['upperRight', 'lowerRight', 'lowerLeft', 'upperLeft'] as const)(
+      '%s corner',
+      (cornerLabel) => {
+        const endpoint = ConstraintEndpoint.lockedToRectangle(rect.id, cornerLabel);
+        const pos = geometryStore.resolveConstraintEndpoint(endpoint);
+        if (!pos) {
+          throw new Error(`Could not resolve corner ${cornerLabel}`);
+        }
 
-      // Click the given corner
-      toolManager.handleMouseMove(sheetToScreen(pos.x, pos.y, viewport), viewport);
-      toolManager.handleMouseDown(sheetToScreen(pos.x, pos.y, viewport), viewport);
+        // Click the given corner
+        toolManager.handleMouseMove(sheetToScreen(pos.x, pos.y, viewport), viewport);
+        toolManager.handleMouseDown(sheetToScreen(pos.x, pos.y, viewport), viewport);
 
-      // Enter an offset distance, and commit
-      filletTool.onChangeCurrentOffset(Length.centimeters(20));
-      filletTool.commit();
+        // Enter an offset distance, and commit
+        filletTool.onChangeCurrentOffset(Length.centimeters(20));
+        filletTool.commit();
 
-      // Make sure filter was added
-      const filters = geometryStore.listWithComponent(FilterComponent);
-      expect(filters).toHaveLength(1);
+        // Make sure filter was added
+        const filters = geometryStore.listWithComponent(FilterComponent);
+        expect(filters).toHaveLength(1);
 
-      // Make sure filter is centered at `centerEndpoint`
-      const filter = FilterComponent.get(filters[0]);
-      expect(filter.type).toStrictEqual('fillet');
-      expect((filter as FilletFilterData).geometryType).toStrictEqual('rectangle');
-      expect((filter as any).pointCenterKeyPoint).toStrictEqual(cornerLabel);
-      expect((filter as FilletFilterData).offset.toSheetUnits(sheet.defaultUnit).magnitude).toBeCloseTo(20);
-    });
+        // Make sure filter is centered at `centerEndpoint`
+        const filter = FilterComponent.get(filters[0]);
+        expect(filter.type).toStrictEqual('fillet');
+        expect((filter as FilletFilterData).geometryType).toStrictEqual('rectangle');
+        expect((filter as any).pointCenterKeyPoint).toStrictEqual(cornerLabel);
+        expect(
+          (filter as FilletFilterData).offset.toSheetUnits(sheet.defaultUnit).magnitude,
+        ).toBeCloseTo(20);
+      },
+    );
 
     it('two corners in sequence', () => {
       // First corner: upperRight
@@ -444,7 +435,9 @@ describe('FilletTool', () => {
       ID_PREFIXES.filter,
       FilletFilter.createOnRectangle(
         rectangle.id,
-        'lowerLeft', 'upperLeft', 'upperRight',
+        'lowerLeft',
+        'upperLeft',
+        'upperRight',
         Length.centimeters(20),
       ),
     );
@@ -468,11 +461,7 @@ describe('FilletTool', () => {
     // Add a fillet centered on the upperLeft point of the rectangle
     geometryStore.add(
       ID_PREFIXES.filter,
-      FilletFilter.createOnPolygon(
-        rectangle.id,
-        0, 1, 2,
-        Length.centimeters(20),
-      ),
+      FilletFilter.createOnPolygon(rectangle.id, 0, 1, 2, Length.centimeters(20)),
     );
 
     // Hovering over point at index=1 does nothing
