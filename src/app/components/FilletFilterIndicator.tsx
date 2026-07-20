@@ -3,7 +3,7 @@
 import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
-import { Vector2 } from '@/lib/math';
+import { Vector2, computeFilletArcControlPoints } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { FilletFilterIconTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
 import { Length } from '@/lib/units/length';
@@ -89,17 +89,27 @@ export default function FilletFilterIndicator({
       const curveStart = Vector2.add(vCenter, Vector2.scale(dirA, offsetWorld));
       const curveEnd = Vector2.add(vCenter, Vector2.scale(dirB, offsetWorld));
 
-      // Compute the angle between the two edges for the arc approximation
-      const cosTheta = Math.max(-1, Math.min(1, Vector2.dot(dirA, dirB)));
-      const theta = Math.acos(cosTheta);
-      const kVal = (4 / 3) * Math.tan(theta / 4);
-      const kR = kVal * offsetWorld;
-
-      const cpA = Vector2.add(vCenter, Vector2.scale(dirA, kR));
-      const cpB = Vector2.add(vCenter, Vector2.scale(dirB, kR));
+      // Use the shared cubic bezier arc approximation (same as CornerReplacement)
+      const { controlPointA, controlPointB } = computeFilletArcControlPoints(
+        curveStart,
+        curveEnd,
+        Vector2.scale(dirA, -1), // tStart: toward corner
+        dirB, // tEnd: away from corner
+        offsetWorld,
+        vCenter,
+        vA,
+        vB,
+      );
 
       graphics.moveTo(curveStart.x, curveStart.y);
-      graphics.bezierCurveTo(cpA.x, cpA.y, cpB.x, cpB.y, curveEnd.x, curveEnd.y);
+      graphics.bezierCurveTo(
+        controlPointA.x,
+        controlPointA.y,
+        controlPointB.x,
+        controlPointB.y,
+        curveEnd.x,
+        curveEnd.y,
+      );
       graphics.stroke();
     },
     [vA, vCenter, vB, color, lineWidth, offset],
