@@ -1,4 +1,5 @@
 import { Filter, type FilterData } from '../filters';
+import { RectangleEndpoint } from '../rectangle';
 import { type Entity, type EntityComponent } from '../types';
 
 /**
@@ -48,5 +49,41 @@ export namespace FilterComponent {
         filter: merged,
       },
     };
+  }
+
+  export function isLockedToRectangle(geometry: Entity<FilterComponent>, rectangleId: Entity['id'], rectanglePoint: RectangleEndpoint) {
+    const filter = FilterComponent.get(geometry);
+    switch (filter.type) {
+      case 'fillet':
+      case 'chamfer':
+        return (
+          filter.geometryType === 'rectangle' &&
+          filter.geometryId === rectangleId &&
+          filter.pointCenterKeyPoint === rectanglePoint
+        );
+      case 'mirror':
+        return false;
+      default:
+        filter satisfies never;
+        return false;
+    }
+  }
+
+  export function isLockedToPolygon(geometry: Entity<FilterComponent>, polygonId: Entity['id'], pointIndex: number) {
+    const filter = FilterComponent.get(geometry);
+    switch (filter.type) {
+      case 'fillet':
+      case 'chamfer':
+        return (
+          filter.geometryType === 'polygon' &&
+          filter.geometryId === polygonId &&
+          filter.pointCenterIndex === pointIndex
+        );
+      case 'mirror':
+        return false;
+      default:
+        filter satisfies never;
+        return false;
+    }
   }
 }

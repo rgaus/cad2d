@@ -1,7 +1,6 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintEndpoint,
-  GeometryComponent,
   PointSegment,
   Polygon,
   Rectangle,
@@ -9,10 +8,10 @@ import {
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
-import { FilletFilterData } from '@/lib/entity/filters/fillet';
+import { FilletFilter, FilletFilterData } from '@/lib/entity/filters/fillet';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
-import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
+import { Sheet } from '@/lib/sheet/Sheet';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { CornerState } from '@/lib/tools/BaseCornerGeometryReplacerTool';
 import { FilletTool } from '@/lib/tools/FilletTool';
@@ -24,7 +23,6 @@ import {
   ScreenPosition,
   SheetPosition,
   type ViewportState,
-  WorldPosition,
 } from '@/lib/viewport/types';
 
 function makePoint(x: number, y: number): PointSegment {
@@ -32,27 +30,11 @@ function makePoint(x: number, y: number): PointSegment {
 }
 
 function sheetToScreen(x: number, y: number, viewport: ViewportState): ScreenPosition {
-  return new WorldPosition(x * SHEET_UNITS_TO_PIXELS, y * SHEET_UNITS_TO_PIXELS).toScreen(viewport);
-}
-
-function clickRectangleCorner(
-  toolManager: ToolManager,
-  geometryStore: GeometryStore,
-  rect: Rectangle,
-  cornerLabel: 'upperLeft' | 'upperRight' | 'lowerRight' | 'lowerLeft',
-  viewport: ViewportState,
-) {
-  const endpoint = ConstraintEndpoint.lockedToRectangle(rect.id, cornerLabel);
-  const pos = geometryStore.resolveConstraintEndpoint(endpoint);
-  if (!pos) {
-    throw new Error(`Could not resolve corner ${cornerLabel}`);
-  }
-  toolManager.handleMouseMove(sheetToScreen(pos.x, pos.y, viewport), viewport);
-  toolManager.handleMouseDown(sheetToScreen(pos.x, pos.y, viewport), viewport);
-  return pos;
+  return new SheetPosition(x, y).toWorld().toScreen(viewport);
 }
 
 describe('FilletTool', () => {
+  let sheet: Sheet;
   let historyManager: HistoryManager;
   let geometryStore: GeometryStore;
   let selectionManager: SelectionManager;
@@ -63,7 +45,7 @@ describe('FilletTool', () => {
   let viewportControls: ViewportControls;
 
   beforeEach(() => {
-    const sheet = Sheet.a4();
+    sheet = Sheet.a4();
     historyManager = new HistoryManager();
     geometryStore = new GeometryStore(historyManager);
     historyManager.setGeometryStore(geometryStore);
@@ -98,50 +80,39 @@ describe('FilletTool', () => {
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,
         }),
-      ) as Rectangle;
+      );
     });
 
-    function assertFilterCreated(
-      centerEndpoint: 'upperLeft' | 'upperRight' | 'lowerRight' | 'lowerLeft',
-    ) {
+    it.each([
+      'upperRight',
+      'lowerRight',
+      'lowerLeft',
+      'upperLeft',
+    ] as const)('%s corner', (cornerLabel) => {
+      const endpoint = ConstraintEndpoint.lockedToRectangle(rect.id, cornerLabel);
+      const pos = geometryStore.resolveConstraintEndpoint(endpoint);
+      if (!pos) {
+        throw new Error(`Could not resolve corner ${cornerLabel}`);
+      }
+
+      // Click the given corner
+      toolManager.handleMouseMove(sheetToScreen(pos.x, pos.y, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(pos.x, pos.y, viewport), viewport);
+
+      // Enter an offset distance, and commit
+      filletTool.onChangeCurrentOffset(Length.centimeters(20));
+      filletTool.commit();
+
+      // Make sure filter was added
       const filters = geometryStore.listWithComponent(FilterComponent);
       expect(filters).toHaveLength(1);
+
+      // Make sure filter is centered at `centerEndpoint`
       const filter = FilterComponent.get(filters[0]);
-      expect(filter.type).toBe('fillet');
-      expect((filter as FilletFilterData).geometryType).toBe('rectangle');
-      expect((filter as any).pointCenterKeyPoint).toBe(centerEndpoint);
-      expect((filter as FilletFilterData).offset.toSheetUnits(Sheet.a4().defaultUnit).magnitude).toBeCloseTo(20);
-      // Polygon NOT modified
-      const rectGeom = geometryStore.getByIdWithComponent(rect.id, GeometryComponent)!;
-      expect(GeometryComponent.isRectangle(rectGeom)).toBe(true);
-    }
-
-    it('upperRight corner', () => {
-      clickRectangleCorner(toolManager, geometryStore, rect, 'upperRight', viewport);
-      filletTool.onChangeCurrentOffset(Length.centimeters(20));
-      filletTool.commit();
-      assertFilterCreated('upperRight');
-    });
-
-    it('lowerRight corner', () => {
-      clickRectangleCorner(toolManager, geometryStore, rect, 'lowerRight', viewport);
-      filletTool.onChangeCurrentOffset(Length.centimeters(20));
-      filletTool.commit();
-      assertFilterCreated('lowerRight');
-    });
-
-    it('lowerLeft corner', () => {
-      clickRectangleCorner(toolManager, geometryStore, rect, 'lowerLeft', viewport);
-      filletTool.onChangeCurrentOffset(Length.centimeters(20));
-      filletTool.commit();
-      assertFilterCreated('lowerLeft');
-    });
-
-    it('upperLeft corner', () => {
-      clickRectangleCorner(toolManager, geometryStore, rect, 'upperLeft', viewport);
-      filletTool.onChangeCurrentOffset(Length.centimeters(20));
-      filletTool.commit();
-      assertFilterCreated('upperLeft');
+      expect(filter.type).toStrictEqual('fillet');
+      expect((filter as FilletFilterData).geometryType).toStrictEqual('rectangle');
+      expect((filter as any).pointCenterKeyPoint).toStrictEqual(cornerLabel);
+      expect((filter as FilletFilterData).offset.toSheetUnits(sheet.defaultUnit).magnitude).toBeCloseTo(20);
     });
 
     it('two corners in sequence', () => {
@@ -175,7 +146,7 @@ describe('FilletTool', () => {
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,
         }),
-      ) as Rectangle;
+      );
     });
 
     it('clicking before current corner commits filter and activates new corner', async () => {
@@ -199,12 +170,7 @@ describe('FilletTool', () => {
       expect(filters).toHaveLength(1);
       expect((FilterComponent.get(filters[0]) as any).pointCenterKeyPoint).toBe('lowerRight');
 
-      // Polygon is NOT modified (still a rectangle)
-      const geomEntities = geometryStore.listWithComponent(GeometryComponent);
-      expect(geomEntities).toHaveLength(1);
-      expect(GeometryComponent.isRectangle(geomEntities[0])).toBe(true);
-
-      // The second fillet gets made active (rectangle mode since polygon unchanged)
+      // The second fillet gets made active
       // First a no-op event from the abort in commit:
       let event = await events.waitFor<CornerState | null>('activeCornerChange');
       expect(event).toBeNull();
@@ -242,12 +208,7 @@ describe('FilletTool', () => {
       expect(filters).toHaveLength(1);
       expect((FilterComponent.get(filters[0]) as any).pointCenterKeyPoint).toBe('lowerRight');
 
-      // Polygon is NOT modified (still a rectangle)
-      const geomEntities = geometryStore.listWithComponent(GeometryComponent);
-      expect(geomEntities).toHaveLength(1);
-      expect(GeometryComponent.isRectangle(geomEntities[0])).toBe(true);
-
-      // The second fillet gets made active (rectangle mode since polygon unchanged)
+      // The second fillet gets made active
       // First a no-op event from the abort in commit:
       let event = await events.waitFor<CornerState | null>('activeCornerChange');
       expect(event).toBeNull();
@@ -267,7 +228,7 @@ describe('FilletTool', () => {
 
   describe('Polygon corner clicks create filters', () => {
     it('middle point of a closed triangular polygon', () => {
-      geometryStore.addOrdered(
+      const { id: polygonId } = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 0)], {
           closed: true,
@@ -283,13 +244,14 @@ describe('FilletTool', () => {
       const filters = geometryStore.listWithComponent(FilterComponent);
       expect(filters).toHaveLength(1);
       const filter = FilterComponent.get(filters[0]);
-      expect(filter.type).toBe('fillet');
-      expect((filter as FilletFilterData).geometryType).toBe('polygon');
-      expect((filter as any).pointCenterIndex).toBe(1);
+      expect(filter.type).toStrictEqual('fillet');
+      expect((filter as FilletFilterData).geometryType).toStrictEqual('polygon');
+      expect((filter as FilletFilterData).geometryId).toStrictEqual(polygonId);
+      expect((filter as any).pointCenterIndex).toStrictEqual(1);
     });
 
     it('starting point of a closed triangular polygon', () => {
-      geometryStore.addOrdered(
+      const { id: polygonId } = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
           [makePoint(100, 0), makePoint(100, 100), makePoint(0, 0), makePoint(100, 0)],
@@ -308,6 +270,7 @@ describe('FilletTool', () => {
       const filter = FilterComponent.get(filters[0]);
       expect(filter.type).toBe('fillet');
       expect((filter as FilletFilterData).geometryType).toBe('polygon');
+      expect((filter as FilletFilterData).geometryId).toStrictEqual(polygonId);
       expect((filter as any).pointCenterIndex).toBe(0);
     });
   });
@@ -321,7 +284,7 @@ describe('FilletTool', () => {
           fillColor: DEFAULT_COLOR,
           linkDimensions: false,
         }),
-      ) as Rectangle;
+      );
     });
 
     it('should allow hovering over all rectangle corner points', async () => {
@@ -462,5 +425,58 @@ describe('FilletTool', () => {
     toolManager.handleMouseMove(sheetToScreen(100, 100, viewport), viewport);
 
     expect(await events.waitFor('pendingCornerChange')).toBeNull();
+  });
+
+  it('should disallow hovering over rectangle corner points with previously attached fillets', async () => {
+    const events = subscribeToEvents(filletTool, ['pendingCornerChange']);
+
+    // Create a new rectangle
+    const rectangle = geometryStore.addOrdered(
+      ID_PREFIXES.rectangle,
+      Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
+        fillColor: DEFAULT_COLOR,
+        linkDimensions: false,
+      }),
+    );
+
+    // Add a fillet centered on the upperLeft point of the rectangle
+    geometryStore.add(
+      ID_PREFIXES.filter,
+      FilletFilter.createOnRectangle(
+        rectangle.id,
+        'lowerLeft', 'upperLeft', 'upperRight',
+        Length.centimeters(20),
+      ),
+    );
+
+    // Hovering over upper left does nothing
+    toolManager.handleMouseMove(sheetToScreen(0, 0, viewport), viewport);
+    expect(await events.waitFor<CornerState | null>('pendingCornerChange')).toBeNull();
+  });
+
+  it('should disallow hovering over polygon vertex points with previously attached fillets', async () => {
+    const events = subscribeToEvents(filletTool, ['pendingCornerChange']);
+
+    // Create a new rectangle
+    const rectangle = geometryStore.addOrdered(
+      ID_PREFIXES.polygon,
+      Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 0)], {
+        closed: true,
+      }),
+    );
+
+    // Add a fillet centered on the upperLeft point of the rectangle
+    geometryStore.add(
+      ID_PREFIXES.filter,
+      FilletFilter.createOnPolygon(
+        rectangle.id,
+        0, 1, 2,
+        Length.centimeters(20),
+      ),
+    );
+
+    // Hovering over point at index=1 does nothing
+    toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
+    expect(await events.waitFor<CornerState | null>('pendingCornerChange')).toBeNull();
   });
 });

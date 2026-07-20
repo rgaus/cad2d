@@ -1,29 +1,21 @@
 import {
-  ColinearConstraint,
-  Constraint,
   ConstraintComponent,
   ConstraintEndpoint,
   Datum,
   DatumComponent,
   Entity,
   GeometryComponent,
-  HorizontalConstraint,
   type Id,
-  Polygon,
-  VerticalConstraint,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
-import { RectangleData } from '@/lib/entity/geometry/rectangle';
-import { PolygonSegment } from '@/lib/entity/polygon';
 import { type RectangleEndpoint } from '@/lib/entity/rectangle';
-import { CornerReplacement, type CornerSegmentFactory, Vector2, mod } from '@/lib/math';
 import { applyKeyPointSnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
-import { CubicCurve, LineSegment, QuadraticCurve } from '@/lib/viewport/types';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
-import { FilletFilter, FilterTemplate } from '../entity/filters';
+import { FilterTemplate } from '../entity/filters';
 import { BaseTool } from './BaseTool';
+import { FilterComponent } from '../entity/components/FilterComponent';
 
 export type CornerState =
   | {
@@ -101,38 +93,6 @@ export type ValidateOffsetResults = {
   tB: number;
   /** The offset distance in sheet units. */
   offset: number;
-};
-
-/**
- * Results from splitEdgesAtOffset: inserts two new vertices on the polygon edges
- * at the offset distance from the center. Constraint history events are replayed
- * to maintain constraint integrity.
- */
-type SplitEdgesAtOffsetResults = {
-  /** The updated polygon geometry after both edge splits. */
-  geometry: Entity<GeometryComponent<PolygonData>>;
-  /** Sheet position where the first edge was split (center->pointA side). */
-  splitAPos: SheetPosition;
-  /** Sheet position where the second edge was split (center->pointB side). */
-  splitBPos: SheetPosition;
-  /** Index in the post-split polygon.points array of splitA. */
-  splitAIdx: number;
-  /** Index in the post-split polygon.points array of splitB. */
-  splitBIdx: number;
-  /** Index of the center vertex in the post-split polygon. */
-  centerIdxFirst: number;
-};
-
-/**
- * Results from buildCornerSegment: the updated polygon geometry with the corner replacement
- * segment inserted and the index where it was added.
- */
-type BuildCornerSegmentResults = {
-  /** The updated polygon geometry with the corner segment inserted. */
-  geometry: Entity<GeometryComponent<PolygonData>>;
-  /** The index in polygon.points where the segment was inserted. Used by subsequent
-   *  steps to skip over the segment when iterating perimeter points. */
-  addedSegmentIndex: number;
 };
 
 /** For a rectangle, each corner's two adjacent corners are always the same two, so clicking
@@ -400,6 +360,16 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           return;
         }
 
+        // Make sure there isn't an existing filter on this corner point
+        // If so, then don't allow another filter to be placed on it.
+        const existingFilter = this.getGeometryStore().findFiltersByGeometryId(keyPointEndpoint.id).find(
+          (f) => FilterComponent.isLockedToRectangle(f, keyPointEndpoint.id, keyPointEndpoint.point)
+        );
+        if (existingFilter) {
+          this.emit('pendingCornerChange', null);
+          return;
+        }
+
         const centerPos = geometryStore.resolveConstraintEndpoint(keyPointEndpoint);
         const adjacencies = RECTANGLE_ADJACENCY[keyPointEndpoint.point as RectangleEndpoint];
         if (!centerPos || typeof adjacencies === 'undefined') {
@@ -442,6 +412,16 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           return;
         }
 
+        // Make sure there isn't an existing filter on this corner point
+        // If so, then don't allow another filter to be placed on it.
+        const existingFilter = this.getGeometryStore().findFiltersByGeometryId(keyPointEndpoint.id).find(
+          (f) => FilterComponent.isLockedToPolygon(f, keyPointEndpoint.id, keyPointEndpoint.pointIndex)
+        );
+        if (existingFilter) {
+          this.emit('pendingCornerChange', null);
+          return;
+        }
+
         const geometry = geometryStore.getByIdWithComponent(
           keyPointEndpoint.id,
           GeometryComponent,
@@ -450,7 +430,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           this.emit('pendingCornerChange', null);
           return;
         }
-        const polygon = GeometryComponent.get(geometry as Entity<GeometryComponent<PolygonData>>);
+        const polygon = GeometryComponent.get(geometry);
         const centerPoint = polygon.points[keyPointEndpoint.pointIndex].point;
 
         let previousIndex = keyPointEndpoint.pointIndex - 1;
