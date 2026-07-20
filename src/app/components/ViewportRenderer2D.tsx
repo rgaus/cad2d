@@ -1206,7 +1206,7 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {keyPointSnapInfo && viewportControlsState ? (
+        {keyPointSnapInfo && viewportControlsState && activeTool.type !== 'edit' ? (
           <HoverTooltip
             position={keyPointSnapInfo.sheetPosition
               .toWorld()

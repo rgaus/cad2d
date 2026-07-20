@@ -18,6 +18,8 @@ export type Rectangle = Entity<
 /** A rectangle without params that will be added by the {@link GeometryStore#addRectangle} method */
 export type RectangleTemplate = Omit<EntityOmitComponents<Rectangle, RenderOrderComponent>, 'id'>;
 
+export type RectangleCorner = 'upperLeft' | 'upperRight' | 'lowerRight' | 'lowerLeft';
+
 /** A point on a rectangle that a constraint endpoint can lock to.
  *  Derived from {@link GeometryComponent.keyPoints} -> {@link RectangleData.keyPoints}. */
 export type RectangleEndpoint = KeyPointKeys<ReturnType<typeof RectangleData.keyPoints>>;

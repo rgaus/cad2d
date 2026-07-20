@@ -1,4 +1,4 @@
-import { BoundingBox, CornerReplacement, rectangleToPolygon } from '@/lib/math';
+import { BoundingBox, CornerReplacement } from '@/lib/math';
 import { type UnitType } from '@/lib/units/length';
 import {
   CubicCurve,
@@ -585,8 +585,8 @@ export namespace GeometryComponent {
 
     let filterApplicationCounter = 0;
     for (const filter of filters) {
-      const data = FilterComponent.get(filter);
-      switch (data.type) {
+      const filterData = FilterComponent.get(filter);
+      switch (filterData.type) {
         case 'mirror': {
           const mirrorResults = shapes.flatMap((renderShape) => {
             filterApplicationCounter += 1;
@@ -604,7 +604,7 @@ export namespace GeometryComponent {
                   ),
                 );
                 const flippedCorners = corners.map((point) =>
-                  mirrorPointOverLine(point, data.pointA, data.pointB),
+                  mirrorPointOverLine(point, filterData.pointA, filterData.pointB),
                 );
                 const ul = new SheetPosition(
                   Math.min(...flippedCorners.map((p) => p.x)),
@@ -619,8 +619,8 @@ export namespace GeometryComponent {
               case 'ellipse': {
                 const mirroredCenter = mirrorPointOverLine(
                   renderShape.center,
-                  data.pointA,
-                  data.pointB,
+                  filterData.pointA,
+                  filterData.pointB,
                 );
                 return [
                   RenderShape.ellipse(key, mirroredCenter, {
@@ -633,8 +633,8 @@ export namespace GeometryComponent {
                 const mirroredPoints = renderShape.points.map((segment) => {
                   const mirroredPoint = mirrorPointOverLine(
                     segment.point,
-                    data.pointA,
-                    data.pointB,
+                    filterData.pointA,
+                    filterData.pointB,
                   );
                   switch (segment.type) {
                     case 'point':
@@ -645,8 +645,8 @@ export namespace GeometryComponent {
                         point: mirroredPoint,
                         controlPoint: mirrorPointOverLine(
                           segment.controlPoint,
-                          data.pointA,
-                          data.pointB,
+                          filterData.pointA,
+                          filterData.pointB,
                         ),
                       };
                     case 'arc-cubic':
@@ -655,13 +655,13 @@ export namespace GeometryComponent {
                         point: mirroredPoint,
                         controlPointA: mirrorPointOverLine(
                           segment.controlPointA,
-                          data.pointA,
-                          data.pointB,
+                          filterData.pointA,
+                          filterData.pointB,
                         ),
                         controlPointB: mirrorPointOverLine(
                           segment.controlPointB,
-                          data.pointA,
-                          data.pointB,
+                          filterData.pointA,
+                          filterData.pointB,
                         ),
                       };
                     default:
@@ -690,77 +690,142 @@ export namespace GeometryComponent {
         case 'fillet':
         case 'chamfer': {
           const factory =
-            data.type === 'fillet'
+            filterData.type === 'fillet'
               ? CornerReplacement.filletArc<SheetPosition>
               : CornerReplacement.chamferLine<SheetPosition>;
-          const offsetNum = data.offset.toSheetUnits(sheetDefaultUnit).magnitude;
+          const offsetNum = filterData.offset.toSheetUnits(sheetDefaultUnit).magnitude;
 
-          let resultSegs: Array<
-            LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>
-          > | null = null;
+          shapes = shapes.flatMap((renderShape) => {
+            filterApplicationCounter += 1;
+            const key = `${filter.id}_${filterApplicationCounter}`;
 
-          switch (data.geometryType) {
-            case 'rectangle':
-              if (GeometryComponent.isRectangle(geometry)) {
-                const state = GeometryComponent.get(geometry);
-                resultSegs = CornerReplacement.applyToRectangle(
-                  state.upperLeft,
-                  state.lowerRight,
-                  data.pointCenterKeyPoint,
-                  offsetNum,
-                  factory,
-                ).segments;
+            let resultSegs: Array<
+              LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>
+            > | null = null;
+
+            switch (renderShape.shape) {
+              case 'rectangle': {
+                switch (filterData.geometryType) {
+                  case 'rectangle':
+                    resultSegs = CornerReplacement.applyToRectangle(
+                      renderShape.upperLeft,
+                      renderShape.lowerRight,
+                      filterData.pointCenterKeyPoint,
+                      offsetNum,
+                      factory,
+                    ).segments;
+                    break;
+                  case 'polygon':
+                    console.warn('GeometryComponent.getRenderShapes: applying fillet/chamfer - geoemtryType of polygon cannot apply to renderShape of rectangle, skipping...');
+                    break;
+                  default:
+                    filterData satisfies never;
+                    break;
+                }
+                break;
               }
-              break;
-            case 'polygon':
-              if (GeometryComponent.isPolygon(geometry)) {
-                const state = GeometryComponent.get(geometry);
-
+              case 'polygon': {
                 // Convert polygon points to viewport segments
-                const n = state.points.length;
+                const pointsLength = renderShape.points.length;
                 const viewportSegs: Array<
                   LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>
                 > = [];
-                for (let i = 0; i < n - 1; i += 1) {
+                for (let i = 0; i < pointsLength - 1; i += 1) {
                   viewportSegs.push(
-                    PolygonSegment.toLineSegmentOrCurve(state.points[i].point, state.points[i + 1]),
+                    PolygonSegment.toLineSegmentOrCurve(renderShape.points[i].point, renderShape.points[i + 1]),
                   );
                 }
-                // Find the viewport segment index whose end is the center vertex
-                const cornerIndex =
-                  (data.pointCenterIndex - 1 + viewportSegs.length) % viewportSegs.length;
 
-                resultSegs = CornerReplacement.applyToPolygon(
-                  viewportSegs,
-                  cornerIndex,
-                  offsetNum,
-                  factory,
-                ).segments;
+                switch (filterData.geometryType) {
+                  case 'rectangle': {
+                    // Skip non corner points
+                    if (
+                      filterData.pointCenterKeyPoint !== 'upperLeft' &&
+                      filterData.pointCenterKeyPoint !== 'upperRight' &&
+                      filterData.pointCenterKeyPoint !== 'lowerLeft' &&
+                      filterData.pointCenterKeyPoint !== 'lowerRight'
+                    ) {
+                      break;
+                    }
+
+                    // Find the viewport segment index whose end is the center vertex
+                    const cornerPositions = BoundingBox.corners(
+                      BoundingBox.fromPoints(renderShape.points.map((p) => p.point))
+                    );
+                    const centerPos = cornerPositions[filterData.pointCenterKeyPoint];
+                    // Find the center vertex index in the polygon
+                    let centerPtIndex: number | null = null;
+                    for (let i = 0; i < pointsLength - 1; i += 1) {
+                      if (
+                        renderShape.points[i].point.x === centerPos.x &&
+                        renderShape.points[i].point.y === centerPos.y
+                      ) {
+                        centerPtIndex = i;
+                        break;
+                      }
+                    }
+                    if (centerPtIndex === null) {
+                      return [];
+                    }
+                    const cornerIndex =
+                      (centerPtIndex - 1 + viewportSegs.length) % viewportSegs.length;
+
+                    resultSegs = CornerReplacement.applyToPolygon(
+                      viewportSegs,
+                      cornerIndex,
+                      offsetNum,
+                      factory,
+                    ).segments;
+                    break;
+                  }
+                  case 'polygon': {
+                    // Find the viewport segment index whose end is the center vertex
+                    const cornerIndex =
+                      (filterData.pointCenterIndex - 1 + viewportSegs.length) % viewportSegs.length;
+
+                    resultSegs = CornerReplacement.applyToPolygon(
+                      viewportSegs,
+                      cornerIndex,
+                      offsetNum,
+                      factory,
+                    ).segments;
+                    break;
+                  }
+                  default:
+                    filterData satisfies never;
+                }
+                break;
               }
-              break;
-            default:
-              data satisfies never;
-              throw new Error(`GeometryComponent.getRenderShapes: Unknown fillet / chamfer filter geometryType ${(data as any).geometryType}`);
-          }
+              case 'ellipse':
+                // Ellipses can't have fillets / chamfers
+                // So just pass through unchanged
+                return [renderShape];
+              default:
+                renderShape satisfies never;
+                throw new Error(
+                  `getRenderShapes: Unknown render shape type ${(renderShape as any).shape}`,
+                );
+            }
 
-          if (!resultSegs) {
-            break;
-          }
+            if (!resultSegs) {
+              return [];
+            }
 
-          // Convert viewport segments back to PolygonSegment[]
-          const newPoints: Array<PolygonSegment> = [];
-          const [firstPoint] = PolygonSegment.fromLineSegmentOrCurve(resultSegs[0]);
-          newPoints.push({ type: 'point', point: firstPoint });
-          for (const seg of resultSegs) {
-            const [, polySeg] = PolygonSegment.fromLineSegmentOrCurve(seg);
-            newPoints.push(polySeg);
-          }
+            // Convert viewport segments back to PolygonSegment[]
+            const newPoints: Array<PolygonSegment> = [];
+            const [firstPoint] = PolygonSegment.fromLineSegmentOrCurve(resultSegs[0]);
+            newPoints.push({ type: 'point', point: firstPoint });
+            for (const seg of resultSegs) {
+              const [, polySeg] = PolygonSegment.fromLineSegmentOrCurve(seg);
+              newPoints.push(polySeg);
+            }
 
-          shapes = [RenderShape.polygon(geometry.id, newPoints, true)];
+            return [RenderShape.polygon(key, newPoints, true)];
+          });
           break;
         }
         default:
-          data satisfies never;
+          filterData satisfies never;
           break;
       }
     }
