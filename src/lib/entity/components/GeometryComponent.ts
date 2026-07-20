@@ -728,7 +728,9 @@ export namespace GeometryComponent {
                     ).segments;
                     break;
                   case 'polygon':
-                    console.warn('GeometryComponent.getRenderShapes: applying fillet/chamfer - geoemtryType of polygon cannot apply to renderShape of rectangle, skipping...');
+                    console.warn(
+                      'GeometryComponent.getRenderShapes: applying fillet/chamfer - geoemtryType of polygon cannot apply to renderShape of rectangle, skipping...',
+                    );
                     break;
                   default:
                     filterData satisfies never;
@@ -740,11 +742,16 @@ export namespace GeometryComponent {
                 // Convert polygon points to viewport segments
                 const pointsLength = renderShape.points.length;
                 const viewportSegs: Array<
-                  LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>
+                  | LineSegment<SheetPosition>
+                  | QuadraticCurve<SheetPosition>
+                  | CubicCurve<SheetPosition>
                 > = [];
                 for (let i = 0; i < pointsLength - 1; i += 1) {
                   viewportSegs.push(
-                    PolygonSegment.toLineSegmentOrCurve(renderShape.points[i].point, renderShape.points[i + 1]),
+                    PolygonSegment.toLineSegmentOrCurve(
+                      renderShape.points[i].point,
+                      renderShape.points[i + 1],
+                    ),
                   );
                 }
 
@@ -762,7 +769,7 @@ export namespace GeometryComponent {
 
                     // Find the viewport segment index whose end is the center vertex
                     const cornerPositions = BoundingBox.corners(
-                      BoundingBox.fromPoints(renderShape.points.map((p) => p.point))
+                      BoundingBox.fromPoints(renderShape.points.map((p) => p.point)),
                     );
                     const centerPos = cornerPositions[filterData.pointCenterKeyPoint];
                     // Find the center vertex index in the polygon

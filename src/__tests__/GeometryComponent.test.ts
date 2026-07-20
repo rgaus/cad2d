@@ -17,11 +17,7 @@ import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { Length } from '@/lib/units/length';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
-import {
-  ScreenPosition,
-  SheetPosition,
-  type ViewportState,
-} from '@/lib/viewport/types';
+import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };
@@ -82,7 +78,9 @@ describe('GeometryComponent', () => {
         ID_PREFIXES.filter,
         FilletFilter.createOnRectangle(
           rectangle.id,
-          'upperLeft', 'upperRight', 'lowerRight',
+          'upperLeft',
+          'upperRight',
+          'lowerRight',
           Length.centimeters(20),
         ),
       );

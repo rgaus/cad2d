@@ -51,7 +51,11 @@ export namespace FilterComponent {
     };
   }
 
-  export function isLockedToRectangle(geometry: Entity<FilterComponent>, rectangleId: Entity['id'], rectanglePoint: RectangleEndpoint) {
+  export function isLockedToRectangle(
+    geometry: Entity<FilterComponent>,
+    rectangleId: Entity['id'],
+    rectanglePoint: RectangleEndpoint,
+  ) {
     const filter = FilterComponent.get(geometry);
     switch (filter.type) {
       case 'fillet':
@@ -69,7 +73,11 @@ export namespace FilterComponent {
     }
   }
 
-  export function isLockedToPolygon(geometry: Entity<FilterComponent>, polygonId: Entity['id'], pointIndex: number) {
+  export function isLockedToPolygon(
+    geometry: Entity<FilterComponent>,
+    polygonId: Entity['id'],
+    pointIndex: number,
+  ) {
     const filter = FilterComponent.get(geometry);
     switch (filter.type) {
       case 'fillet':

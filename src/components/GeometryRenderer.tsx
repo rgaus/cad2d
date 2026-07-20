@@ -491,7 +491,7 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
     );
   }, [activeTool.type, viewportControls, viewportScale, mouseScreenPos]);
 
-  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<Sheet["defaultUnit"]>(sheet.defaultUnit);
+  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<Sheet['defaultUnit']>(sheet.defaultUnit);
   useEffect(() => {
     sheet.on('defaultUnitChange', setSheetDefaultUnit);
     return () => {
