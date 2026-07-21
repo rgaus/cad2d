@@ -184,7 +184,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
 
     // Reject duplicate / invalid points
     switch (rawEndpoint.type) {
-      case 'locked-rectangle':
+      case 'locked-rectangle': {
         if (
           this.state.type === 'awaiting-distance' &&
           this.state.active.mode === 'rectangle' &&
@@ -195,8 +195,20 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           // so do nothing
           return;
         }
+
+        // Make sure there isn't an existing filter on this corner point
+        // If so, then don't allow another filter to be placed on it.
+        const existingFilter = geometryStore
+          .findFiltersByGeometryId(rawEndpoint.id)
+          .find((f) =>
+            FilterComponent.isLockedToRectangle(f, rawEndpoint.id, rawEndpoint.point),
+          );
+        if (existingFilter) {
+          return;
+        }
         break;
-      case 'locked-polygon':
+      }
+      case 'locked-polygon': {
         if (
           this.state.type === 'awaiting-distance' &&
           this.state.active.mode === 'polygon' &&
@@ -207,7 +219,19 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           // so do nothing
           return;
         }
+
+        // Make sure there isn't an existing filter on this corner point
+        // If so, then don't allow another filter to be placed on it.
+        const existingFilter = geometryStore
+          .findFiltersByGeometryId(rawEndpoint.id)
+          .find((f) =>
+            FilterComponent.isLockedToPolygon(f, rawEndpoint.id, rawEndpoint.pointIndex),
+          );
+        if (existingFilter) {
+          return;
+        }
         break;
+      }
       case 'point':
         // Point endpoints are meaningless in this context.
         return;
