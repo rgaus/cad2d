@@ -6,12 +6,10 @@ import {
   ConstraintComponent,
   ConstraintEndpoint,
   Datum,
-  DatumComponent,
   Entity,
   GeometryComponent,
   HorizontalConstraint,
   type Id,
-  Polygon,
   VerticalConstraint,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
@@ -19,7 +17,6 @@ import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { type ChamferFilterData } from '@/lib/entity/filters/chamfer';
 import { type FilletFilterData } from '@/lib/entity/filters/fillet';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
-import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { PolygonSegment } from '@/lib/entity/polygon';
 import { type RectangleEndpoint } from '@/lib/entity/rectangle';
 import { CornerReplacement, type CornerSegmentFactory, Vector2, mod } from '@/lib/math';
@@ -86,15 +83,6 @@ type BuildCornerSegmentResults = {
   addedSegmentIndex: number;
 };
 
-const RECTANGLE_ADJACENCY: Partial<
-  Record<RectangleEndpoint, [RectangleEndpoint, RectangleEndpoint]>
-> = {
-  upperLeft: ['lowerLeft', 'upperRight'],
-  upperRight: ['lowerRight', 'upperLeft'],
-  lowerRight: ['lowerLeft', 'upperRight'],
-  lowerLeft: ['lowerRight', 'upperLeft'],
-};
-
 export class ApplyFilterToGeometryAction extends BaseAction {
   type = 'apply-filter-to-geometry' as const;
   label = 'Apply Filter';
@@ -126,8 +114,8 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     });
   }
 
-  async execute(): Promise<void> {
-    await this.getHistoryManager().applyTransaction(
+  async execute() {
+    this.getHistoryManager().applyTransaction(
       this.type,
       () => {
         const selectedIds = [...this.getSelectionManager().getSelectedIds()];
@@ -232,6 +220,7 @@ export class ApplyFilterToGeometryAction extends BaseAction {
       for (const f of allFilters) {
         const otherFilter = FilterComponent.get(f);
         if (
+          (otherFilter.type !== 'fillet' && otherFilter.type !== 'chamfer') ||
           otherFilter.geometryType !== 'rectangle' ||
           otherFilter.geometryId !== pending.geometryId
         ) {
