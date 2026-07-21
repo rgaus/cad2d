@@ -2614,13 +2614,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const otherPoint = rawFilter[otherPointKey] as SheetPosition;
 
     const sheetPos = screenPos.toWorld(viewportControls.getState().viewport).toSheet();
-    const superHeld = this.toolManager.getSuperHeld();
 
     const snapped = applySnappingLineSeries(sheetPos, otherPoint, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld,
+      superHeld: this.toolManager.getSuperHeld(),
     });
 
     const resolvedPos = snapped;
@@ -2655,7 +2654,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           ctrlHeld: this.toolManager.getCtrlHeld(),
-          superHeld,
+          superHeld: this.toolManager.getSuperHeld(),
         });
 
         this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
@@ -2681,7 +2680,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
             ctrlHeld: this.toolManager.getCtrlHeld(),
-            superHeld,
+            superHeld: this.toolManager.getSuperHeld(),
           });
 
           this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
