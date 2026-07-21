@@ -2629,7 +2629,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const dragStartRawSheetPos = sheetPos;
 
-    createDragListener({
+    this.activeDragListener = createDragListener({
       viewportControls,
       onMove: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
