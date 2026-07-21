@@ -41,6 +41,7 @@ import {
 import {
   applyKeyPointSnapping,
   applySnapping,
+  applySnappingLineSeries,
   applySnappingOnConstrainedTrack,
 } from '@/lib/snapping';
 import { type UnitType } from '@/lib/units/length';
@@ -2586,6 +2587,147 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 pointA: originalPointA,
                 pointB: originalPointB,
               }),
+          );
+        }
+      },
+    });
+  }
+
+  /** Called when a mirror filter endpoint handle is clicked and dragged.
+   *
+   * Uses {@link applySnappingLineSeries} for grid + angular snapping relative to the other
+   * endpoint during drag. */
+  handleFilterEndpointPointerDown<FD extends FilterData>(
+    screenPos: ScreenPosition,
+    viewportControls: ViewportControls,
+    filterId: Filter['id'],
+    pointKey: keyof FD,
+  ): void {
+    const filterGeom = this.getGeometryStore().getByIdWithComponent(filterId, FilterComponent);
+    if (!filterGeom) {
+      return;
+    }
+    const filter = FilterComponent.get<FD>(filterGeom);
+    const rawFilter = filter as Record<string, unknown>;
+
+    const otherPointKey = pointKey === 'pointA' ? 'pointB' : 'pointA';
+    const otherPoint = rawFilter[otherPointKey] as SheetPosition;
+
+    const sheetPos = screenPos.toWorld(viewportControls.getState().viewport).toSheet();
+    const superHeld = this.toolManager.getSuperHeld();
+
+    const snapped = applySnappingLineSeries(sheetPos, otherPoint, {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      ctrlHeld: this.toolManager.getCtrlHeld(),
+      superHeld,
+    });
+
+    const resolvedPos = snapped;
+    const originalPointA = rawFilter.pointA as SheetPosition;
+    const originalPointB = rawFilter.pointB as SheetPosition;
+
+    const dragStartRawSheetPos = sheetPos;
+
+    createDragListener({
+      viewportControls,
+      onMove: (sp) => {
+        const liveViewport = viewportControls.getState().viewport;
+        const world = sp.toWorld(liveViewport);
+        const sheet = world.toSheet();
+
+        const rawDx = sheet.x - (dragStartRawSheetPos?.x ?? 0);
+        const rawDy = sheet.y - (dragStartRawSheetPos?.y ?? 0);
+        const freePos = new SheetPosition(resolvedPos.x + rawDx, resolvedPos.y + rawDy);
+
+        const currentFilterGeom = this.getGeometryStore().getByIdWithComponent(
+          filterId,
+          FilterComponent,
+        );
+        if (!currentFilterGeom) {
+          return;
+        }
+        const currentFilter = FilterComponent.get(currentFilterGeom);
+        const currentRawFilter = currentFilter as unknown as Record<string, unknown>;
+        const currentOtherPoint = currentRawFilter[otherPointKey] as SheetPosition;
+
+        const snappedPoint = applySnappingLineSeries(freePos, currentOtherPoint, {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          ctrlHeld: this.toolManager.getCtrlHeld(),
+          superHeld,
+        });
+
+        this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
+          FilterComponent.update(g, { [pointKey as string]: snappedPoint }),
+        );
+      },
+      onCommit: (_sp) => {
+        this.getHistoryManager().applyTransaction('mirror-filter-endpoint-move', () => {
+          let afterFilterGeom = this.getGeometryStore().getByIdWithComponent(
+            filterId,
+            FilterComponent,
+          );
+          if (!afterFilterGeom) {
+            return;
+          }
+          const afterFilter = FilterComponent.get(afterFilterGeom);
+          const afterRawFilter = afterFilter as unknown as Record<string, unknown>;
+
+          const finalPoint = afterRawFilter[pointKey as string] as SheetPosition;
+          const finalOtherPoint = afterRawFilter[otherPointKey] as SheetPosition;
+
+          const snappedFinal = applySnappingLineSeries(finalPoint, finalOtherPoint, {
+            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+            ctrlHeld: this.toolManager.getCtrlHeld(),
+            superHeld,
+          });
+
+          this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
+            FilterComponent.update(g, { [pointKey as string]: snappedFinal }),
+          );
+
+          afterFilterGeom = this.getGeometryStore().getByIdWithComponent(filterId, FilterComponent);
+          if (!afterFilterGeom) {
+            return;
+          }
+          const finalFilter = FilterComponent.get(afterFilterGeom);
+          const finalRawFilter = finalFilter as unknown as Record<string, unknown>;
+
+          const finalPointA = finalRawFilter.pointA as SheetPosition;
+          const finalPointB = finalRawFilter.pointB as SheetPosition;
+
+          const changed =
+            originalPointA.x !== finalPointA.x ||
+            originalPointA.y !== finalPointA.y ||
+            originalPointB.x !== finalPointB.x ||
+            originalPointB.y !== finalPointB.y;
+
+          if (changed) {
+            this.getHistoryManager().push(
+              UndoEntry.mirrorFilterMoveEndpoints(
+                filterId,
+                originalPointA,
+                originalPointB,
+                finalPointA,
+                finalPointB,
+              ),
+            );
+          }
+        });
+      },
+      onCancel: () => {
+        const currentFilterGeom = this.getGeometryStore().getByIdWithComponent(
+          filterId,
+          FilterComponent,
+        );
+        if (currentFilterGeom) {
+          this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
+            FilterComponent.update(g, {
+              pointA: originalPointA,
+              pointB: originalPointB,
+            }),
           );
         }
       },

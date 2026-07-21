@@ -19,6 +19,8 @@ import {
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
@@ -4788,6 +4790,171 @@ describe('SelectTool', () => {
       expect(ul1.y).toBeGreaterThan(0);
 
       upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+  });
+
+  describe('mirror filter endpoint dragging', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') {
+            moveHandler = handler;
+          }
+          if (event === 'mouseup') {
+            upHandler = handler;
+          }
+        },
+      );
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('moves pointA of a mirror filter on drag', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(rect.id, new SheetPosition(15, 0), new SheetPosition(15, 10)),
+      );
+
+      // Start drag on pointA at (15, 0)
+      const startScreen = new SheetPosition(15, 0).toScreen(viewportControls.getState().viewport);
+      selectTool.handleFilterEndpointPointerDown<MirrorFilterData>(
+        new ScreenPosition(startScreen.x, startScreen.y),
+        viewportControls,
+        filter.id,
+        'pointA',
+      );
+
+      // Move to (20, 2)
+      const targetScreen = new SheetPosition(20, 2).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const data = FilterComponent.get(updated);
+      if (data.type !== 'mirror') {
+        throw new Error('Expected mirror filter');
+      }
+      // pointA should have moved from (15, 0) to approximately (20, 2)
+      expect(data.pointA.x).toBeCloseTo(20, 0);
+      expect(data.pointA.y).toBeCloseTo(2, 0);
+      // pointB should be unchanged at (15, 10)
+      expect(data.pointB.x).toBeCloseTo(15, 0);
+      expect(data.pointB.y).toBeCloseTo(10, 0);
+    });
+
+    it('moves pointB of a mirror filter on drag', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(rect.id, new SheetPosition(20, 0), new SheetPosition(20, 10)),
+      );
+
+      const startScreen = new SheetPosition(20, 10).toScreen(viewportControls.getState().viewport);
+      selectTool.handleFilterEndpointPointerDown<MirrorFilterData>(
+        new ScreenPosition(startScreen.x, startScreen.y),
+        viewportControls,
+        filter.id,
+        'pointB',
+      );
+
+      // Move to (25, 12)
+      const targetScreen = new SheetPosition(25, 12).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const data = FilterComponent.get(updated);
+      if (data.type !== 'mirror') {
+        throw new Error('Expected mirror filter');
+      }
+      expect(data.pointB.x).toBeCloseTo(25, 0);
+      expect(data.pointB.y).toBeCloseTo(12, 0);
+      expect(data.pointA.x).toBeCloseTo(20, 0);
+      expect(data.pointA.y).toBeCloseTo(0, 0);
+    });
+
+    it('undo and redo restores mirror filter endpoints after move', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(rect.id, new SheetPosition(15, 0), new SheetPosition(15, 10)),
+      );
+
+      const startScreen = new SheetPosition(15, 0).toScreen(viewportControls.getState().viewport);
+      selectTool.handleFilterEndpointPointerDown<MirrorFilterData>(
+        new ScreenPosition(startScreen.x, startScreen.y),
+        viewportControls,
+        filter.id,
+        'pointA',
+      );
+
+      const targetScreen = new SheetPosition(25, 5).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      // Verify pointA moved
+      {
+        const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+        const data = FilterComponent.get(updated);
+        if (data.type !== 'mirror') {
+          throw new Error('Expected mirror filter');
+        }
+        expect(data.pointA.x).toBeCloseTo(25, 0);
+        expect(data.pointA.y).toBeCloseTo(5, 0);
+      }
+
+      // Undo: pointA should be back at (15, 0)
+      historyManager.undo();
+      {
+        const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+        const data = FilterComponent.get(updated);
+        if (data.type !== 'mirror') {
+          throw new Error('Expected mirror filter');
+        }
+        expect(data.pointA.x).toBeCloseTo(15, 0);
+        expect(data.pointA.y).toBeCloseTo(0, 0);
+        expect(data.pointB.x).toBeCloseTo(15, 0);
+        expect(data.pointB.y).toBeCloseTo(10, 0);
+      }
+
+      // Redo: pointA should be at (25, 5) again
+      historyManager.redo();
+      {
+        const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+        const data = FilterComponent.get(updated);
+        if (data.type !== 'mirror') {
+          throw new Error('Expected mirror filter');
+        }
+        expect(data.pointA.x).toBeCloseTo(25, 0);
+        expect(data.pointA.y).toBeCloseTo(5, 0);
+      }
     });
   });
 });

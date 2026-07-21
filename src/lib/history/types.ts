@@ -312,6 +312,18 @@ export type FilterChangeOffsetEntry = {
   afterLength: Length;
 };
 
+// ==================== MIRROR FILTER ENTRIES ====================
+
+/** Recorded when a mirror filter's endpoint (pointA/pointB) is moved. */
+export type MirrorFilterMoveEndpointsEntry = {
+  type: 'mirror-filter-move-endpoints';
+  id: Id;
+  beforePointA: SheetPosition;
+  beforePointB: SheetPosition;
+  afterPointA: SheetPosition;
+  afterPointB: SheetPosition;
+};
+
 // ==================== UNION TYPE ====================
 
 /** Discriminated union of all undoable operations. */
@@ -348,7 +360,8 @@ export type UndoEntry =
   | SheetHeightEntry
   | SheetDefaultUnitEntry
   | SheetUnitPlacesEntry
-  | FilterChangeOffsetEntry;
+  | FilterChangeOffsetEntry
+  | MirrorFilterMoveEndpointsEntry;
 
 export namespace UndoEntry {
   /** Creates a raw transaction, useful with historyManager.push. Most likely you want {@link HistoryManager.applyTransaction} instead. */
@@ -715,6 +728,24 @@ export namespace UndoEntry {
       id: filterId,
       beforeLength,
       afterLength,
+    };
+  }
+
+  /** Creates an entry for moving a mirror filter's endpoints (pointA/pointB). */
+  export function mirrorFilterMoveEndpoints(
+    id: Id,
+    beforePointA: SheetPosition,
+    beforePointB: SheetPosition,
+    afterPointA: SheetPosition,
+    afterPointB: SheetPosition,
+  ): MirrorFilterMoveEndpointsEntry {
+    return {
+      type: 'mirror-filter-move-endpoints',
+      id,
+      beforePointA,
+      beforePointB,
+      afterPointA,
+      afterPointB,
     };
   }
 }

@@ -560,6 +560,14 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           FilterComponent.update(g, { offset: entry.afterLength }),
         );
         break;
+      case 'mirror-filter-move-endpoints':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, {
+            pointA: entry.afterPointA,
+            pointB: entry.afterPointB,
+          }),
+        );
+        break;
       default:
         entry satisfies never;
         break;
@@ -898,6 +906,14 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'filter-change-offset':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
           FilterComponent.update(g, { offset: entry.beforeLength }),
+        );
+        break;
+      case 'mirror-filter-move-endpoints':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, {
+            pointA: entry.beforePointA,
+            pointB: entry.beforePointB,
+          }),
         );
         break;
       default:
