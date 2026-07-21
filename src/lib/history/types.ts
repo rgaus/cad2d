@@ -705,7 +705,11 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry recording that the offset of a filter has changed. */
-  export function filterChangeOffset(filterId: Entity['id'], beforeLength: Length, afterLength: Length): FilterChangeOffsetEntry {
+  export function filterChangeOffset(
+    filterId: Entity['id'],
+    beforeLength: Length,
+    afterLength: Length,
+  ): FilterChangeOffsetEntry {
     return {
       type: 'filter-change-offset',
       id: filterId,

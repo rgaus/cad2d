@@ -479,7 +479,13 @@ describe('FilletTool', () => {
     // Add a fillet centered on the upperLeft point of the rectangle
     geometryStore.add(
       ID_PREFIXES.filter,
-      FilletFilter.createOnRectangle(rectangle.id, 'upperLeft', 'upperRight', 'lowerRight', Length.centimeters(20)),
+      FilletFilter.createOnRectangle(
+        rectangle.id,
+        'upperLeft',
+        'upperRight',
+        'lowerRight',
+        Length.centimeters(20),
+      ),
     );
 
     // Simulate attempting to add another filler - hover over, click, and enter offset

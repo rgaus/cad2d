@@ -200,9 +200,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         // If so, then don't allow another filter to be placed on it.
         const existingFilter = geometryStore
           .findFiltersByGeometryId(rawEndpoint.id)
-          .find((f) =>
-            FilterComponent.isLockedToRectangle(f, rawEndpoint.id, rawEndpoint.point),
-          );
+          .find((f) => FilterComponent.isLockedToRectangle(f, rawEndpoint.id, rawEndpoint.point));
         if (existingFilter) {
           return;
         }

@@ -14,8 +14,8 @@ import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
-import { UndoEntry } from './types';
 import { FilterComponent } from '../entity/components/FilterComponent';
+import { UndoEntry } from './types';
 
 /** Events emitted by HistoryManager. */
 export type HistoryManagerEvents = {
