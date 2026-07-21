@@ -44,10 +44,9 @@ namespace RenderShape {
   export function polygon(
     key: string,
     points: Array<PolygonSegment>,
-    closed: boolean,
-    options?: { primary?: boolean },
+    options?: { closed?: boolean, primary?: boolean },
   ): RenderShape {
-    return { shape: 'polygon' as const, key, primary: options?.primary ?? false, points, closed };
+    return { shape: 'polygon' as const, key, primary: options?.primary ?? false, points, closed: options?.closed ?? false };
   }
   export function rectangle(
     key: string,
@@ -583,7 +582,7 @@ export namespace GeometryComponent {
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
-        shapes = [RenderShape.polygon(geometry.id, state.points, state.closed, { primary: true })];
+        shapes = [RenderShape.polygon(geometry.id, state.points, { closed: state.closed, primary: true })];
         break;
       case 'rectangle':
         shapes = [RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight)];
@@ -622,23 +621,20 @@ export namespace GeometryComponent {
                 // degree lines, since there isn't a way to represent a rotated rectangle currently.
                 //
                 // FIXME: Address this, it's a bug that is fairly noticable.
-                const corners = BoundingBox.cornersToArray(
-                  BoundingBox.corners(
-                    BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]),
-                  ),
-                );
+                const corners = BoundingBox.cornersToArray(BoundingBox.corners(
+                  BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]),
+                ));
                 const flippedCorners = corners.map((point) =>
                   mirrorPointOverLine(point, filterData.pointA, filterData.pointB),
                 );
-                const ul = new SheetPosition(
-                  Math.min(...flippedCorners.map((p) => p.x)),
-                  Math.min(...flippedCorners.map((p) => p.y)),
-                );
-                const lr = new SheetPosition(
-                  Math.max(...flippedCorners.map((p) => p.x)),
-                  Math.max(...flippedCorners.map((p) => p.y)),
-                );
-                return [RenderShape.rectangle(key, ul, lr)];
+
+                return [
+                  RenderShape.polygon(
+                    key,
+                    [...flippedCorners, flippedCorners[0]].map((point) => ({ type: 'point', point })),
+                    { closed: true },
+                  ),
+                ];
               }
               case 'ellipse': {
                 const mirroredCenter = mirrorPointOverLine(
@@ -696,7 +692,8 @@ export namespace GeometryComponent {
                   }
                 });
                 return [
-                  RenderShape.polygon(key, mirroredPoints, renderShape.closed, {
+                  RenderShape.polygon(key, mirroredPoints, {
+                    closed: renderShape.closed,
                     primary: false,
                   }),
                 ];
@@ -851,7 +848,7 @@ export namespace GeometryComponent {
               newPoints.push(polySeg);
             }
 
-            return [RenderShape.polygon(key, newPoints, true)];
+            return [RenderShape.polygon(key, newPoints, { closed: true })];
           });
           break;
         }

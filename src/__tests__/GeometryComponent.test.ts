@@ -301,12 +301,20 @@ describe('GeometryComponent', () => {
       expect(rectangleOriginal.lowerRight.x).toStrictEqual(100);
       expect(rectangleOriginal.lowerRight.y).toStrictEqual(100);
 
-      expect(shapes[1].shape).toStrictEqual('rectangle');
-      const rectangleMirrored = shapes[1] as RenderShapeRectangle;
-      expect(rectangleMirrored.upperLeft.x).toStrictEqual(300);
-      expect(rectangleMirrored.upperLeft.y).toStrictEqual(0);
-      expect(rectangleMirrored.lowerRight.x).toStrictEqual(400);
-      expect(rectangleMirrored.lowerRight.y).toStrictEqual(100);
+      // The mirrored version should be a polygon
+      expect(shapes[1].shape).toStrictEqual('polygon');
+      const mirrored = shapes[1] as RenderShapePolygon;
+      expect(mirrored.points).toHaveLength(5);
+      expect(mirrored.points[0].point.x).toStrictEqual(400);
+      expect(mirrored.points[0].point.y).toStrictEqual(0);
+      expect(mirrored.points[1].point.x).toStrictEqual(300);
+      expect(mirrored.points[1].point.y).toStrictEqual(0);
+      expect(mirrored.points[2].point.x).toStrictEqual(300);
+      expect(mirrored.points[2].point.y).toStrictEqual(100);
+      expect(mirrored.points[3].point.x).toStrictEqual(400);
+      expect(mirrored.points[3].point.y).toStrictEqual(100);
+      expect(mirrored.points[4].point.x).toStrictEqual(400);
+      expect(mirrored.points[4].point.y).toStrictEqual(0);
     });
 
     it('should mirror rectangle with fillet across a line', async () => {
