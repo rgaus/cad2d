@@ -18,7 +18,6 @@ import {
   LinearConstraint,
 } from '@/lib/entity/constraints';
 import { LinearConstraintData } from '@/lib/entity/constraints/linear';
-import { type PolygonData } from '@/lib/entity/geometry/polygon';
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
 import { DeCasteljau, Vector2, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import {
@@ -344,6 +343,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     this.setState({ state: 'idle', isHoveringFirstHandle: false, source: { type: 'empty' } });
     this.emit('previewSegmentIntersections', []);
     this.emit('previewSegmentIntersectionsEnabled', new Set());
+    this.emit('previewSheetPositionChange', null);
   }
 
   /** Handles a click in the polygon tool. */

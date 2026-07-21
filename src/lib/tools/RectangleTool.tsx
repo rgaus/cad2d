@@ -32,9 +32,11 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
   private constrainedHeight: number | null = null;
 
   handleToolBlur(): void {
+    this.previewSheetPos = null;
+    this.emit('previewSheetPositionChange', null);
+
     this.getGeometryStore().clearWorkingRectangle();
     this.getGeometryStore().clearWorkingConstraints();
-    this.previewSheetPos = null;
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
