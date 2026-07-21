@@ -8,7 +8,7 @@ import {
   Rect,
   SheetPosition,
 } from '@/lib/viewport/types';
-import { Filter } from '../filters';
+import { Filter, FilterData } from '../filters';
 import { type Geometry, type GeometryData } from '../geometry';
 import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
@@ -565,6 +565,14 @@ export namespace GeometryComponent {
     return new SheetPosition(2 * projX - point.x, 2 * projY - point.y);
   }
 
+  /** A map used to look up each filter and determine the order in which they should be applied.
+   * Lower number = applied earlier, larger number = applied later. */
+  const FILTER_DATA_TYPE_SORT_ORDER: { [key in FilterData['type']]: number } = {
+    fillet: 1,
+    chamfer: 1,
+    mirror: 2,
+  };
+
   export function getRenderShapes(
     geometry: Entity<GeometryComponent<GeometryData>>,
     sheetDefaultUnit: UnitType,
@@ -596,7 +604,11 @@ export namespace GeometryComponent {
     }
 
     let filterApplicationCounter = 0;
-    for (const filter of filters) {
+    for (const filter of filters.sort((a, b) => {
+      const aScore = FILTER_DATA_TYPE_SORT_ORDER[FilterComponent.get(a).type];
+      const bScore = FILTER_DATA_TYPE_SORT_ORDER[FilterComponent.get(b).type];
+      return aScore - bScore;
+    })) {
       const filterData = FilterComponent.get(filter);
       switch (filterData.type) {
         case 'mirror': {
