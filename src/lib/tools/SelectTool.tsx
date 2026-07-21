@@ -2855,9 +2855,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             case 'fillet':
             case 'chamfer':
               if (workingFilter.offset !== null) {
-                this.getGeometryStore().updateByIdWithComponent(filterId, FilterComponent, (g) =>
-                  FilterComponent.update(g, { offset: workingFilter.offset! }),
-                );
+                const filter = this.getGeometryStore().getByIdWithComponent(filterId, FilterComponent);
+                if (!filter) {
+                  return;
+                }
+                const filterData = FilterComponent.get(filter);
+                if (filterData.type !== 'fillet' && filterData.type !== 'chamfer') {
+                  return;
+                }
+                this.getHistoryManager().apply(UndoEntry.filterChangeOffset(
+                  filterId,
+                  filterData.offset,
+                  workingFilter.offset,
+                ));
                 break;
               }
             case 'mirror':

@@ -305,6 +305,13 @@ export type SheetUnitPlacesEntry = {
   afterUnitPlaces: number;
 };
 
+export type FilterChangeOffsetEntry = {
+  type: 'filter-change-offset';
+  id: Entity['id'];
+  beforeLength: Length;
+  afterLength: Length;
+};
+
 // ==================== UNION TYPE ====================
 
 /** Discriminated union of all undoable operations. */
@@ -340,7 +347,8 @@ export type UndoEntry =
   | SheetWidthEntry
   | SheetHeightEntry
   | SheetDefaultUnitEntry
-  | SheetUnitPlacesEntry;
+  | SheetUnitPlacesEntry
+  | FilterChangeOffsetEntry;
 
 export namespace UndoEntry {
   /** Creates a raw transaction, useful with historyManager.push. Most likely you want {@link HistoryManager.applyTransaction} instead. */
@@ -694,5 +702,15 @@ export namespace UndoEntry {
     afterUnitPlaces: number,
   ): SheetUnitPlacesEntry {
     return { type: 'sheet-unit-places', beforeUnitPlaces, afterUnitPlaces };
+  }
+
+  /** Creates an entry recording that the offset of a filter has changed. */
+  export function filterChangeOffset(filterId: Entity['id'], beforeLength: Length, afterLength: Length): FilterChangeOffsetEntry {
+    return {
+      type: 'filter-change-offset',
+      id: filterId,
+      beforeLength,
+      afterLength,
+    };
   }
 }
