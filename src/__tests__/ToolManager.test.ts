@@ -1,4 +1,4 @@
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { BaseMultiTool } from '@/lib/tools/BaseTool';

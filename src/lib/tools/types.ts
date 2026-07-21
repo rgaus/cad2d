@@ -1,10 +1,14 @@
 import {
   Constraint,
   ConstraintEndpoint,
+  type Entity,
   Id,
+  type Polygon,
   PolygonSegment,
+  type Rectangle,
+  type RectangleEndpoint,
   type ResizeMode,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '../units/length';
 import { TOOLS_BY_TYPE } from './ToolManager';
@@ -156,3 +160,67 @@ export type WorkingConstraint =
   | WorkingHorizontalConstraint
   | WorkingVerticalConstraint
   | WorkingColinearConstraint;
+
+export type WorkingFilletFilter =
+  | {
+      type: 'fillet';
+      offset: Length | null;
+      geometryType: 'polygon';
+      geometryId: Polygon['id'];
+      pointAIndex: number;
+      pointCenterIndex: number;
+      pointBIndex: number;
+
+      /** If set, whenever this working filter is visible, the specified filter will be hidden. */
+      shadowsFilterId: string | null;
+    }
+  | {
+      type: 'fillet';
+      offset: Length | null;
+      geometryType: 'rectangle';
+      geometryId: Rectangle['id'];
+      pointAKeyPoint: RectangleEndpoint;
+      pointCenterKeyPoint: RectangleEndpoint;
+      pointBKeyPoint: RectangleEndpoint;
+
+      /** If set, whenever this working filter is visible, the specified filter will be hidden. */
+      shadowsFilterId: string | null;
+    };
+
+export type WorkingChamferFilter =
+  | {
+      type: 'chamfer';
+      offset: Length | null;
+      geometryType: 'polygon';
+      geometryId: Polygon['id'];
+      pointAIndex: number;
+      pointCenterIndex: number;
+      pointBIndex: number;
+
+      /** If set, whenever this working filter is visible, the specified filter will be hidden. */
+      shadowsFilterId: string | null;
+    }
+  | {
+      type: 'chamfer';
+      offset: Length | null;
+      geometryType: 'rectangle';
+      geometryId: Rectangle['id'];
+      pointAKeyPoint: RectangleEndpoint;
+      pointCenterKeyPoint: RectangleEndpoint;
+      pointBKeyPoint: RectangleEndpoint;
+
+      /** If set, whenever this working filter is visible, the specified filter will be hidden. */
+      shadowsFilterId: string | null;
+    };
+
+export type WorkingMirrorFilter = {
+  type: 'mirror';
+  geometryId: Entity['id'];
+  pointA: SheetPosition | null;
+  pointB: SheetPosition | null;
+
+  /** If set, whenever this working filter is visible, the specified filter will be hidden. */
+  shadowsFilterId: string | null;
+};
+
+export type WorkingFilter = WorkingFilletFilter | WorkingChamferFilter | WorkingMirrorFilter;

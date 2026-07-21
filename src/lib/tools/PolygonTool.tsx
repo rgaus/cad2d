@@ -2,23 +2,22 @@ import { HexagonIcon } from 'lucide-react';
 import {
   ConstraintComponent,
   type CubicBezierSegment,
-  EllipseComponent,
+  Entity,
   FillColorComponent,
-  Geometry,
+  GeometryComponent,
   type Id,
   Polygon,
-  PolygonComponent,
   PolygonSegment,
-  RectangleComponent,
-} from '@/lib/geometry';
-import { QuerySegmentIntersectionPoint } from '@/lib/geometry/DCELShapeIndex';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { DEFAULT_COLOR } from '@/lib/geometry/colors';
+} from '@/lib/entity';
+import { QuerySegmentIntersectionPoint } from '@/lib/entity/DCELShapeIndex';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
-} from '@/lib/geometry/constraints';
+} from '@/lib/entity/constraints';
+import { LinearConstraintData } from '@/lib/entity/constraints/linear';
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
 import { DeCasteljau, Vector2, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import {
@@ -41,7 +40,6 @@ import {
   SheetPosition,
   type ViewportState,
 } from '@/lib/viewport/types';
-import { LinearConstraintData } from '../geometry/constraints/linear';
 import { getGridAtScale } from '../viewport/grid';
 import { BaseTool } from './BaseTool';
 
@@ -345,6 +343,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     this.setState({ state: 'idle', isHoveringFirstHandle: false, source: { type: 'empty' } });
     this.emit('previewSegmentIntersections', []);
     this.emit('previewSegmentIntersectionsEnabled', new Set());
+    this.emit('previewSheetPositionChange', null);
   }
 
   /** Handles a click in the polygon tool. */
@@ -401,12 +400,12 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
           const polygon = this.getGeometryStore().getByIdWithComponent(
             this.state.polygonId,
-            PolygonComponent,
+            GeometryComponent,
           );
-          if (!polygon) {
+          if (!polygon || !GeometryComponent.isPolygon(polygon)) {
             return wp;
           }
-          const polygonData = PolygonComponent.get(polygon);
+          const polygonData = GeometryComponent.get(polygon);
           if (polygonData.closed) {
             return wp;
           }
@@ -486,7 +485,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           ) {
             const matchingConstraintGeom = geometryStore
               .listWithComponent(ConstraintComponent)
-              .find((g): g is Geometry<ConstraintComponent<LinearConstraintData>> => {
+              .find((g): g is Entity<ConstraintComponent<LinearConstraintData>> => {
                 const c = ConstraintComponent.get(g);
                 // FIXME: also handle cosntraints which are inverted here
                 return (
@@ -1518,28 +1517,26 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         // Step 2: For each intersected geometry id, add in new points
         for (const [id, intersectionsBySegmentIndex] of committedIntersectionByGeometryId) {
           const geometry = geometryStore.getById(id);
-          if (!geometry) {
+          if (!geometry || !Entity.hasComponent(geometry, GeometryComponent)) {
             continue;
           }
 
+          const geoData = GeometryComponent.get(geometry);
           let polygonPoints: Array<PolygonSegment>;
           let polygonClosed = true;
-          if (Geometry.hasComponent(geometry, EllipseComponent)) {
-            const ellipseData = EllipseComponent.get(geometry);
-            polygonPoints = ellipseToPolygon(
-              ellipseData.center,
-              ellipseData.radiusX,
-              ellipseData.radiusY,
-            );
-          } else if (Geometry.hasComponent(geometry, RectangleComponent)) {
-            const rectangle = RectangleComponent.get(geometry);
-            polygonPoints = rectangleToPolygon(rectangle.upperLeft, rectangle.lowerRight);
-          } else if (Geometry.hasComponent(geometry, PolygonComponent)) {
-            const polygonData = PolygonComponent.get(geometry);
-            polygonPoints = polygonData.points;
-            polygonClosed = polygonData.closed;
-          } else {
-            continue;
+          switch (geoData.type) {
+            case 'ellipse':
+              polygonPoints = ellipseToPolygon(geoData.center, geoData.radiusX, geoData.radiusY);
+              break;
+            case 'rectangle':
+              polygonPoints = rectangleToPolygon(geoData.upperLeft, geoData.lowerRight);
+              break;
+            case 'polygon':
+              polygonPoints = geoData.points;
+              polygonClosed = geoData.closed;
+              break;
+            default:
+              continue;
           }
           console.log('PRE POINTS:', polygonPoints.slice(), intersectionsBySegmentIndex);
 
@@ -1721,12 +1718,19 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         let polygonId;
         if (source.type === 'existing-polygon') {
           polygonId = source.polygonId;
-          geometryStore.updateByIdWithComponentDirect(source.polygonId, PolygonComponent, (old) => {
-            return PolygonComponent.update(old, {
-              points: pointsCopyWithIntersections,
-              closed,
-            });
-          });
+          geometryStore.updateByIdWithComponentDirect(
+            source.polygonId,
+            GeometryComponent,
+            (old) => {
+              if (!GeometryComponent.isPolygon(old)) {
+                return old;
+              }
+              return GeometryComponent.update(old, {
+                points: pointsCopyWithIntersections,
+                closed,
+              });
+            },
+          );
 
           // When closing a previously open polygon, add FillColorComponent
           if (closed) {

@@ -1,24 +1,15 @@
 import { useMemo } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
-import { useEllipses } from '@/hooks/useEllipses';
-import { usePolygons } from '@/hooks/usePolygons';
-import { useRectangles } from '@/hooks/useRectangles';
-import {
-  EllipseComponent,
-  type Geometry,
-  PolygonComponent,
-  RectangleComponent,
-} from '@/lib/geometry';
+import { useGeometries } from '@/hooks/useGeoemtries';
+import { GeometryComponent } from '@/lib/entity';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { SnapHintDiamondTexture } from '@/lib/textures';
+import { SPRITE_SCALE_FACTOR, SnapHintDiamondTexture } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
 const ShapsHintOverlaps: React.FunctionComponent = () => {
   const { viewportScale, geometryStore, snapHintsVisibility } = useViewportContext();
-  const rectangles = useRectangles(geometryStore);
-  const ellipses = useEllipses(geometryStore);
-  const polygons = usePolygons(geometryStore);
+  const geometries = useGeometries(geometryStore);
 
   const keyPoints = useMemo(() => {
     if (!snapHintsVisibility?.keyPoints) {
@@ -27,41 +18,24 @@ const ShapsHintOverlaps: React.FunctionComponent = () => {
 
     const pts: Array<SheetPosition> = [];
 
-    for (const rect of rectangles) {
-      const kp = RectangleComponent.keyPoints(rect as Geometry<RectangleComponent>);
+    for (const geometry of geometries) {
+      const kp = GeometryComponent.keyPoints(geometry);
       for (const p of kp.perimeter) {
         pts.push(p);
       }
       for (const p of Object.values(kp.extras)) {
-        pts.push(p);
-      }
-    }
-
-    for (const ellipse of ellipses) {
-      const kp = EllipseComponent.keyPoints(ellipse as Geometry<EllipseComponent>);
-      for (const p of kp.perimeter) {
-        pts.push(p);
-      }
-      for (const p of Object.values(kp.extras)) {
-        pts.push(p);
-      }
-    }
-
-    for (const polygon of polygons) {
-      const kp = PolygonComponent.keyPoints(polygon as Geometry<PolygonComponent>);
-      for (const p of kp.perimeter) {
         pts.push(p);
       }
     }
 
     return pts;
-  }, [snapHintsVisibility, rectangles, ellipses, polygons]);
+  }, [snapHintsVisibility, geometries]);
 
   if (keyPoints.length === 0) {
     return null;
   }
 
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * SPRITE_SCALE_FACTOR);
 
   return (
     <>

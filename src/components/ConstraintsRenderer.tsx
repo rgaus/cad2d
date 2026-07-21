@@ -11,14 +11,14 @@ import DimensionLine from '@/app/components/DimensionLine';
 import DimensionParallel from '@/app/components/DimensionParallel';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { ConstraintComponent } from '@/lib/geometry';
+import { ConstraintComponent } from '@/lib/entity';
 import {
   type ColinearConstraintData,
-  type Geometry,
+  type Entity,
   type ParallelConstraintData,
   type PerpendicularConstraintData,
-} from '@/lib/geometry';
-import { LinearConstraintData } from '@/lib/geometry/constraints/linear';
+} from '@/lib/entity';
+import { LinearConstraintData } from '@/lib/entity/constraints/linear';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -48,7 +48,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
 
   const selectedIds = useSelectionManagerSelectedIds();
 
-  const [constraints, setConstraints] = useState<Array<Geometry<ConstraintComponent>>>([]);
+  const [constraints, setConstraints] = useState<Array<Entity<ConstraintComponent>>>([]);
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
   const rebuildConstraints = useCallback(() => {
     setConstraints(geometryStore.listWithComponent(ConstraintComponent));
@@ -106,7 +106,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   }, [sheet]);
 
   const handleConstraintLabelPointerUp = useCallback(
-    (e: FederatedPointerEvent, constraintId: Geometry<ConstraintComponent>['id']) => {
+    (e: FederatedPointerEvent, constraintId: Entity<ConstraintComponent>['id']) => {
       if (!viewportControls) {
         return;
       }
@@ -126,7 +126,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   );
 
   const handleConstraintLabelPointerEnter = useCallback(
-    (constraintId: Geometry<ConstraintComponent>['id']) => {
+    (constraintId: Entity<ConstraintComponent>['id']) => {
       const activeTool = toolManager.getActiveTool();
       if (activeTool.type !== 'select') {
         return;
@@ -149,7 +149,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handleLinearConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Geometry<ConstraintComponent>['id'],
+      constraintId: Entity<ConstraintComponent>['id'],
       pointKey: 'pointA' | 'pointB',
     ) => {
       if (!viewportControls) {
@@ -174,7 +174,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handlePerpendicularConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Geometry<ConstraintComponent>['id'],
+      constraintId: Entity<ConstraintComponent>['id'],
       pointKey: 'pointA' | 'pointCenter' | 'pointB',
     ) => {
       if (!viewportControls) {
@@ -197,7 +197,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handleParallelConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Geometry<ConstraintComponent>['id'],
+      constraintId: Entity<ConstraintComponent>['id'],
       pointKey: 'pointA' | 'pointB' | 'pointC' | 'pointD',
     ) => {
       if (!viewportControls) {
@@ -220,7 +220,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   const handleColinearConstraintEndpointPointerDown = useCallback(
     (
       e: FederatedPointerEvent,
-      constraintId: Geometry<ConstraintComponent>['id'],
+      constraintId: Entity<ConstraintComponent>['id'],
       pointKey: 'pointTarget' | 'pointA' | 'pointB',
     ) => {
       if (!viewportControls) {
@@ -241,7 +241,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
   );
 
   const handleConstraintLabelPointerDown = useCallback(
-    (e: FederatedPointerEvent, constraintId: Geometry<ConstraintComponent>['id']) => {
+    (e: FederatedPointerEvent, constraintId: Entity<ConstraintComponent>['id']) => {
       if (!viewportControls) {
         return;
       }
@@ -1012,7 +1012,14 @@ const ConstraintTooltips: React.FunctionComponent = () => {
             );
           }
           case 'perpendicular':
+          case 'parallel':
+          case 'vertical':
+          case 'horizontal':
+          case 'colinear':
             return null;
+          default:
+            workingConstraint satisfies never;
+            break;
         }
       })}
     </>

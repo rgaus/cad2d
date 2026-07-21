@@ -1,5 +1,6 @@
 import { EventMode, FederatedPointerEvent, Texture } from 'pixi.js';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { SPRITE_SCALE_FACTOR } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
 type HandleSpritesProps = {
@@ -27,7 +28,7 @@ export const HandleSprites: React.FunctionComponent<HandleSpritesProps> = ({
   lastHandleEventMode,
   isDragging,
 }) => {
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * SPRITE_SCALE_FACTOR);
   if (points.length === 0) {
     return null;
   }

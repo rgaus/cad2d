@@ -1,14 +1,14 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintComponent,
+  GeometryComponent,
   LinearConstraint,
   LinearConstraintData,
-  RectangleComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
+import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { WorkingLinearConstraint } from '@/lib/tools/types';
 import { CentimetersLength, CentimetersType } from '@/lib/units/length';
-import { GeometryStore } from '../lib/geometry/GeometryStore';
 import { HistoryManager } from '../lib/history/HistoryManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '../lib/sheet/Sheet';
 import { subscribeToEvents } from '../lib/subscribe-to-events';
@@ -73,20 +73,20 @@ describe('RectangleTool', () => {
     it('second click completes rectangle', () => {
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
-      expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(1);
+      expect(geometryStore.listWithComponent(GeometryComponent)).toHaveLength(1);
       expect(geometryStore.workingRectangle).toBeNull();
 
-      const rect = geometryStore.listWithComponent(RectangleComponent)[0];
-      expect(RectangleComponent.get(rect).upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).upperLeft.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).lowerRight.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).lowerRight.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      const rect = geometryStore.listWithComponent(GeometryComponent)[0];
+      expect(GeometryComponent.get(rect).upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).upperLeft.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).lowerRight.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).lowerRight.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
     });
 
     it('clicking same location twice should not create a zero-size rect', () => {
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
       toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
-      expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(0);
+      expect(geometryStore.listWithComponent(GeometryComponent)).toHaveLength(0);
     });
   });
 
@@ -95,11 +95,11 @@ describe('RectangleTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(10, 20), viewport);
       toolManager.handleMouseDown(new ScreenPosition(30, 10), viewport);
 
-      const rect = geometryStore.listWithComponent(RectangleComponent)[0];
-      expect(RectangleComponent.get(rect).upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).upperLeft.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).lowerRight.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).lowerRight.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      const rect = geometryStore.listWithComponent(GeometryComponent)[0];
+      expect(GeometryComponent.get(rect).upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).upperLeft.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).lowerRight.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).lowerRight.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
     });
   });
 
@@ -124,7 +124,7 @@ describe('RectangleTool', () => {
       toolManager.handleMouseMove(new ScreenPosition(30, 20), viewport);
       toolManager.handleMouseDown(new ScreenPosition(30, 20), viewport);
 
-      const rect = geometryStore.listWithComponent(RectangleComponent)[0];
+      const rect = geometryStore.listWithComponent(GeometryComponent)[0];
       const dx = Math.abs(30 / SHEET_UNITS_TO_PIXELS - 10 / SHEET_UNITS_TO_PIXELS);
       const dy = Math.abs(20 / SHEET_UNITS_TO_PIXELS - 10 / SHEET_UNITS_TO_PIXELS);
       const upperLeftX = 10 / SHEET_UNITS_TO_PIXELS - dx;
@@ -132,10 +132,10 @@ describe('RectangleTool', () => {
       const lowerRightX = 10 / SHEET_UNITS_TO_PIXELS + dx;
       const lowerRightY = 10 / SHEET_UNITS_TO_PIXELS + dy;
 
-      expect(RectangleComponent.get(rect).upperLeft.x).toBeCloseTo(upperLeftX, 2);
-      expect(RectangleComponent.get(rect).upperLeft.y).toBeCloseTo(upperLeftY, 2);
-      expect(RectangleComponent.get(rect).lowerRight.x).toBeCloseTo(lowerRightX, 2);
-      expect(RectangleComponent.get(rect).lowerRight.y).toBeCloseTo(lowerRightY, 2);
+      expect(GeometryComponent.get(rect).upperLeft.x).toBeCloseTo(upperLeftX, 2);
+      expect(GeometryComponent.get(rect).upperLeft.y).toBeCloseTo(upperLeftY, 2);
+      expect(GeometryComponent.get(rect).lowerRight.x).toBeCloseTo(lowerRightX, 2);
+      expect(GeometryComponent.get(rect).lowerRight.y).toBeCloseTo(lowerRightY, 2);
     });
   });
 
@@ -160,12 +160,12 @@ describe('RectangleTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(15, 20), viewport);
       toolManager.handleKeyUp({ key: 'Shift' } as KeyboardEvent);
 
-      expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(1);
-      const rect = geometryStore.listWithComponent(RectangleComponent)[0];
-      expect(RectangleComponent.get(rect).upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).upperLeft.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).lowerRight.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).lowerRight.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(geometryStore.listWithComponent(GeometryComponent)).toHaveLength(1);
+      const rect = geometryStore.listWithComponent(GeometryComponent)[0];
+      expect(GeometryComponent.get(rect).upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).upperLeft.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).lowerRight.x).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).lowerRight.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
     });
 
     it('shift constrains correctly even when mouse moves to negative quadrant', () => {
@@ -219,14 +219,14 @@ describe('RectangleTool', () => {
 
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
-      expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(1);
+      expect(geometryStore.listWithComponent(GeometryComponent)).toHaveLength(1);
       expect(geometryStore.workingRectangle).toBeNull();
 
-      const rect = geometryStore.listWithComponent(RectangleComponent)[0];
-      expect(RectangleComponent.get(rect).upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).upperLeft.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).lowerRight.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).lowerRight.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      const rect = geometryStore.listWithComponent(GeometryComponent)[0];
+      expect(GeometryComponent.get(rect).upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).upperLeft.y).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).lowerRight.x).toBeCloseTo(30 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).lowerRight.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
     });
 
     it('enter does nothing when no preview is set', () => {
@@ -235,7 +235,7 @@ describe('RectangleTool', () => {
 
       toolManager.handleKeyDown({ key: 'Enter' } as KeyboardEvent);
 
-      expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(0);
+      expect(geometryStore.listWithComponent(GeometryComponent)).toHaveLength(0);
       expect(geometryStore.workingRectangle).not.toBeNull();
     });
   });
@@ -342,15 +342,15 @@ describe('RectangleTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(31, 41), viewport);
 
       // Make sure the rectangle was added
-      expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(1);
-      const rect = geometryStore.listWithComponent(RectangleComponent)[0];
-      expect(RectangleComponent.get(rect).upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).upperLeft.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).lowerRight.x).toBeCloseTo(
+      expect(geometryStore.listWithComponent(GeometryComponent)).toHaveLength(1);
+      const rect = geometryStore.listWithComponent(GeometryComponent)[0];
+      expect(GeometryComponent.get(rect).upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).upperLeft.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).lowerRight.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS + 100,
         2,
       );
-      expect(RectangleComponent.get(rect).lowerRight.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).lowerRight.y).toBeCloseTo(41 / SHEET_UNITS_TO_PIXELS, 2);
 
       // Also make sure a constraint was added for the top
       const constraints = geometryStore.listWithComponent(ConstraintComponent);
@@ -405,15 +405,15 @@ describe('RectangleTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(31, 41), viewport);
 
       // Make sure the rectangle was added
-      expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(1);
-      const rect = geometryStore.listWithComponent(RectangleComponent)[0];
-      expect(RectangleComponent.get(rect).upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).upperLeft.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
-      expect(RectangleComponent.get(rect).lowerRight.x).toBeCloseTo(
+      expect(geometryStore.listWithComponent(GeometryComponent)).toHaveLength(1);
+      const rect = geometryStore.listWithComponent(GeometryComponent)[0];
+      expect(GeometryComponent.get(rect).upperLeft.x).toBeCloseTo(10 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).upperLeft.y).toBeCloseTo(20 / SHEET_UNITS_TO_PIXELS, 2);
+      expect(GeometryComponent.get(rect).lowerRight.x).toBeCloseTo(
         10 / SHEET_UNITS_TO_PIXELS + 100,
         2,
       );
-      expect(RectangleComponent.get(rect).lowerRight.y).toBeCloseTo(
+      expect(GeometryComponent.get(rect).lowerRight.y).toBeCloseTo(
         20 / SHEET_UNITS_TO_PIXELS + 50,
         2,
       );

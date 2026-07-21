@@ -1,7 +1,9 @@
 import React from 'react';
-import { PolygonSegment } from '@/lib/geometry/polygon';
+import { CornerReplacement, type CornerSegmentFactory } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
-import { BaseCornerGeometryReplacerTool } from './BaseCornerGeometryReplacerTool';
+import { ChamferFilter } from '../entity/filters/chamfer';
+import { Length } from '../units/length';
+import { BaseCornerGeometryReplacerTool, CornerState } from './BaseCornerGeometryReplacerTool';
 
 /**
  * Custom chamfer icon: a square with a 45-degree beveled corner (matches the
@@ -49,7 +51,23 @@ export class ChamferTool extends BaseCornerGeometryReplacerTool<'chamfer'> {
     return <ChamferIcon />;
   }
 
-  protected createCornerSegment(point: SheetPosition): PolygonSegment {
-    return { type: 'point', point };
+  protected createFilter(pending: CornerState, offset: Length) {
+    if (pending.mode === 'rectangle') {
+      return ChamferFilter.createOnRectangle(
+        pending.geometryId,
+        pending.pointAEndpoint,
+        pending.centerEndpoint,
+        pending.pointBEndpoint,
+        offset,
+      );
+    } else {
+      return ChamferFilter.createOnPolygon(
+        pending.geometryId,
+        pending.pointAIndex,
+        pending.centerIndex,
+        pending.pointBIndex,
+        offset,
+      );
+    }
   }
 }

@@ -6,21 +6,19 @@ import {
   Datum,
   DatumComponent,
   Ellipse,
-  EllipseComponent,
+  GeometryComponent,
   HorizontalConstraint,
   LinearConstraint,
   LinearConstraintData,
   ParallelConstraint,
   Polygon,
-  PolygonComponent,
   PolygonSegment,
   Rectangle,
-  RectangleComponent,
   RenderOrderComponent,
   VerticalConstraint,
-} from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
@@ -210,7 +208,7 @@ describe('SelectTool', () => {
       const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -219,10 +217,10 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      expect(PolygonComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 1);
-      expect(PolygonComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 1);
+      expect(GeometryComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 1);
+      expect(GeometryComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 1);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -255,7 +253,7 @@ describe('SelectTool', () => {
       const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -264,10 +262,10 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      expect(PolygonComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 10);
-      expect(PolygonComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 10);
+      expect(GeometryComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 10);
+      expect(GeometryComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 10);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -301,7 +299,7 @@ describe('SelectTool', () => {
       const moveScreenX = moveSheetX * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = moveSheetY * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -310,12 +308,13 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      expect(PolygonComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 1);
-      expect(PolygonComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 1);
+      expect(GeometryComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 1);
+      expect(GeometryComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 1);
       expect(
-        (PolygonComponent.get(polygon).points[1] as { controlPoint: SheetPosition }).controlPoint.x,
+        (GeometryComponent.get(polygon).points[1] as { controlPoint: SheetPosition }).controlPoint
+          .x,
       ).toBeCloseTo(3, 1);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
@@ -373,10 +372,10 @@ describe('SelectTool', () => {
       const moveScreenY = 200;
 
       const beforePolygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const beforeFirst = PolygonComponent.get(beforePolygon).points[0].point.x;
-      const beforeLast = PolygonComponent.get(beforePolygon).points[3].point.x;
+      const beforeFirst = GeometryComponent.get(beforePolygon).points[0].point.x;
+      const beforeLast = GeometryComponent.get(beforePolygon).points[3].point.x;
       expect(beforeFirst).toBe(beforeLast);
 
       selectTool.onVertexPointerDown(
@@ -389,10 +388,10 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const deltaX = PolygonComponent.get(polygon).points[0].point.x - beforeFirst;
-      const deltaLastX = PolygonComponent.get(polygon).points[3].point.x - beforeLast;
+      const deltaX = GeometryComponent.get(polygon).points[0].point.x - beforeFirst;
+      const deltaLastX = GeometryComponent.get(polygon).points[3].point.x - beforeLast;
       expect(deltaX).toBe(deltaLastX);
       expect(deltaX).not.toBe(0);
 
@@ -432,10 +431,10 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const firstDelta = PolygonComponent.get(polygon).points[0].point.x - 10;
-      const lastDelta = PolygonComponent.get(polygon).points[3].point.x - 10;
+      const firstDelta = GeometryComponent.get(polygon).points[0].point.x - 10;
+      const lastDelta = GeometryComponent.get(polygon).points[3].point.x - 10;
       expect(firstDelta).not.toBe(0);
       expect(lastDelta).toBe(0);
 
@@ -496,10 +495,10 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      expect(PolygonComponent.get(polygon).points[3].point.x).toBeCloseTo(3, 1);
-      expect(PolygonComponent.get(polygon).points[3].point.y).toBeCloseTo(5, 1);
+      expect(GeometryComponent.get(polygon).points[3].point.x).toBeCloseTo(3, 1);
+      expect(GeometryComponent.get(polygon).points[3].point.y).toBeCloseTo(5, 1);
 
       upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
     });
@@ -531,10 +530,10 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      expect(PolygonComponent.get(polygon).points[1].point.x).toBeCloseTo(5, 1);
-      expect(PolygonComponent.get(polygon).points[1].point.y).toBeCloseTo(3, 1);
+      expect(GeometryComponent.get(polygon).points[1].point.x).toBeCloseTo(5, 1);
+      expect(GeometryComponent.get(polygon).points[1].point.y).toBeCloseTo(3, 1);
 
       upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
     });
@@ -568,10 +567,10 @@ describe('SelectTool', () => {
       selectTool.cancelActiveDrag();
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      expect(PolygonComponent.get(polygon).points[0].point.x).toBeCloseTo(3, 10);
-      expect(PolygonComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 10);
+      expect(GeometryComponent.get(polygon).points[0].point.x).toBeCloseTo(3, 10);
+      expect(GeometryComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 10);
     });
   });
 
@@ -629,10 +628,10 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const topLeft = PolygonComponent.get(polygon).points[0].point;
-      const topRight = PolygonComponent.get(polygon).points[1].point;
+      const topLeft = GeometryComponent.get(polygon).points[0].point;
+      const topRight = GeometryComponent.get(polygon).points[1].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
       expect(topRight.x).toBeCloseTo(7, 1);
@@ -669,10 +668,10 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const topLeft = PolygonComponent.get(polygon).points[0].point;
-      const bottomRight = PolygonComponent.get(polygon).points[2].point;
+      const topLeft = GeometryComponent.get(polygon).points[0].point;
+      const bottomRight = GeometryComponent.get(polygon).points[2].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(1, 1);
       expect(bottomRight.x).toBeCloseTo(5, 1);
@@ -709,10 +708,10 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const topLeft = PolygonComponent.get(polygon).points[0].point;
-      const topRight = PolygonComponent.get(polygon).points[1].point;
+      const topLeft = GeometryComponent.get(polygon).points[0].point;
+      const topRight = GeometryComponent.get(polygon).points[1].point;
       expect(topLeft.x).toBeCloseTo(1, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
       expect(topRight.x).toBeCloseTo(5, 1);
@@ -749,10 +748,10 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const topLeft = PolygonComponent.get(polygon).points[0].point;
-      const bottomRight = PolygonComponent.get(polygon).points[2].point;
+      const topLeft = GeometryComponent.get(polygon).points[0].point;
+      const bottomRight = GeometryComponent.get(polygon).points[2].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
       expect(bottomRight.x).toBeCloseTo(5, 1);
@@ -791,9 +790,9 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const bottomLeft = PolygonComponent.get(polygon).points[3].point;
+      const bottomLeft = GeometryComponent.get(polygon).points[3].point;
       expect(bottomLeft.x).toBeCloseTo(3, 1);
       expect(bottomLeft.y).toBeCloseTo(5, 1);
 
@@ -830,9 +829,9 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: handleScreenX, clientY: handleScreenY } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const topLeft = PolygonComponent.get(polygon).points[0].point;
+      const topLeft = GeometryComponent.get(polygon).points[0].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
 
@@ -878,10 +877,10 @@ describe('SelectTool', () => {
         } as MouseEvent);
 
         const polygon = geometryStore
-          .listWithComponent(PolygonComponent)
+          .listWithComponent(GeometryComponent)
           .find((p) => p.id === polygonId)!;
-        const topRight = PolygonComponent.get(polygon).points[1].point;
-        const bottomLeft = PolygonComponent.get(polygon).points[3].point;
+        const topRight = GeometryComponent.get(polygon).points[1].point;
+        const bottomLeft = GeometryComponent.get(polygon).points[3].point;
 
         // With alt-held, center of bbox (4,4) is used as pin.
         // Moving top-right corner to x=7, y=3 gives scaleX = 3, scaleY = 1.
@@ -930,11 +929,11 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
         const polygon = geometryStore
-          .listWithComponent(PolygonComponent)
+          .listWithComponent(GeometryComponent)
           .find((p) => p.id === polygonId)!;
-        const topLeft = PolygonComponent.get(polygon).points[0].point;
-        const topRight = PolygonComponent.get(polygon).points[1].point;
-        const bottomRight = PolygonComponent.get(polygon).points[2].point;
+        const topLeft = GeometryComponent.get(polygon).points[0].point;
+        const topRight = GeometryComponent.get(polygon).points[1].point;
+        const bottomRight = GeometryComponent.get(polygon).points[2].point;
 
         expect(topLeft.x).toBeCloseTo(1, 1);
         expect(topRight.x).toBeCloseTo(7, 1);
@@ -978,10 +977,10 @@ describe('SelectTool', () => {
         } as MouseEvent);
 
         const polygon = geometryStore
-          .listWithComponent(PolygonComponent)
+          .listWithComponent(GeometryComponent)
           .find((p) => p.id === polygonId)!;
-        const topRight = PolygonComponent.get(polygon).points[1].point;
-        const bottomLeft = PolygonComponent.get(polygon).points[3].point;
+        const topRight = GeometryComponent.get(polygon).points[1].point;
+        const bottomLeft = GeometryComponent.get(polygon).points[3].point;
 
         // NOTE: Due to coordinate conversion complexity between client/screen/world/sheet
         // coordinates and the SELECTED_OUTSET_PX offset handling, the actual resulting
@@ -1347,12 +1346,12 @@ describe('SelectTool', () => {
       );
 
       const updatedPolygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygon.id)!;
-      expect(PolygonComponent.get(updatedPolygon).points).toHaveLength(4);
+      expect(GeometryComponent.get(updatedPolygon).points).toHaveLength(4);
       // The new point should be exactly at the passed position (7, 3)
-      expect(PolygonComponent.get(updatedPolygon).points[1].point.x).toBe(7);
-      expect(PolygonComponent.get(updatedPolygon).points[1].point.y).toBe(3);
+      expect(GeometryComponent.get(updatedPolygon).points[1].point.x).toBe(7);
+      expect(GeometryComponent.get(updatedPolygon).points[1].point.y).toBe(3);
     });
 
     it('does not insert point for arc segments', () => {
@@ -1372,17 +1371,17 @@ describe('SelectTool', () => {
         ),
       );
 
-      const arcPolygon = geometryStore.listWithComponent(PolygonComponent)[0];
+      const arcPolygon = geometryStore.listWithComponent(GeometryComponent)[0];
       selectionManager.toggle(arcPolygon.id);
 
       // Try to add point on arc segment (segmentIndex 0)
       selectTool.addPointOnLineSegmentEdge(arcPolygon.id, 0, new SheetPosition(5, 0));
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === arcPolygon.id)!;
       // Should still have 3 points since arcs can't be split via this method
-      expect(PolygonComponent.get(polygon).points).toHaveLength(3);
+      expect(GeometryComponent.get(polygon).points).toHaveLength(3);
     });
   });
 
@@ -1464,18 +1463,18 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const triangle = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === triangleId)!;
       const square = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === squareId)!;
 
-      expect(PolygonComponent.get(triangle).points[0].point.x).not.toBe(sharedX);
-      expect(PolygonComponent.get(square).points[0].point.x).toBe(
-        PolygonComponent.get(triangle).points[0].point.x,
+      expect(GeometryComponent.get(triangle).points[0].point.x).not.toBe(sharedX);
+      expect(GeometryComponent.get(square).points[0].point.x).toBe(
+        GeometryComponent.get(triangle).points[0].point.x,
       );
-      expect(PolygonComponent.get(square).points[0].point.y).toBe(
-        PolygonComponent.get(triangle).points[0].point.y,
+      expect(GeometryComponent.get(square).points[0].point.y).toBe(
+        GeometryComponent.get(triangle).points[0].point.y,
       );
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
@@ -1535,16 +1534,16 @@ describe('SelectTool', () => {
       selectTool.cancelActiveDrag();
 
       const triangle = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === triangleId)!;
       const square = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === squareId)!;
 
-      expect(PolygonComponent.get(triangle).points[0].point.x).toBe(sharedX);
-      expect(PolygonComponent.get(triangle).points[0].point.y).toBe(sharedY);
-      expect(PolygonComponent.get(square).points[0].point.x).toBe(sharedX);
-      expect(PolygonComponent.get(square).points[0].point.y).toBe(sharedY);
+      expect(GeometryComponent.get(triangle).points[0].point.x).toBe(sharedX);
+      expect(GeometryComponent.get(triangle).points[0].point.y).toBe(sharedY);
+      expect(GeometryComponent.get(square).points[0].point.x).toBe(sharedX);
+      expect(GeometryComponent.get(square).points[0].point.y).toBe(sharedY);
     });
 
     it('records combined history entry when multiple polygons are moved', () => {
@@ -1654,15 +1653,15 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon1 = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygon1Id)!;
       const polygon2 = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygon2Id)!;
 
-      expect(PolygonComponent.get(polygon1).points[0].point.x).not.toBe(10);
-      expect(PolygonComponent.get(polygon2).points[0].point.x).toBe(20);
-      expect(PolygonComponent.get(polygon2).points[0].point.y).toBe(20);
+      expect(GeometryComponent.get(polygon1).points[0].point.x).not.toBe(10);
+      expect(GeometryComponent.get(polygon2).points[0].point.x).toBe(20);
+      expect(GeometryComponent.get(polygon2).points[0].point.y).toBe(20);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -1711,32 +1710,32 @@ describe('SelectTool', () => {
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       // Both polygons' shared vertices should have moved.
-      let tri = geometryStore.getByIdWithComponent(triangle.id, PolygonComponent)!;
-      let sq = geometryStore.getByIdWithComponent(square.id, PolygonComponent)!;
-      expect(PolygonComponent.get(tri).points[0].point.x).not.toBe(sharedX);
-      expect(PolygonComponent.get(sq).points[0].point.x).toBe(
-        PolygonComponent.get(tri).points[0].point.x,
+      let tri = geometryStore.getByIdWithComponent(triangle.id, GeometryComponent)!;
+      let sq = geometryStore.getByIdWithComponent(square.id, GeometryComponent)!;
+      expect(GeometryComponent.get(tri).points[0].point.x).not.toBe(sharedX);
+      expect(GeometryComponent.get(sq).points[0].point.x).toBe(
+        GeometryComponent.get(tri).points[0].point.x,
       );
-      expect(PolygonComponent.get(sq).points[0].point.y).toBe(
-        PolygonComponent.get(tri).points[0].point.y,
+      expect(GeometryComponent.get(sq).points[0].point.y).toBe(
+        GeometryComponent.get(tri).points[0].point.y,
       );
 
       // Undo: both should revert to the original shared position.
       historyManager.undo();
-      tri = geometryStore.getByIdWithComponent(triangle.id, PolygonComponent)!;
-      sq = geometryStore.getByIdWithComponent(square.id, PolygonComponent)!;
-      expect(PolygonComponent.get(tri).points[0].point.x).toBe(sharedX);
-      expect(PolygonComponent.get(tri).points[0].point.y).toBe(sharedY);
-      expect(PolygonComponent.get(sq).points[0].point.x).toBe(sharedX);
-      expect(PolygonComponent.get(sq).points[0].point.y).toBe(sharedY);
+      tri = geometryStore.getByIdWithComponent(triangle.id, GeometryComponent)!;
+      sq = geometryStore.getByIdWithComponent(square.id, GeometryComponent)!;
+      expect(GeometryComponent.get(tri).points[0].point.x).toBe(sharedX);
+      expect(GeometryComponent.get(tri).points[0].point.y).toBe(sharedY);
+      expect(GeometryComponent.get(sq).points[0].point.x).toBe(sharedX);
+      expect(GeometryComponent.get(sq).points[0].point.y).toBe(sharedY);
 
       // Redo: both should return to the dragged position.
       historyManager.redo();
-      tri = geometryStore.getByIdWithComponent(triangle.id, PolygonComponent)!;
-      sq = geometryStore.getByIdWithComponent(square.id, PolygonComponent)!;
-      expect(PolygonComponent.get(tri).points[0].point.x).not.toBe(sharedX);
-      expect(PolygonComponent.get(sq).points[0].point.x).toBe(
-        PolygonComponent.get(tri).points[0].point.x,
+      tri = geometryStore.getByIdWithComponent(triangle.id, GeometryComponent)!;
+      sq = geometryStore.getByIdWithComponent(square.id, GeometryComponent)!;
+      expect(GeometryComponent.get(tri).points[0].point.x).not.toBe(sharedX);
+      expect(GeometryComponent.get(sq).points[0].point.x).toBe(
+        GeometryComponent.get(tri).points[0].point.x,
       );
     });
   });
@@ -1823,13 +1822,13 @@ describe('SelectTool', () => {
         } as MouseEvent);
 
         const rect = geometryStore
-          .listWithComponent(RectangleComponent)
+          .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
         // Due to coordinate conversion, we just verify the aspect ratio is preserved (width/height ~= 2)
         const width =
-          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
         const height =
-          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
+          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
         expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -1866,13 +1865,13 @@ describe('SelectTool', () => {
         } as MouseEvent);
 
         const rect = geometryStore
-          .listWithComponent(RectangleComponent)
+          .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
         // With linkDimensions, width/height should equal original ratio (2)
         const width =
-          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
         const height =
-          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
+          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
         expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -1907,12 +1906,12 @@ describe('SelectTool', () => {
         } as MouseEvent);
 
         const rect = geometryStore
-          .listWithComponent(RectangleComponent)
+          .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
         const width =
-          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
         const height =
-          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
+          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
         expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -1947,12 +1946,12 @@ describe('SelectTool', () => {
         } as MouseEvent);
 
         const rect = geometryStore
-          .listWithComponent(RectangleComponent)
+          .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
         const width =
-          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
         const height =
-          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
+          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
         expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -1989,13 +1988,13 @@ describe('SelectTool', () => {
         } as MouseEvent);
 
         const rect = geometryStore
-          .listWithComponent(RectangleComponent)
+          .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
         // With alt held and linkDimensions, width/height should equal original ratio (2)
         const width =
-          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
         const height =
-          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
+          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
         expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -2030,12 +2029,12 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: moveScreen.x + SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
         const rect = geometryStore
-          .listWithComponent(RectangleComponent)
+          .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
         const width =
-          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
         const height =
-          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
+          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
         // Original aspect ratio was 4:2 = 2:1. With linking, it should move toward 1:1
         // Check that height changed (proportional scaling happened)
         expect(height).not.toBeCloseTo(2, 1);
@@ -2066,10 +2065,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
         const rect = geometryStore
-          .listWithComponent(RectangleComponent)
+          .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
         const height =
-          RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y;
+          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
         // Original height was 2, with linking it should scale
         expect(height).not.toBeCloseTo(2, 1);
 
@@ -2099,10 +2098,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: 200, clientY: moveScreen.y - SELECTED_OUTSET_PX } as MouseEvent);
 
         const rect = geometryStore
-          .listWithComponent(RectangleComponent)
+          .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
         const width =
-          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
         // Original width was 4, with linking it should scale
         expect(width).not.toBeCloseTo(4, 1);
 
@@ -2132,10 +2131,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
 
         const rect = geometryStore
-          .listWithComponent(RectangleComponent)
+          .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
         const width =
-          RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x;
+          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
         expect(width).not.toBeCloseTo(4, 1);
 
         upHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
@@ -2171,11 +2170,11 @@ describe('SelectTool', () => {
         } as MouseEvent);
 
         const ellipse = geometryStore
-          .listWithComponent(EllipseComponent)
+          .listWithComponent(GeometryComponent)
           .find((e) => e.id === ellipseId)!;
         // With linkDimensions, radiusX/radiusY should equal original ratio (2)
         expect(
-          EllipseComponent.get(ellipse).radiusX / EllipseComponent.get(ellipse).radiusY,
+          GeometryComponent.get(ellipse).radiusX / GeometryComponent.get(ellipse).radiusY,
         ).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -2211,10 +2210,10 @@ describe('SelectTool', () => {
         } as MouseEvent);
 
         const ellipse = geometryStore
-          .listWithComponent(EllipseComponent)
+          .listWithComponent(GeometryComponent)
           .find((e) => e.id === ellipseId)!;
         expect(
-          EllipseComponent.get(ellipse).radiusX / EllipseComponent.get(ellipse).radiusY,
+          GeometryComponent.get(ellipse).radiusX / GeometryComponent.get(ellipse).radiusY,
         ).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -2250,10 +2249,10 @@ describe('SelectTool', () => {
         } as MouseEvent);
 
         const ellipse = geometryStore
-          .listWithComponent(EllipseComponent)
+          .listWithComponent(GeometryComponent)
           .find((e) => e.id === ellipseId)!;
         expect(
-          EllipseComponent.get(ellipse).radiusX / EllipseComponent.get(ellipse).radiusY,
+          GeometryComponent.get(ellipse).radiusX / GeometryComponent.get(ellipse).radiusY,
         ).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -2289,10 +2288,10 @@ describe('SelectTool', () => {
         } as MouseEvent);
 
         const ellipse = geometryStore
-          .listWithComponent(EllipseComponent)
+          .listWithComponent(GeometryComponent)
           .find((e) => e.id === ellipseId)!;
         expect(
-          EllipseComponent.get(ellipse).radiusX / EllipseComponent.get(ellipse).radiusY,
+          GeometryComponent.get(ellipse).radiusX / GeometryComponent.get(ellipse).radiusY,
         ).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -2330,15 +2329,15 @@ describe('SelectTool', () => {
         } as MouseEvent);
 
         const ellipse = geometryStore
-          .listWithComponent(EllipseComponent)
+          .listWithComponent(GeometryComponent)
           .find((e) => e.id === ellipseId)!;
         // With linkDimensions, radiusX/radiusY should equal original ratio (2)
         expect(
-          EllipseComponent.get(ellipse).radiusX / EllipseComponent.get(ellipse).radiusY,
+          GeometryComponent.get(ellipse).radiusX / GeometryComponent.get(ellipse).radiusY,
         ).toBeCloseTo(2, 1);
         // Center should stay at original center
-        expect(EllipseComponent.get(ellipse).center.x).toBeCloseTo(7, 1);
-        expect(EllipseComponent.get(ellipse).center.y).toBeCloseTo(6, 1);
+        expect(GeometryComponent.get(ellipse).center.x).toBeCloseTo(7, 1);
+        expect(GeometryComponent.get(ellipse).center.y).toBeCloseTo(6, 1);
 
         upHandler!({
           clientX: moveScreen.x + SELECTED_OUTSET_PX,
@@ -2376,9 +2375,9 @@ describe('SelectTool', () => {
           clientY: moveScreen.y,
         } as MouseEvent);
 
-        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(3 /* 2 + (11 - (7 + 2))/2 */, 1);
-        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(1.5, 1);
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, GeometryComponent)!;
+        expect(GeometryComponent.get(ellipse).radiusX).toBeCloseTo(3 /* 2 + (11 - (7 + 2))/2 */, 1);
+        expect(GeometryComponent.get(ellipse).radiusY).toBeCloseTo(1.5, 1);
 
         upHandler!({
           clientX: moveScreen.x + SELECTED_OUTSET_PX,
@@ -2410,10 +2409,10 @@ describe('SelectTool', () => {
         moveHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
 
         const ellipse = geometryStore
-          .listWithComponent(EllipseComponent)
+          .listWithComponent(GeometryComponent)
           .find((e) => e.id === ellipseId)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(3 /* 2 + ((7 - 2) - 3)/2 */, 1);
-        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(1.5, 2);
+        expect(GeometryComponent.get(ellipse).radiusX).toBeCloseTo(3 /* 2 + ((7 - 2) - 3)/2 */, 1);
+        expect(GeometryComponent.get(ellipse).radiusY).toBeCloseTo(1.5, 2);
 
         upHandler!({ clientX: moveScreen.x - SELECTED_OUTSET_PX, clientY: 200 } as MouseEvent);
       });
@@ -2444,9 +2443,12 @@ describe('SelectTool', () => {
           clientY: moveScreen.y - SELECTED_OUTSET_PX,
         } as MouseEvent);
 
-        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(3, 2);
-        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(1.5 /* 1 + (6 - (4 + 1))/2 */, 1);
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, GeometryComponent)!;
+        expect(GeometryComponent.get(ellipse).radiusX).toBeCloseTo(3, 2);
+        expect(GeometryComponent.get(ellipse).radiusY).toBeCloseTo(
+          1.5 /* 1 + (6 - (4 + 1))/2 */,
+          1,
+        );
 
         upHandler!({
           clientX: moveScreen.x,
@@ -2480,9 +2482,9 @@ describe('SelectTool', () => {
           clientY: moveScreen.y + SELECTED_OUTSET_PX,
         } as MouseEvent);
 
-        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(4, 2);
-        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(2 /* 1 + ((9 - 1) - 6)/2 */, 1);
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, GeometryComponent)!;
+        expect(GeometryComponent.get(ellipse).radiusX).toBeCloseTo(4, 2);
+        expect(GeometryComponent.get(ellipse).radiusY).toBeCloseTo(2 /* 1 + ((9 - 1) - 6)/2 */, 1);
 
         upHandler!({
           clientX: moveScreen.x,
@@ -2518,9 +2520,9 @@ describe('SelectTool', () => {
           clientY: moveScreen.y,
         } as MouseEvent);
 
-        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(4, 1);
-        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(2, 1);
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, GeometryComponent)!;
+        expect(GeometryComponent.get(ellipse).radiusX).toBeCloseTo(4, 1);
+        expect(GeometryComponent.get(ellipse).radiusY).toBeCloseTo(2, 1);
 
         upHandler!({
           clientX: moveScreen.x + SELECTED_OUTSET_PX,
@@ -2557,9 +2559,9 @@ describe('SelectTool', () => {
           clientY: moveScreen.y,
         } as MouseEvent);
 
-        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(4 /* 7 - 3 */, 1);
-        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(2, 1);
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, GeometryComponent)!;
+        expect(GeometryComponent.get(ellipse).radiusX).toBeCloseTo(4 /* 7 - 3 */, 1);
+        expect(GeometryComponent.get(ellipse).radiusY).toBeCloseTo(2, 1);
 
         upHandler!({
           clientX: moveScreen.x - SELECTED_OUTSET_PX,
@@ -2596,9 +2598,9 @@ describe('SelectTool', () => {
           clientY: moveScreen.y - SELECTED_OUTSET_PX,
         } as MouseEvent);
 
-        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(4, 1);
-        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(2, 1);
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, GeometryComponent)!;
+        expect(GeometryComponent.get(ellipse).radiusX).toBeCloseTo(4, 1);
+        expect(GeometryComponent.get(ellipse).radiusY).toBeCloseTo(2, 1);
 
         upHandler!({
           clientX: moveScreen.x,
@@ -2635,9 +2637,9 @@ describe('SelectTool', () => {
           clientY: moveScreen.y + SELECTED_OUTSET_PX,
         } as MouseEvent);
 
-        const ellipse = geometryStore.getByIdWithComponent(ellipseId, EllipseComponent)!;
-        expect(EllipseComponent.get(ellipse).radiusX).toBeCloseTo(6, 1);
-        expect(EllipseComponent.get(ellipse).radiusY).toBeCloseTo(3 /* 9 - 6 */, 1);
+        const ellipse = geometryStore.getByIdWithComponent(ellipseId, GeometryComponent)!;
+        expect(GeometryComponent.get(ellipse).radiusX).toBeCloseTo(6, 1);
+        expect(GeometryComponent.get(ellipse).radiusY).toBeCloseTo(3 /* 9 - 6 */, 1);
 
         upHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
         getAltHeldSpy.mockRestore();
@@ -2698,7 +2700,7 @@ describe('SelectTool', () => {
       const moveScreenX = (originalX + 3) * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = (originalY + 3) * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -2709,16 +2711,16 @@ describe('SelectTool', () => {
 
       toolManager.handleKeyUp({ key: 'Alt', altKey: true } as KeyboardEvent);
 
-      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      const polygons = geometryStore.listWithComponent(GeometryComponent);
       const original = polygons.find((p) => p.id === polygonId);
       const duplicate = polygons.find((p) => p.id !== polygonId);
 
       expect(duplicate).toBeDefined();
       expect(original).toBeDefined();
-      expect(PolygonComponent.get(duplicate!).points[0].point.x).not.toBe(originalX);
-      expect(PolygonComponent.get(duplicate!).points[0].point.y).not.toBe(originalY);
-      expect(PolygonComponent.get(original!).points[0].point.x).toBe(originalX);
-      expect(PolygonComponent.get(original!).points[0].point.y).toBe(originalY);
+      expect(GeometryComponent.get(duplicate!).points[0].point.x).not.toBe(originalX);
+      expect(GeometryComponent.get(duplicate!).points[0].point.y).not.toBe(originalY);
+      expect(GeometryComponent.get(original!).points[0].point.x).toBe(originalX);
+      expect(GeometryComponent.get(original!).points[0].point.y).toBe(originalY);
     });
 
     it('duplicates rectangle on alt-drag and moves the duplicate', () => {
@@ -2739,7 +2741,7 @@ describe('SelectTool', () => {
       const moveScreenX = (originalX + 5) * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = (originalY + 4) * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         rectangleId,
@@ -2750,16 +2752,16 @@ describe('SelectTool', () => {
 
       toolManager.handleKeyUp({ key: 'Alt', altKey: true } as KeyboardEvent);
 
-      const rectangles = geometryStore.listWithComponent(RectangleComponent);
+      const rectangles = geometryStore.listWithComponent(GeometryComponent);
       const original = rectangles.find((r) => r.id === rectangleId);
       const duplicate = rectangles.find((r) => r.id !== rectangleId);
 
       expect(duplicate).toBeDefined();
       expect(original).toBeDefined();
-      expect(RectangleComponent.get(duplicate!).upperLeft.x).not.toBe(originalX);
-      expect(RectangleComponent.get(duplicate!).upperLeft.y).not.toBe(originalY);
-      expect(RectangleComponent.get(original!).upperLeft.x).toBe(originalX);
-      expect(RectangleComponent.get(original!).upperLeft.y).toBe(originalY);
+      expect(GeometryComponent.get(duplicate!).upperLeft.x).not.toBe(originalX);
+      expect(GeometryComponent.get(duplicate!).upperLeft.y).not.toBe(originalY);
+      expect(GeometryComponent.get(original!).upperLeft.x).toBe(originalX);
+      expect(GeometryComponent.get(original!).upperLeft.y).toBe(originalY);
     });
 
     it('duplicates ellipse on alt-drag and moves the duplicate', () => {
@@ -2780,7 +2782,7 @@ describe('SelectTool', () => {
       const moveScreenX = (originalCenterX + 4) * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = (originalCenterY + 4) * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         ellipseId,
@@ -2791,16 +2793,16 @@ describe('SelectTool', () => {
 
       toolManager.handleKeyUp({ key: 'Alt', altKey: true } as KeyboardEvent);
 
-      const ellipses = geometryStore.listWithComponent(EllipseComponent);
+      const ellipses = geometryStore.listWithComponent(GeometryComponent);
       const original = ellipses.find((e) => e.id === ellipseId);
       const duplicate = ellipses.find((e) => e.id !== ellipseId);
 
       expect(duplicate).toBeDefined();
       expect(original).toBeDefined();
-      expect(EllipseComponent.get(duplicate!).center.x).not.toBe(originalCenterX);
-      expect(EllipseComponent.get(duplicate!).center.y).not.toBe(originalCenterY);
-      expect(EllipseComponent.get(original!).center.x).toBe(originalCenterX);
-      expect(EllipseComponent.get(original!).center.y).toBe(originalCenterY);
+      expect(GeometryComponent.get(duplicate!).center.x).not.toBe(originalCenterX);
+      expect(GeometryComponent.get(duplicate!).center.y).not.toBe(originalCenterY);
+      expect(GeometryComponent.get(original!).center.x).toBe(originalCenterX);
+      expect(GeometryComponent.get(original!).center.y).toBe(originalCenterY);
     });
   });
 
@@ -3492,18 +3494,18 @@ describe('SelectTool', () => {
 
       // Capture origination offsets from the bounding box upper-left
       const origPoly = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const origPoints = PolygonComponent.get(origPoly).points;
-      const origMinX = Math.min(...origPoints.map((p) => p.point.x));
-      const origMinY = Math.min(...origPoints.map((p) => p.point.y));
+      const origPoints = GeometryComponent.get(origPoly).points;
+      const origMinX = Math.min(...origPoints.map((p: PolygonSegment) => p.point.x));
+      const origMinY = Math.min(...origPoints.map((p: PolygonSegment) => p.point.y));
 
       const clickScreenX = 3.3 * SHEET_UNITS_TO_PIXELS;
       const clickScreenY = 5.7 * SHEET_UNITS_TO_PIXELS;
       const moveScreenX = 4 * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = 4 * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         polygonId,
@@ -3512,13 +3514,13 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const polygon = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const newPoints = PolygonComponent.get(polygon).points;
+      const newPoints = GeometryComponent.get(polygon).points;
 
       // The bounding box origin (min x, min y) should be on grid
-      const newMinX = Math.min(...newPoints.map((p) => p.point.x));
-      const newMinY = Math.min(...newPoints.map((p) => p.point.y));
+      const newMinX = Math.min(...newPoints.map((p: PolygonSegment) => p.point.x));
+      const newMinY = Math.min(...newPoints.map((p: PolygonSegment) => p.point.y));
       expect(isOnGrid(newMinX)).toBe(true);
       expect(isOnGrid(newMinY)).toBe(true);
 
@@ -3555,7 +3557,7 @@ describe('SelectTool', () => {
       const moveScreenX = 6 * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = 8 * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         rectId,
@@ -3563,16 +3565,14 @@ describe('SelectTool', () => {
 
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
-      const rect = geometryStore
-        .listWithComponent(RectangleComponent)
-        .find((r) => r.id === rectId)!;
-      expect(isOnGrid(RectangleComponent.get(rect).upperLeft.x)).toBe(true);
-      expect(isOnGrid(RectangleComponent.get(rect).upperLeft.y)).toBe(true);
+      const rect = geometryStore.listWithComponent(GeometryComponent).find((r) => r.id === rectId)!;
+      expect(isOnGrid(GeometryComponent.get(rect).upperLeft.x)).toBe(true);
+      expect(isOnGrid(GeometryComponent.get(rect).upperLeft.y)).toBe(true);
       expect(
-        RectangleComponent.get(rect).lowerRight.x - RectangleComponent.get(rect).upperLeft.x,
+        GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x,
       ).toBeCloseTo(origWidth, 5);
       expect(
-        RectangleComponent.get(rect).lowerRight.y - RectangleComponent.get(rect).upperLeft.y,
+        GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y,
       ).toBeCloseTo(origHeight, 5);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
@@ -3597,7 +3597,7 @@ describe('SelectTool', () => {
       const moveScreenX = 5 * SHEET_UNITS_TO_PIXELS;
       const moveScreenY = 7 * SHEET_UNITS_TO_PIXELS;
 
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreenX, clickScreenY),
         viewportControls,
         ellipseId,
@@ -3606,10 +3606,10 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const ellipse = geometryStore
-        .listWithComponent(EllipseComponent)
+        .listWithComponent(GeometryComponent)
         .find((e) => e.id === ellipseId)!;
-      expect(isOnGrid(EllipseComponent.get(ellipse).center.x)).toBe(true);
-      expect(isOnGrid(EllipseComponent.get(ellipse).center.y)).toBe(true);
+      expect(isOnGrid(GeometryComponent.get(ellipse).center.x)).toBe(true);
+      expect(isOnGrid(GeometryComponent.get(ellipse).center.y)).toBe(true);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -3652,7 +3652,7 @@ describe('SelectTool', () => {
       );
 
       // Click on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3662,7 +3662,7 @@ describe('SelectTool', () => {
       toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
       // Click on rectangle two
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(25 * SHEET_UNITS_TO_PIXELS, 25 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         twoId,
@@ -3674,7 +3674,7 @@ describe('SelectTool', () => {
       expect(selectionManager.getSelectedIds()).toContain(twoId);
 
       // Click and drag on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3684,17 +3684,17 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
       upHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
 
-      const one = geometryStore.getByIdWithComponent(oneId, RectangleComponent)!;
-      expect(RectangleComponent.get(one).upperLeft.x).toBeCloseTo(-5, 2);
-      expect(RectangleComponent.get(one).upperLeft.y).toBeCloseTo(-5, 2);
-      expect(RectangleComponent.get(one).lowerRight.x).toBeCloseTo(5, 2);
-      expect(RectangleComponent.get(one).lowerRight.y).toBeCloseTo(5, 2);
+      const one = geometryStore.getByIdWithComponent(oneId, GeometryComponent)!;
+      expect(GeometryComponent.get(one).upperLeft.x).toBeCloseTo(-5, 2);
+      expect(GeometryComponent.get(one).upperLeft.y).toBeCloseTo(-5, 2);
+      expect(GeometryComponent.get(one).lowerRight.x).toBeCloseTo(5, 2);
+      expect(GeometryComponent.get(one).lowerRight.y).toBeCloseTo(5, 2);
 
-      const two = geometryStore.getByIdWithComponent(twoId, RectangleComponent)!;
-      expect(RectangleComponent.get(two).upperLeft.x).toBeCloseTo(15, 2);
-      expect(RectangleComponent.get(two).upperLeft.y).toBeCloseTo(15, 2);
-      expect(RectangleComponent.get(two).lowerRight.x).toBeCloseTo(25, 2);
-      expect(RectangleComponent.get(two).lowerRight.y).toBeCloseTo(25, 2);
+      const two = geometryStore.getByIdWithComponent(twoId, GeometryComponent)!;
+      expect(GeometryComponent.get(two).upperLeft.x).toBeCloseTo(15, 2);
+      expect(GeometryComponent.get(two).upperLeft.y).toBeCloseTo(15, 2);
+      expect(GeometryComponent.get(two).lowerRight.x).toBeCloseTo(25, 2);
+      expect(GeometryComponent.get(two).lowerRight.y).toBeCloseTo(25, 2);
     });
 
     it('should be able to select two geometries and alt drag to duplicate both', () => {
@@ -3708,7 +3708,7 @@ describe('SelectTool', () => {
       );
 
       // Click on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3718,7 +3718,7 @@ describe('SelectTool', () => {
       toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
       // Click on rectangle two
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(25 * SHEET_UNITS_TO_PIXELS, 25 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         twoId,
@@ -3734,7 +3734,7 @@ describe('SelectTool', () => {
       toolManager.handleKeyDown({ key: 'Alt', altKey: true } as KeyboardEvent);
 
       // Click and drag on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3745,25 +3745,25 @@ describe('SelectTool', () => {
       upHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
 
       // Now there should be four rectangles
-      expect(Array.from(geometryStore.listWithComponent(RectangleComponent))).toHaveLength(4);
+      expect(Array.from(geometryStore.listWithComponent(GeometryComponent))).toHaveLength(4);
       expect(
         selectionManager.getSelectedIds().every((id) => id.startsWith(ID_PREFIXES.rectangle)),
       ).toBeTruthy();
 
       const selectedRectangles = Array.from(
-        geometryStore.getByIdsWithComponent(selectionManager.getSelectedIds(), RectangleComponent),
-      );
+        geometryStore.getByIdsWithComponent(selectionManager.getSelectedIds(), GeometryComponent),
+      ).filter(GeometryComponent.isRectangle);
       const selectedUpperLeftXValues = new Set(
-        selectedRectangles.map((geometry) => RectangleComponent.get(geometry).upperLeft.x),
+        selectedRectangles.map((geometry) => GeometryComponent.get(geometry).upperLeft.x),
       );
       const selectedUpperLeftYValues = new Set(
-        selectedRectangles.map((geometry) => RectangleComponent.get(geometry).upperLeft.y),
+        selectedRectangles.map((geometry) => GeometryComponent.get(geometry).upperLeft.y),
       );
       const selectedLowerRightXValues = new Set(
-        selectedRectangles.map((geometry) => RectangleComponent.get(geometry).lowerRight.x),
+        selectedRectangles.map((geometry) => GeometryComponent.get(geometry).lowerRight.x),
       );
       const selectedLowerRightYValues = new Set(
-        selectedRectangles.map((geometry) => RectangleComponent.get(geometry).lowerRight.y),
+        selectedRectangles.map((geometry) => GeometryComponent.get(geometry).lowerRight.y),
       );
 
       // Rectangle one
@@ -3789,10 +3789,10 @@ describe('SelectTool', () => {
         Rectangle.create(new SheetPosition(20, 20), new SheetPosition(30, 30)),
       );
 
-      const initialState = Array.from(geometryStore.listWithComponent(RectangleComponent));
+      const initialState = Array.from(geometryStore.listWithComponent(GeometryComponent));
 
       // Click on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3802,14 +3802,14 @@ describe('SelectTool', () => {
       toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
       // Click on rectangle two
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(25 * SHEET_UNITS_TO_PIXELS, 25 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         twoId,
       );
 
       // Click and drag on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3820,21 +3820,21 @@ describe('SelectTool', () => {
       upHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
 
       // Make sure that state changed
-      const newState = Array.from(geometryStore.listWithComponent(RectangleComponent));
+      const newState = Array.from(geometryStore.listWithComponent(GeometryComponent));
       expect(JSON.stringify(newState, null, 2)).not.toStrictEqual(
         JSON.stringify(initialState, null, 2),
       );
 
       // Do undo, make sure it goes back to the initialState
       historyManager.undo();
-      let currentState = Array.from(geometryStore.listWithComponent(RectangleComponent));
+      let currentState = Array.from(geometryStore.listWithComponent(GeometryComponent));
       expect(JSON.stringify(currentState, null, 2)).toStrictEqual(
         JSON.stringify(initialState, null, 2),
       );
 
       // Do redo, make sure it goes back to newState
       historyManager.redo();
-      currentState = Array.from(geometryStore.listWithComponent(RectangleComponent));
+      currentState = Array.from(geometryStore.listWithComponent(GeometryComponent));
       expect(JSON.stringify(currentState, null, 2)).toStrictEqual(
         JSON.stringify(newState, null, 2),
       );
@@ -3861,7 +3861,7 @@ describe('SelectTool', () => {
       );
 
       // Click on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3871,7 +3871,7 @@ describe('SelectTool', () => {
       toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
 
       // Click on rectangle two
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(25 * SHEET_UNITS_TO_PIXELS, 25 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         twoId,
@@ -3886,7 +3886,7 @@ describe('SelectTool', () => {
       toolManager.handleKeyUp({ key: 'Shift', shiftKey: false } as KeyboardEvent);
 
       // Click and drag on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3899,20 +3899,20 @@ describe('SelectTool', () => {
       // Make sure that rectangle one and two actually moved, and weren't hung up by their
       // self-constraints
       expect(
-        RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!)
+        GeometryComponent.get(geometryStore.getByIdWithComponent(oneId, GeometryComponent)!)
           .upperLeft.x,
       ).not.toStrictEqual(0);
       expect(
-        RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!)
+        GeometryComponent.get(geometryStore.getByIdWithComponent(oneId, GeometryComponent)!)
           .upperLeft.y,
       ).not.toStrictEqual(0);
 
       expect(
-        RectangleComponent.get(geometryStore.getByIdWithComponent(twoId, RectangleComponent)!)
+        GeometryComponent.get(geometryStore.getByIdWithComponent(twoId, GeometryComponent)!)
           .upperLeft.x,
       ).not.toStrictEqual(0);
       expect(
-        RectangleComponent.get(geometryStore.getByIdWithComponent(twoId, RectangleComponent)!)
+        GeometryComponent.get(geometryStore.getByIdWithComponent(twoId, GeometryComponent)!)
           .upperLeft.y,
       ).not.toStrictEqual(20);
     });
@@ -3938,7 +3938,7 @@ describe('SelectTool', () => {
       );
 
       // Click on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(5 * SHEET_UNITS_TO_PIXELS, 5 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3950,7 +3950,7 @@ describe('SelectTool', () => {
       toolManager.handleKeyDown({ key: 'Control', ctrlKey: true } as KeyboardEvent);
 
       // Click and drag on rectangle one
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(0 * SHEET_UNITS_TO_PIXELS, 0 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
         oneId,
@@ -3962,11 +3962,11 @@ describe('SelectTool', () => {
 
       // Make sure that rectangle one didn't actually get moved since it should be constrained
       expect(
-        RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!)
+        GeometryComponent.get(geometryStore.getByIdWithComponent(oneId, GeometryComponent)!)
           .upperLeft.x,
       ).toBeCloseTo(0, 2);
       expect(
-        RectangleComponent.get(geometryStore.getByIdWithComponent(oneId, RectangleComponent)!)
+        GeometryComponent.get(geometryStore.getByIdWithComponent(oneId, GeometryComponent)!)
           .upperLeft.y,
       ).toBeCloseTo(0, 2);
 
@@ -4227,10 +4227,8 @@ describe('SelectTool', () => {
       const moveScreen = new SheetPosition(3, 11).toScreen(viewportControls.getState().viewport);
       moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
-      const rect = geometryStore
-        .listWithComponent(RectangleComponent)
-        .find((r) => r.id === rectId)!;
-      const comp = RectangleComponent.get(rect);
+      const rect = geometryStore.listWithComponent(GeometryComponent).find((r) => r.id === rectId)!;
+      const comp = GeometryComponent.get(rect);
       // The upperLeft corner should be near the circle: (3-3)^2 + (y-8)^2 = 25
       const dx = comp.upperLeft.x - 3;
       const dy = comp.upperLeft.y - 8;
@@ -4303,10 +4301,8 @@ describe('SelectTool', () => {
       const moveScreen = new SheetPosition(4, 1).toScreen(viewportControls.getState().viewport);
       moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
-      const rect = geometryStore
-        .listWithComponent(RectangleComponent)
-        .find((r) => r.id === rectId)!;
-      const comp = RectangleComponent.get(rect);
+      const rect = geometryStore.listWithComponent(GeometryComponent).find((r) => r.id === rectId)!;
+      const comp = GeometryComponent.get(rect);
       // The upperLeft y should be constrained to the circle intersection near y=3
       const dy = comp.upperLeft.y - 8;
       const distAtX3 = Math.sqrt((comp.upperLeft.x - 3) * (comp.upperLeft.x - 3) + dy * dy);
@@ -4363,7 +4359,7 @@ describe('SelectTool', () => {
 
       // Click on the rectangle fill to start a drag
       const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         rectId,
@@ -4373,10 +4369,8 @@ describe('SelectTool', () => {
       const moveScreen = new SheetPosition(3, 3).toScreen(viewportControls.getState().viewport);
       moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
-      const rect = geometryStore
-        .listWithComponent(RectangleComponent)
-        .find((r) => r.id === rectId)!;
-      const comp = RectangleComponent.get(rect);
+      const rect = geometryStore.listWithComponent(GeometryComponent).find((r) => r.id === rectId)!;
+      const comp = GeometryComponent.get(rect);
       // With constraint active, the origin should follow the constraint track, not the grid.
       // If grid snap were active, the origin would be near (0, 2) or similar integer value.
       // Instead the constrained position should be noticeably off-grid.
@@ -4395,7 +4389,7 @@ describe('SelectTool', () => {
       );
 
       const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         rectId,
@@ -4405,10 +4399,8 @@ describe('SelectTool', () => {
       const moveScreen = new SheetPosition(1.3, 1.3).toScreen(viewportControls.getState().viewport);
       moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
-      const rect = geometryStore
-        .listWithComponent(RectangleComponent)
-        .find((r) => r.id === rectId)!;
-      const comp = RectangleComponent.get(rect);
+      const rect = geometryStore.listWithComponent(GeometryComponent).find((r) => r.id === rectId)!;
+      const comp = GeometryComponent.get(rect);
       // Unconstrained geometry should snap origin to nearest grid point
       // Origin moves by (0.3, 0.3) and snaps to (0, 0), so no net movement
       expect(comp.upperLeft.x).toBeCloseTo(0, 0);
@@ -4423,7 +4415,7 @@ describe('SelectTool', () => {
 
       // Click and drag the datum to (7, 7) — no attached constraints so it moves freely
       const clickScreen = originalPos.toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         datum.id,
@@ -4465,7 +4457,7 @@ describe('SelectTool', () => {
 
       // Click and drag far to (20, 5) — well beyond the 5-unit radius around (10, 5).
       const clickScreen = datumPos.toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         datum.id,
@@ -4515,7 +4507,7 @@ describe('SelectTool', () => {
 
       // Drag far to (8, 8) — both constraints should engage, limiting movement
       const clickScreen = datumPos.toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         datum.id,
@@ -4571,7 +4563,7 @@ describe('SelectTool', () => {
 
       // Click on polygon to start a drag
       const clickScreen = new SheetPosition(15, 3).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         poly.id,
@@ -4585,10 +4577,10 @@ describe('SelectTool', () => {
       const moveScreen = dragTarget.toScreen(viewportControls.getState().viewport);
       moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
-      const polyAfter = geometryStore.getByIdWithComponent(poly.id, PolygonComponent);
+      const polyAfter = geometryStore.getByIdWithComponent(poly.id, GeometryComponent);
       expect(polyAfter).not.toBeNull();
 
-      const p0 = PolygonComponent.get(polyAfter!).points[0];
+      const p0 = GeometryComponent.get(polyAfter!).points[0];
 
       // pointA at index 0 started at (10, 0).
       // An unconstrained drag from (15,3) to (25,3) would move everything by (+10, 0),
@@ -4622,7 +4614,7 @@ describe('SelectTool', () => {
 
       // Click on rectangle to start a drag
       const clickScreen = new SheetPosition(15, 5).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         rectId,
@@ -4635,9 +4627,9 @@ describe('SelectTool', () => {
       const moveScreen = dragTarget.toScreen(viewportControls.getState().viewport);
       moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
-      const rectAfter = geometryStore.getByIdWithComponent(rectId, RectangleComponent);
+      const rectAfter = geometryStore.getByIdWithComponent(rectId, GeometryComponent);
       expect(rectAfter).not.toBeNull();
-      const ul = RectangleComponent.get(rectAfter!).upperLeft;
+      const ul = GeometryComponent.get(rectAfter!).upperLeft;
       // If unconstrained, UL would be at roughly (20, 0).  The constraint should have
       // prevented that and induced some vertical movement.
       expect(ul.y).toBeGreaterThan(0);
@@ -4667,7 +4659,7 @@ describe('SelectTool', () => {
 
       // Click on rectangle to start drag
       const clickScreen = new SheetPosition(15, 5).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         rectId,
@@ -4678,9 +4670,9 @@ describe('SelectTool', () => {
       const moveScreen = dragTarget.toScreen(viewportControls.getState().viewport);
       moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
-      const rectAfter = geometryStore.getByIdWithComponent(rectId, RectangleComponent);
+      const rectAfter = geometryStore.getByIdWithComponent(rectId, GeometryComponent);
       expect(rectAfter).not.toBeNull();
-      const ul = RectangleComponent.get(rectAfter!).upperLeft;
+      const ul = GeometryComponent.get(rectAfter!).upperLeft;
       // upperLeft should be close to the line y = x
       expect(ul.y).toBeCloseTo(ul.x, -2);
 
@@ -4699,7 +4691,7 @@ describe('SelectTool', () => {
       );
 
       const clickScreen = new SheetPosition(5, 5).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         datum.id,
@@ -4731,7 +4723,7 @@ describe('SelectTool', () => {
       );
 
       const clickScreen = new SheetPosition(5, 5).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         datum.id,
@@ -4776,7 +4768,7 @@ describe('SelectTool', () => {
 
       // Click on first rectangle to start multi-drag
       const clickScreen = new SheetPosition(5, 5).toScreen(viewportControls.getState().viewport);
-      selectTool.onGeometryFillPointerDown(
+      selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(clickScreen.x, clickScreen.y),
         viewportControls,
         rectId1,
@@ -4787,10 +4779,10 @@ describe('SelectTool', () => {
       const moveScreen = dragTarget.toScreen(viewportControls.getState().viewport);
       moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
-      const rect1 = geometryStore.getByIdWithComponent(rectId1, RectangleComponent);
+      const rect1 = geometryStore.getByIdWithComponent(rectId1, GeometryComponent);
       // The rectangle should have moved (constraint didn't lock it)
       expect(rect1).not.toBeNull();
-      const ul1 = RectangleComponent.get(rect1!).upperLeft;
+      const ul1 = GeometryComponent.get(rect1!).upperLeft;
       // UpperLeft should have moved from (0, 0)
       expect(ul1.x).toBeGreaterThan(0);
       expect(ul1.y).toBeGreaterThan(0);

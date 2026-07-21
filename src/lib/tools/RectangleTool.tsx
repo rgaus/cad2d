@@ -1,12 +1,12 @@
 import { SquareIcon } from 'lucide-react';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { Rectangle } from '@/lib/geometry/rectangle';
-import { applySnapping } from '@/lib/snapping';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
-} from '../geometry';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { Rectangle } from '@/lib/entity/rectangle';
+import { applySnapping } from '@/lib/snapping';
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { BaseTool } from './BaseTool';
 import { WorkingConstraint } from './types';
@@ -32,9 +32,11 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
   private constrainedHeight: number | null = null;
 
   handleToolBlur(): void {
+    this.previewSheetPos = null;
+    this.emit('previewSheetPositionChange', null);
+
     this.getGeometryStore().clearWorkingRectangle();
     this.getGeometryStore().clearWorkingConstraints();
-    this.previewSheetPos = null;
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {

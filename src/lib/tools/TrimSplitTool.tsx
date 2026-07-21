@@ -6,18 +6,19 @@ import {
   ConstraintComponent,
   ConstraintEndpoint,
   Datum,
-  EllipseComponent,
+  type Entity,
   FillColorComponent,
-  type Geometry,
+  GeometryComponent,
   type Id,
   Polygon,
-  PolygonComponent,
   PolygonSegment,
-  RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
-import { type DCELShapeIndex } from '@/lib/geometry/DCELShapeIndex';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { type DCELShapeIndex } from '@/lib/entity/DCELShapeIndex';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { DEFAULT_COLOR } from '@/lib/entity/colors';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { UndoEntry } from '@/lib/history/types';
 import {
   BoundingBox,
   CohenSutherland,
@@ -27,9 +28,7 @@ import {
   closestPointOnSegment,
 } from '@/lib/math';
 import { Intersection } from '@/lib/math';
-import { DEFAULT_COLOR } from '../geometry/colors';
-import { UndoEntry } from '../history/types';
-import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import {
   CubicCurve,
   LineSegment,
@@ -37,7 +36,7 @@ import {
   ScreenPosition,
   SheetPosition,
   ViewportState,
-} from '../viewport/types';
+} from '@/lib/viewport/types';
 import { BaseTool } from './BaseTool';
 
 /** Default pixel threshold for detecting intersection points. */
@@ -169,11 +168,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
         const allHistoryEvents: Array<UndoEntry> = [];
 
         const targetType = shapeTargets[0].type;
-        let polygon: Geometry<PolygonComponent>;
+        let polygon: Entity<GeometryComponent<PolygonData>>;
         switch (targetType) {
           case 'polygon':
-            const found = geometryStore.getByIdWithComponent(id, PolygonComponent);
-            if (!found) {
+            const found = geometryStore.getByIdWithComponent(id, GeometryComponent);
+            if (!found || !GeometryComponent.isPolygon(found)) {
               continue;
             }
             polygon = found;
@@ -213,7 +212,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
         uniqueTargets.sort((a, b) => b.segmentIndex - a.segmentIndex);
 
         for (const target of uniqueTargets) {
-          const result = PolygonComponent.addPointOnEdge(
+          const result = GeometryComponent.addPointOnEdge(
             polygon,
             currentConstraints,
             target.segmentIndex - 1,
@@ -259,11 +258,11 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
     // If a polygon was clicked which was just two points (ie, maybe an offcut?), then just outright delete it.
     if (
       trimSegment.associatedGeometries.every((id) => {
-        const geometry = geometryStore.getByIdWithComponent(id, PolygonComponent);
-        if (!geometry) {
+        const geometry = geometryStore.getByIdWithComponent(id, GeometryComponent);
+        if (!geometry || !GeometryComponent.isPolygon(geometry)) {
           return false;
         }
-        return PolygonComponent.get(geometry).points.length <= 2;
+        return GeometryComponent.get(geometry).points.length <= 2;
       })
     ) {
       historyManager.applyTransaction('trim-segment', () => {
@@ -422,9 +421,12 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
       // and re-link constraints before the old shapes are deleted.
 
       const mainPolygonAlreadyExists = geometryStore
-        .listWithComponent(PolygonComponent)
+        .listWithComponent(GeometryComponent)
         .find((geometry) => {
-          return PolygonComponent.get(geometry).points.every((p, i) =>
+          if (!GeometryComponent.isPolygon(geometry)) {
+            return false;
+          }
+          return GeometryComponent.get(geometry).points.every((p, i) =>
             PolygonSegment.equals(p, mainPoints[i]),
           );
         });
@@ -952,9 +954,9 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
       }
 
       // ── Polygon ──────────────────────────────────────────────
-      const polygon = geometryStore.getByIdWithComponent(sid, PolygonComponent);
-      if (polygon !== null) {
-        const points = PolygonComponent.get(polygon).points;
+      const polygon = geometryStore.getByIdWithComponent(sid, GeometryComponent);
+      if (polygon !== null && GeometryComponent.isPolygon(polygon)) {
+        const points = GeometryComponent.get(polygon).points;
         const len = points.length;
 
         for (let i = 0; i < len; i += 1) {
@@ -999,9 +1001,9 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
       }
 
       // ── Rectangle ───────────────────────────────────────────
-      const rectangle = geometryStore.getByIdWithComponent(sid, RectangleComponent);
-      if (rectangle !== null) {
-        const kp = RectangleComponent.keyPoints(rectangle);
+      const rectangle = geometryStore.getByIdWithComponent(sid, GeometryComponent);
+      if (rectangle !== null && GeometryComponent.isRectangle(rectangle)) {
+        const kp = GeometryComponent.keyPoints(rectangle);
         const perimeterLabels = kp.perimeterLabels as ReadonlyArray<string>;
         const perimeterPositions = kp.perimeter;
         const numCorners = perimeterPositions.length;
@@ -1053,9 +1055,9 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
       }
 
       // ── Ellipse ─────────────────────────────────────────────
-      const ellipse = geometryStore.getByIdWithComponent(sid, EllipseComponent);
-      if (ellipse !== null) {
-        const kp = EllipseComponent.keyPoints(ellipse);
+      const ellipse = geometryStore.getByIdWithComponent(sid, GeometryComponent);
+      if (ellipse !== null && GeometryComponent.isEllipse(ellipse)) {
+        const kp = GeometryComponent.keyPoints(ellipse);
         const perimeterLabels = kp.perimeterLabels as ReadonlyArray<string>;
         const perimeterPositions = kp.perimeter;
         const numPoints = perimeterPositions.length;
@@ -1115,7 +1117,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
    * (shapeId + pointIndex) via locked-polygon endpoints.
    */
   private _findConstraintEndpointsForPolygon(
-    constraints: Array<Geometry<ConstraintComponent>>,
+    constraints: Array<Entity<ConstraintComponent>>,
     shapeId: Id,
     pointIndex: number,
   ): Array<ConstraintEndpointRef> {
@@ -1143,7 +1145,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
    * key point (shapeId + label) via locked-rectangle or locked-ellipse endpoints.
    */
   private _findConstraintEndpointsForRectangleOrEllipse(
-    constraints: Array<Geometry<ConstraintComponent>>,
+    constraints: Array<Entity<ConstraintComponent>>,
     shapeId: Id,
     label: string,
   ): Array<ConstraintEndpointRef> {

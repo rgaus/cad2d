@@ -6,13 +6,15 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { ConstraintLayers } from '@/components/ConstraintsRenderer';
 import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
 import { DatumLayers, WorkingDatumLayers } from '@/components/DatumRenderer';
-import { EllipseLayers, WorkingEllipseLayers } from '@/components/EllipseRenderer';
+import { FilterLayers } from '@/components/FilterRenderer';
+import { GeometryLayers } from '@/components/GeometryRenderer';
 import { HandleSprites } from '@/components/HandleSprites';
-import { PolygonLayers, WorkingPolygonLayers } from '@/components/PolygonRenderer';
-import { RectangleLayers, WorkingRectangleLayers } from '@/components/RectangleRenderer';
 import { SelectionBoxOverlay } from '@/components/SelectionBoxOverlay';
 import { SheetRenderer } from '@/components/SheetRenderer';
 import { SnapsHintLayers } from '@/components/SnapHintsLayers';
+import { WorkingEllipseLayers } from '@/components/WorkingEllipseRenderer';
+import { WorkingPolygonLayers } from '@/components/WorkingPolygonRenderer';
+import { WorkingRectangleLayers } from '@/components/WorkingRectangleRenderer';
 import { ViewportContextData, ViewportContextProvider } from '@/contexts/viewport-context';
 import { useDevicePixelRatio } from '@/hooks';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
@@ -20,17 +22,13 @@ import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from '@/lib/detect
 import {
   type Datum,
   DatumComponent,
-  type Ellipse,
-  EllipseComponent,
-  FillColorComponent,
-  Geometry,
+  Entity,
+  GeometryComponent,
   type Id,
-  LinkDimensionsComponent,
-  PolygonComponent,
-  type Rectangle,
-  RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
+import { type Filter } from '@/lib/entity/filters';
+import { type Geometry } from '@/lib/entity/geometry';
 import { KeyCombo } from '@/lib/index-mapper';
 import {
   ListLayers,
@@ -41,19 +39,22 @@ import {
 } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
 import { type KeyPointSnapInfo } from '@/lib/snapping';
-import { IntersectionVertexHandleTexture, VertexHandleTexture } from '@/lib/textures';
+import {
+  IntersectionVertexHandleTexture,
+  SPRITE_SCALE_FACTOR,
+  VertexHandleTexture,
+} from '@/lib/textures';
 import {
   BaseCornerGeometryReplacerTool,
   CornerState,
 } from '@/lib/tools/BaseCornerGeometryReplacerTool';
-import { type SnapHintsVisibility } from '@/lib/tools/BaseTool';
+import { BaseTool, type SnapHintsVisibility } from '@/lib/tools/BaseTool';
 import { PolygonToolStatusTooltip, PreviewSegmentIntersection } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { type SplitPoint, TrimSegment } from '@/lib/tools/TrimSplitTool';
 import {
   WorkingConstraint,
-  type WorkingDatum,
   type WorkingEllipse,
   type WorkingPolygon,
   type WorkingRectangle,
@@ -249,9 +250,9 @@ function ListLayerRenderer<
 }
 
 type ListLayersItemsPair<
-  Item extends { id: Id } & Geometry<RenderOrderComponent> = {
+  Item extends { id: Id } & Entity<RenderOrderComponent> = {
     id: Id;
-  } & Geometry<RenderOrderComponent>,
+  } & Entity<RenderOrderComponent>,
 > = [ListLayers<Item, React.ReactNode>, Array<Item>];
 
 function ListLayersRenderer<Pairs extends Array<ListLayersItemsPair>>(props: {
@@ -261,6 +262,9 @@ function ListLayersRenderer<Pairs extends Array<ListLayersItemsPair>>(props: {
   const items = props.layersItemsPairs
     .flatMap(([layers, items], index) => {
       const layer = layers[props.layerName];
+      if (typeof layer === 'undefined') {
+        return [];
+      }
       if (typeof layer !== 'function') {
         return [{ key: `${index}`, renderOrder: 0, jsx: layer }];
       }
@@ -295,14 +299,14 @@ export default function ViewportRenderer2D({
     width: number;
     height: number;
   } | null>(null);
-  const [polygons, setPolygons] = useState<Array<Geometry<PolygonComponent>>>([]);
+  const [geometries, setGeometries] = useState<Array<Geometry>>([]);
+  const [filtersByGeometryId, setFiltersByGeometryId] = useState<
+    Map<Geometry['id'], Array<Filter>>
+  >(new Map());
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
-  const [rectangles, setRectangles] = useState<Array<Rectangle>>([]);
   const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
-  const [ellipses, setEllipses] = useState<Array<Ellipse>>([]);
   const [datums, setDatums] = useState<Array<Datum>>([]);
   const [workingEllipse, setWorkingEllipse] = useState<WorkingEllipse | null>(null);
-  const [workingDatum, setWorkingDatum] = useState<WorkingDatum | null>(null);
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
   const [previewSheetPos, setPreviewSheetPos] = useState<{
@@ -317,6 +321,7 @@ export default function ViewportRenderer2D({
   const [ellipseIsCenterMode, setEllipseIsCenterMode] = useState(false);
   const [isHoveringPolygonEdge, setIsHoveringPolygonEdge] = useState(false);
   const [visibleTooltip, setVisibleTooltip] = useState<string | null>(null);
+  const [highlightedGeometryId, setHighlightedGeometryId] = useState<Entity['id'] | null>(null);
   const [closestPointToSegment, setClosestPointToSegment] = useState<{
     polygonId: string;
     segmentIndex: number;
@@ -362,27 +367,21 @@ export default function ViewportRenderer2D({
     geometryStore.on('workingPolygonChanged', setWorkingPolygon);
     geometryStore.on('workingRectangleChanged', setWorkingRectangle);
     geometryStore.on('workingEllipseChanged', setWorkingEllipse);
-    geometryStore.on('workingDatumChanged', setWorkingDatum);
     geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
 
     const refreshAll = () => {
-      setRectangles(
-        geometryStore.listWithComponents(
-          RectangleComponent,
-          FillColorComponent,
-          LinkDimensionsComponent,
-          RenderOrderComponent,
+      const geometries = geometryStore.listWithComponents(GeometryComponent, RenderOrderComponent);
+      setGeometries(geometries);
+
+      setFiltersByGeometryId(
+        new Map(
+          geometries.map((geom) => {
+            const filters = geometryStore.findFiltersByGeometryId(geom.id);
+            return [geom.id, filters] as const;
+          }),
         ),
       );
-      setEllipses(
-        geometryStore.listWithComponents(
-          EllipseComponent,
-          FillColorComponent,
-          LinkDimensionsComponent,
-          RenderOrderComponent,
-        ),
-      );
-      setPolygons(geometryStore.listWithComponent(PolygonComponent));
+
       setDatums(geometryStore.listWithComponent(DatumComponent));
     };
     geometryStore.on('geometryAdded', refreshAll);
@@ -402,7 +401,6 @@ export default function ViewportRenderer2D({
       geometryStore.off('workingPolygonChanged', setWorkingPolygon);
       geometryStore.off('workingRectangleChanged', setWorkingRectangle);
       geometryStore.off('workingEllipseChanged', setWorkingEllipse);
-      geometryStore.off('workingDatumChanged', setWorkingDatum);
       geometryStore.off('workingConstraintsChanged', setWorkingConstraints);
       geometryStore.off('geometryAdded', refreshAll);
       geometryStore.off('geometryUpdated', refreshAll);
@@ -418,6 +416,14 @@ export default function ViewportRenderer2D({
   }, [toolManager]);
 
   useEffect(() => {
+    const tool = activeTool as BaseTool;
+    tool.on('tooltipVisibilityChanged', setVisibleTooltip);
+    tool.on('geometryHighlightChanged', setHighlightedGeometryId);
+    const allToolsCleanup = () => {
+      tool.off('geometryHighlightChanged', setHighlightedGeometryId);
+      tool.off('tooltipVisibilityChanged', setVisibleTooltip);
+    };
+
     switch (activeTool.type) {
       case 'polygon': {
         activeTool.on('statusTooltipChange', setPolygonToolStatusTooltip);
@@ -432,6 +438,7 @@ export default function ViewportRenderer2D({
             'previewSegmentIntersectionsEnabled',
             setPreviewSegmentIntersectionsEnabled,
           );
+          allToolsCleanup();
         };
       }
       case 'rectangle': {
@@ -440,6 +447,7 @@ export default function ViewportRenderer2D({
         return () => {
           activeTool.off('isCenterModeChange', setRectangleIsCenterMode);
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
+          allToolsCleanup();
         };
       }
       case 'ellipse': {
@@ -448,24 +456,24 @@ export default function ViewportRenderer2D({
         return () => {
           activeTool.off('isCenterModeChange', setEllipseIsCenterMode);
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
+          allToolsCleanup();
         };
       }
 
       case 'move': {
         // No events for this tool.
-        return;
+        return allToolsCleanup;
       }
 
       case 'select': {
         activeTool.on('dragStateChange', setDraggingShapeState);
         activeTool.on('closestPointToSegmentChange', setClosestPointToSegment);
         activeTool.on('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
-        activeTool.on('tooltipVisibilityChanged', setVisibleTooltip);
         return () => {
           activeTool.off('dragStateChange', setDraggingShapeState);
           activeTool.off('closestPointToSegmentChange', setClosestPointToSegment);
           activeTool.off('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
-          activeTool.off('tooltipVisibilityChanged', setVisibleTooltip);
+          allToolsCleanup();
         };
       }
 
@@ -473,6 +481,7 @@ export default function ViewportRenderer2D({
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
           activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
+          allToolsCleanup();
         };
       }
 
@@ -483,13 +492,21 @@ export default function ViewportRenderer2D({
         // Fillet / Chamfer
         activeTool.on('pendingCornerChange', setPendingCornerState);
         activeTool.on('activeCornerChange', setActiveCornerState);
+
+        // Mirror
+        activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
+          // Mirror
+          activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
+
           // Fillet / Chamfer
           activeTool.off('pendingCornerChange', setPendingCornerState);
           activeTool.off('activeCornerChange', setActiveCornerState);
 
           // TrimSplit
           activeTool.off('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
+
+          allToolsCleanup();
         };
       }
     }
@@ -685,19 +702,25 @@ export default function ViewportRenderer2D({
     if (previewSheetPos === null) {
       return [];
     }
-    if (activeTool.type === 'polygon' && workingPolygon === null) {
-      return [{ type: 'point' as const, point: previewSheetPos.position }];
+    switch (activeTool.type) {
+      case 'polygon':
+        if (!workingPolygon) {
+          return [{ type: 'point' as const, point: previewSheetPos.position }];
+        }
+        break;
+      case 'rectangle':
+        if (!workingRectangle) {
+          return [{ type: 'point' as const, point: previewSheetPos.position }];
+        }
+        break;
+      case 'ellipse':
+        if (!workingEllipse) {
+          return [{ type: 'point' as const, point: previewSheetPos.position }];
+        }
+        break;
+      default:
+        return [{ type: 'point' as const, point: previewSheetPos.position }];
     }
-    if (activeTool.type === 'rectangle' && workingRectangle === null) {
-      return [{ type: 'point' as const, point: previewSheetPos.position }];
-    }
-    if (activeTool.type === 'ellipse' && workingEllipse === null) {
-      return [{ type: 'point' as const, point: previewSheetPos.position }];
-    }
-    if (activeTool.type === 'constraint') {
-      return [{ type: 'point' as const, point: previewSheetPos.position }];
-    }
-    return [];
   }, [
     activeTool,
     workingPolygon,
@@ -719,6 +742,8 @@ export default function ViewportRenderer2D({
         geometryStore: toolManager.getGeometryStore(),
         mouseScreenPos, // FIXME: break this out into another context, it will change often
         snapHintsVisibility,
+        highlightedGeometryId,
+        filtersByGeometryId,
       }) satisfies ViewportContextData,
     [
       sheet,
@@ -727,6 +752,7 @@ export default function ViewportRenderer2D({
       activeTool,
       selectionManager,
       mouseScreenPos,
+      filtersByGeometryId,
     ],
   );
 
@@ -738,12 +764,13 @@ export default function ViewportRenderer2D({
       {/* Constraints: */}
       <SingleLayerRenderer layers={ConstraintLayers} layerName={layerName} />
 
+      {/* Filters: */}
+      <SingleLayerRenderer layers={FilterLayers} layerName={layerName} />
+
       <ListLayersRenderer
         layersItemsPairs={[
           // FIXME: address type issues
-          [PolygonLayers, polygons] as unknown as ListLayersItemsPair,
-          [EllipseLayers, ellipses] as unknown as ListLayersItemsPair,
-          [RectangleLayers, rectangles] as unknown as ListLayersItemsPair,
+          [GeometryLayers, geometries] as unknown as ListLayersItemsPair,
           [DatumLayers, datums] as unknown as ListLayersItemsPair,
         ]}
         layerName={layerName}
@@ -797,6 +824,7 @@ export default function ViewportRenderer2D({
                   // Clear any selected working constraints when clearing the selection
                   // TODO: move this into a manager
                   toolManager.getGeometryStore().setWorkingConstraints([]);
+                  toolManager.getGeometryStore().setWorkingFilter(null);
                 }
               }}
             />
@@ -839,8 +867,8 @@ export default function ViewportRenderer2D({
                   y={closestPointToSegment.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{
-                    x: 1 / viewportControlsState.viewport.scale,
-                    y: 1 / viewportControlsState.viewport.scale,
+                    x: 1 / (viewportControlsState.viewport.scale * SPRITE_SCALE_FACTOR),
+                    y: 1 / (viewportControlsState.viewport.scale * SPRITE_SCALE_FACTOR),
                   }}
                 />
               ) : null}
@@ -855,8 +883,8 @@ export default function ViewportRenderer2D({
                   y={splitPointOrTrimSegment.point.y * SHEET_UNITS_TO_PIXELS}
                   anchor={{ x: 0.5, y: 0.5 }}
                   scale={{
-                    x: 1 / viewportControlsState.viewport.scale,
-                    y: 1 / viewportControlsState.viewport.scale,
+                    x: 1 / (viewportControlsState.viewport.scale * SPRITE_SCALE_FACTOR),
+                    y: 1 / (viewportControlsState.viewport.scale * SPRITE_SCALE_FACTOR),
                   }}
                 />
               ) : null}
@@ -1178,7 +1206,7 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {keyPointSnapInfo && viewportControlsState ? (
+        {keyPointSnapInfo && viewportControlsState && activeTool.type !== 'edit' ? (
           <HoverTooltip
             position={keyPointSnapInfo.sheetPosition
               .toWorld()
@@ -1225,6 +1253,7 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
+        {/* Trim / split tool tooltips */}
         {activeTool.type === 'edit' &&
         activeTool.activeSubTool.type === 'trim-split' &&
         splitPointOrTrimSegment?.type === 'split-point' &&
@@ -1245,6 +1274,7 @@ export default function ViewportRenderer2D({
           <HoverTooltip position={mouseScreenPos}>Trim segment</HoverTooltip>
         ) : null}
 
+        {/* Fillet / chamfer tool tooltips */}
         {activeTool.type === 'edit' &&
         (activeTool.activeSubTool.type === 'fillet' ||
           activeTool.activeSubTool.type === 'chamfer') &&
@@ -1256,6 +1286,44 @@ export default function ViewportRenderer2D({
             tool={activeTool.activeSubTool as BaseCornerGeometryReplacerTool<string>}
             sheet={sheet}
           />
+        ) : null}
+
+        {/* Mirror tool tooltips */}
+        {visibleTooltip === 'mirror-initial' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>Choose geometry to mirror</HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'mirror-geometry-hovered' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>Select geometry</HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'mirror-place-point-a' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>Place mirror line first point</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'mirror-place-point-b' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>Finish mirror line</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+                <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>
+                  {PLATFORM_SUPER_KEY_STRING}
+                </KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
         ) : null}
 
         <FitToScreenButton onClick={() => viewportControlsRef.current?.fitToViewport()} />

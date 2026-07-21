@@ -1,17 +1,17 @@
 import {
   type ConstraintEndpoint,
-  EllipseComponent,
+  Entity,
   FillColorComponent,
-  Geometry,
+  GeometryComponent,
   type Id,
   Polygon,
-  PolygonComponent,
   PolygonSegment,
-  RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import { type Length, type SerializedLength, type UnitType } from '@/lib/units/length';
 import type { SheetPosition } from '@/lib/viewport/types';
+import { EllipseData } from '../entity/geometry/ellipse';
+import { RectangleData } from '../entity/geometry/rectangle';
 
 export type TransactionEntity = {
   type: 'transaction';
@@ -22,13 +22,13 @@ export type TransactionEntity = {
 // ==================== GENERIC GEOMETRY ENTRIES ====================
 
 /** Recorded when a geometry is inserted into the store. */
-export type InsertEntry<G extends Geometry = Geometry> = {
+export type InsertEntry<G extends Entity = Entity> = {
   type: 'insert';
   geometry: G;
 };
 
 /** Recorded when a geometry is deleted from the store. */
-export type DeleteEntry<G extends Geometry = Geometry> = {
+export type DeleteEntry<G extends Entity = Entity> = {
   type: 'delete';
   geometry: G;
 };
@@ -69,16 +69,16 @@ export type PolygonMoveEntry = {
 export type RectangleMoveEntry = {
   type: 'rectangle-move';
   id: Id;
-  before: RectangleComponent[keyof RectangleComponent];
-  after: RectangleComponent[keyof RectangleComponent];
+  before: RectangleData;
+  after: RectangleData;
 };
 
 /** Recorded when an ellipse is moved or resized. */
 export type EllipseMoveEntry = {
   type: 'ellipse-move';
   id: Id;
-  before: EllipseComponent[keyof EllipseComponent];
-  after: EllipseComponent[keyof EllipseComponent];
+  before: EllipseData;
+  after: EllipseData;
 };
 
 /** Recorded when a datum is moved. */
@@ -165,7 +165,7 @@ export type PolygonBoundingBoxResizeEntry = {
 
 /** Recorded when a rectangle is converted to a polygon. */
 export type RectangleToPolygonEntry<
-  R extends Geometry<RectangleComponent> = Geometry<RectangleComponent>,
+  R extends Entity<GeometryComponent<RectangleData>> = Entity<GeometryComponent<RectangleData>>,
 > = {
   type: 'rectangle-to-polygon';
   rectangle: R;
@@ -174,7 +174,7 @@ export type RectangleToPolygonEntry<
 
 /** Recorded when an ellipse is converted to a polygon. */
 export type EllipseToPolygonEntry<
-  E extends Geometry<EllipseComponent> = Geometry<EllipseComponent>,
+  E extends Entity<GeometryComponent<EllipseData>> = Entity<GeometryComponent<EllipseData>>,
 > = {
   type: 'ellipse-to-polygon';
   ellipse: E;
@@ -305,6 +305,13 @@ export type SheetUnitPlacesEntry = {
   afterUnitPlaces: number;
 };
 
+export type FilterChangeOffsetEntry = {
+  type: 'filter-change-offset';
+  id: Entity['id'];
+  beforeLength: Length;
+  afterLength: Length;
+};
+
 // ==================== UNION TYPE ====================
 
 /** Discriminated union of all undoable operations. */
@@ -340,7 +347,8 @@ export type UndoEntry =
   | SheetWidthEntry
   | SheetHeightEntry
   | SheetDefaultUnitEntry
-  | SheetUnitPlacesEntry;
+  | SheetUnitPlacesEntry
+  | FilterChangeOffsetEntry;
 
 export namespace UndoEntry {
   /** Creates a raw transaction, useful with historyManager.push. Most likely you want {@link HistoryManager.applyTransaction} instead. */
@@ -366,7 +374,7 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry for inserting a geometry into the store. */
-  export function insert<G extends Geometry>(geometry: G): InsertEntry<G> {
+  export function insert<G extends Entity>(geometry: G): InsertEntry<G> {
     return { type: 'insert', geometry };
   }
 
@@ -458,18 +466,14 @@ export namespace UndoEntry {
   /** Creates an entry for moving or resizing a rectangle. */
   export function rectangleMove(
     id: Id,
-    before: RectangleComponent[keyof RectangleComponent],
-    after: RectangleComponent[keyof RectangleComponent],
+    before: RectangleData,
+    after: RectangleData,
   ): RectangleMoveEntry {
     return { type: 'rectangle-move', id, before, after };
   }
 
   /** Creates an entry for moving or resizing an ellipse. */
-  export function ellipseMove(
-    id: Id,
-    before: EllipseComponent[keyof EllipseComponent],
-    after: EllipseComponent[keyof EllipseComponent],
-  ): EllipseMoveEntry {
+  export function ellipseMove(id: Id, before: EllipseData, after: EllipseData): EllipseMoveEntry {
     return { type: 'ellipse-move', id, before, after };
   }
 
@@ -483,7 +487,7 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry for deleting a geometry from the store. */
-  export function deleteGeometry<G extends Geometry>(geometry: G): DeleteEntry<G> {
+  export function deleteGeometry<G extends Entity>(geometry: G): DeleteEntry<G> {
     return { type: 'delete', geometry };
   }
 
@@ -511,17 +515,17 @@ export namespace UndoEntry {
   }
 
   /** Creates an entry for converting a rectangle to a polygon. */
-  export function rectangleToPolygon<R extends Geometry<RectangleComponent>>(
+  export function rectangleToPolygon<R extends Entity<GeometryComponent<RectangleData>>>(
     rectangle: R,
-    polygon: Geometry<PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent>,
+    polygon: Polygon,
   ): RectangleToPolygonEntry<R> {
     return { type: 'rectangle-to-polygon', rectangle, polygon };
   }
 
   /** Creates an entry for converting an ellipse to a polygon. */
-  export function ellipseToPolygon<E extends Geometry<EllipseComponent>>(
+  export function ellipseToPolygon<E extends Entity<GeometryComponent<EllipseData>>>(
     ellipse: E,
-    polygon: Geometry<PolygonComponent & Partial<FillColorComponent> & RenderOrderComponent>,
+    polygon: Polygon,
   ): EllipseToPolygonEntry {
     return { type: 'ellipse-to-polygon', ellipse, polygon };
   }
@@ -698,5 +702,19 @@ export namespace UndoEntry {
     afterUnitPlaces: number,
   ): SheetUnitPlacesEntry {
     return { type: 'sheet-unit-places', beforeUnitPlaces, afterUnitPlaces };
+  }
+
+  /** Creates an entry recording that the offset of a filter has changed. */
+  export function filterChangeOffset(
+    filterId: Entity['id'],
+    beforeLength: Length,
+    afterLength: Length,
+  ): FilterChangeOffsetEntry {
+    return {
+      type: 'filter-change-offset',
+      id: filterId,
+      beforeLength,
+      afterLength,
+    };
   }
 }

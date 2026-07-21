@@ -1,11 +1,12 @@
 import { EventEmitter } from 'eventemitter3';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { KeyComboDetector, keyComboEqual } from '@/lib/index-mapper';
 import { type SerializationManager } from '@/lib/serialization/SerializationManager';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
+import { ApplyFilterToGeometryAction } from './ApplyFilterToGeometryAction';
 import { ConvertToPolygonAction } from './ConvertToPolygonAction';
 import { CopyAction } from './CopyAction';
 import { DeleteSelectedAction } from './DeleteSelectedAction';
@@ -52,6 +53,7 @@ const ACTIONS = [
   OpenClosePolygonAction,
   ToggleLinkDimensionsAction,
   ConvertToPolygonAction,
+  ApplyFilterToGeometryAction,
 ];
 const ACTIONS_BY_TYPE = {
   undo: UndoAction,
@@ -76,6 +78,7 @@ const ACTIONS_BY_TYPE = {
   'open-close-polygon': OpenClosePolygonAction,
   'toggle-link-dimensions': ToggleLinkDimensionsAction,
   'convert-to-polygon': ConvertToPolygonAction,
+  'apply-filter-to-geometry': ApplyFilterToGeometryAction,
 };
 export type ActionType = keyof typeof ACTIONS_BY_TYPE;
 export type Action = InstanceType<(typeof ACTIONS_BY_TYPE)[ActionType]>;

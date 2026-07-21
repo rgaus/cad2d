@@ -1,11 +1,11 @@
 import { EllipseIcon } from 'lucide-react';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
-} from '@/lib/geometry/constraints';
-import { Ellipse } from '@/lib/geometry/ellipse';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { Ellipse } from '@/lib/entity/ellipse';
 import { applySnapping } from '@/lib/snapping';
 import { ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
 import { BaseTool } from './BaseTool';
@@ -34,9 +34,9 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
   handleToolBlur(): void {
     this.getGeometryStore().clearWorkingEllipse();
     this.previewSheetPos = null;
+    this.emit('previewSheetPositionChange', null);
     this.getGeometryStore().clearWorkingConstraints();
     this.getGeometryStore().off('workingConstraintsChanged', this.handleWorkingConstraintsChanged);
-    this.emit('previewSheetPositionChange', null);
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {

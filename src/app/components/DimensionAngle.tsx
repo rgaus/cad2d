@@ -9,6 +9,7 @@ import {
   ConflictIconTexture,
   PerpendicularConstraintIconConflictTexture,
   PerpendicularConstraintIconTexture,
+  SPRITE_SCALE_FACTOR,
 } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
@@ -87,7 +88,7 @@ export default function DimensionAngle({
   }, [vANormalized, vBNormalized]);
 
   const lineWidth = lineWidthPx / viewportScale;
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * SPRITE_SCALE_FACTOR);
 
   const angleMarkerType = renderAngleMarkerType(angleDegrees);
 

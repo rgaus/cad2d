@@ -1,7 +1,7 @@
 import { ArrowUp } from 'lucide-react';
 import React from 'react';
+import { Entity, RenderOrderComponent } from '@/lib/entity';
 import { PLATFORM_CONTROL_KEY_STRING } from '../detection';
-import { Geometry, RenderOrderComponent } from '../geometry';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 
@@ -29,7 +29,7 @@ export class RaiseAction extends BaseAction {
   async execute() {
     for (const id of this.getSelectionManager().getSelectedIds()) {
       const geometry = this.getGeometryStore().getById(id);
-      if (geometry && Geometry.hasComponent(geometry, RenderOrderComponent)) {
+      if (geometry && Entity.hasComponent(geometry, RenderOrderComponent)) {
         this.getGeometryStore().setRenderOrder(id, RenderOrderComponent.get(geometry) + 1);
         continue;
       }

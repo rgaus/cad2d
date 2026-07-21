@@ -1,4 +1,9 @@
-import { type PointSegment, type PolygonSegment } from '@/lib/geometry';
+import {
+  type PointSegment,
+  type PolygonSegment,
+  RectangleCorner,
+  RectangleEndpoint,
+} from '@/lib/entity';
 import { CubicCurve, Position, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
 import { DeCasteljau } from './bezier';
 import { Vector2 } from './vector';
@@ -7,14 +12,26 @@ export { Flip } from './flip';
 export { Intersection } from './intersection';
 export { Angle } from './angle';
 export { Vector2 } from './vector';
-export { BoundingBox, boundingBoxContains, boundingBoxContainsPoint } from './bounding-box';
+export { BoundingBox } from './bounding-box';
 export { type CohenSutherlandOutcode, CohenSutherland } from './cohen-sutherland';
 export { DeCasteljau, cubicBezierAt } from './bezier';
+export {
+  CornerReplacement,
+  computeFilletArcControlPoints,
+  type CornerSegmentFactory,
+  type FilletChamferPolygonResult,
+  type FilletChamferRectangleResult,
+} from './corner-replacement';
 
 /* Round a number to an arbitrary number of decimal places. */
 export function round(n: number, places: number = 0): number {
   const power = Math.pow(10, places);
   return Math.round(n * power) / power;
+}
+
+/** Modular arithmetic helper that returns a non-negative remainder. */
+export function mod(n: number, m: number): number {
+  return ((n % m) + m) % m;
 }
 
 /** Points on an ellipse used for constraint syncing. */

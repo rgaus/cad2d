@@ -1,20 +1,20 @@
-import type { ActionsManager } from '@/lib/actions/ActionsManager';
+import { type ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintComponent,
   ConstraintData,
   DatumComponent,
-  EllipseComponent,
-  FillColorComponent,
-  Geometry,
-  LinkDimensionsComponent,
-  PolygonComponent,
-  RectangleComponent,
+  type Ellipse,
+  Entity,
+  GeometryComponent,
+  type Polygon,
+  type Rectangle,
   RenderOrderComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
-import { Length, type UnitType } from '@/lib/units/length';
+import { Length } from '@/lib/units/length';
+import { GeometryData } from '../entity/geometry';
 import { UndoEntry } from '../history/types';
 import { canLoad as canLoadSvg, parseSvg } from './deserialize';
 import {
@@ -252,98 +252,94 @@ export class SerializationManager {
     const entries: Array<string> = [];
     for (const id of this.getSelectionManager().getSelectedIds()) {
       const geometry = geometryStore.getById(id);
-      if (geometry) {
-        if (Geometry.hasComponents(geometry, PolygonComponent, RenderOrderComponent)) {
-          entries.push(serializePolygon(geometry));
-        } else if (
-          Geometry.hasComponents(
-            geometry,
-            RectangleComponent,
-            FillColorComponent,
-            LinkDimensionsComponent,
-            RenderOrderComponent,
-          )
-        ) {
-          entries.push(serializeRectangle(geometry));
-        } else if (
-          Geometry.hasComponents(
-            geometry,
-            EllipseComponent,
-            FillColorComponent,
-            LinkDimensionsComponent,
-            RenderOrderComponent,
-          )
-        ) {
-          entries.push(serializeEllipse(geometry));
-        } else if (Geometry.hasComponent(geometry, DatumComponent)) {
-          entries.push(serializeDatum(geometry));
-        } else if (Geometry.hasComponent(geometry, ConstraintComponent)) {
-          const constraint: ConstraintData = ConstraintComponent.get(geometry);
-          switch (constraint.type) {
-            case 'linear': {
-              entries.push(
-                serializeLinearConstraint(
-                  constraint,
-                  (ep) => geometryStore.resolveConstraintEndpoint(ep),
-                  geometry.id,
-                ),
-              );
-              break;
-            }
-            case 'perpendicular': {
-              entries.push(
-                serializePerpendicularConstraint(
-                  constraint,
-                  (ep) => geometryStore.resolveConstraintEndpoint(ep),
-                  geometry.id,
-                ),
-              );
-              break;
-            }
-            case 'parallel': {
-              entries.push(
-                serializeParallelConstraint(
-                  constraint,
-                  (ep) => geometryStore.resolveConstraintEndpoint(ep),
-                  geometry.id,
-                ),
-              );
-              break;
-            }
-            case 'horizontal': {
-              entries.push(
-                serializeHorizontalConstraint(
-                  constraint,
-                  (ep) => geometryStore.resolveConstraintEndpoint(ep),
-                  geometry.id,
-                ),
-              );
-              break;
-            }
-            case 'vertical': {
-              entries.push(
-                serializeVerticalConstraint(
-                  constraint,
-                  (ep) => geometryStore.resolveConstraintEndpoint(ep),
-                  geometry.id,
-                ),
-              );
-              break;
-            }
-            case 'colinear': {
-              entries.push(
-                serializeColinearConstraint(
-                  constraint,
-                  (ep) => geometryStore.resolveConstraintEndpoint(ep),
-                  geometry.id,
-                ),
-              );
-              break;
-            }
-            default:
-              constraint satisfies never;
-              break;
+      if (!geometry) {
+        continue;
+      }
+
+      if (Entity.hasComponents(geometry, GeometryComponent, RenderOrderComponent)) {
+        const data = GeometryComponent.get<GeometryData>(geometry);
+        switch (data.type) {
+          case 'polygon':
+            entries.push(serializePolygon(geometry as Polygon));
+            break;
+          case 'rectangle':
+            entries.push(serializeRectangle(geometry as Rectangle));
+            break;
+          case 'ellipse':
+            entries.push(serializeEllipse(geometry as Ellipse));
+            break;
+          default:
+            data satisfies never;
+            break;
+        }
+      } else if (Entity.hasComponent(geometry, DatumComponent)) {
+        entries.push(serializeDatum(geometry));
+      } else if (Entity.hasComponent(geometry, ConstraintComponent)) {
+        const constraint: ConstraintData = ConstraintComponent.get(geometry);
+        switch (constraint.type) {
+          case 'linear': {
+            entries.push(
+              serializeLinearConstraint(
+                constraint,
+                (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                geometry.id,
+              ),
+            );
+            break;
           }
+          case 'perpendicular': {
+            entries.push(
+              serializePerpendicularConstraint(
+                constraint,
+                (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                geometry.id,
+              ),
+            );
+            break;
+          }
+          case 'parallel': {
+            entries.push(
+              serializeParallelConstraint(
+                constraint,
+                (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                geometry.id,
+              ),
+            );
+            break;
+          }
+          case 'horizontal': {
+            entries.push(
+              serializeHorizontalConstraint(
+                constraint,
+                (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                geometry.id,
+              ),
+            );
+            break;
+          }
+          case 'vertical': {
+            entries.push(
+              serializeVerticalConstraint(
+                constraint,
+                (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                geometry.id,
+              ),
+            );
+            break;
+          }
+          case 'colinear': {
+            entries.push(
+              serializeColinearConstraint(
+                constraint,
+                (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                geometry.id,
+              ),
+            );
+            break;
+          }
+          default:
+            constraint satisfies never;
+            break;
         }
       }
     }

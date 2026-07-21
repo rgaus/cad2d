@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  EllipseComponent,
-  FillColorComponent,
-  Geometry,
-  PolygonComponent,
-  PolygonSegment,
-  RectangleComponent,
-} from '@/lib/geometry';
+import { Entity, FillColorComponent, GeometryComponent, PolygonSegment } from '@/lib/entity';
 import { BoundingBox, DeCasteljau } from '@/lib/math';
 
 /**
@@ -75,7 +68,7 @@ export type ShapePreviewHighlight =
   | { type: 'segment'; index: number; color?: string };
 
 type ShapePreviewProps = {
-  shape: Geometry<RectangleComponent> | Geometry<EllipseComponent> | Geometry<PolygonComponent>;
+  shape: Entity<GeometryComponent>;
   highlight?: ShapePreviewHighlight | null;
   hoveredPointIndex?: number;
   editingDimension?: ShapePreviewEditingDimension | null;
@@ -116,74 +109,79 @@ export default function ShapePreview({
   };
   let points: Array<{ x: number; y: number }> = [];
 
-  if (Geometry.hasComponent(shape, RectangleComponent)) {
-    const rect = RectangleComponent.get(shape);
-    bounds = {
-      minX: rect.upperLeft.x,
-      minY: rect.upperLeft.y,
-      maxX: rect.lowerRight.x,
-      maxY: rect.lowerRight.y,
-      width: rect.lowerRight.x - rect.upperLeft.x,
-      height: rect.lowerRight.y - rect.upperLeft.y,
-    };
-    points = [
-      { x: rect.upperLeft.x, y: rect.upperLeft.y },
-      { x: rect.lowerRight.x, y: rect.upperLeft.y },
-      { x: rect.lowerRight.x, y: rect.lowerRight.y },
-      { x: rect.upperLeft.x, y: rect.lowerRight.y },
-    ];
-  } else if (Geometry.hasComponent(shape, EllipseComponent)) {
-    const ellipse = EllipseComponent.get(shape);
-    bounds = {
-      minX: ellipse.center.x - ellipse.radiusX,
-      minY: ellipse.center.y - ellipse.radiusY,
-      maxX: ellipse.center.x + ellipse.radiusX,
-      maxY: ellipse.center.y + ellipse.radiusY,
-      width: ellipse.radiusX * 2,
-      height: ellipse.radiusY * 2,
-    };
-  } else {
-    const polygonData = PolygonComponent.get(shape);
-    const polygonBounds = BoundingBox.fromPoints(
-      polygonData.points.flatMap((point, index) => {
-        const nextPoint = polygonData.points[index + 1];
-        if (PolygonSegment.isQuadratic(point) && nextPoint) {
-          return [
-            point.point,
-            // Use midpoint of curve to get bounding box extents:
-            DeCasteljau.getQuadraticBezierPointAt(
-              { start: point.point, end: nextPoint.point, controlPoint: point.controlPoint },
-              0.5,
-            ),
-          ];
-        } else if (PolygonSegment.isCubic(point) && nextPoint) {
-          return [
-            point.point,
-            // Use midpoint of curve to get bounding box extents:
-            DeCasteljau.getCubicBezierPointAt(
-              {
-                start: point.point,
-                end: nextPoint.point,
-                controlPointA: point.controlPointA,
-                controlPointB: point.controlPointB,
-              },
-              0.5,
-            ),
-          ];
-        } else {
-          return [point.point];
-        }
-      }),
-    );
-    bounds = {
-      minX: polygonBounds.position.x,
-      minY: polygonBounds.position.y,
-      maxX: polygonBounds.position.x + polygonBounds.width,
-      maxY: polygonBounds.position.y + polygonBounds.height,
-      width: polygonBounds.width,
-      height: polygonBounds.height,
-    };
-    points = polygonData.points.map((s: PolygonSegment) => ({ x: s.point.x, y: s.point.y }));
+  const geometryData = GeometryComponent.get(shape);
+  switch (geometryData.type) {
+    case 'polygon':
+      const polygonBounds = BoundingBox.fromPoints(
+        geometryData.points.flatMap((point, index) => {
+          const nextPoint = geometryData.points[index + 1];
+          if (PolygonSegment.isQuadratic(point) && nextPoint) {
+            return [
+              point.point,
+              // Use midpoint of curve to get bounding box extents:
+              DeCasteljau.getQuadraticBezierPointAt(
+                { start: point.point, end: nextPoint.point, controlPoint: point.controlPoint },
+                0.5,
+              ),
+            ];
+          } else if (PolygonSegment.isCubic(point) && nextPoint) {
+            return [
+              point.point,
+              // Use midpoint of curve to get bounding box extents:
+              DeCasteljau.getCubicBezierPointAt(
+                {
+                  start: point.point,
+                  end: nextPoint.point,
+                  controlPointA: point.controlPointA,
+                  controlPointB: point.controlPointB,
+                },
+                0.5,
+              ),
+            ];
+          } else {
+            return [point.point];
+          }
+        }),
+      );
+      bounds = {
+        minX: polygonBounds.position.x,
+        minY: polygonBounds.position.y,
+        maxX: polygonBounds.position.x + polygonBounds.width,
+        maxY: polygonBounds.position.y + polygonBounds.height,
+        width: polygonBounds.width,
+        height: polygonBounds.height,
+      };
+      points = geometryData.points.map((s: PolygonSegment) => ({ x: s.point.x, y: s.point.y }));
+      break;
+    case 'rectangle':
+      bounds = {
+        minX: geometryData.upperLeft.x,
+        minY: geometryData.upperLeft.y,
+        maxX: geometryData.lowerRight.x,
+        maxY: geometryData.lowerRight.y,
+        width: geometryData.lowerRight.x - geometryData.upperLeft.x,
+        height: geometryData.lowerRight.y - geometryData.upperLeft.y,
+      };
+      points = [
+        { x: geometryData.upperLeft.x, y: geometryData.upperLeft.y },
+        { x: geometryData.lowerRight.x, y: geometryData.upperLeft.y },
+        { x: geometryData.lowerRight.x, y: geometryData.lowerRight.y },
+        { x: geometryData.upperLeft.x, y: geometryData.lowerRight.y },
+      ];
+      break;
+    case 'ellipse':
+      bounds = {
+        minX: geometryData.center.x - geometryData.radiusX,
+        minY: geometryData.center.y - geometryData.radiusY,
+        maxX: geometryData.center.x + geometryData.radiusX,
+        maxY: geometryData.center.y + geometryData.radiusY,
+        width: geometryData.radiusX * 2,
+        height: geometryData.radiusY * 2,
+      };
+      break;
+    default:
+      geometryData satisfies never;
+      throw new Error(`ShapePreview: Unknown geometry data type ${(geometryData as any).type}`);
   }
 
   const boundsWidth = bounds.maxX - bounds.minX || 1;
@@ -212,7 +210,7 @@ export default function ShapePreview({
       className="w-full aspect-square"
       style={{ backgroundColor: '#fafafa', borderRadius: '4px' }}
     >
-      {Geometry.hasComponent(shape, RectangleComponent) && (
+      {GeometryComponent.isRectangle(shape) && (
         <rect
           x={toSvg(bounds.minX, bounds.minY)[0]}
           y={toSvg(bounds.minX, bounds.minY)[1]}
@@ -223,7 +221,7 @@ export default function ShapePreview({
           strokeWidth="1"
         />
       )}
-      {Geometry.hasComponent(shape, EllipseComponent) && (
+      {GeometryComponent.isEllipse(shape) && (
         <ellipse
           cx={toSvg((bounds.minX + bounds.maxX) / 2, 0)[0]}
           cy={toSvg(0, (bounds.minY + bounds.maxY) / 2)[1]}
@@ -234,16 +232,16 @@ export default function ShapePreview({
           strokeWidth="1"
         />
       )}
-      {Geometry.hasComponent(shape, PolygonComponent) && (
+      {GeometryComponent.isPolygon(shape) && (
         <>
           {points.length >= 2 ? (
             <path
               d={buildPolygonPath(
-                PolygonComponent.get(shape).points,
+                GeometryComponent.get(shape).points,
                 toSvg,
-                PolygonComponent.get(shape).closed,
+                GeometryComponent.get(shape).closed,
               )}
-              fill={PolygonComponent.get(shape).closed && fill !== 'none' ? fill : 'none'}
+              fill={GeometryComponent.get(shape).closed && fill !== 'none' ? fill : 'none'}
               stroke={stroke}
               strokeWidth="1"
               strokeLinejoin="round"
@@ -309,11 +307,11 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'radiusX' && Geometry.hasComponent(shape, EllipseComponent) ? (
+      {editingDimension === 'radiusX' && GeometryComponent.isEllipse(shape) ? (
         <polyline
           points={[
-            [toSvgX(EllipseComponent.get(shape).center.x), toSvgY(bounds.minY) - 2],
-            [toSvgX(EllipseComponent.get(shape).center.x), toSvgY(bounds.minY) - 5],
+            [toSvgX(GeometryComponent.get(shape).center.x), toSvgY(bounds.minY) - 2],
+            [toSvgX(GeometryComponent.get(shape).center.x), toSvgY(bounds.minY) - 5],
             [toSvgX(bounds.minX), toSvgY(bounds.minY) - 5],
             [toSvgX(bounds.minX), toSvgY(bounds.minY) - 2],
           ]
@@ -339,11 +337,11 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'radiusY' && Geometry.hasComponent(shape, EllipseComponent) ? (
+      {editingDimension === 'radiusY' && GeometryComponent.isEllipse(shape) ? (
         <polyline
           points={[
-            [toSvgX(bounds.minX) - 2, toSvgY(EllipseComponent.get(shape).center.y)],
-            [toSvgX(bounds.minX) - 5, toSvgY(EllipseComponent.get(shape).center.y)],
+            [toSvgX(bounds.minX) - 2, toSvgY(GeometryComponent.get(shape).center.y)],
+            [toSvgX(bounds.minX) - 5, toSvgY(GeometryComponent.get(shape).center.y)],
             [toSvgX(bounds.minX) - 5, toSvgY(bounds.minY)],
             [toSvgX(bounds.minX) - 2, toSvgY(bounds.minY)],
           ]
@@ -354,27 +352,27 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'origin' && Geometry.hasComponent(shape, EllipseComponent) ? (
+      {editingDimension === 'origin' && GeometryComponent.isEllipse(shape) ? (
         <>
           <line
-            x1={toSvgX(EllipseComponent.get(shape).center.x)}
+            x1={toSvgX(GeometryComponent.get(shape).center.x)}
             y1={toSvgY(bounds.minY)}
-            x2={toSvgX(EllipseComponent.get(shape).center.x)}
+            x2={toSvgX(GeometryComponent.get(shape).center.x)}
             y2={toSvgY(bounds.maxY)}
             stroke="rgba(0,0,0,0.2)"
             strokeWidth={1}
           />
           <line
             x1={toSvgX(bounds.minX)}
-            y1={toSvgY(EllipseComponent.get(shape).center.y)}
+            y1={toSvgY(GeometryComponent.get(shape).center.y)}
             x2={toSvgX(bounds.maxX)}
-            y2={toSvgY(EllipseComponent.get(shape).center.y)}
+            y2={toSvgY(GeometryComponent.get(shape).center.y)}
             stroke="rgba(0,0,0,0.2)"
             strokeWidth={1}
           />
           <rect
-            x={toSvgX(EllipseComponent.get(shape).center.x) - vertexSizeInPx / 2}
-            y={toSvgY(EllipseComponent.get(shape).center.y) - vertexSizeInPx / 2}
+            x={toSvgX(GeometryComponent.get(shape).center.x) - vertexSizeInPx / 2}
+            y={toSvgY(GeometryComponent.get(shape).center.y) - vertexSizeInPx / 2}
             width={vertexSizeInPx}
             height={vertexSizeInPx}
             fill="white"
@@ -383,7 +381,7 @@ export default function ShapePreview({
           />
         </>
       ) : null}
-      {editingDimension === 'origin' && Geometry.hasComponent(shape, RectangleComponent) ? (
+      {editingDimension === 'origin' && GeometryComponent.isRectangle(shape) ? (
         <rect
           x={toSvgX(bounds.minX) - vertexSizeInPx / 2}
           y={toSvgY(bounds.minY) - vertexSizeInPx / 2}

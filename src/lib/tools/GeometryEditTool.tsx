@@ -2,13 +2,14 @@ import { type CornerReplacementToolEvents } from './BaseCornerGeometryReplacerTo
 import { BaseMultiTool } from './BaseTool';
 import { ChamferTool } from './ChamferTool';
 import { FilletTool } from './FilletTool';
+import { MirrorTool, MirrorToolEvents } from './MirrorTool';
 import { TrimSplitTool, TrimSplitToolEvents } from './TrimSplitTool';
 
-type ModifySubToolTypes = 'trim-split' | 'fillet' | 'chamfer';
+type ModifySubToolTypes = 'trim-split' | 'fillet' | 'chamfer' | 'mirror';
 
 /** A multi tool containing a list of ways one can modify a geometry. */
 export class GeometryEditTool extends BaseMultiTool<
-  CornerReplacementToolEvents & TrimSplitToolEvents,
+  TrimSplitToolEvents & CornerReplacementToolEvents & MirrorToolEvents,
   ModifySubToolTypes,
   'g'
 > {
@@ -16,5 +17,5 @@ export class GeometryEditTool extends BaseMultiTool<
 
   focusKeyCombo = 'g' as const;
 
-  subTools = [TrimSplitTool, FilletTool, ChamferTool];
+  subTools = [TrimSplitTool, FilletTool, ChamferTool, MirrorTool];
 }

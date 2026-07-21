@@ -6,12 +6,13 @@ import {
   ConstraintTemplate,
   Datum,
   DatumComponent,
-  EllipseComponent,
-  PolygonComponent,
-  RectangleComponent,
-} from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { type GeometryStore } from '@/lib/geometry/GeometryStore';
+  Entity,
+  GeometryComponent,
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { type GeometryStore } from '@/lib/entity/GeometryStore';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { FilterTemplate } from '@/lib/entity/filters';
 import { Vector2 } from '@/lib/math';
 import {
   KeyPointShouldCreateDatum,
@@ -96,7 +97,7 @@ export abstract class LineSegmentConstraintTool<
     lengthBetweenPoints: Length,
     xAxisLengthBetweenPoints: Length,
     yAxisLengthBetweenPoints: Length,
-  ): ConstraintTemplate;
+  ): ConstraintTemplate | FilterTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
@@ -128,9 +129,7 @@ export abstract class LineSegmentConstraintTool<
           superHeld: this.toolManager.getSuperHeld(),
           manager: this,
           viewportScale: viewport.scale,
-          rectangles: geometryStore.listWithComponent(RectangleComponent),
-          ellipses: geometryStore.listWithComponent(EllipseComponent),
-          polygons: geometryStore.listWithComponent(PolygonComponent),
+          geometries: geometryStore.listWithComponent(GeometryComponent),
           constraints: geometryStore.listWithComponent(ConstraintComponent),
           datums: geometryStore.listWithComponent(DatumComponent),
         },
@@ -158,9 +157,7 @@ export abstract class LineSegmentConstraintTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
-        ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
-        polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+        geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
         constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
@@ -288,15 +285,22 @@ export abstract class LineSegmentConstraintTool<
       const xAxis = Math.abs(resolvedB.x - resolvedA.x);
       const yAxis = Math.abs(resolvedB.y - resolvedA.y);
 
-      this.getGeometryStore().add(
-        ID_PREFIXES.constraint,
-        this.convertWorkingConstraintIntoConstraint(
-          wc,
-          Length.fromSheetUnits(sheet.defaultUnit, diagonal),
-          Length.fromSheetUnits(sheet.defaultUnit, xAxis),
-          Length.fromSheetUnits(sheet.defaultUnit, yAxis),
-        ),
+      const template = this.convertWorkingConstraintIntoConstraint(
+        wc,
+        Length.fromSheetUnits(sheet.defaultUnit, diagonal),
+        Length.fromSheetUnits(sheet.defaultUnit, xAxis),
+        Length.fromSheetUnits(sheet.defaultUnit, yAxis),
       );
+
+      if (Entity.hasComponent(template as Entity<ConstraintComponent>, ConstraintComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
+      } else if (Entity.hasComponent(template as Entity<FilterComponent>, FilterComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
+      } else {
+        throw new Error(
+          'LineSegmentConstraintTool.completeConstraint: returned template not a constraint or filter!',
+        );
+      }
       this.getGeometryStore().clearWorkingConstraints();
     });
 
@@ -347,7 +351,7 @@ export abstract class SegmentAndPointConstraintTool<
    * tool is complete. pointA/pointB are guaranteed non-null. */
   protected abstract convertWorkingConstraintIntoConstraint(
     workingConstraint: WC & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
-  ): ConstraintTemplate;
+  ): ConstraintTemplate | FilterTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
@@ -380,9 +384,7 @@ export abstract class SegmentAndPointConstraintTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: geometryStore.listWithComponent(RectangleComponent),
-        ellipses: geometryStore.listWithComponent(EllipseComponent),
-        polygons: geometryStore.listWithComponent(PolygonComponent),
+        geometries: geometryStore.listWithComponent(GeometryComponent),
         constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
@@ -453,9 +455,7 @@ export abstract class SegmentAndPointConstraintTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
-        ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
-        polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+        geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
         constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
@@ -621,12 +621,19 @@ export abstract class SegmentAndPointConstraintTool<
       }
 
       // Add the actual constraint (pointA/pointB guaranteed non-null by the check above)
-      this.getGeometryStore().add(
-        ID_PREFIXES.constraint,
-        this.convertWorkingConstraintIntoConstraint(
-          wc as WC & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
-        ),
+      const template = this.convertWorkingConstraintIntoConstraint(
+        wc as WC & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
       );
+      if (Entity.hasComponent(template as Entity<ConstraintComponent>, ConstraintComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
+      } else if (Entity.hasComponent(template as Entity<FilterComponent>, FilterComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
+      } else {
+        throw new Error(
+          'SegmentAndPointConstraintTool.completeConstraint: returned template not a constraint or filter!',
+        );
+      }
+
       this.getGeometryStore().clearWorkingConstraints();
     });
 
@@ -676,7 +683,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
    * tool is complete.*/
   protected abstract convertWorkingConstraintIntoConstraint(
     workingConstraint: WC,
-  ): ConstraintTemplate;
+  ): ConstraintTemplate | FilterTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
@@ -709,9 +716,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: geometryStore.listWithComponent(RectangleComponent),
-        ellipses: geometryStore.listWithComponent(EllipseComponent),
-        polygons: geometryStore.listWithComponent(PolygonComponent),
+        geometries: geometryStore.listWithComponent(GeometryComponent),
         constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
@@ -780,9 +785,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
-        ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
-        polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+        geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
         constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
@@ -930,10 +933,17 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
       }
 
       // Add the actual constraint
-      this.getGeometryStore().add(
-        ID_PREFIXES.constraint,
-        this.convertWorkingConstraintIntoConstraint(wc),
-      );
+      const template = this.convertWorkingConstraintIntoConstraint(wc);
+      if (Entity.hasComponent(template as Entity<ConstraintComponent>, ConstraintComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
+      } else if (Entity.hasComponent(template as Entity<FilterComponent>, FilterComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
+      } else {
+        throw new Error(
+          'TwoConnectedSegmentConstraintCreationTool.completeConstraint: returned template not a constraint or filter!',
+        );
+      }
+
       this.getGeometryStore().clearWorkingConstraints();
     });
 
@@ -988,7 +998,7 @@ export abstract class TwoSegmentConstraintCreationTool<
    *  tool is complete. */
   protected abstract convertWorkingConstraintIntoConstraint(
     workingConstraint: WC,
-  ): ConstraintTemplate;
+  ): ConstraintTemplate | FilterTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
@@ -1020,9 +1030,7 @@ export abstract class TwoSegmentConstraintCreationTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: geometryStore.listWithComponent(RectangleComponent),
-        ellipses: geometryStore.listWithComponent(EllipseComponent),
-        polygons: geometryStore.listWithComponent(PolygonComponent),
+        geometries: geometryStore.listWithComponent(GeometryComponent),
         constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
@@ -1113,9 +1121,7 @@ export abstract class TwoSegmentConstraintCreationTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
-        ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
-        polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+        geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
         constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
@@ -1296,10 +1302,17 @@ export abstract class TwoSegmentConstraintCreationTool<
       }
 
       // Actually insert constraint
-      this.getGeometryStore().add(
-        ID_PREFIXES.constraint,
-        this.convertWorkingConstraintIntoConstraint(wc),
-      );
+      const template = this.convertWorkingConstraintIntoConstraint(wc);
+      if (Entity.hasComponent(template as Entity<ConstraintComponent>, ConstraintComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
+      } else if (Entity.hasComponent(template as Entity<FilterComponent>, FilterComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
+      } else {
+        throw new Error(
+          'TwoSegmentConstraintCreationTool.completeConstraint: returned template not a constraint or filter!',
+        );
+      }
+
       this.getGeometryStore().clearWorkingConstraints();
     });
 
