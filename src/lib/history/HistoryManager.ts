@@ -15,6 +15,7 @@ import { type Sheet } from '@/lib/sheet/Sheet';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { UndoEntry } from './types';
+import { FilterComponent } from '../entity/components/FilterComponent';
 
 /** Events emitted by HistoryManager. */
 export type HistoryManagerEvents = {
@@ -554,6 +555,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           DatumComponent.update(old, entry.after.position),
         );
         break;
+      case 'filter-change-offset':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, { offset: entry.afterLength }),
+        );
+        break;
       default:
         entry satisfies never;
         break;
@@ -887,6 +893,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'datum-move':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, DatumComponent, (old) =>
           DatumComponent.update(old, entry.before.position),
+        );
+        break;
+      case 'filter-change-offset':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, { offset: entry.beforeLength }),
         );
         break;
       default:
