@@ -28,8 +28,6 @@ import {
   ConstraintEndpoint,
 } from '@/lib/entity/constraints';
 import { Filter, FilterData } from '@/lib/entity/filters';
-import { EllipseData } from '@/lib/entity/geometry/ellipse';
-import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { UndoEntry } from '@/lib/history/types';
 import {
   BoundingBox,
@@ -2461,7 +2459,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     this.emit('snapHintsVisibilityChange', { keyPoints: true });
 
-    createDragListener({
+    this.activeDragListener = createDragListener({
       viewportControls,
       onMove: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
@@ -2569,6 +2567,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         });
         this.emit('keyPointSnapChange', null);
         this.emit('snapHintsVisibilityChange', null);
+        this.activeDragListener = null;
       },
       onCancel: () => {
         this.emit('keyPointSnapChange', null);
@@ -2589,6 +2588,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               }),
           );
         }
+        this.activeDragListener = null;
       },
     });
   }
@@ -2716,6 +2716,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             );
           }
         });
+        this.activeDragListener = null;
       },
       onCancel: () => {
         const currentFilterGeom = this.getGeometryStore().getByIdWithComponent(
@@ -2730,6 +2731,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             }),
           );
         }
+        this.activeDragListener = null;
       },
     });
   }
@@ -2753,7 +2755,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.constraintLabelPointerDownPosition = screenPos;
         const beforeValue = constraint.connectorLineOffsetPx;
 
-        createDragListener({
+        this.activeDragListener = createDragListener({
           viewportControls,
           onMove: (sp) => {
             const liveViewport = viewportControls.getState().viewport;
@@ -2824,6 +2826,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 );
               }
             }
+            this.activeDragListener = null;
           },
           onCancel: () => {
             this.getGeometryStore().updateByIdWithComponentDirect(
@@ -2831,6 +2834,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               ConstraintComponent,
               (g) => ConstraintComponent.update(g, { connectorLineOffsetPx: beforeValue }),
             );
+            this.activeDragListener = null;
           },
         });
         break;
