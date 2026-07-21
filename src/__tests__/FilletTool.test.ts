@@ -450,8 +450,8 @@ describe('FilletTool', () => {
   it('should disallow hovering over polygon vertex points with previously attached fillets', async () => {
     const events = subscribeToEvents(filletTool, ['pendingCornerChange']);
 
-    // Create a new rectangle
-    const rectangle = geometryStore.addOrdered(
+    // Create a new polygon
+    const polygon = geometryStore.addOrdered(
       ID_PREFIXES.polygon,
       Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 0)], {
         closed: true,
@@ -461,11 +461,59 @@ describe('FilletTool', () => {
     // Add a fillet centered on the upperLeft point of the rectangle
     geometryStore.add(
       ID_PREFIXES.filter,
-      FilletFilter.createOnPolygon(rectangle.id, 0, 1, 2, Length.centimeters(20)),
+      FilletFilter.createOnPolygon(polygon.id, 0, 1, 2, Length.centimeters(20)),
     );
 
     // Hovering over point at index=1 does nothing
     toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
     expect(await events.waitFor<CornerState | null>('pendingCornerChange')).toBeNull();
+  });
+
+  it('should disallow adding another fillet on top of a polygon point with a fillet already', async () => {
+    // Create a new polygon
+    const rectangle = geometryStore.addOrdered(
+      ID_PREFIXES.rectangle,
+      Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100)),
+    );
+
+    // Add a fillet centered on the upperLeft point of the rectangle
+    geometryStore.add(
+      ID_PREFIXES.filter,
+      FilletFilter.createOnRectangle(rectangle.id, 'upperLeft', 'upperRight', 'lowerRight', Length.centimeters(20)),
+    );
+
+    // Simulate attempting to add another filler - hover over, click, and enter offset
+    toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
+    toolManager.handleMouseDown(sheetToScreen(100, 0, viewport), viewport);
+    filletTool.onChangeCurrentOffset(Length.centimeters(20));
+    filletTool.commit();
+
+    // Make sure that after this there is only one fillet (ie, the original one)
+    expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(1);
+  });
+
+  it('should disallow adding another fillet on top of a polygon point with a fillet already', async () => {
+    // Create a new polygon
+    const polygon = geometryStore.addOrdered(
+      ID_PREFIXES.polygon,
+      Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 0)], {
+        closed: true,
+      }),
+    );
+
+    // Add a fillet centered on the upperLeft point of the rectangle
+    geometryStore.add(
+      ID_PREFIXES.filter,
+      FilletFilter.createOnPolygon(polygon.id, 0, 1, 2, Length.centimeters(20)),
+    );
+
+    // Simulate attempting to add another filler - hover over, click, and enter offset
+    toolManager.handleMouseMove(sheetToScreen(100, 0, viewport), viewport);
+    toolManager.handleMouseDown(sheetToScreen(100, 0, viewport), viewport);
+    filletTool.onChangeCurrentOffset(Length.centimeters(20));
+    filletTool.commit();
+
+    // Make sure that after this there is only one fillet (ie, the original one)
+    expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(1);
   });
 });
