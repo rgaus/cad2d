@@ -1,7 +1,13 @@
 'use client';
 
-import { Entity, FillColorComponent, GeometryComponent, PolygonSegment } from '@/lib/entity';
+import { useViewportContext } from '@/contexts/viewport-context';
+import { Entity, FillColorComponent, GeometryComponent, PolygonSegment, RenderShape } from '@/lib/entity';
 import { BoundingBox, DeCasteljau } from '@/lib/math';
+import { Filter } from '@/lib/entity/filters';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { useSheetDefaultUnit } from '@/hooks/useSheetDefaultUnit';
+import { Sheet } from '@/lib/sheet/Sheet';
 
 /**
  * Builds an SVG path string from a list of polygon segments.
@@ -68,7 +74,9 @@ export type ShapePreviewHighlight =
   | { type: 'segment'; index: number; color?: string };
 
 type ShapePreviewProps = {
-  shape: Entity<GeometryComponent>;
+  geometry: Entity<GeometryComponent>;
+  sheetDefaultUnit: Sheet['defaultUnit'];
+  filters: Array<Filter>;
   highlight?: ShapePreviewHighlight | null;
   hoveredPointIndex?: number;
   editingDimension?: ShapePreviewEditingDimension | null;
@@ -82,107 +90,70 @@ function hexToFill(hex: number | null): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-function hexToStroke(hex: number): string {
-  const r = (hex >> 16) & 0xff;
-  const g = (hex >> 8) & 0xff;
-  const b = hex & 0xff;
-  return `rgb(${r}, ${g}, ${b})`;
-}
-
 export default function ShapePreview({
-  shape,
+  geometry,
+  sheetDefaultUnit,
+  filters,
   highlight,
   hoveredPointIndex,
   editingDimension,
 }: ShapePreviewProps) {
+  const renderShapes = useMemo(() => {
+    return GeometryComponent.getRenderShapes(geometry, sheetDefaultUnit, filters, {
+      combineNonClosedPolygons: false,
+    });
+  }, [geometry, sheetDefaultUnit, filters]);
+
+  const primaryRenderShape = useMemo(() => renderShapes.find((s) => s.primary), [renderShapes]);
+  const primaryRenderShapeBBox = useMemo(() => primaryRenderShape ? RenderShape.boundingBox(primaryRenderShape) : null, [primaryRenderShape]);
+
+  const bounds = useMemo(() => {
+    if (!primaryRenderShapeBBox) {
+      return {
+        minX: Infinity,
+        minY: Infinity,
+        maxX: 0,
+        maxY: 0,
+      };
+    }
+
+    return {
+      minX: primaryRenderShapeBBox.position.x,
+      minY: primaryRenderShapeBBox.position.y,
+      maxX: primaryRenderShapeBBox.position.x + primaryRenderShapeBBox.width,
+      maxY: primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height,
+    };
+  }, [primaryRenderShapeBBox]);
+
+  const points = useMemo(() => {
+    let points: Array<{ x: number; y: number }> = [];
+
+    const geometryData = GeometryComponent.get(geometry);
+    switch (geometryData.type) {
+      case 'polygon':
+        points = geometryData.points.map((s: PolygonSegment) => ({ x: s.point.x, y: s.point.y }));
+        break;
+      case 'rectangle':
+        points = [
+          { x: geometryData.upperLeft.x, y: geometryData.upperLeft.y },
+          { x: geometryData.lowerRight.x, y: geometryData.upperLeft.y },
+          { x: geometryData.lowerRight.x, y: geometryData.lowerRight.y },
+          { x: geometryData.upperLeft.x, y: geometryData.lowerRight.y },
+        ];
+        break;
+      case 'ellipse':
+        break;
+      default:
+        geometryData satisfies never;
+        throw new Error(`ShapePreview: Unknown geometry data type ${(geometryData as any).type}`);
+    }
+
+    return points;
+  }, [geometry]);
+
   const viewBox = '0 0 60 60';
   const padding = 8;
   const usableSize = 60 - padding * 2;
-
-  let bounds: {
-    minX: number;
-    minY: number;
-    maxX: number;
-    maxY: number;
-    width: number;
-    height: number;
-  };
-  let points: Array<{ x: number; y: number }> = [];
-
-  const geometryData = GeometryComponent.get(shape);
-  switch (geometryData.type) {
-    case 'polygon':
-      const polygonBounds = BoundingBox.fromPoints(
-        geometryData.points.flatMap((point, index) => {
-          const nextPoint = geometryData.points[index + 1];
-          if (PolygonSegment.isQuadratic(point) && nextPoint) {
-            return [
-              point.point,
-              // Use midpoint of curve to get bounding box extents:
-              DeCasteljau.getQuadraticBezierPointAt(
-                { start: point.point, end: nextPoint.point, controlPoint: point.controlPoint },
-                0.5,
-              ),
-            ];
-          } else if (PolygonSegment.isCubic(point) && nextPoint) {
-            return [
-              point.point,
-              // Use midpoint of curve to get bounding box extents:
-              DeCasteljau.getCubicBezierPointAt(
-                {
-                  start: point.point,
-                  end: nextPoint.point,
-                  controlPointA: point.controlPointA,
-                  controlPointB: point.controlPointB,
-                },
-                0.5,
-              ),
-            ];
-          } else {
-            return [point.point];
-          }
-        }),
-      );
-      bounds = {
-        minX: polygonBounds.position.x,
-        minY: polygonBounds.position.y,
-        maxX: polygonBounds.position.x + polygonBounds.width,
-        maxY: polygonBounds.position.y + polygonBounds.height,
-        width: polygonBounds.width,
-        height: polygonBounds.height,
-      };
-      points = geometryData.points.map((s: PolygonSegment) => ({ x: s.point.x, y: s.point.y }));
-      break;
-    case 'rectangle':
-      bounds = {
-        minX: geometryData.upperLeft.x,
-        minY: geometryData.upperLeft.y,
-        maxX: geometryData.lowerRight.x,
-        maxY: geometryData.lowerRight.y,
-        width: geometryData.lowerRight.x - geometryData.upperLeft.x,
-        height: geometryData.lowerRight.y - geometryData.upperLeft.y,
-      };
-      points = [
-        { x: geometryData.upperLeft.x, y: geometryData.upperLeft.y },
-        { x: geometryData.lowerRight.x, y: geometryData.upperLeft.y },
-        { x: geometryData.lowerRight.x, y: geometryData.lowerRight.y },
-        { x: geometryData.upperLeft.x, y: geometryData.lowerRight.y },
-      ];
-      break;
-    case 'ellipse':
-      bounds = {
-        minX: geometryData.center.x - geometryData.radiusX,
-        minY: geometryData.center.y - geometryData.radiusY,
-        maxX: geometryData.center.x + geometryData.radiusX,
-        maxY: geometryData.center.y + geometryData.radiusY,
-        width: geometryData.radiusX * 2,
-        height: geometryData.radiusY * 2,
-      };
-      break;
-    default:
-      geometryData satisfies never;
-      throw new Error(`ShapePreview: Unknown geometry data type ${(geometryData as any).type}`);
-  }
 
   const boundsWidth = bounds.maxX - bounds.minX || 1;
   const boundsHeight = bounds.maxY - bounds.minY || 1;
@@ -200,9 +171,9 @@ export default function ShapePreview({
     return offsetY + (y - bounds.minY) * scale;
   }
 
-  const fillColor = FillColorComponent.getOptional(shape);
+  const fillColor = FillColorComponent.getOptional(geometry);
   const fill = typeof fillColor === 'number' ? hexToFill(fillColor) : 'none';
-  const stroke = hexToStroke(0x000000);
+  const stroke = '#000000';
 
   return (
     <svg
@@ -210,43 +181,92 @@ export default function ShapePreview({
       className="w-full aspect-square"
       style={{ backgroundColor: '#fafafa', borderRadius: '4px' }}
     >
-      {GeometryComponent.isRectangle(shape) && (
-        <rect
-          x={toSvg(bounds.minX, bounds.minY)[0]}
-          y={toSvg(bounds.minX, bounds.minY)[1]}
-          width={boundsWidth * scale}
-          height={boundsHeight * scale}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth="1"
-        />
-      )}
-      {GeometryComponent.isEllipse(shape) && (
-        <ellipse
-          cx={toSvg((bounds.minX + bounds.maxX) / 2, 0)[0]}
-          cy={toSvg(0, (bounds.minY + bounds.maxY) / 2)[1]}
-          rx={(boundsWidth * scale) / 2}
-          ry={(boundsHeight * scale) / 2}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth="1"
-        />
-      )}
-      {GeometryComponent.isPolygon(shape) && (
+      {renderShapes.sort((a, b) => {
+        // Render primary shapes last, so they are above non primary shapes
+        return (a.primary ? 1 : -1) - (b.primary ? 1 : -1);
+      }).map((renderShape) => {
+        switch (renderShape.shape) {
+          case 'rectangle':
+            return (
+              <rect
+                key={renderShape.key}
+                x={toSvg(renderShape.upperLeft.x, renderShape.upperLeft.y)[0]}
+                y={toSvg(renderShape.upperLeft.x, renderShape.upperLeft.y)[1]}
+                width={(renderShape.lowerRight.x - renderShape.upperLeft.x) * scale}
+                height={(renderShape.lowerRight.y - renderShape.upperLeft.y) * scale}
+                fill={fill}
+                stroke={stroke}
+                strokeWidth="1"
+                opacity={renderShape.primary ? 1 : 0.5}
+              />
+            );
+          case 'ellipse':
+            return (
+              <ellipse
+                key={renderShape.key}
+                cx={toSvg(renderShape.center.x, renderShape.center.y)[0]}
+                cy={toSvg(renderShape.center.x, renderShape.center.y)[1]}
+                rx={renderShape.radiusX * scale}
+                ry={renderShape.radiusY * scale}
+                fill={fill}
+                stroke={stroke}
+                strokeWidth="1"
+                opacity={renderShape.primary ? 1 : 0.5}
+              />
+            );
+          case 'polygon':
+            return (
+              <Fragment key={renderShape.key}>
+                {points.length >= 2 ? (
+                  <path
+                    d={buildPolygonPath(
+                      renderShape.points,
+                      toSvg,
+                      renderShape.closed,
+                    )}
+                    fill={renderShape.closed && fill !== 'none' ? fill : 'none'}
+                    stroke={stroke}
+                    strokeWidth="1"
+                    strokeLinejoin="round"
+                    opacity={renderShape.primary ? 1 : 0.5}
+                  />
+                ) : null}
+              </Fragment>
+            );
+          default:
+            renderShape satisfies never;
+            throw new Error(`ShapePreview render: No rendershape with shape=${(renderShape as any).shape} known!`);
+        }
+      })}
+
+      {/* Render some filters on top of shape */}
+      {filters.map((filter) => {
+        const filterData = FilterComponent.get(filter);
+        switch (filterData.type) {
+          case 'fillet':
+          case 'chamfer':
+            return null;
+          case 'mirror':
+            return (
+              <line
+                key={filter.id}
+                x1={toSvg(filterData.pointA.x, filterData.pointA.y)[0]}
+                y1={toSvg(filterData.pointA.x, filterData.pointA.y)[1]}
+                x2={toSvg(filterData.pointB.x, filterData.pointB.y)[0]}
+                y2={toSvg(filterData.pointB.x, filterData.pointB.y)[1]}
+                stroke="rgba(0,0,0,0.4)"
+                strokeWidth="1"
+                strokeDasharray="2,2"
+              />
+            );
+          default:
+            filterData satisfies never;
+            throw new Error(`ShapePreview filter render: No filter with type=${(filterData as any).type} known!`);
+        }
+      })}
+
+      {GeometryComponent.isPolygon(geometry) ? (
         <>
-          {points.length >= 2 ? (
-            <path
-              d={buildPolygonPath(
-                GeometryComponent.get(shape).points,
-                toSvg,
-                GeometryComponent.get(shape).closed,
-              )}
-              fill={GeometryComponent.get(shape).closed && fill !== 'none' ? fill : 'none'}
-              stroke={stroke}
-              strokeWidth="1"
-              strokeLinejoin="round"
-            />
-          ) : null}
           {highlight?.type === 'segment' &&
           typeof points[highlight.index]?.x !== 'undefined' &&
           typeof points[highlight.index]?.y !== 'undefined' ? (
@@ -289,16 +309,28 @@ export default function ShapePreview({
             );
           })}
         </>
-      )}
+      ) : null}
 
       {/* Dimension line for editing width */}
-      {editingDimension === 'width' ? (
+      {editingDimension === 'width' && primaryRenderShapeBBox ? (
         <polyline
           points={[
-            [toSvgX(bounds.minX), toSvgY(bounds.maxY) + 2],
-            [toSvgX(bounds.minX), toSvgY(bounds.maxY) + 5],
-            [toSvgX(bounds.maxX), toSvgY(bounds.maxY) + 5],
-            [toSvgX(bounds.maxX), toSvgY(bounds.maxY) + 2],
+            [
+              toSvgX(primaryRenderShapeBBox.position.x),
+              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 2
+            ],
+            [
+              toSvgX(primaryRenderShapeBBox.position.x),
+              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 5
+            ],
+            [
+              toSvgX(primaryRenderShapeBBox.position.x + primaryRenderShapeBBox.width),
+              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 5
+            ],
+            [
+              toSvgX(primaryRenderShapeBBox.position.x + primaryRenderShapeBBox.width),
+              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 2
+            ],
           ]
             .map((p) => p.join(','))
             .join(' ')}
@@ -307,11 +339,11 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'radiusX' && GeometryComponent.isEllipse(shape) ? (
+      {editingDimension === 'radiusX' && GeometryComponent.isEllipse(geometry) ? (
         <polyline
           points={[
-            [toSvgX(GeometryComponent.get(shape).center.x), toSvgY(bounds.minY) - 2],
-            [toSvgX(GeometryComponent.get(shape).center.x), toSvgY(bounds.minY) - 5],
+            [toSvgX(GeometryComponent.get(geometry).center.x), toSvgY(bounds.minY) - 2],
+            [toSvgX(GeometryComponent.get(geometry).center.x), toSvgY(bounds.minY) - 5],
             [toSvgX(bounds.minX), toSvgY(bounds.minY) - 5],
             [toSvgX(bounds.minX), toSvgY(bounds.minY) - 2],
           ]
@@ -322,13 +354,25 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'height' ? (
+      {editingDimension === 'height' && primaryRenderShapeBBox ? (
         <polyline
           points={[
-            [toSvgX(bounds.minX) - 2, toSvgY(bounds.minY)],
-            [toSvgX(bounds.minX) - 5, toSvgY(bounds.minY)],
-            [toSvgX(bounds.minX) - 5, toSvgY(bounds.maxY)],
-            [toSvgX(bounds.minX) - 2, toSvgY(bounds.maxY)],
+            [
+              toSvgX(primaryRenderShapeBBox.position.x) - 2,
+              toSvgY(primaryRenderShapeBBox.position.y),
+            ],
+            [
+              toSvgX(primaryRenderShapeBBox.position.x) - 5,
+              toSvgY(primaryRenderShapeBBox.position.y),
+            ],
+            [
+              toSvgX(primaryRenderShapeBBox.position.x) - 5,
+              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height),
+            ],
+            [
+              toSvgX(primaryRenderShapeBBox.position.x) - 2,
+              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height),
+            ],
           ]
             .map((p) => p.join(','))
             .join(' ')}
@@ -337,11 +381,11 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'radiusY' && GeometryComponent.isEllipse(shape) ? (
+      {editingDimension === 'radiusY' && GeometryComponent.isEllipse(geometry) ? (
         <polyline
           points={[
-            [toSvgX(bounds.minX) - 2, toSvgY(GeometryComponent.get(shape).center.y)],
-            [toSvgX(bounds.minX) - 5, toSvgY(GeometryComponent.get(shape).center.y)],
+            [toSvgX(bounds.minX) - 2, toSvgY(GeometryComponent.get(geometry).center.y)],
+            [toSvgX(bounds.minX) - 5, toSvgY(GeometryComponent.get(geometry).center.y)],
             [toSvgX(bounds.minX) - 5, toSvgY(bounds.minY)],
             [toSvgX(bounds.minX) - 2, toSvgY(bounds.minY)],
           ]
@@ -352,27 +396,27 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'origin' && GeometryComponent.isEllipse(shape) ? (
+      {editingDimension === 'origin' && GeometryComponent.isEllipse(geometry) ? (
         <>
           <line
-            x1={toSvgX(GeometryComponent.get(shape).center.x)}
+            x1={toSvgX(GeometryComponent.get(geometry).center.x)}
             y1={toSvgY(bounds.minY)}
-            x2={toSvgX(GeometryComponent.get(shape).center.x)}
+            x2={toSvgX(GeometryComponent.get(geometry).center.x)}
             y2={toSvgY(bounds.maxY)}
             stroke="rgba(0,0,0,0.2)"
             strokeWidth={1}
           />
           <line
             x1={toSvgX(bounds.minX)}
-            y1={toSvgY(GeometryComponent.get(shape).center.y)}
+            y1={toSvgY(GeometryComponent.get(geometry).center.y)}
             x2={toSvgX(bounds.maxX)}
-            y2={toSvgY(GeometryComponent.get(shape).center.y)}
+            y2={toSvgY(GeometryComponent.get(geometry).center.y)}
             stroke="rgba(0,0,0,0.2)"
             strokeWidth={1}
           />
           <rect
-            x={toSvgX(GeometryComponent.get(shape).center.x) - vertexSizeInPx / 2}
-            y={toSvgY(GeometryComponent.get(shape).center.y) - vertexSizeInPx / 2}
+            x={toSvgX(GeometryComponent.get(geometry).center.x) - vertexSizeInPx / 2}
+            y={toSvgY(GeometryComponent.get(geometry).center.y) - vertexSizeInPx / 2}
             width={vertexSizeInPx}
             height={vertexSizeInPx}
             fill="white"
@@ -381,7 +425,7 @@ export default function ShapePreview({
           />
         </>
       ) : null}
-      {editingDimension === 'origin' && GeometryComponent.isRectangle(shape) ? (
+      {editingDimension === 'origin' && GeometryComponent.isRectangle(geometry) ? (
         <rect
           x={toSvgX(bounds.minX) - vertexSizeInPx / 2}
           y={toSvgY(bounds.minY) - vertexSizeInPx / 2}

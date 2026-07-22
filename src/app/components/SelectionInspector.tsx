@@ -43,6 +43,9 @@ import FloatingPanel from './FloatingPanel';
 import LabeledRow from './LabeledRow';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from './ShapePreview';
+import { GeometryData } from '@/lib/entity/geometry';
+import { type Filter } from '@/lib/entity/filters';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 
 type SelectionInspectorProps = {
   sheet: Sheet;
@@ -70,6 +73,32 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
       {linked ? <Link2Icon size={14} /> : <Link2OffIcon size={14} />}
     </button>
   );
+}
+
+/** Returns a list of filters which are associated with the given geometry id. */
+function useGeometryFilters(geometryStore: GeometryStore, geometryId?: Entity['id'] | null) {
+  const [filters, setFilters] = useState<Array<Filter>>(() => {
+    return geometryId ? geometryStore.findFiltersByGeometryId(geometryId) : [];
+  });
+
+  useEffect(() => {
+    const update = (entity: Entity) => {
+      if (!Entity.hasComponent(entity, FilterComponent)) {
+        return;
+      }
+      const data = FilterComponent.get(entity);
+      if (data.geometryId !== geometryId) {
+        return;
+      }
+      setFilters(geometryStore.findFiltersByGeometryId(geometryId));
+    };
+    geometryStore.on('geometryUpdated', update);
+    return () => {
+      geometryStore.off('geometryUpdated', update);
+    };
+  }, [geometryStore, geometryId]);
+
+  return filters;
 }
 
 /** Listening to a full fidelity stream of geometry update events and rerendering on each event
@@ -100,6 +129,8 @@ const RectangleInspector: React.FunctionComponent<{
     }
     return geometry;
   });
+
+  const filters = useGeometryFilters(geometryStore, geometry?.id);
 
   const rectangle = useMemo(() => (geometry ? GeometryComponent.get(geometry) : null), [geometry]);
   const linkDimensions = useMemo(
@@ -274,7 +305,14 @@ const RectangleInspector: React.FunctionComponent<{
     <div className="flex flex-col gap-3">
       <div className="flex flex-row justify-center w-full py-2">
         <div className="w-20 shrink-0 aspect-square overflow-hidden">
-          {geometry ? <ShapePreview shape={geometry} editingDimension={editingDimension} /> : null}
+          {geometry ? (
+            <ShapePreview
+              geometry={geometry}
+              sheetDefaultUnit={sheetDefaultUnit}
+              filters={filters}
+              editingDimension={editingDimension}
+            />
+          ) : null}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -369,6 +407,8 @@ const EllipseInspector: React.FunctionComponent<{
     }
     return geometry;
   });
+
+  const filters = useGeometryFilters(geometryStore, geometry?.id);
 
   const ellipse = useMemo(() => (geometry ? GeometryComponent.get(geometry) : null), [geometry]);
   const linkDimensions = useMemo(
@@ -535,7 +575,14 @@ const EllipseInspector: React.FunctionComponent<{
     <div className="flex flex-col gap-3">
       <div className="flex flex-row justify-center w-full py-2">
         <div className="w-20 shrink-0 aspect-square overflow-hidden">
-          {geometry ? <ShapePreview shape={geometry} editingDimension={editingDimension} /> : null}
+          {geometry ? (
+            <ShapePreview
+              geometry={geometry}
+              sheetDefaultUnit={sheetDefaultUnit}
+              filters={filters}
+              editingDimension={editingDimension}
+            />
+          ) : null}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -888,6 +935,8 @@ const PolygonInspector: React.FunctionComponent<{
     return geometry;
   });
 
+  const filters = useGeometryFilters(geometryStore, polygon?.id);
+
   const [shapePreviewHighlight, setShapePreviewHighlight] = useState<ShapePreviewHighlight | null>(
     null,
   );
@@ -980,7 +1029,6 @@ const PolygonInspector: React.FunctionComponent<{
       if (
         geometry.id !== polygonId ||
         !Entity.hasComponent(geometry, GeometryComponent) ||
-        !Entity.hasComponent(geometry, LinkDimensionsComponent) ||
         !GeometryComponent.isPolygon(geometry)
       ) {
         return;
@@ -1307,7 +1355,9 @@ const PolygonInspector: React.FunctionComponent<{
       <div className="flex flex-row justify-center w-full py-2">
         <div className="w-20 shrink-0 aspect-square overflow-hidden">
           <ShapePreview
-            shape={polygon}
+            geometry={polygon}
+            sheetDefaultUnit={sheetDefaultUnit}
+            filters={filters}
             highlight={shapePreviewHighlight}
             editingDimension={editingDimension}
           />

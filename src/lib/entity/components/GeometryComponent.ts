@@ -1,4 +1,4 @@
-import { BoundingBox, CornerReplacement, closestPointOnSegment } from '@/lib/math';
+import { BoundingBox, CornerReplacement } from '@/lib/math';
 import { type UnitType } from '@/lib/units/length';
 import {
   CubicCurve,
@@ -28,12 +28,14 @@ export type RenderShapePolygon = {
 export type RenderShapeRectangle = {
   shape: 'rectangle';
   key: string;
+  primary: boolean;
   upperLeft: SheetPosition;
   lowerRight: SheetPosition;
 };
 export type RenderShapeEllipse = {
   shape: 'ellipse';
   key: string;
+  primary: boolean;
   center: SheetPosition;
   radiusX: number;
   radiusY: number;
@@ -41,7 +43,7 @@ export type RenderShapeEllipse = {
 
 export type RenderShape = RenderShapePolygon | RenderShapeRectangle | RenderShapeEllipse;
 
-namespace RenderShape {
+export namespace RenderShape {
   export function polygon(
     key: string,
     points: Array<PolygonSegment>,
@@ -59,15 +61,49 @@ namespace RenderShape {
     key: string,
     upperLeft: SheetPosition,
     lowerRight: SheetPosition,
+    options?: { primary?: boolean },
   ): RenderShape {
-    return { shape: 'rectangle' as const, key, upperLeft, lowerRight };
+    return {
+      shape: 'rectangle' as const,
+      key,
+      primary: options?.primary ?? false,
+      upperLeft,
+      lowerRight,
+    };
   }
   export function ellipse(
     key: string,
     center: SheetPosition,
-    args: { radiusX: number; radiusY: number },
+    args: { radiusX: number; radiusY: number; primary?: boolean },
   ): RenderShape {
-    return { shape: 'ellipse' as const, key, center, radiusX: args.radiusX, radiusY: args.radiusY };
+    return {
+      shape: 'ellipse' as const,
+      key,
+      primary: args?.primary ?? false,
+      center,
+      radiusX: args.radiusX,
+      radiusY: args.radiusY,
+    };
+  }
+
+  export function boundingBox(renderShape: RenderShape) {
+    switch (renderShape.shape) {
+      case 'polygon':
+        return BoundingBox.fromPoints(renderShape.points.map((p) => p.point));
+      case 'rectangle':
+        return BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]);
+      case 'ellipse':
+        return BoundingBox.fromPoints([
+          renderShape.center,
+          new SheetPosition(renderShape.center.x, renderShape.center.y + renderShape.radiusY),
+          new SheetPosition(renderShape.center.x, renderShape.center.y - renderShape.radiusY),
+          new SheetPosition(renderShape.center.x + renderShape.radiusX, renderShape.center.y),
+          new SheetPosition(renderShape.center.x - renderShape.radiusX, renderShape.center.y),
+        ]);
+      default:
+        renderShape satisfies never;
+        throw new Error(`RenderShape.boundingBox: Unknown render shape ${(renderShape as any).shape}`);
+    }
   }
 }
 
@@ -583,6 +619,12 @@ export namespace GeometryComponent {
     geometry: Entity<GeometryComponent<GeometryData>>,
     sheetDefaultUnit: UnitType,
     filters: Array<Filter> = [],
+    options: {
+      /** Defaults to true. When set to false, a non closed polygon which would become closed (ie,
+        * polygon mirrored over a mirror line) will be returned as two distinct polygons (one
+        * primary, one not) so that the two halves can be rendered differently. */
+      combineNonClosedPolygons: boolean;
+    } = { combineNonClosedPolygons: true }
   ): Array<RenderShape> {
     let shapes;
 
@@ -594,13 +636,14 @@ export namespace GeometryComponent {
         ];
         break;
       case 'rectangle':
-        shapes = [RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight)];
+        shapes = [RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight, { primary: true })];
         break;
       case 'ellipse':
         shapes = [
           RenderShape.ellipse(geometry.id, state.center, {
             radiusX: state.radiusX,
             radiusY: state.radiusY,
+            primary: true,
           }),
         ];
         break;
@@ -716,6 +759,19 @@ export namespace GeometryComponent {
                   !renderShape.closed &&
                   MirrorFilter.arePolygonEndpointsOnMirrorLine(filterData, renderShape.points)
                 ) {
+                  // In some cases (ie, when rendering in ShapePreview), combining together the
+                  // polygons actually isn't what is desired, so that the mirrored part can be
+                  // rendered differently.
+                  //
+                  // In this case, return them seperately, though importantly, the mirrored section
+                  // is CLOSED! Which is different than what would happen normally.
+                  if (!options.combineNonClosedPolygons) {
+                    return [
+                      { ...renderShape, closed: true },
+                      RenderShape.polygon(key, mirroredPoints, { closed: true }),
+                    ];
+                  }
+
                   const combined = [
                     ...renderShape.points,
                     // Flip around the mirrored points so it can continue where `renderShape`
