@@ -9,6 +9,7 @@ import {
   SheetPosition,
 } from '@/lib/viewport/types';
 import { Filter, FilterData } from '../filters';
+import { MirrorFilter } from '../filters/mirror';
 import { type Geometry, type GeometryData } from '../geometry';
 import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
@@ -16,7 +17,6 @@ import { RectangleData } from '../geometry/rectangle';
 import { type Entity, type EntityComponent, ResizeParams } from '../types';
 import { ConstraintComponent } from './ConstraintComponent';
 import { FilterComponent } from './FilterComponent';
-import { MirrorFilter } from '../filters/mirror';
 
 export type RenderShapePolygon = {
   shape: 'polygon';
@@ -712,7 +712,10 @@ export namespace GeometryComponent {
                 // If a polygon which is non closed is mirrored across the mirror line and the start
                 // and end points are both exactly ON the mirror line, then combine the two mirrored
                 // halves into one filled polygon
-                if (!renderShape.closed && MirrorFilter.arePolygonEndpointsOnMirrorLine(filterData, renderShape.points)) {
+                if (
+                  !renderShape.closed &&
+                  MirrorFilter.arePolygonEndpointsOnMirrorLine(filterData, renderShape.points)
+                ) {
                   const combined = [
                     ...renderShape.points,
                     // Flip around the mirrored points so it can continue where `renderShape`

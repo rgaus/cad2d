@@ -431,7 +431,9 @@ describe('GeometryComponent', () => {
     });
 
     it('returns single plain point for a one-segment path', () => {
-      const result = PolygonSegment.reverseList([{ type: 'point', point: new SheetPosition(5, 10) }]);
+      const result = PolygonSegment.reverseList([
+        { type: 'point', point: new SheetPosition(5, 10) },
+      ]);
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({ type: 'point', point: new SheetPosition(5, 10) });
     });

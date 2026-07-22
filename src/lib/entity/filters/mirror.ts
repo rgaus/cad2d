@@ -1,7 +1,7 @@
-import { SheetPosition } from '@/lib/viewport/types';
-import { Entity, PolygonSegment, type Polygon } from '..';
-import { FilterComponent } from '../components/FilterComponent';
 import { closestPointOnSegment } from '@/lib/math';
+import { SheetPosition } from '@/lib/viewport/types';
+import { Entity, type Polygon, PolygonSegment } from '..';
+import { FilterComponent } from '../components/FilterComponent';
 
 export type MirrorFilterData = {
   type: 'mirror';
@@ -28,11 +28,13 @@ export namespace MirrorFilter {
   }
 
   /** Given a polygon segment path for an open polygon, returns true if the polygon segment path
-    * should be mirrored across the line due to the points touching the mirror line directly. */
-  export function arePolygonEndpointsOnMirrorLine<F extends {
-    pointA: SheetPosition | null;
-    pointB: SheetPosition | null;
-  }>(filterData: F, points: Array<PolygonSegment>): boolean {
+   * should be mirrored across the line due to the points touching the mirror line directly. */
+  export function arePolygonEndpointsOnMirrorLine<
+    F extends {
+      pointA: SheetPosition | null;
+      pointB: SheetPosition | null;
+    },
+  >(filterData: F, points: Array<PolygonSegment>): boolean {
     if (points.length < 2 || !filterData.pointA || !filterData.pointB) {
       return false;
     }
@@ -44,24 +46,16 @@ export namespace MirrorFilter {
       firstPoint,
     );
     const firstPointOnMirrorLine =
-      firstPointResult.distance === 0 &&
-      firstPointResult.t > 0 &&
-      firstPointResult.t < 1;
+      firstPointResult.distance === 0 && firstPointResult.t > 0 && firstPointResult.t < 1;
 
     if (!firstPointOnMirrorLine) {
       return false;
     }
 
     const lastPoint = points.at(-1)!.point;
-    const lastPointResult = closestPointOnSegment(
-      filterData.pointA,
-      filterData.pointB,
-      lastPoint,
-    );
+    const lastPointResult = closestPointOnSegment(filterData.pointA, filterData.pointB, lastPoint);
     const lastPointOnMirrorLine =
-      lastPointResult.distance === 0 &&
-      lastPointResult.t > 0 &&
-      lastPointResult.t < 1;
+      lastPointResult.distance === 0 && lastPointResult.t > 0 && lastPointResult.t < 1;
 
     if (!lastPointOnMirrorLine) {
       return false;

@@ -126,12 +126,14 @@ const FilterOverlay: React.FunctionComponent = () => {
       if (!viewportControls) {
         return;
       }
-      toolManager.getActiveTool().handleFilterEndpointPointerDown<MirrorFilterData>(
-        new ScreenPosition(e.clientX, e.clientY),
-        viewportControls,
-        filterId,
-        pointKey,
-      );
+      toolManager
+        .getActiveTool()
+        .handleFilterEndpointPointerDown<MirrorFilterData>(
+          new ScreenPosition(e.clientX, e.clientY),
+          viewportControls,
+          filterId,
+          pointKey,
+        );
     },
     [toolManager, viewportControls],
   );
