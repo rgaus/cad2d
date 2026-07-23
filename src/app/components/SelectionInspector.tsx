@@ -1405,6 +1405,8 @@ const PolygonInspector: React.FunctionComponent<{
                 <LengthInput
                   value={Length.fromSheetUnits(sheetDefaultUnit, bounds.height)}
                   onChange={handleBoundsHChange}
+                  onFocus={() => setEditingDimension('height')}
+                  onBlur={() => setEditingDimension(null)}
                   roundPlaces={sheetUnitPlaces}
                   readOnlyUnit
                 />
