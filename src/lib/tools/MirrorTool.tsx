@@ -1,11 +1,12 @@
 import { SquareCenterlineDashedHorizontalIcon } from 'lucide-react';
-import { Entity } from '@/lib/entity';
+import { Entity, GeometryComponent } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { applySnapping, applySnappingLineSeries } from '../snapping';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { ScreenPosition, SheetPosition, ViewportState } from '../viewport/types';
 import { BaseTool } from './BaseTool';
+import { FilterComponent } from '../entity/components/FilterComponent';
 
 export type MirrorToolEvents = {
   previewSheetPositionChange: (pos: SheetPosition | null) => void;
@@ -188,11 +189,24 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
     if (workingFilter?.type !== 'mirror' || !workingFilter.pointA || !workingFilter.pointB) {
       return;
     }
+    const pointA = workingFilter.pointA;
+    const pointB = workingFilter.pointB;
 
-    this.getGeometryStore().add(
-      ID_PREFIXES.filter,
-      MirrorFilter.create(workingFilter.geometryId, workingFilter.pointA, workingFilter.pointB),
-    );
+    this.getHistoryManager().applyTransaction('add-mirror-filter', () => {
+      this.getGeometryStore().add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(workingFilter.geometryId, pointA, pointB),
+      );
+
+      // After making the filter, automatically apply / unapply the associated fill color to the
+      // linked geometry
+      this.getGeometryStore().updateByIdWithComponent(workingFilter.geometryId, GeometryComponent, (geometry) => {
+        return FilterComponent.syncFillColor(
+          geometry,
+          this.getGeometryStore().findFiltersByGeometryId(geometry.id),
+        );
+      });
+    }, { collapseIfSingle: true });
 
     this.abort();
   }

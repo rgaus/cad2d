@@ -1050,6 +1050,24 @@ const PolygonInspector: React.FunctionComponent<{
     [polygon],
   );
 
+  // Some filters (ie, MirrorFilter) can fill a polygon automatically even if it isn't itself closed
+  // (ie, a non closed polygon attached to a mirror filter could have both mirrored sides combined
+  // into a fully closed shape). When this occurs, render the close / open polygon button in a
+  // special state.
+  const isPolygonFilledDueToFilter = useMemo(() => {
+    if (!polygon) {
+      return false;
+    }
+
+    const data = GeometryComponent.get(polygon);
+    if (data.closed) {
+      return false;
+    }
+
+    const fillColor = FillColorComponent.getOptional(polygon);
+    return typeof fillColor !== 'undefined';
+  }, [polygon]);
+
   const handlePointXChange = useCallback(
     (index: number, len: Length) => {
       if (!polygon) {
@@ -1485,33 +1503,40 @@ const PolygonInspector: React.FunctionComponent<{
           })}
         </div>
       </div>
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={handleCloseOpen}
-        className={cn('w-full border border-2 border-transparent', {
-          'hover:border-[var(--teal-5)]': polygonData.closed,
-        })}
-        style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
-        onMouseEnter={() => {
-          if (polygonData.closed) {
-            setOpenAtIndexDragging(true);
-            setShapePreviewHighlight({
-              type: 'segment',
-              index: polygonData.openAtIndex,
-              color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
-            });
-          }
-        }}
-        onMouseLeave={() => {
-          if (polygonData.closed) {
-            setOpenAtIndexDragging(false);
-            setShapePreviewHighlight(null);
-          }
-        }}
-      >
-        {polygonData.closed ? 'Open polygon' : 'Close polygon'}
-      </Button>
+      {isPolygonFilledDueToFilter ? (
+        <div className="flex items-center justify-center px-3 h-9 bg-[var(--slate-4)] border-[var(--slate-6)] border-1">
+          <span className="text-xs font-medium select-none text-[var(--slate-9)]">Auto closed by filter</span>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={isPolygonFilledDueToFilter}
+          onClick={handleCloseOpen}
+          className={cn('w-full border border-2 border-transparent', {
+            'hover:border-[var(--teal-5)]': polygonData.closed,
+          })}
+          style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+          onMouseEnter={() => {
+            if (polygonData.closed) {
+              setOpenAtIndexDragging(true);
+              setShapePreviewHighlight({
+                type: 'segment',
+                index: polygonData.openAtIndex,
+                color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+              });
+            }
+          }}
+          onMouseLeave={() => {
+            if (polygonData.closed) {
+              setOpenAtIndexDragging(false);
+              setShapePreviewHighlight(null);
+            }
+          }}
+        >
+          {polygonData.closed ? 'Open polygon' : 'Close polygon'}
+        </Button>
+      )}
     </div>
   );
 };

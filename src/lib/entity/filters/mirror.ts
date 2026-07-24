@@ -1,7 +1,13 @@
 import { closestPointOnSegment } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Entity, type Polygon, PolygonSegment } from '..';
+import { GeometryStore } from '../GeometryStore';
+import { DEFAULT_COLOR } from '../colors';
+import { FillColorComponent } from '../components/FillColorComponent';
 import { FilterComponent } from '../components/FilterComponent';
+import { GeometryComponent } from '../components/GeometryComponent';
+import { PolygonData } from '../geometry/polygon';
+import { type Id } from '../types';
 
 export type MirrorFilterData = {
   type: 'mirror';
@@ -62,6 +68,44 @@ export namespace MirrorFilter {
     }
 
     return true;
+  }
+
+  /**
+   * Synchronizes {@link FillColorComponent} on a non-closed polygon based on
+   * whether any attached mirror filter has both endpoints on the mirror line.
+   *
+   * - On add: restores fill color from `lastFillColor` (falls back to
+   *   {@link DEFAULT_COLOR}).
+   * - On remove: stashes the current fill color into `lastFillColor` before
+   *   stripping the component, preserving the color for future re-adds.
+   * - No-op for closed polygons (FillColorComponent is managed independently).
+   */
+  export function syncFillColor<G extends Entity<GeometryComponent & Partial<FillColorComponent>>>(geometry: G, filterData: MirrorFilterData): G {
+    const polyData = GeometryComponent.get(geometry);
+    if (polyData.type !== 'polygon' || polyData.closed) {
+      return geometry;
+    }
+
+    const shouldFill = (
+      filterData.type === 'mirror' &&
+      filterData.geometryId === geometry.id &&
+      arePolygonEndpointsOnMirrorLine(filterData, polyData.points)
+    );
+
+    const hasFill = FillColorComponent.has(geometry);
+
+    if (shouldFill && !hasFill) {
+      const color = typeof polyData.lastFillColor !== 'undefined' ? polyData.lastFillColor : DEFAULT_COLOR;
+      return FillColorComponent.update(geometry, color);
+    } else if (!shouldFill && hasFill) {
+      const currentColor = FillColorComponent.getOptional(geometry);
+      const withLastFill = GeometryComponent.update(geometry, {
+        lastFillColor: currentColor ?? null,
+      });
+      return FillColorComponent.remove(withLastFill) as G;
+    } else {
+      return geometry;
+    }
   }
 }
 

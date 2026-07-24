@@ -866,6 +866,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               ),
             );
           }
+
+          // After moving a filter endpoint, resync the filled state of any associated geometries
+          this.getGeometryStore().updateByIdWithComponent(this.draggingPolygonId, GeometryComponent, (geometry) => {
+            return FilterComponent.syncFillColor(
+              geometry,
+              this.getGeometryStore().findFiltersByGeometryId(geometry.id),
+            );
+          });
         }
         this.activeDragListener = null;
         this.clearDragState();
@@ -2603,12 +2611,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     filterId: Filter['id'],
     pointKey: keyof FD,
   ): void {
-    const filterGeom = this.getGeometryStore().getByIdWithComponent(filterId, FilterComponent);
-    if (!filterGeom) {
+    const filter = this.getGeometryStore().getByIdWithComponent(filterId, FilterComponent);
+    if (!filter) {
       return;
     }
-    const filter = FilterComponent.get<FD>(filterGeom);
-    const rawFilter = filter as Record<string, unknown>;
+    const filterData = FilterComponent.get<FD>(filter);
+    const rawFilter = filterData as Record<string, unknown>;
 
     const otherPointKey = pointKey === 'pointA' ? 'pointB' : 'pointA';
     const otherPoint = rawFilter[otherPointKey] as SheetPosition;
@@ -2714,6 +2722,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               ),
             );
           }
+
+          // After moving a filter endpoint, resync the filled state of any associated geometries
+          this.getGeometryStore().updateByIdWithComponent(filterData.geometryId, GeometryComponent, (geometry) => {
+            return FilterComponent.syncFillColor(
+              geometry,
+              this.getGeometryStore().findFiltersByGeometryId(geometry.id),
+            );
+          });
         });
         this.activeDragListener = null;
       },

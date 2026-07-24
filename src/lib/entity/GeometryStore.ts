@@ -36,6 +36,7 @@ import {
   VerticalConstraint,
 } from './constraints';
 import { Ellipse } from './ellipse';
+import { MirrorFilter } from './filters/mirror';
 import { type Geometry, type GeometryData } from './geometry';
 import { EllipseData } from './geometry/ellipse';
 import { PolygonData } from './geometry/polygon';
@@ -570,6 +571,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
+    // If the entity being deleted is a filter, capture the geometry it
+    // is attached to so the fill color can be re-synced after deletion.
+    let filterAssociatedGeometryId: Entity['id'] | null = null;
+    if (Entity.hasComponent(geometry, FilterComponent)) {
+      const fd = FilterComponent.get(geometry as Entity<FilterComponent>);
+      filterAssociatedGeometryId = fd.geometryId;
+    }
+
     this.historyManager.applyTransaction('delete-geometry-cascade', () => {
       // Record and cascade delete attached constraints
       for (const constraintGeom of this.findConstraintsByGeometryId(id)) {
@@ -599,6 +608,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       // Record and delete the geometry
       this.historyManager.push(UndoEntry.deleteGeometry(geometry));
       this.deleteByIdDirect(id);
+
+      // If the entity being deleted is a filter, it could potentialyl effect whether associated
+      // geometries are filled (ie, MirrorFilter). So recompute the filled state on any previously
+      // linked geometries.
+      if (filterAssociatedGeometryId) {
+        this.updateByIdWithComponent(filterAssociatedGeometryId, GeometryComponent, (geometry) => {
+          return FilterComponent.syncFillColor(
+            geometry,
+            this.findFiltersByGeometryId(geometry.id),
+          );
+        });
+      }
     });
   }
 
@@ -685,7 +706,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const [before, after] = results;
 
     if (Entity.hasComponent(before, GeometryComponent)) {
-      const beforeData = GeometryComponent.get(before);
+      const beforeData = GeometryComponent.get<GeometryData>(before);
       const afterData = GeometryComponent.get(after as Entity<GeometryComponent>);
       switch (beforeData.type) {
         case 'polygon': {
@@ -719,8 +740,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           break;
         }
         default:
+          beforeData satisfies never;
           break;
       }
+
+      // After updatinga  geometry, resync its filled state based on any associated filters which
+      // may effect it.
+      this.updateByIdWithComponentDirect(id, GeometryComponent, (old) => {
+        return FilterComponent.syncFillColor(
+          old,
+          this.findFiltersByGeometryId(id),
+        );
+      });
     } else if (Entity.hasComponent(before, DatumComponent)) {
       const beforeData = { position: DatumComponent.get(before) };
       const afterData = { position: DatumComponent.get(after as Entity<DatumComponent>) };

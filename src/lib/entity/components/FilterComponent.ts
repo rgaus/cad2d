@@ -1,6 +1,9 @@
 import { Filter, type FilterData } from '../filters';
+import { MirrorFilter } from '../filters/mirror';
 import { RectangleEndpoint } from '../rectangle';
 import { type Entity, type EntityComponent } from '../types';
+import { FillColorComponent } from './FillColorComponent';
+import { type GeometryComponent } from './GeometryComponent';
 
 /**
  * Geometry component for a filter.
@@ -93,5 +96,27 @@ export namespace FilterComponent {
         filter satisfies never;
         return false;
     }
+  }
+
+  /** Given a geometry which has been recently moved and all fitlers associated with that geometry,
+    * returns a the geometry updated with a FillColorComponent based on whether it should be filled
+    * or not. */
+  export function syncFillColor<G extends Entity<GeometryComponent & Partial<FillColorComponent>>>(geometry: G, filters: Array<Filter>): G {
+    let accumulator = geometry;
+    for (const filter of filters) {
+      const filterData = FilterComponent.get(filter);
+      switch (filterData.type) {
+        case 'fillet':
+        case 'chamfer':
+          break;
+        case 'mirror':
+          accumulator = MirrorFilter.syncFillColor(accumulator, filterData);
+          break;
+        default:
+          filterData satisfies never;
+          break;
+      }
+    }
+    return accumulator;
   }
 }

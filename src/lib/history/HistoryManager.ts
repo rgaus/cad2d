@@ -15,6 +15,7 @@ import { type Sheet } from '@/lib/sheet/Sheet';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { FilterComponent } from '../entity/components/FilterComponent';
+import { MirrorFilter } from '../entity/filters/mirror';
 import { UndoEntry } from './types';
 
 /** Events emitted by HistoryManager. */
