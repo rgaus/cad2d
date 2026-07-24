@@ -8,6 +8,7 @@ import { FilterComponent } from '../components/FilterComponent';
 import { GeometryComponent } from '../components/GeometryComponent';
 import { PolygonData } from '../geometry/polygon';
 import { type Id } from '../types';
+import { UndoEntry } from '@/lib/history/types';
 
 export type MirrorFilterData = {
   type: 'mirror';
@@ -80,10 +81,14 @@ export namespace MirrorFilter {
    *   stripping the component, preserving the color for future re-adds.
    * - No-op for closed polygons (FillColorComponent is managed independently).
    */
-  export function syncFillColor<G extends Entity<GeometryComponent & Partial<FillColorComponent>>>(geometry: G, filterData: MirrorFilterData): G {
+  export function syncFillColor<G extends Entity<GeometryComponent & Partial<FillColorComponent>>>(
+    geometry: G,
+    filterData: MirrorFilterData,
+    originalGeometry?: G,
+  ): [G, UndoEntry | null] {
     const polyData = GeometryComponent.get(geometry);
     if (polyData.type !== 'polygon' || polyData.closed) {
-      return geometry;
+      return [geometry, null];
     }
 
     const shouldFill = (
@@ -92,19 +97,23 @@ export namespace MirrorFilter {
       arePolygonEndpointsOnMirrorLine(filterData, polyData.points)
     );
 
-    const hasFill = FillColorComponent.has(geometry);
+    const prev = originalGeometry ?? geometry;
+    const hasFill = FillColorComponent.has(prev);
 
     if (shouldFill && !hasFill) {
       const color = typeof polyData.lastFillColor !== 'undefined' ? polyData.lastFillColor : DEFAULT_COLOR;
-      return FillColorComponent.update(geometry, color);
+      return [FillColorComponent.update(geometry, color), UndoEntry.fillColorAdd(geometry.id, color)] as const;
     } else if (!shouldFill && hasFill) {
-      const currentColor = FillColorComponent.getOptional(geometry);
+      const currentColor = FillColorComponent.get(prev);
       const withLastFill = GeometryComponent.update(geometry, {
-        lastFillColor: currentColor ?? null,
+        lastFillColor: currentColor,
       });
-      return FillColorComponent.remove(withLastFill) as G;
+      return [
+        FillColorComponent.remove(withLastFill) as G,
+        UndoEntry.fillColorRemove(geometry.id, currentColor),
+      ] as const;
     } else {
-      return geometry;
+      return [geometry, null];
     }
   }
 }

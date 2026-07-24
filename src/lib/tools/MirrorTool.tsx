@@ -201,10 +201,16 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
       // After making the filter, automatically apply / unapply the associated fill color to the
       // linked geometry
       this.getGeometryStore().updateByIdWithComponent(workingFilter.geometryId, GeometryComponent, (geometry) => {
-        return FilterComponent.syncFillColor(
+        const [output, events] = FilterComponent.syncFillColor(
           geometry,
           this.getGeometryStore().findFiltersByGeometryId(geometry.id),
         );
+        if (output !== geometry) {
+          for (const event of events) {
+            this.getHistoryManager().push(event);
+          }
+        }
+        return output;
       });
     }, { collapseIfSingle: true });
 

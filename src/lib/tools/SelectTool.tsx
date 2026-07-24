@@ -8,6 +8,7 @@ import {
   DatumComponent,
   Entity,
   EntityOmitComponents,
+  FillColorComponent,
   GeometryComponent,
   type Id,
   LinkDimensionsComponent,
@@ -309,6 +310,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   private originalDragState = new Map<Id, DragState | null>();
   /** Stores the original polygon state for restore on cancel. */
   private originalPolygonState: { points: Array<PolygonSegment> } | null = null;
+  private originalPolygonFillColor: FillColorComponent[keyof FillColorComponent] | undefined = null;
   /** Stores all locked point segments that move together (includes the dragged point). */
   private lockedPoints: Array<{ polygonId: Id; segmentIndex: number }> = [];
   /** Stores the original polygon state for each locked polygon for restore on cancel. */
@@ -651,6 +653,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingPointKey = 'vertex';
     this.dragStartSheetPos = sheetPos;
     this.originalPolygonState = { points: polygonData.points.slice() };
+    this.originalPolygonFillColor = FillColorComponent.getOptional(polygonGeom);
 
     this.lockedPoints = [{ polygonId, segmentIndex }];
     this.originalLockedPolygonStates.clear();
@@ -714,8 +717,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           this.getSheet()?.epsilon ?? 0.001,
         );
 
-        this.getGeometryStore().updateByIdDirect(this.draggingPolygonId, (prev) => {
-          if (!Entity.hasComponent(prev, GeometryComponent) || !GeometryComponent.isPolygon(prev)) {
+        this.getGeometryStore().updateByIdWithComponentDirect(this.draggingPolygonId, GeometryComponent, (prev) => {
+          if (!GeometryComponent.isPolygon(prev)) {
             return prev;
           }
           const prevData = GeometryComponent.get(prev);
@@ -738,7 +741,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             points[points.length - 1] = { ...points[points.length - 1], point: snapped };
           }
 
-          return GeometryComponent.update(prev, { points }) as Entity;
+          const updated = GeometryComponent.update(prev, { points });
+          const [output] = FilterComponent.syncFillColor(
+            updated,
+            this.getGeometryStore().findFiltersByGeometryId(updated.id),
+          );
+          return output;
         });
 
         // Move points which are at the same position in the same way as the selected polygon.
@@ -854,42 +862,58 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             }
           }
 
-          if (moves.length > 1) {
-            this.getHistoryManager().push(UndoEntry.polygonMoveMultipleVertices(moves));
-          } else {
-            this.getHistoryManager().push(
-              UndoEntry.polygonMoveVertex(
-                this.draggingPolygonId,
-                this.draggingSegmentIndex,
-                beforePoint,
-                afterPoint,
-              ),
-            );
-          }
+          this.getHistoryManager().applyTransaction('polygon-vertex-move', () => {
+            if (moves.length > 1) {
+              this.getHistoryManager().push(UndoEntry.polygonMoveMultipleVertices(moves));
+            } else {
+              this.getHistoryManager().push(
+                UndoEntry.polygonMoveVertex(
+                  this.draggingPolygonId!,
+                  this.draggingSegmentIndex,
+                  beforePoint,
+                  afterPoint,
+                ),
+              );
+            }
 
-          // After moving a filter endpoint, resync the filled state of any associated geometries
-          this.getGeometryStore().updateByIdWithComponent(this.draggingPolygonId, GeometryComponent, (geometry) => {
-            return FilterComponent.syncFillColor(
-              geometry,
-              this.getGeometryStore().findFiltersByGeometryId(geometry.id),
-            );
-          });
+            // After moving a filter endpoint, resync the filled state of any associated geometries
+            this.getGeometryStore().updateByIdWithComponentDirect(this.draggingPolygonId!, GeometryComponent, (geometry) => {
+              const [output, historyEvents] = FilterComponent.syncFillColor(
+                geometry,
+                this.getGeometryStore().findFiltersByGeometryId(geometry.id),
+                polygonGeom,
+              );
+              if (output !== geometry) {
+                for (const event of historyEvents) {
+                  this.getHistoryManager().push(event);
+                }
+              }
+              return output;
+            });
+          }, { collapseIfSingle: true });
         }
         this.activeDragListener = null;
         this.clearDragState();
       },
       onCancel: () => {
         if (this.draggingPolygonId && this.originalPolygonState) {
-          this.getGeometryStore().updateByIdDirect(this.draggingPolygonId, (prev) => {
+          this.getGeometryStore().updateByIdWithComponentDirect(this.draggingPolygonId, GeometryComponent, (prev) => {
             if (
               !Entity.hasComponent(prev, GeometryComponent) ||
               !GeometryComponent.isPolygon(prev)
             ) {
               return prev;
             }
-            return GeometryComponent.update(prev, {
+
+            const updated = GeometryComponent.update(prev, {
               points: this.originalPolygonState!.points.slice(),
-            }) as Entity;
+            }) as Entity<GeometryComponent & Partial<FillColorComponent>>;
+
+            if (typeof this.originalPolygonFillColor !== 'undefined') {
+              return FillColorComponent.update(updated, this.originalPolygonFillColor);
+            } else {
+              return FillColorComponent.remove(updated);
+            }
           });
         }
 
@@ -2724,11 +2748,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
 
           // After moving a filter endpoint, resync the filled state of any associated geometries
-          this.getGeometryStore().updateByIdWithComponent(filterData.geometryId, GeometryComponent, (geometry) => {
-            return FilterComponent.syncFillColor(
+          this.getGeometryStore().updateByIdWithComponentDirect(filterData.geometryId, GeometryComponent, (geometry) => {
+            const [output, historyEvents] = FilterComponent.syncFillColor(
               geometry,
               this.getGeometryStore().findFiltersByGeometryId(geometry.id),
             );
+            if (output !== geometry) {
+              for (const event of historyEvents) {
+                this.getHistoryManager().push(event);
+              }
+            }
+            return output;
           });
         });
         this.activeDragListener = null;

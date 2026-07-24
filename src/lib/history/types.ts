@@ -1,12 +1,10 @@
 import {
   type ConstraintEndpoint,
   Entity,
-  FillColorComponent,
   GeometryComponent,
   type Id,
   Polygon,
   PolygonSegment,
-  RenderOrderComponent,
 } from '@/lib/entity';
 import { type Length, type SerializedLength, type UnitType } from '@/lib/units/length';
 import type { SheetPosition } from '@/lib/viewport/types';
@@ -39,6 +37,24 @@ export type FillColorEntry = {
   id: Id;
   beforeColor: number | null;
   afterColor: number | null;
+};
+
+/** Recorded when a geometry fill color component is forcefully added (ie, polygon being attached
+* to a mirror filter, making a non closed polygon filled.) */
+export type FillColorAddEntry = {
+  type: 'fill-color-add';
+  id: Id;
+  // Before is unset
+  afterColor: number | null;
+};
+
+/** Recorded when a geometry fill color component is forcefully removed (ie, polygon being detached
+* from a mirror filter, making a non closed polygon no longer filled.) */
+export type FillColorRemoveEntry = {
+  type: 'fill-color-remove';
+  id: Id;
+  beforeColor: number | null;
+  // After is unset
 };
 
 /** Recorded when a geometry render order is changed. */
@@ -332,6 +348,8 @@ export type UndoEntry =
   | InsertEntry
   | DeleteEntry
   | FillColorEntry
+  | FillColorAddEntry
+  | FillColorRemoveEntry
   | RenderOrderEntry
   | LinkDimensionsEntry
   | PolygonMoveEntry
@@ -511,6 +529,24 @@ export namespace UndoEntry {
     afterColor: number | null,
   ): FillColorEntry {
     return { type: 'fill-color', id, beforeColor, afterColor };
+  }
+
+  /** Recorded when a geometry fill color component is forcefully addd (ie, polygon being detachec
+  * from a mirror filter, making a non closed polygon no longer filled.) */
+  export function fillColorAdd(
+    id: Id,
+    afterColor: number | null,
+  ): FillColorAddEntry {
+    return { type: 'fill-color-add', id, afterColor };
+  }
+
+  /** Recorded when a geometry fill color component is forcefully removed (ie, polygon being detachec
+  * from a mirror filter, making a non closed polygon no longer filled.) */
+  export function fillColorRemove(
+    id: Id,
+    beforeColor: number | null,
+  ): FillColorRemoveEntry {
+    return { type: 'fill-color-remove', id, beforeColor };
   }
 
   /** Creates an entry for changing a geometry's render order. */

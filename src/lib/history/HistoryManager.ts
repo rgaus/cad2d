@@ -15,7 +15,6 @@ import { type Sheet } from '@/lib/sheet/Sheet';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { FilterComponent } from '../entity/components/FilterComponent';
-import { MirrorFilter } from '../entity/filters/mirror';
 import { UndoEntry } from './types';
 
 /** Events emitted by HistoryManager. */
@@ -242,9 +241,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.deleteByIdDirect(entry.geometry.id);
         break;
       case 'fill-color':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, FillColorComponent, (old) =>
+      case 'fill-color-add':
+        this.geometryStore.updateByIdDirect(entry.id, (old) =>
           FillColorComponent.update(old, entry.afterColor),
         );
+        break;
+      case 'fill-color-remove':
+        this.geometryStore.updateByIdDirect(entry.id, (old) => FillColorComponent.remove(old));
         break;
       case 'render-order':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, RenderOrderComponent, (old) =>
@@ -741,9 +744,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         );
         break;
       case 'fill-color':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, FillColorComponent, (old) =>
+      case 'fill-color-remove':
+        this.geometryStore.updateByIdDirect(entry.id, (old) =>
           FillColorComponent.update(old, entry.beforeColor),
         );
+        break;
+      case 'fill-color-add':
+        this.geometryStore.updateByIdDirect(entry.id, (old) => FillColorComponent.remove(old));
         break;
       case 'render-order':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, RenderOrderComponent, (old) =>

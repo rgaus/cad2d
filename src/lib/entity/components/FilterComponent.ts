@@ -1,3 +1,4 @@
+import { UndoEntry } from '@/lib/history/types';
 import { Filter, type FilterData } from '../filters';
 import { MirrorFilter } from '../filters/mirror';
 import { RectangleEndpoint } from '../rectangle';
@@ -100,9 +101,20 @@ export namespace FilterComponent {
 
   /** Given a geometry which has been recently moved and all fitlers associated with that geometry,
     * returns a the geometry updated with a FillColorComponent based on whether it should be filled
-    * or not. */
-  export function syncFillColor<G extends Entity<GeometryComponent & Partial<FillColorComponent>>>(geometry: G, filters: Array<Filter>): G {
+    * or not.
+    *
+    * If `originalGeometry` is passed, use this as the "before" geometry state when determining if
+    * the geoemtry needs to be filled. This is useful in contexts like dragging a polygon vertex
+    * where a bunch of *Direct updates are made to the geometry state with a final onCommit update
+    * which actually emits history events. Without this, the "before" state would be dirty state
+    * from the middle of the move, not the actual before state. */
+  export function syncFillColor<G extends Entity<GeometryComponent & Partial<FillColorComponent>>>(
+    geometry: G,
+    filters: Array<Filter>,
+    originalGeometry?: G,
+  ): [G, Array<UndoEntry>] {
     let accumulator = geometry;
+    const historyEvents: Array<UndoEntry> = [];
     for (const filter of filters) {
       const filterData = FilterComponent.get(filter);
       switch (filterData.type) {
@@ -110,13 +122,17 @@ export namespace FilterComponent {
         case 'chamfer':
           break;
         case 'mirror':
-          accumulator = MirrorFilter.syncFillColor(accumulator, filterData);
+          const output = MirrorFilter.syncFillColor(accumulator, filterData, originalGeometry);
+          accumulator = output[0];
+          if (output[1]) {
+            historyEvents.push(output[1]);
+          }
           break;
         default:
           filterData satisfies never;
           break;
       }
     }
-    return accumulator;
+    return [accumulator, historyEvents] as const;
   }
 }

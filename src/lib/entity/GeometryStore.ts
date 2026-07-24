@@ -36,7 +36,6 @@ import {
   VerticalConstraint,
 } from './constraints';
 import { Ellipse } from './ellipse';
-import { MirrorFilter } from './filters/mirror';
 import { type Geometry, type GeometryData } from './geometry';
 import { EllipseData } from './geometry/ellipse';
 import { PolygonData } from './geometry/polygon';
@@ -613,11 +612,17 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       // geometries are filled (ie, MirrorFilter). So recompute the filled state on any previously
       // linked geometries.
       if (filterAssociatedGeometryId) {
-        this.updateByIdWithComponent(filterAssociatedGeometryId, GeometryComponent, (geometry) => {
-          return FilterComponent.syncFillColor(
+        this.updateByIdWithComponentDirect(filterAssociatedGeometryId, GeometryComponent, (geometry) => {
+          const [output, events] = FilterComponent.syncFillColor(
             geometry,
             this.findFiltersByGeometryId(geometry.id),
           );
+          if (output !== geometry) {
+            for (const event of events) {
+              this.historyManager.push(event);
+            }
+          }
+          return output;
         });
       }
     });
@@ -744,13 +749,19 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           break;
       }
 
-      // After updatinga  geometry, resync its filled state based on any associated filters which
+      // After updating a geometry, resync its filled state based on any associated filters which
       // may effect it.
-      this.updateByIdWithComponentDirect(id, GeometryComponent, (old) => {
-        return FilterComponent.syncFillColor(
-          old,
+      this.updateByIdWithComponentDirect(id, GeometryComponent, (geometry) => {
+        const [output, events] = FilterComponent.syncFillColor(
+          geometry,
           this.findFiltersByGeometryId(id),
         );
+        if (output !== geometry) {
+          for (const event of events) {
+            this.historyManager.push(event);
+          }
+        }
+        return output;
       });
     } else if (Entity.hasComponent(before, DatumComponent)) {
       const beforeData = { position: DatumComponent.get(before) };
