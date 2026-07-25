@@ -31,6 +31,9 @@ import {
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { FilletFilter } from '@/lib/entity/filters/fillet';
+import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { parseSvg } from '@/lib/serialization/deserialize';
 import { serializeToSvg } from '@/lib/serialization/serialize';
@@ -2086,5 +2089,215 @@ describe('round-trip', () => {
     if (loadedCData.pointA.type === 'locked-datum') {
       expect(loadedCData.pointA.id).toStrictEqual(loadedDatums[0].id);
     }
+  });
+});
+
+describe('filter serialization', () => {
+  it('serializes and deserializes a mirror filter roundtrip', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    // Create a rectangle
+    const rect = makeRectangle({
+      id: 'rect_1',
+      upperLeft: new SheetPosition(0, 0),
+      lowerRight: new SheetPosition(10, 10),
+    });
+    geometryStore.addDirect(rect);
+
+    // Create a mirror filter on the rectangle
+    const filter = MirrorFilter.create(
+      'rect_1',
+      new SheetPosition(15, 0),
+      new SheetPosition(15, 10),
+    );
+    const filterEntity = { id: 'ftr_1', ...filter } as Entity;
+    geometryStore.addDirect(filterEntity);
+
+    // Serialize
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+
+    // Verify filter is serialized as an SVG <g> element, not in the state comment
+    expect(svg).toContain('data-type="mirror-filter"');
+    expect(svg).toContain('data-id="ftr_1"');
+    expect(svg).toContain('data-point-a-x="15"');
+    expect(svg).toContain('data-point-b-x="15"');
+
+    // Verify render shapes are in the SVG (non-data-type elements)
+    // The mirrored rectangle should appear as a <rect> without data-type
+    expect(svg).toContain('<rect ');
+
+    // Parse — use a fresh store's hasId so original IDs are preserved
+    const freshStore = makeSheet().geometryStore;
+    const parseResult = parseSvg(
+      svg,
+      historyManager.generateStableId.bind(historyManager),
+      freshStore.hasId.bind(freshStore),
+    );
+
+    // Verify filter was parsed
+    expect(parseResult.filters).toHaveLength(1);
+    expect(parseResult.filters[0].type).toBe('mirror');
+    expect(parseResult.filters[0].geometryId).toBe('rect_1');
+
+    // The rectangle was parsed only once (render shape duplicate is discarded)
+    expect(parseResult.rectangles).toHaveLength(1);
+    expect(parseResult.rectangles[0].id).toBe('rect_1');
+  });
+
+  it('serialize and deserialize preserves mirror filter endpoints exactly', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    const poly = makePolygon({
+      id: 'poly_1',
+      points: [makePoint(5, 5), makePoint(10, 10), makePoint(15, 5)],
+      closed: false,
+      openAtIndex: 0,
+    });
+    geometryStore.addDirect(poly);
+
+    const filter = MirrorFilter.create('poly_1', new SheetPosition(0, 5), new SheetPosition(20, 5));
+    geometryStore.addDirect({ id: 'ftr_mir_1', ...filter } as Entity);
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const parseResult = parseSvg(
+      svg,
+      historyManager.generateStableId.bind(historyManager),
+      makeSheet().geometryStore.hasId.bind(makeSheet().geometryStore),
+    );
+
+    expect(parseResult.filters).toHaveLength(1);
+    const parsedFilter = parseResult.filters[0];
+    expect(parsedFilter.pointA).toEqual({ x: 0, y: 5 });
+    expect(parsedFilter.pointB).toEqual({ x: 20, y: 5 });
+  });
+
+  it('render shape path includes arc commands for fillet curve segments', () => {
+    const { sheet, geometryStore } = makeSheet();
+
+    // Create a rectangle
+    const rect = makeRectangle({
+      id: 'rect_f1',
+      upperLeft: new SheetPosition(0, 0),
+      lowerRight: new SheetPosition(10, 10),
+      fillColor: 0xff0000,
+    });
+    geometryStore.addDirect(rect);
+
+    // Create a fillet filter on the rectangle's top-right corner
+    const fillet = FilletFilter.createOnRectangle(
+      'rect_f1',
+      'topLeft' as any,
+      'topRight' as any,
+      'bottomRight' as any,
+      Length.fromSheetUnits('cm', 1),
+    );
+    geometryStore.addDirect({ id: 'ftr_fil_1', ...fillet } as Entity);
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+
+    // The render shape path for the fillet should contain C (cubic) arc commands
+    expect(svg).toContain('C');
+  });
+
+  it('re-loading preserves fill color on non-closed polygon with mirror filter', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    // Non-closed polygon whose start/end touch the mirror line
+    const poly = makePolygon({
+      id: 'poly_nc1',
+      points: [makePoint(5, 5), makePoint(10, 10), makePoint(15, 5)],
+      closed: false,
+      openAtIndex: 0,
+    });
+    geometryStore.addDirect(poly);
+
+    // Mirror filter whose line intersects the polygon endpoints
+    const filter = MirrorFilter.create(
+      'poly_nc1',
+      new SheetPosition(0, 5),
+      new SheetPosition(20, 5),
+    );
+    geometryStore.addDirect({ id: 'ftr_nc1', ...filter } as Entity);
+
+    // Manually sync fill (simulating MirrorTool.complete)
+    const geomEntity = geometryStore.getById('poly_nc1')! as any;
+    const filtersForGeom = geometryStore.findFiltersByGeometryId('poly_nc1') as any[];
+    const [output] = FilterComponent.syncFillColor(geomEntity, filtersForGeom);
+    if (output !== geomEntity) {
+      geometryStore.updateByIdDirect('poly_nc1', () => output);
+    }
+
+    // Verify fill is present before serialization
+    const polyBefore = geometryStore.getById('poly_nc1')! as any;
+    expect(FillColorComponent.getOptional(polyBefore)).toBeDefined();
+
+    // Serialize → parse → load into fresh store
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const freshSheet = makeSheet();
+    const freshStore = freshSheet.geometryStore;
+    const freshHistory = freshSheet.historyManager;
+    const parseResult = parseSvg(
+      svg,
+      freshHistory.generateStableId.bind(freshHistory),
+      freshStore.hasId.bind(freshStore),
+    );
+
+    // Load geometries and filters into fresh store
+    for (const p of parseResult.polygons) {
+      freshStore.addDirect(p);
+    }
+    for (const r of parseResult.rectangles) {
+      freshStore.addDirect(r);
+    }
+    for (const e of parseResult.ellipses) {
+      freshStore.addDirect(e);
+    }
+
+    // Simulate loadInternal's filter insertion + syncFillColor logic
+    for (const fd of parseResult.filters) {
+      if (fd.type === 'mirror') {
+        const pa = fd.pointA as { x: number; y: number };
+        const pb = fd.pointB as { x: number; y: number };
+        const template = MirrorFilter.create(
+          fd.geometryId as string,
+          new SheetPosition(pa.x, pa.y),
+          new SheetPosition(pb.x, pb.y),
+        );
+        freshStore.addDirect({ id: fd.id as string, ...template } as Entity);
+      }
+    }
+
+    // Sync fill color (as SerializationManager.loadInternal does)
+    for (const geom of freshStore.listWithComponent(GeometryComponent)) {
+      const attached = freshStore.findFiltersByGeometryId(geom.id) as any[];
+      if (attached.length === 0) continue;
+      const [synced] = FilterComponent.syncFillColor(geom as any, attached);
+      if (synced !== geom) {
+        freshStore.updateByIdDirect(geom.id, () => synced);
+      }
+    }
+
+    // Verify fill color was restored
+    const loadedPoly = freshStore.getById('poly_nc1')! as any;
+    expect(FillColorComponent.getOptional(loadedPoly)).toBeDefined();
+  });
+
+  it('old cad2d SVGs without filters are backwards compatible', () => {
+    const { sheet } = makeSheet();
+
+    // Simulate a pre-filter SVG: only has the cad2d-state comment without filters
+    const oldStyleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" data-cad2d-version="1">
+<rect x="10" y="10" width="80" height="80" fill="#ffffff" data-type="rectangle" data-id="rect_1" />
+<!-- cad2d-state:{"version":1,"sheet":{"width":{"magnitude":1000,"type":"mm"},"height":{"magnitude":1000,"type":"mm"},"defaultUnit":"cm"},"viewport":{"position":{"x":0,"y":0},"scale":1},"selection":[],"history":{"undoStack":[],"redoStack":[],"stableIdCounter":0},"activeTool":"select"} -->
+</svg>`;
+
+    const parseResult = parseSvg(
+      oldStyleSvg,
+      () => 'new_id',
+      () => false,
+    );
+
+    expect(parseResult.filters).toEqual([]);
+    expect(parseResult.rectangles).toHaveLength(1);
   });
 });

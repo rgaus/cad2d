@@ -69,6 +69,34 @@ export namespace MirrorFilter {
     return true;
   }
 
+  /**
+   * Serializes mirror filter data to a JSON-safe object for storage in the
+   * cad2d-state SVG comment.
+   */
+  export function toJson(data: MirrorFilterData) {
+    return {
+      type: 'mirror' as const,
+      geometryId: data.geometryId,
+      pointA: { x: data.pointA.x, y: data.pointA.y },
+      pointB: { x: data.pointB.x, y: data.pointB.y },
+    };
+  }
+
+  /**
+   * Deserializes a mirror filter data object from JSON (as stored in the
+   * cad2d-state comment).
+   */
+  export function fromJson(json: Record<string, unknown>): MirrorFilterData {
+    const pointA = json.pointA as { x: number; y: number };
+    const pointB = json.pointB as { x: number; y: number };
+    return {
+      type: 'mirror',
+      geometryId: json.geometryId as string,
+      pointA: new SheetPosition(pointA.x, pointA.y),
+      pointB: new SheetPosition(pointB.x, pointB.y),
+    };
+  }
+
   export function translate(
     filter: Entity<FilterComponent<MirrorFilterData>>,
     transform: (point: SheetPosition) => SheetPosition,

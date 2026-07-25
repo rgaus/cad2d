@@ -301,6 +301,51 @@ export namespace GeometryComponent {
     }
   }
 
+  /**
+   * Returns true if a geometry entity and a render shape are geometrically
+   * identical (same type, same positions). Ignores metadata like `primary`
+   * and `key` on the render shape.
+   *
+   * Used during serialization to skip rendering a render shape that is a
+   * duplicate of the entity's own native SVG element.
+   */
+  export function isGeometricallyEqual(
+    geometry: Entity<GeometryComponent>,
+    renderShape: RenderShape,
+  ): boolean {
+    const data = GeometryComponent.get(geometry);
+    switch (data.type) {
+      case 'polygon':
+        if (renderShape.shape !== 'polygon') {
+          return false;
+        }
+        return PolygonData.isGeometricallyEqualToRenderShape(data.points, data.closed, renderShape);
+      case 'rectangle':
+        if (renderShape.shape !== 'rectangle') {
+          return false;
+        }
+        return (
+          data.upperLeft.x === renderShape.upperLeft.x &&
+          data.upperLeft.y === renderShape.upperLeft.y &&
+          data.lowerRight.x === renderShape.lowerRight.x &&
+          data.lowerRight.y === renderShape.lowerRight.y
+        );
+      case 'ellipse':
+        if (renderShape.shape !== 'ellipse') {
+          return false;
+        }
+        return (
+          data.center.x === renderShape.center.x &&
+          data.center.y === renderShape.center.y &&
+          data.radiusX === renderShape.radiusX &&
+          data.radiusY === renderShape.radiusY
+        );
+      default:
+        data satisfies never;
+        return false;
+    }
+  }
+
   export function resize<E extends Entity<GeometryComponent>>(
     geometry: E,
     params: ResizeParams,

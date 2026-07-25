@@ -399,6 +399,24 @@ export namespace PolygonData {
     );
   }
 
+  /**
+   * Compares polygon data points and closed state against a render shape.
+   * Returns true if both describe the same geometric path.
+   */
+  export function isGeometricallyEqualToRenderShape(
+    points: Array<PolygonSegment>,
+    closed: boolean,
+    renderShape: { shape: 'polygon'; points: Array<PolygonSegment>; closed: boolean },
+  ): boolean {
+    if (closed !== renderShape.closed) {
+      return false;
+    }
+    if (points.length !== renderShape.points.length) {
+      return false;
+    }
+    return points.every((seg, i) => PolygonSegment.equals(seg, renderShape.points[i]));
+  }
+
   export function resize<E extends Entity<GeometryComponent<PolygonData>>>(
     geometry: E,
     params: ResizeParams,
