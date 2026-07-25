@@ -943,7 +943,7 @@ export namespace GeometryComponent {
               newPoints.push(polySeg);
             }
 
-            return [RenderShape.polygon(key, newPoints, { closed })];
+            return [RenderShape.polygon(key, newPoints, { closed, primary: renderShape.primary })];
           });
           break;
         }
