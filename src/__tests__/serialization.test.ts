@@ -36,7 +36,7 @@ import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { parseSvg } from '@/lib/serialization/deserialize';
-import { serializeToSvg } from '@/lib/serialization/serialize';
+import { serializeFilter, serializeRectangle, serializeToSvg } from '@/lib/serialization/serialize';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION } from '@/lib/serialization/versions';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { Length } from '@/lib/units/length';
@@ -2280,6 +2280,88 @@ describe('filter serialization', () => {
     // Verify fill color was restored
     const loadedPoly = freshStore.getById('poly_nc1')! as any;
     expect(FillColorComponent.getOptional(loadedPoly)).toBeDefined();
+  });
+
+  it('copy-paste geometry with attached fillet filter creates one copy with correctly linked filter', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    // Original rectangle + fillet filter
+    const rect = makeRectangle({
+      id: 'rect_orig',
+      upperLeft: new SheetPosition(0, 0),
+      lowerRight: new SheetPosition(10, 10),
+      fillColor: 0xff0000,
+    });
+    geometryStore.addDirect(rect);
+
+    const fillet = FilletFilter.createOnRectangle(
+      'rect_orig',
+      'topLeft' as any,
+      'topRight' as any,
+      'bottomRight' as any,
+      Length.fromSheetUnits('cm', 1),
+    );
+    const filterEntity = { id: 'ftr_orig', ...fillet } as Entity;
+    geometryStore.addDirect(filterEntity);
+
+    // Build a fragment (simulating what formatSelectedAsFragment + Ctrl+C outputs)
+    const rectOutput = serializeRectangle(rect);
+    const filterOutput = serializeFilter(filterEntity);
+    const fragment = `<g>\n  ${rectOutput}\n  ${filterOutput}\n</g>`;
+
+    // Parse the fragment
+    const parseResult = parseSvg(
+      fragment,
+      historyManager.generateStableId.bind(historyManager),
+      geometryStore.hasId.bind(geometryStore),
+    );
+
+    // Verify parsed results
+    expect(parseResult.rectangles).toHaveLength(1);
+    expect(parseResult.filters).toHaveLength(1);
+
+    // The parsed IDs should be REWRITTEN (original IDs already exist in store)
+    const newRectId = parseResult.rectangles[0].id;
+    expect(newRectId).not.toBe('rect_orig');
+
+    const newFilter = parseResult.filters[0];
+    expect(newFilter.id).not.toBe('ftr_orig');
+    // Filter's geometryId must point to the NEW rectangle, not the original
+    expect(newFilter.geometryId).toBe(newRectId);
+
+    // Insert into the store (simulating paste)
+    geometryStore.addDirect(parseResult.rectangles[0]);
+
+    // Reconstruct and insert the filter (simulating loadInternal logic)
+    const fd = newFilter as any;
+    const offset = Length.fromSheetUnits(fd.offset.type, fd.offset.magnitude);
+    const template = FilletFilter.createOnRectangle(
+      fd.geometryId,
+      fd.pointAKeyPoint as any,
+      fd.pointCenterKeyPoint as any,
+      fd.pointBKeyPoint as any,
+      offset,
+    );
+    geometryStore.addDirect({ id: fd.id, ...template } as Entity);
+
+    // After insert, verify store state
+    // Original rect (1) + new rect (1) = 2 rectangles
+    const allRects = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+      const d = GeometryComponent.get(g as any);
+      return d.type === 'rectangle';
+    });
+    expect(allRects).toHaveLength(2);
+
+    // Original filter (1) + new filter (1) = 2 filters
+    const allFilters = geometryStore.listWithComponent(FilterComponent);
+    expect(allFilters).toHaveLength(2);
+
+    // The NEW filter must reference the NEW rectangle
+    const pastedFilter = allFilters.find((f) => f.id === newFilter.id);
+    expect(pastedFilter).toBeDefined();
+    if (pastedFilter) {
+      expect(FilterComponent.get(pastedFilter as any).geometryId).toBe(newRectId);
+    }
   });
 
   it('old cad2d SVGs without filters are backwards compatible', () => {

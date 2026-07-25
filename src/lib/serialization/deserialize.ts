@@ -581,7 +581,7 @@ function parseMirrorFilter(
   return {
     type: 'mirror',
     id,
-    geometryId: rewrittenIdMap.get(geometryId as string) ?? geometryId as string,
+    geometryId: rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
     pointA: {
       x: parseFloat(String(attrs['data-point-a-x'] ?? '0')),
       y: parseFloat(String(attrs['data-point-a-y'] ?? '0')),
@@ -627,7 +627,7 @@ function parseFilletOrChamferFilter(
   const base = {
     id,
     type,
-    geometryId: rewrittenIdMap.get(geometryId as string) ?? geometryId as string,
+    geometryId: rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
     offset: { magnitude: offsetMagnitude, type: offsetType },
     geometryType,
   };
@@ -1426,13 +1426,8 @@ export function parseSvg(
             break;
           }
           case 'g': {
-            // Recurse into groups without data-type
-            for (const child of element.children ?? []) {
-              if (typeof child === 'string') {
-                continue;
-              }
-              processElement(child);
-            }
+            // Recurse into groups without data-type — children are processed
+            // by the generic children-processing loop below.
             break;
           }
         }
