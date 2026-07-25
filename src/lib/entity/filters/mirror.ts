@@ -52,8 +52,7 @@ export namespace MirrorFilter {
       filterData.pointB,
       firstPoint,
     );
-    const firstPointOnMirrorLine =
-      firstPointResult.distance === 0 && firstPointResult.t > 0 && firstPointResult.t < 1;
+    const firstPointOnMirrorLine = firstPointResult.distance === 0;
 
     if (!firstPointOnMirrorLine) {
       return false;
@@ -61,8 +60,7 @@ export namespace MirrorFilter {
 
     const lastPoint = points.at(-1)!.point;
     const lastPointResult = closestPointOnSegment(filterData.pointA, filterData.pointB, lastPoint);
-    const lastPointOnMirrorLine =
-      lastPointResult.distance === 0 && lastPointResult.t > 0 && lastPointResult.t < 1;
+    const lastPointOnMirrorLine = lastPointResult.distance === 0;
 
     if (!lastPointOnMirrorLine) {
       return false;
