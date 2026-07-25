@@ -1,3 +1,4 @@
+import { UndoEntry } from '@/lib/history/types';
 import { closestPointOnSegment } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Entity, type Polygon, PolygonSegment } from '..';
@@ -7,8 +8,7 @@ import { FillColorComponent } from '../components/FillColorComponent';
 import { FilterComponent } from '../components/FilterComponent';
 import { GeometryComponent } from '../components/GeometryComponent';
 import { PolygonData } from '../geometry/polygon';
-import { type Id } from '../types';
-import { UndoEntry } from '@/lib/history/types';
+import type { Id } from '../types';
 
 export type MirrorFilterData = {
   type: 'mirror';
@@ -91,18 +91,21 @@ export namespace MirrorFilter {
       return [geometry, null];
     }
 
-    const shouldFill = (
+    const shouldFill =
       filterData.type === 'mirror' &&
       filterData.geometryId === geometry.id &&
-      arePolygonEndpointsOnMirrorLine(filterData, polyData.points)
-    );
+      arePolygonEndpointsOnMirrorLine(filterData, polyData.points);
 
     const prev = originalGeometry ?? geometry;
     const hasFill = FillColorComponent.has(prev);
 
     if (shouldFill && !hasFill) {
-      const color = typeof polyData.lastFillColor !== 'undefined' ? polyData.lastFillColor : DEFAULT_COLOR;
-      return [FillColorComponent.update(geometry, color), UndoEntry.fillColorAdd(geometry.id, color)] as const;
+      const color =
+        typeof polyData.lastFillColor !== 'undefined' ? polyData.lastFillColor : DEFAULT_COLOR;
+      return [
+        FillColorComponent.update(geometry, color),
+        UndoEntry.fillColorAdd(geometry.id, color),
+      ] as const;
     } else if (!shouldFill && hasFill) {
       const currentColor = FillColorComponent.get(prev);
       const withLastFill = GeometryComponent.update(geometry, {

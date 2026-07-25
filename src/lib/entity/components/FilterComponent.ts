@@ -100,14 +100,14 @@ export namespace FilterComponent {
   }
 
   /** Given a geometry which has been recently moved and all fitlers associated with that geometry,
-    * returns a the geometry updated with a FillColorComponent based on whether it should be filled
-    * or not.
-    *
-    * If `originalGeometry` is passed, use this as the "before" geometry state when determining if
-    * the geoemtry needs to be filled. This is useful in contexts like dragging a polygon vertex
-    * where a bunch of *Direct updates are made to the geometry state with a final onCommit update
-    * which actually emits history events. Without this, the "before" state would be dirty state
-    * from the middle of the move, not the actual before state. */
+   * returns a the geometry updated with a FillColorComponent based on whether it should be filled
+   * or not.
+   *
+   * If `originalGeometry` is passed, use this as the "before" geometry state when determining if
+   * the geoemtry needs to be filled. This is useful in contexts like dragging a polygon vertex
+   * where a bunch of *Direct updates are made to the geometry state with a final onCommit update
+   * which actually emits history events. Without this, the "before" state would be dirty state
+   * from the middle of the move, not the actual before state. */
   export function syncFillColor<G extends Entity<GeometryComponent & Partial<FillColorComponent>>>(
     geometry: G,
     filters: Array<Filter>,

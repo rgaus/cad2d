@@ -102,7 +102,9 @@ export namespace RenderShape {
         ]);
       default:
         renderShape satisfies never;
-        throw new Error(`RenderShape.boundingBox: Unknown render shape ${(renderShape as any).shape}`);
+        throw new Error(
+          `RenderShape.boundingBox: Unknown render shape ${(renderShape as any).shape}`,
+        );
     }
   }
 }
@@ -621,10 +623,10 @@ export namespace GeometryComponent {
     filters: Array<Filter> = [],
     options: {
       /** Defaults to true. When set to false, a non closed polygon which would become closed (ie,
-        * polygon mirrored over a mirror line) will be returned as two distinct polygons (one
-        * primary, one not) so that the two halves can be rendered differently. */
+       * polygon mirrored over a mirror line) will be returned as two distinct polygons (one
+       * primary, one not) so that the two halves can be rendered differently. */
       combineNonClosedPolygons: boolean;
-    } = { combineNonClosedPolygons: true }
+    } = { combineNonClosedPolygons: true },
   ): Array<RenderShape> {
     let shapes;
 
@@ -636,7 +638,9 @@ export namespace GeometryComponent {
         ];
         break;
       case 'rectangle':
-        shapes = [RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight, { primary: true })];
+        shapes = [
+          RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight, { primary: true }),
+        ];
         break;
       case 'ellipse':
         shapes = [

@@ -612,18 +612,22 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       // geometries are filled (ie, MirrorFilter). So recompute the filled state on any previously
       // linked geometries.
       if (filterAssociatedGeometryId) {
-        this.updateByIdWithComponentDirect(filterAssociatedGeometryId, GeometryComponent, (geometry) => {
-          const [output, events] = FilterComponent.syncFillColor(
-            geometry,
-            this.findFiltersByGeometryId(geometry.id),
-          );
-          if (output !== geometry) {
-            for (const event of events) {
-              this.historyManager.push(event);
+        this.updateByIdWithComponentDirect(
+          filterAssociatedGeometryId,
+          GeometryComponent,
+          (geometry) => {
+            const [output, events] = FilterComponent.syncFillColor(
+              geometry,
+              this.findFiltersByGeometryId(geometry.id),
+            );
+            if (output !== geometry) {
+              for (const event of events) {
+                this.historyManager.push(event);
+              }
             }
-          }
-          return output;
-        });
+            return output;
+          },
+        );
       }
     });
   }

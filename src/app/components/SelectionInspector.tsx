@@ -26,6 +26,9 @@ import {
   RenderOrderComponent,
 } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { type Filter } from '@/lib/entity/filters';
+import { GeometryData } from '@/lib/entity/geometry';
 import { EllipseData } from '@/lib/entity/geometry/ellipse';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
@@ -43,9 +46,6 @@ import FloatingPanel from './FloatingPanel';
 import LabeledRow from './LabeledRow';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from './ShapePreview';
-import { GeometryData } from '@/lib/entity/geometry';
-import { type Filter } from '@/lib/entity/filters';
-import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 
 type SelectionInspectorProps = {
   sheet: Sheet;
@@ -1505,7 +1505,9 @@ const PolygonInspector: React.FunctionComponent<{
       </div>
       {isPolygonFilledDueToFilter ? (
         <div className="flex items-center justify-center px-3 h-9 bg-[var(--slate-4)] border-[var(--slate-6)] border-1">
-          <span className="text-xs font-medium select-none text-[var(--slate-9)]">Auto closed by filter</span>
+          <span className="text-xs font-medium select-none text-[var(--slate-9)]">
+            Auto closed by filter
+          </span>
         </div>
       ) : (
         <Button

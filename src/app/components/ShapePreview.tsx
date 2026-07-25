@@ -1,12 +1,15 @@
 'use client';
 
-import { useViewportContext } from '@/contexts/viewport-context';
-import { Entity, FillColorComponent, GeometryComponent, PolygonSegment, RenderShape } from '@/lib/entity';
-import { BoundingBox, DeCasteljau } from '@/lib/math';
-import { Filter } from '@/lib/entity/filters';
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useMemo } from 'react';
+import {
+  Entity,
+  FillColorComponent,
+  GeometryComponent,
+  PolygonSegment,
+  RenderShape,
+} from '@/lib/entity';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
-import { useSheetDefaultUnit } from '@/hooks/useSheetDefaultUnit';
+import { Filter } from '@/lib/entity/filters';
 import { Sheet } from '@/lib/sheet/Sheet';
 
 /**
@@ -23,10 +26,14 @@ function buildPolygonPath(
   toSvg: (x: number, y: number) => [number, number],
   closed: boolean,
 ): string {
-  if (segments.length === 0) return '';
+  if (segments.length === 0) {
+    return '';
+  }
+
   const parts: Array<string> = [];
   const [startX, startY] = toSvg(segments[0].point.x, segments[0].point.y);
   parts.push(`M ${startX},${startY}`);
+
   for (let i = 1; i < segments.length; i++) {
     const seg = segments[i];
     const [ex, ey] = toSvg(seg.point.x, seg.point.y);
@@ -41,6 +48,7 @@ function buildPolygonPath(
       parts.push(`C ${c1x},${c1y} ${c2x},${c2y} ${ex},${ey}`);
     }
   }
+
   if (closed) {
     const lastSeg = segments[segments.length - 1];
     const [firstX, firstY] = toSvg(segments[0].point.x, segments[0].point.y);
@@ -105,7 +113,10 @@ export default function ShapePreview({
   }, [geometry, sheetDefaultUnit, filters]);
 
   const primaryRenderShape = useMemo(() => renderShapes.find((s) => s.primary), [renderShapes]);
-  const primaryRenderShapeBBox = useMemo(() => primaryRenderShape ? RenderShape.boundingBox(primaryRenderShape) : null, [primaryRenderShape]);
+  const primaryRenderShapeBBox = useMemo(
+    () => (primaryRenderShape ? RenderShape.boundingBox(primaryRenderShape) : null),
+    [primaryRenderShape],
+  );
 
   const bounds = useMemo(() => {
     if (!primaryRenderShapeBBox) {
@@ -181,63 +192,63 @@ export default function ShapePreview({
       className="w-full aspect-square"
       style={{ backgroundColor: '#fafafa', borderRadius: '4px' }}
     >
-      {renderShapes.sort((a, b) => {
-        // Render primary shapes last, so they are above non primary shapes
-        return (a.primary ? 1 : -1) - (b.primary ? 1 : -1);
-      }).map((renderShape) => {
-        switch (renderShape.shape) {
-          case 'rectangle':
-            return (
-              <rect
-                key={renderShape.key}
-                x={toSvg(renderShape.upperLeft.x, renderShape.upperLeft.y)[0]}
-                y={toSvg(renderShape.upperLeft.x, renderShape.upperLeft.y)[1]}
-                width={(renderShape.lowerRight.x - renderShape.upperLeft.x) * scale}
-                height={(renderShape.lowerRight.y - renderShape.upperLeft.y) * scale}
-                fill={fill}
-                stroke={stroke}
-                strokeWidth="1"
-                opacity={renderShape.primary ? 1 : 0.5}
-              />
-            );
-          case 'ellipse':
-            return (
-              <ellipse
-                key={renderShape.key}
-                cx={toSvg(renderShape.center.x, renderShape.center.y)[0]}
-                cy={toSvg(renderShape.center.x, renderShape.center.y)[1]}
-                rx={renderShape.radiusX * scale}
-                ry={renderShape.radiusY * scale}
-                fill={fill}
-                stroke={stroke}
-                strokeWidth="1"
-                opacity={renderShape.primary ? 1 : 0.5}
-              />
-            );
-          case 'polygon':
-            return (
-              <Fragment key={renderShape.key}>
-                {points.length >= 2 ? (
-                  <path
-                    d={buildPolygonPath(
-                      renderShape.points,
-                      toSvg,
-                      renderShape.closed,
-                    )}
-                    fill={renderShape.closed && fill !== 'none' ? fill : 'none'}
-                    stroke={stroke}
-                    strokeWidth="1"
-                    strokeLinejoin="round"
-                    opacity={renderShape.primary ? 1 : 0.5}
-                  />
-                ) : null}
-              </Fragment>
-            );
-          default:
-            renderShape satisfies never;
-            throw new Error(`ShapePreview render: No rendershape with shape=${(renderShape as any).shape} known!`);
-        }
-      })}
+      {renderShapes
+        .sort((a, b) => {
+          // Render primary shapes last, so they are above non primary shapes
+          return (a.primary ? 1 : -1) - (b.primary ? 1 : -1);
+        })
+        .map((renderShape) => {
+          switch (renderShape.shape) {
+            case 'rectangle':
+              return (
+                <rect
+                  key={renderShape.key}
+                  x={toSvg(renderShape.upperLeft.x, renderShape.upperLeft.y)[0]}
+                  y={toSvg(renderShape.upperLeft.x, renderShape.upperLeft.y)[1]}
+                  width={(renderShape.lowerRight.x - renderShape.upperLeft.x) * scale}
+                  height={(renderShape.lowerRight.y - renderShape.upperLeft.y) * scale}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth="1"
+                  opacity={renderShape.primary ? 1 : 0.5}
+                />
+              );
+            case 'ellipse':
+              return (
+                <ellipse
+                  key={renderShape.key}
+                  cx={toSvg(renderShape.center.x, renderShape.center.y)[0]}
+                  cy={toSvg(renderShape.center.x, renderShape.center.y)[1]}
+                  rx={renderShape.radiusX * scale}
+                  ry={renderShape.radiusY * scale}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth="1"
+                  opacity={renderShape.primary ? 1 : 0.5}
+                />
+              );
+            case 'polygon':
+              return (
+                <Fragment key={renderShape.key}>
+                  {points.length >= 2 ? (
+                    <path
+                      d={buildPolygonPath(renderShape.points, toSvg, renderShape.closed)}
+                      fill={renderShape.closed && fill !== 'none' ? fill : 'none'}
+                      stroke={stroke}
+                      strokeWidth="1"
+                      strokeLinejoin="round"
+                      opacity={renderShape.primary ? 1 : 0.5}
+                    />
+                  ) : null}
+                </Fragment>
+              );
+            default:
+              renderShape satisfies never;
+              throw new Error(
+                `ShapePreview render: No rendershape with shape=${(renderShape as any).shape} known!`,
+              );
+          }
+        })}
 
       {/* Render some filters on top of shape */}
       {filters.map((filter) => {
@@ -261,7 +272,9 @@ export default function ShapePreview({
             );
           default:
             filterData satisfies never;
-            throw new Error(`ShapePreview filter render: No filter with type=${(filterData as any).type} known!`);
+            throw new Error(
+              `ShapePreview filter render: No filter with type=${(filterData as any).type} known!`,
+            );
         }
       })}
 
@@ -317,19 +330,19 @@ export default function ShapePreview({
           points={[
             [
               toSvgX(primaryRenderShapeBBox.position.x),
-              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 2
+              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 2,
             ],
             [
               toSvgX(primaryRenderShapeBBox.position.x),
-              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 5
+              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 5,
             ],
             [
               toSvgX(primaryRenderShapeBBox.position.x + primaryRenderShapeBBox.width),
-              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 5
+              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 5,
             ],
             [
               toSvgX(primaryRenderShapeBBox.position.x + primaryRenderShapeBBox.width),
-              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 2
+              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 2,
             ],
           ]
             .map((p) => p.join(','))

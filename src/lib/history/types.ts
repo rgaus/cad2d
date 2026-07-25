@@ -40,7 +40,7 @@ export type FillColorEntry = {
 };
 
 /** Recorded when a geometry fill color component is forcefully added (ie, polygon being attached
-* to a mirror filter, making a non closed polygon filled.) */
+ * to a mirror filter, making a non closed polygon filled.) */
 export type FillColorAddEntry = {
   type: 'fill-color-add';
   id: Id;
@@ -49,7 +49,7 @@ export type FillColorAddEntry = {
 };
 
 /** Recorded when a geometry fill color component is forcefully removed (ie, polygon being detached
-* from a mirror filter, making a non closed polygon no longer filled.) */
+ * from a mirror filter, making a non closed polygon no longer filled.) */
 export type FillColorRemoveEntry = {
   type: 'fill-color-remove';
   id: Id;
@@ -532,20 +532,14 @@ export namespace UndoEntry {
   }
 
   /** Recorded when a geometry fill color component is forcefully addd (ie, polygon being detachec
-  * from a mirror filter, making a non closed polygon no longer filled.) */
-  export function fillColorAdd(
-    id: Id,
-    afterColor: number | null,
-  ): FillColorAddEntry {
+   * from a mirror filter, making a non closed polygon no longer filled.) */
+  export function fillColorAdd(id: Id, afterColor: number | null): FillColorAddEntry {
     return { type: 'fill-color-add', id, afterColor };
   }
 
   /** Recorded when a geometry fill color component is forcefully removed (ie, polygon being detachec
-  * from a mirror filter, making a non closed polygon no longer filled.) */
-  export function fillColorRemove(
-    id: Id,
-    beforeColor: number | null,
-  ): FillColorRemoveEntry {
+   * from a mirror filter, making a non closed polygon no longer filled.) */
+  export function fillColorRemove(id: Id, beforeColor: number | null): FillColorRemoveEntry {
     return { type: 'fill-color-remove', id, beforeColor };
   }
 
