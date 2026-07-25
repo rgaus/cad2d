@@ -1680,9 +1680,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
           // Also select any filters which are attached to the given selected geometry id (ie,
           // mirror filters)
-          const associatedFilterPairs = this.getGeometryStore().findFiltersByGeometryId(id).map((filter) => {
-            return [filter.id, DragState.get(filter)] as const;
-          });
+          const associatedFilterPairs = this.getGeometryStore()
+            .findFiltersByGeometryId(id)
+            .map((filter) => {
+              return [filter.id, DragState.get(filter)] as const;
+            });
 
           return [[id, DragState.get(geom)], ...associatedFilterPairs];
         }),
@@ -1871,7 +1873,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                         before.pointB,
                         (after as typeof before).pointA,
                         (after as typeof before).pointB,
-                      )
+                      ),
                     );
                     break;
                   default:

@@ -1,13 +1,13 @@
-import { UndoEntry } from '@/lib/history/types';
 import { Filter, type FilterData } from '@/lib/entity/filters';
+import { ChamferFilter, ChamferFilterData } from '@/lib/entity/filters/chamfer';
+import { FilletFilter, FilletFilterData } from '@/lib/entity/filters/fillet';
 import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
+import { UndoEntry } from '@/lib/history/types';
+import { SheetPosition } from '@/lib/viewport/types';
 import { RectangleEndpoint } from '../rectangle';
 import { type Entity, type EntityComponent } from '../types';
 import { FillColorComponent } from './FillColorComponent';
 import { type GeometryComponent } from './GeometryComponent';
-import { SheetPosition } from '@/lib/viewport/types';
-import { FilletFilterData, FilletFilter } from '@/lib/entity/filters/fillet';
-import { ChamferFilterData, ChamferFilter } from '@/lib/entity/filters/chamfer';
 
 /**
  * Geometry component for a filter.
@@ -114,7 +114,10 @@ export namespace FilterComponent {
         // These filters are locked to a geometry implicitly, there's no point stored in them
         return filter;
       case 'mirror':
-        return MirrorFilter.translate(filter as Entity<FilterComponent<MirrorFilterData>>, transform);
+        return MirrorFilter.translate(
+          filter as Entity<FilterComponent<MirrorFilterData>>,
+          transform,
+        );
       default:
         filterData satisfies never;
         throw new Error(`Filter.translate: Unknown filter type ${(filterData as any).type}`);

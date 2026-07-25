@@ -77,7 +77,7 @@ export namespace MirrorFilter {
     return FilterComponent.update(filter, {
       pointA: transform(filterData.pointA),
       pointB: transform(filterData.pointB),
-    })
+    });
   }
 
   export function equals(a: Entity<FilterComponent<MirrorFilterData>>, b: Entity<FilterComponent>) {

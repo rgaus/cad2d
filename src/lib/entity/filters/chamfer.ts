@@ -67,7 +67,10 @@ export namespace ChamferFilter {
     };
   }
 
-  export function equals(a: Entity<FilterComponent<ChamferFilterData>>, b: Entity<FilterComponent>) {
+  export function equals(
+    a: Entity<FilterComponent<ChamferFilterData>>,
+    b: Entity<FilterComponent>,
+  ) {
     const aData = FilterComponent.get(a);
     const bData = FilterComponent.get(b);
     if (bData.type !== 'fillet') {
