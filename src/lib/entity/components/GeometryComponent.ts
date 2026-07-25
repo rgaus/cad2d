@@ -835,6 +835,7 @@ export namespace GeometryComponent {
                       offsetNum,
                       factory,
                     ).segments;
+                    closed = true;
                     break;
                   case 'polygon':
                     console.warn(
