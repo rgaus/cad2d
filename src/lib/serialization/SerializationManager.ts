@@ -27,6 +27,7 @@ import {
   serializeColinearConstraint,
   serializeDatum,
   serializeEllipse,
+  serializeFilter,
   serializeHorizontalConstraint,
   serializeLinearConstraint,
   serializeParallelConstraint,
@@ -459,6 +460,18 @@ export class SerializationManager {
           default:
             constraint satisfies never;
             break;
+        }
+      }
+    }
+
+    // Also include any filters attached to the selected geometries
+    const addedFilterIds = new Set<string>();
+    for (const id of this.getSelectionManager().getSelectedIds()) {
+      const filters = geometryStore.findFiltersByGeometryId(id);
+      for (const filter of filters) {
+        if (!addedFilterIds.has(filter.id)) {
+          addedFilterIds.add(filter.id);
+          entries.push(serializeFilter(filter));
         }
       }
     }

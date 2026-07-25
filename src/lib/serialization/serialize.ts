@@ -23,9 +23,6 @@ import {
   type VerticalConstraintData,
 } from '@/lib/entity/constraints';
 import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/entity/datum';
-import { ChamferFilter } from '@/lib/entity/filters/chamfer';
-import { FilletFilter } from '@/lib/entity/filters/fillet';
-import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import {
   CONSTRAINT_COLOR,
   CONSTRAINT_LINE_WIDTH_PX,
@@ -521,6 +518,62 @@ export function serializeLinearConstraint(
 </g>`;
 }
 
+/** Serializes a filter entity to an SVG <g> element string with data attributes. */
+export function serializeFilter(filter: Entity): string {
+  const fd = FilterComponent.get(filter as any);
+  const attrs: Array<string> = [
+    `data-id="${filter.id}"`,
+    `data-geometry-id="${(fd as any).geometryId}"`,
+  ];
+  switch (fd.type) {
+    case 'mirror':
+      attrs.push(`data-type="mirror-filter"`);
+      attrs.push(`data-point-a-x="${(fd as any).pointA.x}"`);
+      attrs.push(`data-point-a-y="${(fd as any).pointA.y}"`);
+      attrs.push(`data-point-b-x="${(fd as any).pointB.x}"`);
+      attrs.push(`data-point-b-y="${(fd as any).pointB.y}"`);
+      break;
+    case 'fillet': {
+      const serializedOffset = (fd as any).offset.serialize();
+      attrs.push(`data-type="fillet-filter"`);
+      attrs.push(`data-offset-magnitude="${serializedOffset.magnitude}"`);
+      attrs.push(`data-offset-type="${serializedOffset.type}"`);
+      attrs.push(`data-geometry-type="${(fd as any).geometryType}"`);
+      if ((fd as any).geometryType === 'polygon') {
+        attrs.push(`data-point-a-index="${(fd as any).pointAIndex}"`);
+        attrs.push(`data-point-center-index="${(fd as any).pointCenterIndex}"`);
+        attrs.push(`data-point-b-index="${(fd as any).pointBIndex}"`);
+      } else {
+        attrs.push(`data-point-a-key-point="${String((fd as any).pointAKeyPoint)}"`);
+        attrs.push(`data-point-center-key-point="${String((fd as any).pointCenterKeyPoint)}"`);
+        attrs.push(`data-point-b-key-point="${String((fd as any).pointBKeyPoint)}"`);
+      }
+      break;
+    }
+    case 'chamfer': {
+      const serializedOffset = (fd as any).offset.serialize();
+      attrs.push(`data-type="chamfer-filter"`);
+      attrs.push(`data-offset-magnitude="${serializedOffset.magnitude}"`);
+      attrs.push(`data-offset-type="${serializedOffset.type}"`);
+      attrs.push(`data-geometry-type="${(fd as any).geometryType}"`);
+      if ((fd as any).geometryType === 'polygon') {
+        attrs.push(`data-point-a-index="${(fd as any).pointAIndex}"`);
+        attrs.push(`data-point-center-index="${(fd as any).pointCenterIndex}"`);
+        attrs.push(`data-point-b-index="${(fd as any).pointBIndex}"`);
+      } else {
+        attrs.push(`data-point-a-key-point="${String((fd as any).pointAKeyPoint)}"`);
+        attrs.push(`data-point-center-key-point="${String((fd as any).pointCenterKeyPoint)}"`);
+        attrs.push(`data-point-b-key-point="${String((fd as any).pointBKeyPoint)}"`);
+      }
+      break;
+    }
+    default:
+      fd satisfies never;
+      throw new Error(`serializeFilter: unknown filter type ${(fd as any).type}`);
+  }
+  return `<g ${attrs.join(' ')}></g>`;
+}
+
 /**
  * Serializes the full state of the system into an SVG string.
  * The SVG is a valid superset that includes all geometry plus cad2d metadata
@@ -729,58 +782,7 @@ export function serializeToSvg(
   // Serialize filters as <g> elements with data attributes, mirroring the
   // pattern used for constraints.
   for (const filterGeom of filterGeometries) {
-    const fd = FilterComponent.get(filterGeom);
-    const attrs: Array<string> = [
-      `data-id="${filterGeom.id}"`,
-      `data-geometry-id="${fd.geometryId}"`,
-    ];
-    switch (fd.type) {
-      case 'mirror':
-        attrs.push(`data-type="mirror-filter"`);
-        attrs.push(`data-point-a-x="${fd.pointA.x}"`);
-        attrs.push(`data-point-a-y="${fd.pointA.y}"`);
-        attrs.push(`data-point-b-x="${fd.pointB.x}"`);
-        attrs.push(`data-point-b-y="${fd.pointB.y}"`);
-        break;
-      case 'fillet': {
-        const serializedOffset = fd.offset.serialize();
-        attrs.push(`data-type="fillet-filter"`);
-        attrs.push(`data-offset-magnitude="${serializedOffset.magnitude}"`);
-        attrs.push(`data-offset-type="${serializedOffset.type}"`);
-        attrs.push(`data-geometry-type="${fd.geometryType}"`);
-        if (fd.geometryType === 'polygon') {
-          attrs.push(`data-point-a-index="${fd.pointAIndex}"`);
-          attrs.push(`data-point-center-index="${fd.pointCenterIndex}"`);
-          attrs.push(`data-point-b-index="${fd.pointBIndex}"`);
-        } else {
-          attrs.push(`data-point-a-key-point="${String(fd.pointAKeyPoint)}"`);
-          attrs.push(`data-point-center-key-point="${String(fd.pointCenterKeyPoint)}"`);
-          attrs.push(`data-point-b-key-point="${String(fd.pointBKeyPoint)}"`);
-        }
-        break;
-      }
-      case 'chamfer': {
-        const serializedOffset = fd.offset.serialize();
-        attrs.push(`data-type="chamfer-filter"`);
-        attrs.push(`data-offset-magnitude="${serializedOffset.magnitude}"`);
-        attrs.push(`data-offset-type="${serializedOffset.type}"`);
-        attrs.push(`data-geometry-type="${fd.geometryType}"`);
-        if (fd.geometryType === 'polygon') {
-          attrs.push(`data-point-a-index="${fd.pointAIndex}"`);
-          attrs.push(`data-point-center-index="${fd.pointCenterIndex}"`);
-          attrs.push(`data-point-b-index="${fd.pointBIndex}"`);
-        } else {
-          attrs.push(`data-point-a-key-point="${String(fd.pointAKeyPoint)}"`);
-          attrs.push(`data-point-center-key-point="${String(fd.pointCenterKeyPoint)}"`);
-          attrs.push(`data-point-b-key-point="${String(fd.pointBKeyPoint)}"`);
-        }
-        break;
-      }
-      default:
-        fd satisfies never;
-        throw new Error(`serializeToSvg: unknown filter type ${(fd as any).type}`);
-    }
-    svgParts.push(`<g ${attrs.join(' ')}></g>`);
+    svgParts.push(serializeFilter(filterGeom));
   }
 
   // Build state object for the magic comment

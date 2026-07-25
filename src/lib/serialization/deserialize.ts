@@ -581,7 +581,7 @@ function parseMirrorFilter(
   return {
     type: 'mirror',
     id,
-    geometryId: geometryId as string,
+    geometryId: rewrittenIdMap.get(geometryId as string) ?? geometryId as string,
     pointA: {
       x: parseFloat(String(attrs['data-point-a-x'] ?? '0')),
       y: parseFloat(String(attrs['data-point-a-y'] ?? '0')),
@@ -627,7 +627,7 @@ function parseFilletOrChamferFilter(
   const base = {
     id,
     type,
-    geometryId: geometryId as string,
+    geometryId: rewrittenIdMap.get(geometryId as string) ?? geometryId as string,
     offset: { magnitude: offsetMagnitude, type: offsetType },
     geometryType,
   };
