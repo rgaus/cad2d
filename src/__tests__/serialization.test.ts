@@ -1,3 +1,4 @@
+import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintComponent,
   type CubicBezierSegment,
@@ -35,12 +36,22 @@ import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { UndoEntry } from '@/lib/history/types';
+import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { parseSvg } from '@/lib/serialization/deserialize';
-import { serializeFilter, serializeRectangle, serializeToSvg } from '@/lib/serialization/serialize';
+import {
+  serializeFilter,
+  serializePolygon,
+  serializeRectangle,
+  serializeToSvg,
+} from '@/lib/serialization/serialize';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION } from '@/lib/serialization/versions';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
 import { Length } from '@/lib/units/length';
-import { SheetPosition } from '@/lib/viewport/types';
+import { ViewportControls } from '@/lib/viewport/ViewportControls';
+import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };
@@ -2381,5 +2392,115 @@ describe('filter serialization', () => {
 
     expect(parseResult.filters).toEqual([]);
     expect(parseResult.rectangles).toHaveLength(1);
+  });
+
+  it('copy-paste non-closed polygon with mirror filter preserves fill through undo and redo', () => {
+    const sheet = Sheet.a4();
+    const geometryStore = sheet.geometryStore;
+    const historyManager = sheet.historyManager;
+    const selectionManager = new SelectionManager();
+    const toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
+    const actionsManager = new ActionsManager(
+      sheet,
+      geometryStore,
+      selectionManager,
+      historyManager,
+    );
+    const serializationManager = new SerializationManager(actionsManager, toolManager, sheet);
+    actionsManager.setSerializationManager(serializationManager);
+    toolManager.setSerializationManager(serializationManager);
+    const viewportControls = new ViewportControls({ canvasWidth: 800, canvasHeight: 600, sheet });
+
+    const viewport = viewportControls.getState().viewport;
+    const toScreen = (sp: SheetPosition) => sp.toScreen(viewport);
+
+    // 1. Create a non-closed polygon with start and end at same y coordinate
+    toolManager.setActiveTool('polygon');
+    toolManager.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
+
+    // Click 1: (5, 5) in sheet units
+    toolManager.handleMouseDown(toScreen(new SheetPosition(5, 5)), viewport);
+    // Click 2: (10, 10)
+    toolManager.handleMouseDown(toScreen(new SheetPosition(10, 10)), viewport);
+    // Click 3: (15, 5)
+    toolManager.handleMouseDown(toScreen(new SheetPosition(15, 5)), viewport);
+    // Press Enter to complete (non-closed)
+    toolManager.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }) as any);
+
+    // Get the created polygon
+    const polygons = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+      const d = GeometryComponent.get(g as any);
+      return d.type === 'polygon';
+    });
+    expect(polygons).toHaveLength(1);
+    const polygonId = polygons[0].id;
+
+    // 2. Create a mirror filter via MirrorTool
+    toolManager.setActiveTool('edit');
+    toolManager.changeToolSubTool('edit', 'mirror');
+    const editTool = toolManager.getActiveTool();
+
+    // Click to pick the polygon
+    editTool.handleGeometryFillPointerDown(
+      toScreen(new SheetPosition(0, 5)),
+      viewportControls,
+      polygonId,
+    );
+    // First click: pointA at (0, 5) — puts mirror line through start point
+    toolManager.handleMouseDown(toScreen(new SheetPosition(0, 5)), viewport);
+    // Second click: pointB at (20, 5) — mirror line passes through both endpoints
+    toolManager.handleMouseDown(toScreen(new SheetPosition(20, 5)), viewport);
+
+    // Verify filter was created and fill was synced
+    const filters = geometryStore.listWithComponent(FilterComponent);
+    expect(filters).toHaveLength(1);
+    const poly = geometryStore.getById(polygonId)! as any;
+    expect(FillColorComponent.getOptional(poly)).toBeDefined();
+
+    // 3. Select the polygon, copy, and paste
+    selectionManager.select(polygonId);
+    const fragment = serializationManager.formatSelectedAsFragment();
+    expect(fragment).not.toBeNull();
+
+    // Wrap paste in a transaction so one undo reverts the entire paste
+    historyManager.applyTransaction('paste', () => {
+      serializationManager.loadFragment(fragment!);
+    });
+
+    // After paste: 2 polygons, 2 filters, both filled
+    const allPolys = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+      const d = GeometryComponent.get(g as any);
+      return d.type === 'polygon';
+    });
+    expect(allPolys).toHaveLength(2);
+
+    const allFilters = geometryStore.listWithComponent(FilterComponent);
+    expect(allFilters).toHaveLength(2);
+
+    for (const p of allPolys) {
+      expect(FillColorComponent.getOptional(p as any)).toBeDefined();
+    }
+
+    // 4. Undo — should revert to 1 polygon, 1 filter, both filled
+    historyManager.undo();
+    const afterUndo = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+      const d = GeometryComponent.get(g as any);
+      return d.type === 'polygon';
+    });
+    expect(afterUndo).toHaveLength(1);
+    expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(1);
+    expect(FillColorComponent.getOptional(geometryStore.getById(polygonId)! as any)).toBeDefined();
+
+    // 5. Redo — should restore 2 polygons, 2 filters, both filled
+    historyManager.redo();
+    const afterRedo = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+      const d = GeometryComponent.get(g as any);
+      return d.type === 'polygon';
+    });
+    expect(afterRedo).toHaveLength(2);
+    expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(2);
+    for (const p of afterRedo) {
+      expect(FillColorComponent.getOptional(p as any)).toBeDefined();
+    }
   });
 });

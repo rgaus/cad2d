@@ -310,9 +310,12 @@ export class SerializationManager {
         if (!geometry) {
           continue;
         }
-        const [output] = FilterComponent.syncFillColor(geometry as any, filters);
+        const [output, events] = FilterComponent.syncFillColor(geometry as any, filters);
         if (output !== geometry) {
           geometryStore.updateByIdDirect(geomId, () => output);
+          for (const event of events) {
+            this.getHistoryManager().push(event);
+          }
         }
       }
 
