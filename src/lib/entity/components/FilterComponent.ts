@@ -1,10 +1,13 @@
 import { UndoEntry } from '@/lib/history/types';
-import { Filter, type FilterData } from '../filters';
-import { MirrorFilter } from '../filters/mirror';
+import { Filter, type FilterData } from '@/lib/entity/filters';
+import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { RectangleEndpoint } from '../rectangle';
 import { type Entity, type EntityComponent } from '../types';
 import { FillColorComponent } from './FillColorComponent';
 import { type GeometryComponent } from './GeometryComponent';
+import { SheetPosition } from '@/lib/viewport/types';
+import { FilletFilterData, FilletFilter } from '@/lib/entity/filters/fillet';
+import { ChamferFilterData, ChamferFilter } from '@/lib/entity/filters/chamfer';
 
 /**
  * Geometry component for a filter.
@@ -96,6 +99,42 @@ export namespace FilterComponent {
       default:
         filter satisfies never;
         return false;
+    }
+  }
+
+  /** Takes a filter and translates all points according to {@link transform}. */
+  export function translate(
+    filter: Entity<FilterComponent>,
+    transform: (point: SheetPosition) => SheetPosition,
+  ) {
+    const filterData = FilterComponent.get(filter);
+    switch (filterData.type) {
+      case 'fillet':
+      case 'chamfer':
+        // These filters are locked to a geometry implicitly, there's no point stored in them
+        return filter;
+      case 'mirror':
+        return MirrorFilter.translate(filter as Entity<FilterComponent<MirrorFilterData>>, transform);
+      default:
+        filterData satisfies never;
+        throw new Error(`Filter.translate: Unknown filter type ${(filterData as any).type}`);
+    }
+  }
+
+  export function equals(a: Entity<FilterComponent>, b: Entity<FilterComponent>): boolean {
+    const filterData = FilterComponent.get(a);
+    switch (filterData.type) {
+      case 'fillet':
+        return FilletFilter.equals(a as Entity<FilterComponent<FilletFilterData>>, b);
+      case 'chamfer':
+        return ChamferFilter.equals(a as Entity<FilterComponent<ChamferFilterData>>, b);
+      case 'mirror':
+        return MirrorFilter.equals(a as Entity<FilterComponent<MirrorFilterData>>, b);
+      default:
+        filterData satisfies never;
+        throw new Error(
+          `FilterComponent.equals: Unknown filter data type ${(filterData as any).type}`,
+        );
     }
   }
 

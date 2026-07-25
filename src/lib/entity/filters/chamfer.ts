@@ -66,6 +66,20 @@ export namespace ChamferFilter {
       }),
     };
   }
+
+  export function equals(a: Entity<FilterComponent<ChamferFilterData>>, b: Entity<FilterComponent>) {
+    const aData = FilterComponent.get(a);
+    const bData = FilterComponent.get(b);
+    if (bData.type !== 'fillet') {
+      return false;
+    }
+    return (
+      aData.geometryId === bData.geometryId &&
+      aData.geometryType === bData.geometryType &&
+      aData.offset.type === bData.offset.type &&
+      aData.offset.magnitude === bData.offset.magnitude
+    );
+  }
 }
 
 export type ChamferFilter = Entity<FilterComponent<ChamferFilterData>>;

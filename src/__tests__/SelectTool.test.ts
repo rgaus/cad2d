@@ -27,6 +27,7 @@ import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { KeyPointSnapInfo } from '@/lib/snapping';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
+import { MirrorTool } from '@/lib/tools/MirrorTool';
 import {
   SELECTED_OUTSET_PX,
   SelectTool,
@@ -321,6 +322,119 @@ describe('SelectTool', () => {
       ).toBeCloseTo(3, 1);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+    });
+
+    it('polygon fill drag also moves attached mirror filter endpoints and undo redo restores both', () => {
+      // Non-closed polygon: start (5,5), end (15,5)
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 5) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      // Attach mirror filter directly — the drag machinery also picks up
+      // associated filter pairs (see handleFillPointerDown)
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(polygon.id, new SheetPosition(0, 5), new SheetPosition(20, 5)),
+      );
+
+      const fd = FilterComponent.get(filter);
+      if (fd.type !== 'mirror') {
+        throw new Error('Expected mirror filter');
+      }
+      const beforePointA = fd.pointA;
+      const beforePointB = fd.pointB;
+
+      const polyGeom = geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!;
+      const polyData = GeometryComponent.get(polyGeom);
+      if (polyData.type !== 'polygon') {
+        throw new Error('Expected polygon');
+      }
+      const beforeP0 = polyData.points[0].point;
+
+      // Start a polygon fill drag (which also captures attached filter pairs)
+      const startScreen = polyData.points[0].point.toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(startScreen.x, startScreen.y),
+        viewportControls,
+        polygon.id,
+      );
+
+      // Move by (+5, +5)
+      const targetSheet = new SheetPosition(beforeP0.x + 5, beforeP0.y + 5);
+      const moveScreen = targetSheet.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      // Polygon should have moved
+      const afterPolyGeom = geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!;
+      const afterPolyData = GeometryComponent.get(afterPolyGeom);
+      if (afterPolyData.type !== 'polygon') {
+        throw new Error('Expected polygon');
+      }
+      expect(afterPolyData.points[0].point.x).toBeCloseTo(beforeP0.x + 5, 0);
+      expect(afterPolyData.points[0].point.y).toBeCloseTo(beforeP0.y + 5, 0);
+
+      // Mirror filter endpoints should have moved by the same delta
+      const afterFilter = FilterComponent.get(
+        geometryStore.getByIdWithComponent(filter.id, FilterComponent)!,
+      );
+      if (afterFilter.type !== 'mirror') {
+        throw new Error('Expected mirror filter');
+      }
+      expect(afterFilter.pointA.x).toBeCloseTo(beforePointA.x + 5, 0);
+      expect(afterFilter.pointA.y).toBeCloseTo(beforePointA.y + 5, 0);
+      expect(afterFilter.pointB.x).toBeCloseTo(beforePointB.x + 5, 0);
+      expect(afterFilter.pointB.y).toBeCloseTo(beforePointB.y + 5, 0);
+
+      // Undo — both polygon and filter should return to original positions
+      historyManager.undo();
+      const undonePoly = GeometryComponent.get(
+        geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!,
+      );
+      if (undonePoly.type !== 'polygon') {
+        throw new Error('Expected polygon');
+      }
+      expect(undonePoly.points[0].point.x).toBeCloseTo(beforeP0.x, 0);
+      expect(undonePoly.points[0].point.y).toBeCloseTo(beforeP0.y, 0);
+
+      const undoneFilter = FilterComponent.get(
+        geometryStore.getByIdWithComponent(filter.id, FilterComponent)!,
+      );
+      if (undoneFilter.type !== 'mirror') {
+        throw new Error('Expected mirror filter');
+      }
+      expect(undoneFilter.pointA.x).toBeCloseTo(beforePointA.x, 0);
+      expect(undoneFilter.pointA.y).toBeCloseTo(beforePointA.y, 0);
+      expect(undoneFilter.pointB.x).toBeCloseTo(beforePointB.x, 0);
+      expect(undoneFilter.pointB.y).toBeCloseTo(beforePointB.y, 0);
+
+      // Redo — both should move again
+      historyManager.redo();
+      const redonePoly = GeometryComponent.get(
+        geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!,
+      );
+      if (redonePoly.type !== 'polygon') {
+        throw new Error('Expected polygon');
+      }
+      expect(redonePoly.points[0].point.x).toBeCloseTo(beforeP0.x + 5, 0);
+      expect(redonePoly.points[0].point.y).toBeCloseTo(beforeP0.y + 5, 0);
+
+      const redoneFilter = FilterComponent.get(
+        geometryStore.getByIdWithComponent(filter.id, FilterComponent)!,
+      );
+      if (redoneFilter.type !== 'mirror') {
+        throw new Error('Expected mirror filter');
+      }
+      expect(redoneFilter.pointA.x).toBeCloseTo(beforePointA.x + 5, 0);
+      expect(redoneFilter.pointA.y).toBeCloseTo(beforePointA.y + 5, 0);
     });
   });
 

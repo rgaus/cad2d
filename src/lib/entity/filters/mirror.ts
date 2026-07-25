@@ -69,6 +69,32 @@ export namespace MirrorFilter {
     return true;
   }
 
+  export function translate(
+    filter: Entity<FilterComponent<MirrorFilterData>>,
+    transform: (point: SheetPosition) => SheetPosition,
+  ) {
+    const filterData = FilterComponent.get(filter);
+    return FilterComponent.update(filter, {
+      pointA: transform(filterData.pointA),
+      pointB: transform(filterData.pointB),
+    })
+  }
+
+  export function equals(a: Entity<FilterComponent<MirrorFilterData>>, b: Entity<FilterComponent>) {
+    const aData = FilterComponent.get(a);
+    const bData = FilterComponent.get(b);
+    if (bData.type !== 'mirror') {
+      return false;
+    }
+    return (
+      aData.geometryId === bData.geometryId &&
+      aData.pointA.x === bData.pointA.x &&
+      aData.pointA.y === bData.pointA.y &&
+      aData.pointB.x === bData.pointB.x &&
+      aData.pointB.y === bData.pointB.y
+    );
+  }
+
   /**
    * Synchronizes {@link FillColorComponent} on a non-closed polygon based on
    * whether any attached mirror filter has both endpoints on the mirror line.

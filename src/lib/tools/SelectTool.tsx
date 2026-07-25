@@ -83,7 +83,7 @@ const ADD_POINT_TOOLTIP_TIMEOUT_MS = 100;
  * corresponds to the selection-inspector x/y (upperLeft for rectangle, center for ellipse,
  * bounding box upper-left for polygon).
  */
-function computeSelectionOrigin(states: Map<Id, DragState | null>): SheetPosition {
+function computeSelectionOrigin(states: Map<Id, DragState | null>): SheetPosition | null {
   let minX = Infinity;
   let minY = Infinity;
   for (const state of states.values()) {
@@ -94,6 +94,9 @@ function computeSelectionOrigin(states: Map<Id, DragState | null>): SheetPositio
       return DragState.getOrigin(state);
     }
     const bbox = DragState.boundingBox(state);
+    if (!bbox) {
+      continue;
+    }
     if (bbox.position.x < minX) {
       minX = bbox.position.x;
     }
@@ -172,7 +175,8 @@ function isEndpointOnEdge(
  * namespace has utility functions for computing metrics about the given entity in a generic way. */
 type DragState =
   | { state: 'geometry'; geometry: Entity<GeometryComponent> }
-  | { state: 'datum'; entity: Entity<DatumComponent> };
+  | { state: 'datum'; entity: Entity<DatumComponent> }
+  | { state: 'filter'; entity: Entity<FilterComponent> };
 
 namespace DragState {
   /** Extracts the {@link DragState} from the passed {@link Entity}, or null if nothing could be computed. */
@@ -181,6 +185,8 @@ namespace DragState {
       return { state: 'geometry', geometry: Entity.pickComponent(entity, GeometryComponent) };
     } else if (Entity.hasComponent(entity, DatumComponent)) {
       return { state: 'datum', entity };
+    } else if (Entity.hasComponent(entity, FilterComponent)) {
+      return { state: 'filter', entity };
     }
     return null;
   }
@@ -192,6 +198,8 @@ namespace DragState {
         return Entity.assignComponent(entity, GeometryComponent, state.geometry);
       case 'datum':
         return Entity.assignComponent(entity, DatumComponent, state.entity);
+      case 'filter':
+        return Entity.assignComponent(entity, FilterComponent, state.entity);
       default:
         state satisfies never;
         throw new Error(`DragState.update: No drag state case for ${(state as any).state}`);
@@ -208,6 +216,8 @@ namespace DragState {
         return { ...state, geometry: GeometryComponent.translate(state.geometry, transform) };
       case 'datum':
         return { ...state, entity: DatumComponent.translate(state.entity, transform) };
+      case 'filter':
+        return { ...state, entity: FilterComponent.translate(state.entity, transform) };
       default:
         state satisfies never;
         throw new Error(`DragState.translate: No drag state case for ${(state as any).state}`);
@@ -230,6 +240,11 @@ namespace DragState {
           return false;
         }
         return DatumComponent.equals(a.entity, b.entity);
+      case 'filter':
+        if (b.state !== 'filter') {
+          return false;
+        }
+        return FilterComponent.equals(a.entity, b.entity);
       default:
         a satisfies never;
         throw new Error(`DragState.equals: No drag state case for ${(a as any).state}`);
@@ -239,12 +254,14 @@ namespace DragState {
   /** Returns the origin point of a {@link DragState}, corresponding to what the selection inspector
    *  shows as the shape's x/y position. For rectangle this is upperLeft, for ellipse it is center,
    *  for polygon it is the bounding box upper-left corner. */
-  export function getOrigin(state: DragState): SheetPosition {
+  export function getOrigin(state: DragState): SheetPosition | null {
     switch (state.state) {
       case 'geometry':
         return GeometryComponent.getOrigin(state.geometry);
       case 'datum':
         return DatumComponent.getOrigin(state.entity);
+      case 'filter':
+        return null;
       default:
         state satisfies never;
         throw new Error(`DragState.getOrigin: No drag state case for ${(state as any).state}`);
@@ -252,7 +269,7 @@ namespace DragState {
   }
 
   /** Compute an axis aligned bounding box around the given {@link DragState}. */
-  export function boundingBox(state: DragState): Rect<SheetPosition> {
+  export function boundingBox(state: DragState): Rect<SheetPosition> | null {
     switch (state.state) {
       case 'geometry':
         return GeometryComponent.boundingBox(state.geometry);
@@ -262,6 +279,8 @@ namespace DragState {
           width: 0,
           height: 0,
         };
+      case 'filter':
+        return null;
       default:
         state satisfies never;
         throw new Error(`DragState.boundingBox: No drag state case for ${(state as any).state}`);
@@ -281,6 +300,7 @@ namespace DragState {
           geometry: GeometryComponent.resize(state.geometry, params, originalBBox),
         };
       case 'datum':
+      case 'filter':
         return null;
       default:
         state satisfies never;
@@ -1657,7 +1677,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           if (!geom) {
             return [];
           }
-          return [[id, DragState.get(geom)]];
+
+          // Also select any filters which are attached to the given selected geometry id (ie,
+          // mirror filters)
+          const associatedFilterPairs = this.getGeometryStore().findFiltersByGeometryId(id).map((filter) => {
+            return [filter.id, DragState.get(filter)] as const;
+          });
+
+          return [[id, DragState.get(geom)], ...associatedFilterPairs];
         }),
       );
     }
@@ -1717,6 +1744,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         // center for ellipse, bounding box upper-left for polygon). For multi-selection
         // it is the upper-left of the union bounding box.
         const selectionOrigin = computeSelectionOrigin(this.originalDragState);
+        if (!selectionOrigin) {
+          // There should always be a selected origin in practice if at least one
+          // Entity<GeometryComponent> is selected.
+          return;
+        }
 
         // Cursor delta in snapped space (same as before)
         const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
@@ -1807,7 +1839,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   forwardsActions.push(UndoEntry.rectangleMove(id, before, after));
                 }
                 break;
-              case 'datum':
+              case 'datum': {
                 if (!Entity.hasComponent(entity, DatumComponent)) {
                   // FIXME: add log
                   return;
@@ -1819,6 +1851,35 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   UndoEntry.datumMove(id, { position: before }, { position: after }),
                 );
                 break;
+              }
+              case 'filter': {
+                if (!Entity.hasComponent(entity, FilterComponent)) {
+                  // FIXME: add log
+                  return;
+                }
+                const before = FilterComponent.get(state.entity);
+                const after = FilterComponent.get(entity);
+                switch (before.type) {
+                  case 'fillet':
+                  case 'chamfer':
+                    break;
+                  case 'mirror':
+                    forwardsActions.push(
+                      UndoEntry.mirrorFilterMoveEndpoints(
+                        id,
+                        before.pointA,
+                        before.pointB,
+                        (after as typeof before).pointA,
+                        (after as typeof before).pointB,
+                      )
+                    );
+                    break;
+                  default:
+                    before satisfies never;
+                    break;
+                }
+                break;
+              }
               default:
                 state satisfies never;
                 console.warn(
@@ -1895,6 +1956,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     let unionBBox: Rect<SheetPosition> | null = null;
     for (const state of originalStates.values()) {
       const bbox = DragState.boundingBox(state);
+      if (!bbox) {
+        continue;
+      }
 
       if (!unionBBox) {
         unionBBox = bbox;
@@ -2087,6 +2151,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 case 'datum':
                   console.warn(
                     'SelectTool.onCommit: Datum was resized, but this should not be possible. Doing nothing.',
+                  );
+                  break;
+                case 'filter':
+                  console.warn(
+                    'SelectTool.onCommit: Filter was resized, but this should not be possible. Doing nothing.',
                   );
                   break;
                 default:
