@@ -345,6 +345,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   private resizeMode: ResizeMode | null = null;
   /** Original layout states for all geometries being resized, for restoring on cancel. */
   private resizeOriginalGroupStates: Map<Id, DragState> | null = null;
+  /** Original entities (with full components like FillColorComponent) for correct history. */
+  private resizeOriginalEntities: Map<Id, Entity> | null = null;
   /** Original union bounding box at start of resize. */
   private resizeOriginalUnionBBox: Rect<SheetPosition> | null = null;
 
@@ -477,6 +479,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.resizeMode = null;
     this.draggingGeometryIds = null;
     this.resizeOriginalGroupStates = null;
+    this.resizeOriginalEntities = null;
     this.resizeOriginalUnionBBox = null;
     this.emit('dragStateChange', null);
   }
@@ -1938,13 +1941,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     geometryIds: Array<Id>,
     resizeMode: ResizeMode,
   ): void {
-    // Capture original layout states for all geometries
+    // Capture original layout states and full entities for all geometries
     const originalStates = new Map<Id, DragState>();
+    const originalEntities = new Map<Id, Entity>();
     for (const id of geometryIds) {
       const geometry = this.getGeometryStore().getById(id);
       if (!geometry) {
         continue;
       }
+      originalEntities.set(id, geometry);
       const state = DragState.get(geometry);
       if (state) {
         originalStates.set(id, state);
@@ -1994,6 +1999,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     this.resizeMode = resizeMode;
     this.resizeOriginalGroupStates = originalStates;
+    this.resizeOriginalEntities = originalEntities;
     this.resizeOriginalUnionBBox = unionBBox;
     this.draggingGeometryIds = geometryIds;
     this.emit('dragStateChange', {
@@ -2104,6 +2110,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             this.getGeometryStore().updateByIdDirect(id, (old) => DragState.apply(newState, old));
           }
         }
+
+        // Sync fill color for geometries with mirror filters on every mousemove
+        for (const [id] of groupStates) {
+          const filters = this.getGeometryStore().findFiltersByGeometryId(id);
+          if (filters.length > 0) {
+            this.getGeometryStore().updateByIdWithComponentDirect(
+              id,
+              GeometryComponent,
+              (geometry) => FilterComponent.syncFillColor(geometry, filters)[0],
+            );
+          }
+        }
       },
       onCommit: (_sp) => {
         if (this.resizeOriginalGroupStates && this.draggingGeometryIds) {
@@ -2168,6 +2186,38 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   break;
               }
             }
+
+            // After resizing, sync fill color for geometries with mirror filters
+            for (const [id, originalState] of this.resizeOriginalGroupStates!) {
+              if (originalState.state !== 'geometry') {
+                continue;
+              }
+              const filters = this.getGeometryStore().findFiltersByGeometryId(id);
+              if (filters.length === 0) {
+                continue;
+              }
+              // Use the original entity (with FillColorComponent) for correct history
+              const originalEntity = this.resizeOriginalEntities?.get(id);
+              this.getGeometryStore().updateByIdWithComponentDirect(
+                id,
+                GeometryComponent,
+                (geometry) => {
+                  const [output, historyEvents] = FilterComponent.syncFillColor(
+                    geometry,
+                    filters,
+                    originalEntity as
+                      | Entity<GeometryComponent & Partial<FillColorComponent>>
+                      | undefined,
+                  );
+                  if (output !== geometry) {
+                    for (const event of historyEvents) {
+                      this.getHistoryManager().push(event);
+                    }
+                  }
+                  return output;
+                },
+              );
+            }
           });
         }
         this.activeDragListener = null;
@@ -2179,6 +2229,20 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             this.getGeometryStore().updateByIdDirect(id, (old) =>
               DragState.apply(originalState, old),
             );
+          }
+
+          // Restore fill color from original entities (which include FillColorComponent)
+          if (this.resizeOriginalEntities) {
+            for (const [id, originalEntity] of this.resizeOriginalEntities) {
+              this.getGeometryStore().updateByIdDirect(id, (old) => {
+                if (Entity.hasComponent(originalEntity, FillColorComponent)) {
+                  const fillColor = FillColorComponent.get(originalEntity);
+                  return FillColorComponent.update(old, fillColor);
+                } else {
+                  return FillColorComponent.remove(old);
+                }
+              });
+            }
           }
         }
         this.activeDragListener = null;
