@@ -1105,7 +1105,7 @@ describe('HistoryManager', () => {
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isPolygon)[0],
           ).points.length,
-        ).toBe(initialLen + 1);
+        ).toBe(initialLen);
 
         historyManager.undo();
 
@@ -1139,7 +1139,7 @@ describe('HistoryManager', () => {
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isPolygon)[0],
           ).points.length,
-        ).toBe(initialLen + 1);
+        ).toBe(initialLen);
       });
     });
 
