@@ -1719,7 +1719,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         let polygonId;
         if (source.type === 'existing-polygon') {
           polygonId = source.polygonId;
-          geometryStore.updateByIdWithComponentDirect(
+          geometryStore.updateByIdWithComponent(
             source.polygonId,
             GeometryComponent,
             (old) => {

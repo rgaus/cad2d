@@ -725,6 +725,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               UndoEntry.polygonMove(id, beforeData.points, afterPolyData.points),
             );
           }
+          if (beforeData.closed !== afterPolyData.closed) {
+            this.historyManager.push(
+              UndoEntry.polygonClose(id, beforeData.closed, afterPolyData.closed),
+            );
+          }
+          if (beforeData.openAtIndex !== afterPolyData.openAtIndex) {
+            this.historyManager.push(
+              UndoEntry.polygonOpenAtIndex(id, beforeData.openAtIndex, afterPolyData.openAtIndex),
+            );
+          }
           break;
         }
         case 'rectangle': {
@@ -771,6 +781,19 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       const beforeData = { position: DatumComponent.get(before) };
       const afterData = { position: DatumComponent.get(after as Entity<DatumComponent>) };
       this.historyManager.push(UndoEntry.datumMove(before.id, beforeData, afterData));
+    }
+
+    // Track fill component additions, removals, or modifications
+    if (!Entity.hasComponent(before, FillColorComponent) && Entity.hasComponent(after, FillColorComponent)) {
+      const afterColor = FillColorComponent.get(after);
+      this.historyManager.push(UndoEntry.fillColorAdd(before.id, afterColor));
+    } else if (Entity.hasComponent(before, FillColorComponent) && !Entity.hasComponent(after, FillColorComponent)) {
+      const beforeColor = FillColorComponent.get(before);
+      this.historyManager.push(UndoEntry.fillColorRemove(before.id, beforeColor));
+    } else if (Entity.hasComponent(before, FillColorComponent) && Entity.hasComponent(after, FillColorComponent)) {
+      const beforeColor = FillColorComponent.get(before);
+      const afterColor = FillColorComponent.get(after);
+      this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, afterColor));
     }
   }
 
