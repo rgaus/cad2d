@@ -1,14 +1,10 @@
-import { UndoEntry } from '@/lib/history/types';
 import { closestPointOnSegment } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Entity, type Polygon, PolygonSegment } from '..';
-import { GeometryStore } from '../GeometryStore';
 import { DEFAULT_COLOR } from '../colors';
 import { FillColorComponent } from '../components/FillColorComponent';
 import { FilterComponent } from '../components/FilterComponent';
 import { GeometryComponent } from '../components/GeometryComponent';
-import { PolygonData } from '../geometry/polygon';
-import type { Id } from '../types';
 
 export type MirrorFilterData = {
   type: 'mirror';
