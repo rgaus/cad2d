@@ -2543,7 +2543,9 @@ describe('PolygonTool', () => {
     expect(
       geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
     ).toHaveLength(1);
-    let polygonGeometry = geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0];
+    let polygonGeometry = geometryStore
+      .listWithComponent(GeometryComponent)
+      .filter(GeometryComponent.isPolygon)[0];
     expect(GeometryComponent.get(polygonGeometry).closed).toBeTruthy();
     expect(GeometryComponent.get(polygonGeometry).points).toHaveLength(5);
     expect(FillColorComponent.has(polygonGeometry)).toBeTruthy();
@@ -2552,7 +2554,9 @@ describe('PolygonTool', () => {
     historyManager.undo();
 
     // Make sure the state is back to before it was prior to the polygon extension
-    polygonGeometry = geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0];
+    polygonGeometry = geometryStore
+      .listWithComponent(GeometryComponent)
+      .filter(GeometryComponent.isPolygon)[0];
     expect(GeometryComponent.get(polygonGeometry).closed).toBeFalsy();
     expect(GeometryComponent.get(polygonGeometry).points).toHaveLength(2);
     expect(FillColorComponent.has(polygonGeometry)).toBeFalsy();
@@ -2561,7 +2565,9 @@ describe('PolygonTool', () => {
     historyManager.redo();
 
     // Make sure the state is back to the fully extended version
-    polygonGeometry = geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0];
+    polygonGeometry = geometryStore
+      .listWithComponent(GeometryComponent)
+      .filter(GeometryComponent.isPolygon)[0];
     expect(GeometryComponent.get(polygonGeometry).closed).toBeTruthy();
     expect(GeometryComponent.get(polygonGeometry).points).toHaveLength(5);
     expect(FillColorComponent.has(polygonGeometry)).toBeTruthy();

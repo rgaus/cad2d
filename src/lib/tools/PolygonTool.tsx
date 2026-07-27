@@ -40,9 +40,9 @@ import {
   SheetPosition,
   type ViewportState,
 } from '@/lib/viewport/types';
+import { FilterComponent } from '../entity/components/FilterComponent';
 import { getGridAtScale } from '../viewport/grid';
 import { BaseTool } from './BaseTool';
-import { FilterComponent } from '../entity/components/FilterComponent';
 
 export type PolygonToolEndpoint = {
   polygonId: Id;
@@ -1719,43 +1719,39 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         let polygonId;
         if (source.type === 'existing-polygon') {
           polygonId = source.polygonId;
-          geometryStore.updateByIdWithComponent(
-            source.polygonId,
-            GeometryComponent,
-            (old) => {
-              if (!GeometryComponent.isPolygon(old)) {
-                return old;
-              }
+          geometryStore.updateByIdWithComponent(source.polygonId, GeometryComponent, (old) => {
+            if (!GeometryComponent.isPolygon(old)) {
+              return old;
+            }
 
-              // First, update the geometry points
-              const updated = GeometryComponent.update(old, {
-                points: pointsCopyWithIntersections,
-                closed,
-              });
+            // First, update the geometry points
+            const updated = GeometryComponent.update(old, {
+              points: pointsCopyWithIntersections,
+              closed,
+            });
 
-              // Second, when closing a previously open polygon, add FillColorComponent
-              if (closed) {
-                return FillColorComponent.update(
-                  updated as Entity<GeometryComponent & Partial<FillColorComponent>>,
-                  DEFAULT_COLOR,
-                );
-              }
-
-              // Second, resync the fill color in case the new polygon extension put the polygon's
-              // endpoint newly on the end of a (for example) mirror filter.
-              const [maybeFilledUpdated, events] = FilterComponent.syncFillColor(
-                updated,
-                geometryStore.findFiltersByGeometryId(updated.id),
+            // Second, when closing a previously open polygon, add FillColorComponent
+            if (closed) {
+              return FillColorComponent.update(
+                updated as Entity<GeometryComponent & Partial<FillColorComponent>>,
+                DEFAULT_COLOR,
               );
-              if (maybeFilledUpdated !== updated) {
-                for (const event of events) {
-                  historyManager.push(event);
-                }
-              }
+            }
 
-              return maybeFilledUpdated;
-            },
-          );
+            // Second, resync the fill color in case the new polygon extension put the polygon's
+            // endpoint newly on the end of a (for example) mirror filter.
+            const [maybeFilledUpdated, events] = FilterComponent.syncFillColor(
+              updated,
+              geometryStore.findFiltersByGeometryId(updated.id),
+            );
+            if (maybeFilledUpdated !== updated) {
+              for (const event of events) {
+                historyManager.push(event);
+              }
+            }
+
+            return maybeFilledUpdated;
+          });
         } else {
           const polygon = geometryStore.addOrdered(
             ID_PREFIXES.polygon,

@@ -784,13 +784,22 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }
 
     // Track fill component additions, removals, or modifications
-    if (!Entity.hasComponent(before, FillColorComponent) && Entity.hasComponent(after, FillColorComponent)) {
+    if (
+      !Entity.hasComponent(before, FillColorComponent) &&
+      Entity.hasComponent(after, FillColorComponent)
+    ) {
       const afterColor = FillColorComponent.get(after);
       this.historyManager.push(UndoEntry.fillColorAdd(before.id, afterColor));
-    } else if (Entity.hasComponent(before, FillColorComponent) && !Entity.hasComponent(after, FillColorComponent)) {
+    } else if (
+      Entity.hasComponent(before, FillColorComponent) &&
+      !Entity.hasComponent(after, FillColorComponent)
+    ) {
       const beforeColor = FillColorComponent.get(before);
       this.historyManager.push(UndoEntry.fillColorRemove(before.id, beforeColor));
-    } else if (Entity.hasComponent(before, FillColorComponent) && Entity.hasComponent(after, FillColorComponent)) {
+    } else if (
+      Entity.hasComponent(before, FillColorComponent) &&
+      Entity.hasComponent(after, FillColorComponent)
+    ) {
       const beforeColor = FillColorComponent.get(before);
       const afterColor = FillColorComponent.get(after);
       this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, afterColor));
