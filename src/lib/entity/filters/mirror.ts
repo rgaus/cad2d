@@ -133,43 +133,18 @@ export namespace MirrorFilter {
    *   stripping the component, preserving the color for future re-adds.
    * - No-op for closed polygons (FillColorComponent is managed independently).
    */
-  export function syncFillColor<G extends Entity<GeometryComponent & Partial<FillColorComponent>>>(
-    geometry: G,
+  export function computeDynamicFillState(
+    geometry: Entity<GeometryComponent>,
     filterData: MirrorFilterData,
-    originalGeometry?: G,
-  ): [G, UndoEntry | null] {
+  ): 'unchanged' | 'filled' {
     const polyData = GeometryComponent.get(geometry);
     if (polyData.type !== 'polygon' || polyData.closed) {
-      return [geometry, null];
+      return 'unchanged';
     }
-
-    const shouldFill =
-      filterData.type === 'mirror' &&
-      filterData.geometryId === geometry.id &&
-      arePolygonEndpointsOnMirrorLine(filterData, polyData.points);
-
-    const prev = originalGeometry ?? geometry;
-    const hasFill = FillColorComponent.has(prev);
-
-    if (shouldFill && !hasFill) {
-      const color =
-        typeof polyData.lastFillColor !== 'undefined' ? polyData.lastFillColor : DEFAULT_COLOR;
-      return [
-        FillColorComponent.update(geometry, color),
-        UndoEntry.fillColorAdd(geometry.id, color),
-      ] as const;
-    } else if (!shouldFill && hasFill) {
-      const currentColor = FillColorComponent.get(prev);
-      const withLastFill = GeometryComponent.update(geometry, {
-        lastFillColor: currentColor,
-      });
-      return [
-        FillColorComponent.remove(withLastFill) as G,
-        UndoEntry.fillColorRemove(geometry.id, currentColor),
-      ] as const;
-    } else {
-      return [geometry, null];
+    if (arePolygonEndpointsOnMirrorLine(filterData, polyData.points)) {
+      return 'filled';
     }
+    return 'unchanged';
   }
 }
 

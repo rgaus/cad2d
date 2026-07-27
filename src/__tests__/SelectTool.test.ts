@@ -5369,19 +5369,136 @@ describe('SelectTool', () => {
       selectionManager.select(filterId);
       selectTool.handleKeyDown(new KeyboardEvent('keydown', { key: 'Backspace' }) as any);
 
-      // Fill remains — deleting a mirror filter does not remove fill since
-      // syncFillColor with no remaining filters is a no-op.
-      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+      // Fill should be gone
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
 
       // Undo — filter should be restored, fill remains
       historyManager.undo();
       expect(geometryStore.getById(filterId)).not.toBeNull();
       expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
 
-      // Redo — filter deleted again, fill remains
+      // Redo — filter deleted again, fill should be gone
       historyManager.redo();
       expect(geometryStore.getById(filterId)).toBeNull();
-      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+    });
+  });
+
+  describe('nested mirror filters', () => {
+    it('non-closed polygon with mirror filter touching endpoints produces closed render shape', () => {
+      const sheet = Sheet.a4();
+      const geometryStore = sheet.geometryStore;
+      const historyManager = sheet.historyManager;
+      const selectionManager = new SelectionManager();
+      const toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
+      const viewportControls = new ViewportControls({ canvasWidth: 800, canvasHeight: 600, sheet });
+      const viewport = viewportControls.getState().viewport;
+      const toScreen = (sp: SheetPosition) => sp.toScreen(viewport);
+
+      // Create non-closed polygon: start (5,5), mid (10,10), end (15,5)
+      toolManager.setActiveTool('polygon');
+      toolManager.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
+      toolManager.handleMouseDown(toScreen(new SheetPosition(5, 5)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(10, 10)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(15, 5)), viewport);
+      toolManager.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }) as any);
+
+      const polygons = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+        const d = GeometryComponent.get(g as any);
+        return d.type === 'polygon';
+      });
+      expect(polygons).toHaveLength(1);
+      const polyId = polygons[0].id;
+
+      // Add first mirror filter that TOUCHES the endpoints (0,5)-(20,5)
+      toolManager.setActiveTool('edit');
+      toolManager.changeToolSubTool('edit', 'mirror');
+      const editTool = toolManager.getActiveTool();
+      editTool.handleGeometryFillPointerDown(
+        toScreen(new SheetPosition(0, 5)),
+        viewportControls,
+        polyId,
+      );
+      toolManager.handleMouseDown(toScreen(new SheetPosition(0, 5)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(20, 5)), viewport);
+
+      // Verify first filter was created
+      const filters1 = geometryStore.findFiltersByGeometryId(polyId);
+      expect(filters1).toHaveLength(1);
+
+      // Get render shapes — should have at exactly one closed polygon
+      const renders1 = GeometryComponent.getRenderShapes(
+        geometryStore.getById(polyId)! as any,
+        sheet.defaultUnit,
+        filters1,
+      );
+      const closedShapes1 = renders1.filter((rs) => rs.shape === 'polygon' && rs.closed);
+      expect(closedShapes1.length).toStrictEqual(1);
+    });
+
+    it('second mirror filter not touching endpoints preserves closed render shape', () => {
+      const sheet = Sheet.a4();
+      const geometryStore = sheet.geometryStore;
+      const historyManager = sheet.historyManager;
+      const selectionManager = new SelectionManager();
+      const toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
+      const viewportControls = new ViewportControls({ canvasWidth: 800, canvasHeight: 600, sheet });
+      const viewport = viewportControls.getState().viewport;
+      const toScreen = (sp: SheetPosition) => sp.toScreen(viewport);
+
+      // Create non-closed polygon: start (5,5), mid (10,10), end (15,5)
+      toolManager.setActiveTool('polygon');
+      toolManager.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
+      toolManager.handleMouseDown(toScreen(new SheetPosition(5, 5)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(10, 10)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(15, 5)), viewport);
+      toolManager.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }) as any);
+
+      const polygons = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+        const d = GeometryComponent.get(g as any);
+        return d.type === 'polygon';
+      });
+      expect(polygons).toHaveLength(1);
+      const polyId = polygons[0].id;
+
+      // Add first mirror filter that TOUCHES the endpoints (0,5)-(20,5)
+      toolManager.setActiveTool('edit');
+      toolManager.changeToolSubTool('edit', 'mirror');
+      let editTool = toolManager.getActiveTool();
+      editTool.handleGeometryFillPointerDown(
+        toScreen(new SheetPosition(0, 5)),
+        viewportControls,
+        polyId,
+      );
+      toolManager.handleMouseDown(toScreen(new SheetPosition(0, 5)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(20, 5)), viewport);
+
+      // Add second mirror filter that does NOT touch endpoints: line at y=20
+      toolManager.changeToolSubTool('edit', 'mirror');
+      editTool = toolManager.getActiveTool();
+      editTool.handleGeometryFillPointerDown(
+        toScreen(new SheetPosition(0, 20)),
+        viewportControls,
+        polyId,
+      );
+      toolManager.handleMouseDown(toScreen(new SheetPosition(0, 20)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(20, 20)), viewport);
+
+      const filters = geometryStore.findFiltersByGeometryId(polyId);
+      expect(filters).toHaveLength(2);
+
+      // Fill should STILL be present — the first mirror filter still qualifies
+      expect(FillColorComponent.getOptional(geometryStore.getById(polyId)! as any)).toBeDefined();
+
+      const renders = GeometryComponent.getRenderShapes(
+        geometryStore.getById(polyId)! as any,
+        sheet.defaultUnit,
+        filters,
+      );
+
+      // Should have at least one closed polygon render shape
+      const closedShapes = renders.filter((rs) => rs.shape === 'polygon' && rs.closed);
+      expect(closedShapes.length).toBeGreaterThanOrEqual(1);
     });
   });
 });
