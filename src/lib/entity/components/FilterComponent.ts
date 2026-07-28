@@ -5,6 +5,7 @@ import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { UndoEntry } from '@/lib/history/types';
 import { SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from '../colors';
+import { PatternFilter, PatternFilterData } from '../filters/pattern';
 import { RectangleEndpoint } from '../rectangle';
 import { type Entity, type EntityComponent } from '../types';
 import { FillColorComponent } from './FillColorComponent';
@@ -74,6 +75,7 @@ export namespace FilterComponent {
           filter.pointCenterKeyPoint === rectanglePoint
         );
       case 'mirror':
+      case 'pattern':
         return false;
       default:
         filter satisfies never;
@@ -96,6 +98,7 @@ export namespace FilterComponent {
           filter.pointCenterIndex === pointIndex
         );
       case 'mirror':
+      case 'pattern':
         return false;
       default:
         filter satisfies never;
@@ -119,6 +122,11 @@ export namespace FilterComponent {
           filter as Entity<FilterComponent<MirrorFilterData>>,
           transform,
         );
+      case 'pattern':
+        return PatternFilter.translate(
+          filter as Entity<FilterComponent<PatternFilterData>>,
+          transform,
+        );
       default:
         filterData satisfies never;
         throw new Error(`Filter.translate: Unknown filter type ${(filterData as any).type}`);
@@ -134,6 +142,8 @@ export namespace FilterComponent {
         return ChamferFilter.equals(a as Entity<FilterComponent<ChamferFilterData>>, b);
       case 'mirror':
         return MirrorFilter.equals(a as Entity<FilterComponent<MirrorFilterData>>, b);
+      case 'pattern':
+        return PatternFilter.equals(a as Entity<FilterComponent<PatternFilterData>>, b);
       default:
         filterData satisfies never;
         throw new Error(
@@ -171,15 +181,23 @@ export namespace FilterComponent {
     for (const filter of filters) {
       const fd = FilterComponent.get(filter);
       switch (fd.type) {
-        case 'mirror':
+        case 'fillet':
+        case 'chamfer':
+          break;
+        case 'mirror': {
           const output = MirrorFilter.computeDynamicFillState(geometry, fd);
           if (output === 'filled') {
             shouldFill = true;
           }
           break;
-        case 'fillet':
-        case 'chamfer':
+        }
+        case 'pattern': {
+          const output = PatternFilter.computeDynamicFillState(geometry, fd);
+          if (output === 'filled') {
+            shouldFill = true;
+          }
           break;
+        }
         default:
           fd satisfies never;
           break;
