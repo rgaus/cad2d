@@ -593,6 +593,67 @@ function parseMirrorFilter(
   };
 }
 
+/** Parses a <g data-type="pattern-filter"> element. */
+function parsePatternFilter(
+  attrs: Record<string, string | number>,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
+  generateId: (prefix?: string) => Id,
+): Record<string, unknown> | null {
+  let id = attrs.id as Id;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    id = generateId(ID_PREFIXES.filter);
+    if (typeof attrs.id !== 'undefined') {
+      rewrittenIdMap.set(attrs.id as Id, id);
+    }
+  } else {
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
+
+  const geometryId = attrs['data-geometry-id'];
+  if (typeof geometryId === 'undefined') {
+    return null;
+  }
+
+  switch (attrs['data-pattern-mode']) {
+    case 'grid':
+      return {
+        type: 'pattern',
+        mode: 'grid',
+        id,
+        geometryId: rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
+        upperLeft: {
+          x: parseFloat(String(attrs['data-upper-left-x'] ?? '0')),
+          y: parseFloat(String(attrs['data-upper-left-y'] ?? '0')),
+        },
+        lowerRight: {
+          x: parseFloat(String(attrs['data-lower-right-x'] ?? '0')),
+          y: parseFloat(String(attrs['data-lower-right-y'] ?? '0')),
+        },
+        xRepeats: parseFloat(String(attrs['data-repeats-x'] ?? '1')),
+        yRepeats: parseFloat(String(attrs['data-repeats-y'] ?? '1')),
+      };
+    case 'radial':
+      return {
+        type: 'pattern',
+        mode: 'radial',
+        id,
+        geometryId: rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
+        center: {
+          x: parseFloat(String(attrs['data-center-x'] ?? '0')),
+          y: parseFloat(String(attrs['data-center-y'] ?? '0')),
+        },
+        radius: parseFloat(String(attrs['data-radius'] ?? '1')),
+        repeats: { type: 'count', count: parseFloat(String(attrs['data-repeats-count'] ?? '1')) },
+      };
+    default:
+      throw new Error(`Unknown filter mode=${attrs['data-pattern-mode']} for filter with id ${id}`);
+  }
+}
+
 /** Parses a <g data-type="fillet-filter"> or <g data-type="chamfer-filter"> element. */
 function parseFilletOrChamferFilter(
   type: 'fillet' | 'chamfer',
@@ -1302,6 +1363,15 @@ export function parseSvg(
         break;
       case 'mirror-filter': {
         const filter = parseMirrorFilter(attrs, rewrittenIdMap, doesIdExist, generateId);
+        if (filter) {
+          result.filters.push(filter);
+          // Bail out early — no nested data within a filter
+          return;
+        }
+        break;
+      }
+      case 'pattern-filter': {
+        const filter = parsePatternFilter(attrs, rewrittenIdMap, doesIdExist, generateId);
         if (filter) {
           result.filters.push(filter);
           // Bail out early — no nested data within a filter
