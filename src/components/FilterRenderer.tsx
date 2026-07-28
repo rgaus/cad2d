@@ -8,11 +8,14 @@ import ConstraintLengthInput, {
 } from '@/app/components/ConstraintLengthInput';
 import FilletFilterIndicator from '@/app/components/FilletFilterIndicator';
 import MirrorFilterIndicator from '@/app/components/MirrorFilterIndicator';
+import PatternGridFilterIndicator from '@/app/components/PatternGridFilterIndicator';
+import PatternRadialFilterIndicator from '@/app/components/PatternRadialFilterIndicator';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { type Entity } from '@/lib/entity';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { MirrorFilterData } from '@/lib/entity/filters/mirror';
+import { PatternFilterData } from '@/lib/entity/filters/pattern';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SELECTION_COLOR, VertexHandleTexture } from '@/lib/textures';
@@ -316,6 +319,66 @@ const FilterOverlay: React.FunctionComponent = () => {
                 ) : null}
               </Fragment>
             );
+          }
+          case 'pattern': {
+            switch (filter.mode) {
+              case 'grid': {
+                const gridFilter = filter as PatternFilterData & { mode: 'grid' };
+                return (
+                  <Fragment key={geometry.id}>
+                    <PatternGridFilterIndicator
+                      upperLeft={gridFilter.upperLeft}
+                      lowerRight={gridFilter.lowerRight}
+                      viewportScale={viewportScale}
+                      lineWidthPx={
+                        isSelected || hoveringFilterLabelId === geometry.id ? 2 : undefined
+                      }
+                      color={isSelected ? SELECTION_COLOR : undefined}
+                      onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
+                      onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
+                      onPointerLeave={handleFilterLabelPointerLeave}
+                    />
+                    {isSelected ? (
+                      <HandleSprites
+                        points={[gridFilter.upperLeft, gridFilter.lowerRight]}
+                        handleTexture={VertexHandleTexture.get()}
+                        viewportScale={viewportScale}
+                      />
+                    ) : null}
+                  </Fragment>
+                );
+              }
+              case 'radial': {
+                const radialFilter = filter as PatternFilterData & { mode: 'radial' };
+                return (
+                  <Fragment key={geometry.id}>
+                    <PatternRadialFilterIndicator
+                      center={radialFilter.center}
+                      radius={radialFilter.radius}
+                      repeats={radialFilter.repeats}
+                      viewportScale={viewportScale}
+                      lineWidthPx={
+                        isSelected || hoveringFilterLabelId === geometry.id ? 2 : undefined
+                      }
+                      color={isSelected ? SELECTION_COLOR : undefined}
+                      onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
+                      onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
+                      onPointerLeave={handleFilterLabelPointerLeave}
+                    />
+                    {isSelected ? (
+                      <HandleSprites
+                        points={[radialFilter.center]}
+                        handleTexture={VertexHandleTexture.get()}
+                        viewportScale={viewportScale}
+                      />
+                    ) : null}
+                  </Fragment>
+                );
+              }
+              default:
+                filter satisfies never;
+                break;
+            }
           }
           default:
             filter satisfies never;

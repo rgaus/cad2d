@@ -10,6 +10,7 @@ import {
 } from '@/lib/entity';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { Filter } from '@/lib/entity/filters';
+import { PatternFilter } from '@/lib/entity/filters/pattern';
 import { Sheet } from '@/lib/sheet/Sheet';
 
 /**
@@ -270,6 +271,52 @@ export default function ShapePreview({
                 strokeDasharray="2,2"
               />
             );
+          case 'pattern':
+            switch (filterData.mode) {
+              case 'grid': {
+                const [upperLeftX, upperLeftY] = toSvg(
+                  filterData.upperLeft.x,
+                  filterData.upperLeft.y,
+                );
+                const [lowerRightX, lowerRightY] = toSvg(
+                  filterData.lowerRight.x,
+                  filterData.lowerRight.y,
+                );
+                return (
+                  <rect
+                    key={filter.id}
+                    x={upperLeftX}
+                    y={upperLeftY}
+                    width={lowerRightX - upperLeftX}
+                    height={lowerRightY - upperLeftY}
+                    fill="none"
+                    stroke="rgba(0,0,0,0.4)"
+                    strokeWidth="1"
+                    strokeDasharray="2,2"
+                  />
+                );
+              }
+              case 'radial': {
+                const [leftCorner, rightCorner] = PatternFilter.getRadialCornerPoints(filterData);
+                return (
+                  <polygon
+                    key={filter.id}
+                    points={[filterData.center, rightCorner, leftCorner]
+                      .map((pt) => toSvg(pt.x, pt.y).join(','))
+                      .join(' ')}
+                    fill="none"
+                    stroke="rgba(0,0,0,0.4)"
+                    strokeWidth="1"
+                    strokeDasharray="2,2"
+                  />
+                );
+              }
+              default:
+                filterData satisfies never;
+                throw new Error(
+                  `ShapePreview filter render: No filter with type=pattern and mode=${(filterData as any).mode} known!`,
+                );
+            }
           default:
             filterData satisfies never;
             throw new Error(
