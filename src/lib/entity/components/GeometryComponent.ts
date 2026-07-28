@@ -1,15 +1,13 @@
-import { BoundingBox, CornerReplacement } from '@/lib/math';
+import { BoundingBox } from '@/lib/math';
 import { type UnitType } from '@/lib/units/length';
 import {
-  CubicCurve,
   KeyPoints,
-  LineSegment,
-  QuadraticCurve,
   Rect,
   SheetPosition,
 } from '@/lib/viewport/types';
-import { Filter, FilterData } from '../filters';
+import { FilletFilter, Filter, FilterData } from '../filters';
 import { MirrorFilter } from '../filters/mirror';
+import { PatternFilter } from '../filters/pattern';
 import { type Geometry, type GeometryData } from '../geometry';
 import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
@@ -643,30 +641,13 @@ export namespace GeometryComponent {
     return PolygonData.addPointOnEdge(geometry, constraints, segmentIndex, newPointPosition);
   }
 
-  /** Mirrors a point over an infinite line defined by two points. */
-  function mirrorPointOverLine(
-    point: SheetPosition,
-    lineA: SheetPosition,
-    lineB: SheetPosition,
-  ): SheetPosition {
-    const dx = lineB.x - lineA.x;
-    const dy = lineB.y - lineA.y;
-    const lenSq = dx * dx + dy * dy;
-    if (lenSq === 0) {
-      return point;
-    }
-    const t = ((point.x - lineA.x) * dx + (point.y - lineA.y) * dy) / lenSq;
-    const projX = lineA.x + t * dx;
-    const projY = lineA.y + t * dy;
-    return new SheetPosition(2 * projX - point.x, 2 * projY - point.y);
-  }
-
   /** A map used to look up each filter and determine the order in which they should be applied.
    * Lower number = applied earlier, larger number = applied later. */
   const FILTER_DATA_TYPE_SORT_ORDER: { [key in FilterData['type']]: number } = {
     fillet: 1,
     chamfer: 1,
     mirror: 2,
+    pattern: 2,
   };
 
   export function getRenderShapes(
@@ -734,6 +715,15 @@ export namespace GeometryComponent {
             shapes,
             generateFilterKey,
             sheetDefaultUnit,
+          )
+          break;
+        }
+        case 'pattern': {
+          shapes = PatternFilter.applyToRenderShape(
+            filterData,
+            shapes,
+            generateFilterKey,
+            options,
           )
           break;
         }

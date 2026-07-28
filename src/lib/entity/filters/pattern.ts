@@ -1,4 +1,4 @@
-import { closestPointOnSegment } from '@/lib/math';
+import { BoundingBox, closestPointOnSegment } from '@/lib/math';
 import { lineLineIntersection } from '@/lib/math/intersection';
 import { Angle } from '@/lib/units/angle';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -6,7 +6,7 @@ import { Entity, type Polygon, PolygonSegment } from '..';
 import { DEFAULT_COLOR } from '../colors';
 import { FillColorComponent } from '../components/FillColorComponent';
 import { FilterComponent } from '../components/FilterComponent';
-import { GeometryComponent } from '../components/GeometryComponent';
+import { GeometryComponent, GetRenderShapesOptions, RenderShape } from '../components/GeometryComponent';
 
 export type PatternGridFilterData = {
   type: 'pattern';
@@ -272,6 +272,381 @@ export namespace PatternFilter {
       return 'filled';
     }
     return 'unchanged';
+  }
+
+  /** Rotates a point around a center point by the given angle in degrees. */
+  function rotatePointAround(
+    point: SheetPosition,
+    center: SheetPosition,
+    angleDeg: number,
+  ): SheetPosition {
+    const rad = Angle.degrees(angleDeg).toRadians().magnitude;
+    const dx = point.x - center.x;
+    const dy = point.y - center.y;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    return new SheetPosition(center.x + dx * cos - dy * sin, center.y + dx * sin + dy * cos);
+  }
+
+
+  export function applyToRenderShape(
+    filterData: PatternFilterData,
+    shapes: Array<RenderShape>,
+    generateFilterKey: () => string,
+    options: GetRenderShapesOptions,
+  ): Array<RenderShape> {
+    switch (filterData.mode) {
+      case 'grid': {
+        const dx = filterData.lowerRight.x - filterData.upperLeft.x;
+        const dy = filterData.lowerRight.y - filterData.upperLeft.y;
+
+        return shapes.flatMap((renderShape) => {
+          const copies: Array<RenderShape> = [];
+
+          for (let i = 0; i < filterData.xRepeats; i += 1) {
+            for (let j = 0; j < filterData.yRepeats; j += 1) {
+              if (i === 0 && j === 0) {
+                continue;
+              }
+              const key = generateFilterKey();
+              const offsetX = i * dx;
+              const offsetY = j * dy;
+
+              switch (renderShape.shape) {
+                case 'rectangle': {
+                  copies.push(
+                    RenderShape.rectangle(
+                      key,
+                      new SheetPosition(
+                        renderShape.upperLeft.x + offsetX,
+                        renderShape.upperLeft.y + offsetY,
+                      ),
+                      new SheetPosition(
+                        renderShape.lowerRight.x + offsetX,
+                        renderShape.lowerRight.y + offsetY,
+                      ),
+                      { primary: false },
+                    ),
+                  );
+                  break;
+                }
+                case 'ellipse': {
+                  copies.push(
+                    RenderShape.ellipse(
+                      key,
+                      new SheetPosition(
+                        renderShape.center.x + offsetX,
+                        renderShape.center.y + offsetY,
+                      ),
+                      {
+                        radiusX: renderShape.radiusX,
+                        radiusY: renderShape.radiusY,
+                        primary: false,
+                      },
+                    ),
+                  );
+                  break;
+                }
+                case 'polygon': {
+                  const translatedPoints = renderShape.points.map((segment) => {
+                    const translatedPoint = new SheetPosition(
+                      segment.point.x + offsetX,
+                      segment.point.y + offsetY,
+                    );
+                    switch (segment.type) {
+                      case 'point':
+                        return { type: 'point' as const, point: translatedPoint };
+                      case 'arc-quadratic':
+                        return {
+                          type: 'arc-quadratic' as const,
+                          point: translatedPoint,
+                          controlPoint: new SheetPosition(
+                            segment.controlPoint.x + offsetX,
+                            segment.controlPoint.y + offsetY,
+                          ),
+                        };
+                      case 'arc-cubic':
+                        return {
+                          type: 'arc-cubic' as const,
+                          point: translatedPoint,
+                          controlPointA: new SheetPosition(
+                            segment.controlPointA.x + offsetX,
+                            segment.controlPointA.y + offsetY,
+                          ),
+                          controlPointB: new SheetPosition(
+                            segment.controlPointB.x + offsetX,
+                            segment.controlPointB.y + offsetY,
+                          ),
+                        };
+                      default:
+                        segment satisfies never;
+                        throw new Error(
+                          `getRenderShapes pattern grid: Unknown polygon segment type ${(segment as any).type}`,
+                        );
+                    }
+                  });
+
+                  copies.push(
+                    RenderShape.polygon(key, translatedPoints, {
+                      closed: renderShape.closed,
+                      primary: false,
+                    }),
+                  );
+                  break;
+                }
+                default:
+                  renderShape satisfies never;
+                  throw new Error(
+                    `getRenderShapes pattern grid: Unknown render shape type ${(renderShape as any).shape}`,
+                  );
+              }
+            }
+          }
+
+          return [renderShape, ...copies];
+        });
+      }
+      case 'radial': {
+        const angleStep = 360 / filterData.repeats.count;
+
+        return shapes.flatMap((renderShape) => {
+          const copies: Array<RenderShape> = [];
+
+          for (let i = 1; i < filterData.repeats.count; i += 1) {
+            const angle = i * angleStep;
+            const key = generateFilterKey();
+
+            switch (renderShape.shape) {
+              case 'rectangle': {
+                const corners = BoundingBox.cornersToArray(
+                  BoundingBox.corners(
+                    BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]),
+                  ),
+                );
+                const rotatedCorners = corners.map((corner) =>
+                  rotatePointAround(corner, filterData.center, angle),
+                );
+                copies.push(
+                  RenderShape.polygon(
+                    key,
+                    [...rotatedCorners, rotatedCorners[0]].map((point) => ({
+                      type: 'point',
+                      point,
+                    })),
+                    { closed: true, primary: false },
+                  ),
+                );
+                break;
+              }
+              case 'ellipse': {
+                copies.push(
+                  RenderShape.ellipse(
+                    key,
+                    rotatePointAround(renderShape.center, filterData.center, angle),
+                    {
+                      radiusX: renderShape.radiusX,
+                      radiusY: renderShape.radiusY,
+                      primary: false,
+                    },
+                  ),
+                );
+                break;
+              }
+              case 'polygon': {
+                const endpointSide = !renderShape.closed
+                  ? PatternFilter.arePolygonEndpointsOnEdgeLine(
+                      filterData,
+                      renderShape.points,
+                    )
+                  : null;
+
+                if (endpointSide !== null) {
+                  /** Rotates the polygon's points by the given angle around the center. */
+                  const rotatedCopy = (angle: number): Array<PolygonSegment> =>
+                    renderShape.points.map((segment) => {
+                      const rotatedPoint = rotatePointAround(
+                        segment.point,
+                        filterData.center,
+                        angle,
+                      );
+                      switch (segment.type) {
+                        case 'point':
+                          return { type: 'point' as const, point: rotatedPoint };
+                        case 'arc-quadratic':
+                          return {
+                            type: 'arc-quadratic' as const,
+                            point: rotatedPoint,
+                            controlPoint: rotatePointAround(
+                              segment.controlPoint,
+                              filterData.center,
+                              angle,
+                            ),
+                          };
+                        case 'arc-cubic':
+                          return {
+                            type: 'arc-cubic' as const,
+                            point: rotatedPoint,
+                            controlPointA: rotatePointAround(
+                              segment.controlPointA,
+                              filterData.center,
+                              angle,
+                            ),
+                            controlPointB: rotatePointAround(
+                              segment.controlPointB,
+                              filterData.center,
+                              angle,
+                            ),
+                          };
+                        default:
+                          segment satisfies never;
+                          throw new Error(
+                            `getRenderShapes pattern radial merge: Unknown polygon segment type ${(segment as any).type}`,
+                          );
+                      }
+                    });
+
+                  if (!options.combineNonClosedPolygons) {
+                    const results: Array<RenderShape> = [];
+                    for (let i = 0; i < filterData.repeats.count; i += 1) {
+                      const key = generateFilterKey();
+                      results.push(
+                        RenderShape.polygon(key, rotatedCopy(i * angleStep), {
+                          closed: true,
+                          primary: i === 0 ? renderShape.primary : false,
+                        }),
+                      );
+                    }
+                    return results;
+                  }
+
+                  // Chain all rotated copies around the center with gap fillers
+                  const chain: Array<PolygonSegment> = [];
+
+                  if (endpointSide === 'left') {
+                    // Case A: p0 on LEFT, pN on RIGHT -- chain CCW
+                    for (let i = 0; i < filterData.repeats.count; i += 1) {
+                      const copy = rotatedCopy(i * angleStep);
+                      if (chain.length > 0) {
+                        const lastPt = chain[chain.length - 1].point;
+                        const firstPt = copy[0].point;
+                        if (lastPt.x !== firstPt.x || lastPt.y !== firstPt.y) {
+                          chain.push({ type: 'point', point: firstPt });
+                        }
+                      }
+                      chain.push(...copy);
+                    }
+                  } else {
+                    // Case B: p0 on RIGHT, pN on LEFT -- chain going backward
+                    // around the circle (copy at (count-1)*step, ..., copy at 1*step)
+                    for (let i = filterData.repeats.count; i > 0; i -= 1) {
+                      const copy = rotatedCopy(i * angleStep);
+                      if (chain.length > 0) {
+                        const lastPt = chain[chain.length - 1].point;
+                        const firstPt = copy[0].point;
+                        if (lastPt.x !== firstPt.x || lastPt.y !== firstPt.y) {
+                          chain.push({ type: 'point', point: firstPt });
+                        }
+                      }
+                      chain.push(...copy);
+                    }
+                  }
+
+                  // Close back to start with a gap filler if needed
+                  const firstPt = chain[0].point;
+                  const lastPt = chain[chain.length - 1].point;
+                  if (lastPt.x !== firstPt.x || lastPt.y !== firstPt.y) {
+                    chain.push({ type: 'point', point: firstPt });
+                  }
+
+                  const key = generateFilterKey();
+                  return [
+                    RenderShape.polygon(key, chain, {
+                      closed: true,
+                      primary: renderShape.primary,
+                    }),
+                  ];
+                }
+
+                // Non-merging path: generate rotated copies separately
+                // This block only runs for the current iteration of the for loop
+                // because we are inside a flatMap callback for a single render shape
+                // that doesn't merge. Each subsequent iteration handles different
+                // render shapes from the shapes array.
+                const copies: Array<RenderShape> = [];
+                for (let i = 1; i < filterData.repeats.count; i += 1) {
+                  const angle = i * angleStep;
+                  const key = generateFilterKey();
+
+                  const rotatedPoints = renderShape.points.map((segment) => {
+                    const rotatedPoint = rotatePointAround(
+                      segment.point,
+                      filterData.center,
+                      angle,
+                    );
+                    switch (segment.type) {
+                      case 'point':
+                        return {
+                          type: 'point' as const,
+                          point: rotatedPoint,
+                        };
+                      case 'arc-quadratic':
+                        return {
+                          type: 'arc-quadratic' as const,
+                          point: rotatedPoint,
+                          controlPoint: rotatePointAround(
+                            segment.controlPoint,
+                            filterData.center,
+                            angle,
+                          ),
+                        };
+                      case 'arc-cubic':
+                        return {
+                          type: 'arc-cubic' as const,
+                          point: rotatedPoint,
+                          controlPointA: rotatePointAround(
+                            segment.controlPointA,
+                            filterData.center,
+                            angle,
+                          ),
+                          controlPointB: rotatePointAround(
+                            segment.controlPointB,
+                            filterData.center,
+                            angle,
+                          ),
+                        };
+                      default:
+                        segment satisfies never;
+                        throw new Error(
+                          `getRenderShapes pattern radial: Unknown polygon segment type ${(segment as any).type}`,
+                        );
+                    }
+                  });
+
+                  copies.push(
+                    RenderShape.polygon(key, rotatedPoints, {
+                      closed: renderShape.closed,
+                      primary: false,
+                    }),
+                  );
+                }
+
+                return [renderShape, ...copies];
+              }
+              default:
+                renderShape satisfies never;
+                throw new Error(
+                  `getRenderShapes pattern radial: Unknown render shape type ${(renderShape as any).shape}`,
+                );
+            }
+          }
+
+          return [renderShape, ...copies];
+        });
+      }
+      default:
+        filterData satisfies never;
+        throw new Error(`No pattern filter of mode=${(filterData as any).mode} found!`);
+    }
   }
 }
 
