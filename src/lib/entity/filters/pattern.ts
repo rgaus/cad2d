@@ -149,7 +149,7 @@ export namespace PatternFilter {
           radius: number | null;
           repeats: { type: 'count'; count: number } | null;
         },
-  >(filterData: F, points: Array<PolygonSegment>): 'left' | 'right' | null {
+  >(filterData: F, points: Array<PolygonSegment>): 'clockwise-wind' | 'counter-clockwise-wind' | null {
     if (points.length < 2) {
       return null;
     }
@@ -169,17 +169,17 @@ export namespace PatternFilter {
         const firstPoint = points[0].point;
         const lastPoint = points.at(-1)!.point;
         if (
-          closestPointOnSegment(filterData.center, leftCornerPoint, firstPoint).distance === 0 &&
-          closestPointOnSegment(filterData.center, rightCornerPoint, lastPoint).distance === 0
+          closestPointOnSegment(filterData.center, leftCornerPoint, firstPoint).distance < 1e-10 &&
+          closestPointOnSegment(filterData.center, rightCornerPoint, lastPoint).distance < 1e-10
         ) {
-          return 'left';
+          return 'counter-clockwise-wind';
         }
 
         if (
-          closestPointOnSegment(filterData.center, rightCornerPoint, firstPoint).distance === 0 &&
-          closestPointOnSegment(filterData.center, leftCornerPoint, lastPoint).distance === 0
+          closestPointOnSegment(filterData.center, rightCornerPoint, firstPoint).distance < 1e-10 &&
+          closestPointOnSegment(filterData.center, leftCornerPoint, lastPoint).distance < 1e-10
         ) {
-          return 'right';
+          return 'clockwise-wind';
         }
 
         return null;
@@ -453,14 +453,14 @@ export namespace PatternFilter {
                 break;
               }
               case 'polygon': {
-                const endpointSide = !renderShape.closed
+                const polygonTouchingSidesAndWinding = !renderShape.closed
                   ? PatternFilter.arePolygonEndpointsOnEdgeLine(
                       filterData,
                       renderShape.points,
                     )
                   : null;
 
-                if (endpointSide !== null) {
+                if (polygonTouchingSidesAndWinding !== null) {
                   /** Rotates the polygon's points by the given angle around the center. */
                   const rotatedCopy = (angle: number): Array<PolygonSegment> =>
                     renderShape.points.map((segment) => {
@@ -522,7 +522,7 @@ export namespace PatternFilter {
                   // Chain all rotated copies around the center with gap fillers
                   const chain: Array<PolygonSegment> = [];
 
-                  if (endpointSide === 'left') {
+                  if (polygonTouchingSidesAndWinding === 'clockwise-wind') {
                     // Case A: p0 on LEFT, pN on RIGHT -- chain CCW
                     for (let i = 0; i < filterData.repeats.count; i += 1) {
                       const copy = rotatedCopy(i * angleStep);
