@@ -187,6 +187,8 @@ export class ApplyFilterToGeometryAction extends BaseAction {
             }
             case 'mirror':
               break;
+            case 'pattern':
+              break;
             default:
               filter satisfies never;
               break;

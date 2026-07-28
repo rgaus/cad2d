@@ -590,6 +590,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         const filter = FilterComponent.get(filterGeom);
         switch (filter.type) {
           case 'mirror':
+          case 'pattern':
             if (filter.geometryId === id) {
               this.historyManager.push(UndoEntry.deleteGeometry(filterGeom));
               this.deleteByIdDirect(filterGeom.id);

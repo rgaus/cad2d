@@ -1879,6 +1879,33 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                       ),
                     );
                     break;
+                  case 'pattern':
+                    switch (before.mode) {
+                      case 'grid':
+                        forwardsActions.push(
+                          UndoEntry.patternGridFilterMoveUpperLeftLowerRight(
+                            id,
+                            before.upperLeft,
+                            before.lowerRight,
+                            (after as typeof before).upperLeft,
+                            (after as typeof before).lowerRight,
+                          ),
+                        );
+                        break;
+                      case 'radial':
+                        forwardsActions.push(
+                          UndoEntry.patternRadialFilterMoveCenter(
+                            id,
+                            before.center,
+                            (after as typeof before).center,
+                          ),
+                        );
+                        break;
+                      default:
+                        before satisfies never;
+                        break;
+                    }
+                    break;
                   default:
                     before satisfies never;
                     break;
@@ -3167,6 +3194,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           );
           break;
         case 'mirror':
+        case 'pattern':
           break;
         default:
           filter satisfies never;
