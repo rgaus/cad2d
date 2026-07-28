@@ -46,7 +46,10 @@ export default function PatternGridFilterIndicator({
 
   // Icon at midpoint of the bounding rect, offset upward
   const iconPos = useMemo(() => {
-    return Vector2.add(vUpperLeft, new WorldPosition(-ICON_OFFSET_PX / viewportScale, -ICON_OFFSET_PX / viewportScale));
+    return Vector2.add(
+      vUpperLeft,
+      new WorldPosition(-ICON_OFFSET_PX / viewportScale, -ICON_OFFSET_PX / viewportScale),
+    );
   }, [vUpperLeft, viewportScale]);
 
   const lineWidth = lineWidthPx / viewportScale;

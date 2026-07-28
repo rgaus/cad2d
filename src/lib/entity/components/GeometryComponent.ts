@@ -1,10 +1,6 @@
 import { BoundingBox } from '@/lib/math';
 import { type UnitType } from '@/lib/units/length';
-import {
-  KeyPoints,
-  Rect,
-  SheetPosition,
-} from '@/lib/viewport/types';
+import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { FilletFilter, Filter, FilterData } from '../filters';
 import { MirrorFilter } from '../filters/mirror';
 import { PatternFilter } from '../filters/pattern';
@@ -700,12 +696,7 @@ export namespace GeometryComponent {
       const filterData = FilterComponent.get(filter);
       switch (filterData.type) {
         case 'mirror': {
-          shapes = MirrorFilter.applyToRenderShape(
-            filterData,
-            shapes,
-            generateFilterKey,
-            options,
-          );
+          shapes = MirrorFilter.applyToRenderShape(filterData, shapes, generateFilterKey, options);
           break;
         }
         case 'fillet':
@@ -715,16 +706,11 @@ export namespace GeometryComponent {
             shapes,
             generateFilterKey,
             sheetDefaultUnit,
-          )
+          );
           break;
         }
         case 'pattern': {
-          shapes = PatternFilter.applyToRenderShape(
-            filterData,
-            shapes,
-            generateFilterKey,
-            options,
-          )
+          shapes = PatternFilter.applyToRenderShape(filterData, shapes, generateFilterKey, options);
           break;
         }
         default:

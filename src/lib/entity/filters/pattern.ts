@@ -6,7 +6,11 @@ import { Entity, type Polygon, PolygonSegment } from '..';
 import { DEFAULT_COLOR } from '../colors';
 import { FillColorComponent } from '../components/FillColorComponent';
 import { FilterComponent } from '../components/FilterComponent';
-import { GeometryComponent, GetRenderShapesOptions, RenderShape } from '../components/GeometryComponent';
+import {
+  GeometryComponent,
+  GetRenderShapesOptions,
+  RenderShape,
+} from '../components/GeometryComponent';
 
 export type PatternGridFilterData = {
   type: 'pattern';
@@ -149,7 +153,10 @@ export namespace PatternFilter {
           radius: number | null;
           repeats: { type: 'count'; count: number } | null;
         },
-  >(filterData: F, points: Array<PolygonSegment>): 'clockwise-wind' | 'counter-clockwise-wind' | null {
+  >(
+    filterData: F,
+    points: Array<PolygonSegment>,
+  ): 'clockwise-wind' | 'counter-clockwise-wind' | null {
     if (points.length < 2) {
       return null;
     }
@@ -287,7 +294,6 @@ export namespace PatternFilter {
     const sin = Math.sin(rad);
     return new SheetPosition(center.x + dx * cos - dy * sin, center.y + dx * sin + dy * cos);
   }
-
 
   export function applyToRenderShape(
     filterData: PatternFilterData,
@@ -454,10 +460,7 @@ export namespace PatternFilter {
               }
               case 'polygon': {
                 const polygonTouchingSidesAndWinding = !renderShape.closed
-                  ? PatternFilter.arePolygonEndpointsOnEdgeLine(
-                      filterData,
-                      renderShape.points,
-                    )
+                  ? PatternFilter.arePolygonEndpointsOnEdgeLine(filterData, renderShape.points)
                   : null;
 
                 if (polygonTouchingSidesAndWinding !== null) {
@@ -578,11 +581,7 @@ export namespace PatternFilter {
                   const key = generateFilterKey();
 
                   const rotatedPoints = renderShape.points.map((segment) => {
-                    const rotatedPoint = rotatePointAround(
-                      segment.point,
-                      filterData.center,
-                      angle,
-                    );
+                    const rotatedPoint = rotatePointAround(segment.point, filterData.center, angle);
                     switch (segment.type) {
                       case 'point':
                         return {

@@ -1,11 +1,15 @@
 import { BoundingBox, closestPointOnSegment } from '@/lib/math';
+import { UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Entity, type Polygon, PolygonSegment } from '..';
 import { DEFAULT_COLOR } from '../colors';
 import { FillColorComponent } from '../components/FillColorComponent';
 import { FilterComponent } from '../components/FilterComponent';
-import { GeometryComponent, GetRenderShapesOptions, RenderShape } from '../components/GeometryComponent';
-import { UnitType } from '@/lib/units/length';
+import {
+  GeometryComponent,
+  GetRenderShapesOptions,
+  RenderShape,
+} from '../components/GeometryComponent';
 
 export type MirrorFilterData = {
   type: 'mirror';
@@ -163,7 +167,7 @@ export namespace MirrorFilter {
   }
 
   /** Given a filter, apply it to a list of {@link RenderShape}s, returning a new set of render
-    * shapes which should be rendered instead. */
+   * shapes which should be rendered instead. */
   export function applyToRenderShape(
     filterData: MirrorFilterData,
     shapes: Array<RenderShape>,

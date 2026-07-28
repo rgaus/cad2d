@@ -1,10 +1,17 @@
+import { BoundingBox, CornerReplacement } from '@/lib/math';
 import { Length } from '@/lib/units/length';
 import type { UnitType } from '@/lib/units/length';
-import { Entity, type Polygon, PolygonSegment, type Rectangle, RectangleEndpoint, RenderShape } from '..';
+import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
+import {
+  Entity,
+  type Polygon,
+  PolygonSegment,
+  type Rectangle,
+  RectangleEndpoint,
+  RenderShape,
+} from '..';
 import { FilterComponent } from '../components/FilterComponent';
 import { ChamferFilterData } from './chamfer';
-import { BoundingBox, CornerReplacement } from '@/lib/math';
-import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
 
 export type FilletFilterData =
   | {
@@ -86,7 +93,7 @@ export namespace FilletFilter {
   }
 
   /** Given a filter, apply it to a list of {@link RenderShape}s, returning a new set of render
-    * shapes which should be rendered instead. */
+   * shapes which should be rendered instead. */
   export function applyToRenderShape(
     filterData: FilletFilterData | ChamferFilterData,
     shapes: Array<RenderShape>,
@@ -135,9 +142,7 @@ export namespace FilletFilter {
           // Convert polygon points to viewport segments
           const pointsLength = renderShape.points.length;
           const viewportSegs: Array<
-            | LineSegment<SheetPosition>
-            | QuadraticCurve<SheetPosition>
-            | CubicCurve<SheetPosition>
+            LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>
           > = [];
           for (let i = 0; i < pointsLength - 1; i += 1) {
             viewportSegs.push(
@@ -179,8 +184,7 @@ export namespace FilletFilter {
               if (centerPtIndex === null) {
                 return [];
               }
-              const cornerIndex =
-                (centerPtIndex - 1 + viewportSegs.length) % viewportSegs.length;
+              const cornerIndex = (centerPtIndex - 1 + viewportSegs.length) % viewportSegs.length;
 
               resultSegs = CornerReplacement.applyToPolygon(
                 viewportSegs,
