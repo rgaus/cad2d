@@ -41,6 +41,13 @@ export type RenderShapeEllipse = {
   radiusY: number;
 };
 
+export type GetRenderShapesOptions = {
+  /** Defaults to true. When set to false, a non closed polygon which would become closed (ie,
+   * polygon mirrored over a mirror line) will be returned as two distinct polygons (one
+   * primary, one not) so that the two halves can be rendered differently. */
+  combineNonClosedPolygons: boolean;
+};
+
 export type RenderShape = RenderShapePolygon | RenderShapeRectangle | RenderShapeEllipse;
 
 export namespace RenderShape {
@@ -666,12 +673,7 @@ export namespace GeometryComponent {
     geometry: Entity<GeometryComponent<GeometryData>>,
     sheetDefaultUnit: UnitType,
     filters: Array<Filter> = [],
-    options: {
-      /** Defaults to true. When set to false, a non closed polygon which would become closed (ie,
-       * polygon mirrored over a mirror line) will be returned as two distinct polygons (one
-       * primary, one not) so that the two halves can be rendered differently. */
-      combineNonClosedPolygons: boolean;
-    } = { combineNonClosedPolygons: true },
+    options: GetRenderShapesOptions = { combineNonClosedPolygons: true },
   ): Array<RenderShape> {
     let shapes;
 
@@ -709,292 +711,30 @@ export namespace GeometryComponent {
       const bScore = FILTER_DATA_TYPE_SORT_ORDER[FilterComponent.get(b).type];
       return aScore - bScore;
     })) {
+      const generateFilterKey = () => {
+        filterApplicationCounter += 1;
+        return `${filter.id}_${filterApplicationCounter}`;
+      };
+
       const filterData = FilterComponent.get(filter);
       switch (filterData.type) {
         case 'mirror': {
-          shapes = shapes.flatMap((renderShape) => {
-            filterApplicationCounter += 1;
-            const key = `${filter.id}_${filterApplicationCounter}`;
-
-            switch (renderShape.shape) {
-              case 'rectangle': {
-                const corners = BoundingBox.cornersToArray(
-                  BoundingBox.corners(
-                    BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]),
-                  ),
-                );
-                const flippedCorners = corners.map((point) =>
-                  mirrorPointOverLine(point, filterData.pointA, filterData.pointB),
-                );
-
-                return [
-                  renderShape,
-                  RenderShape.polygon(
-                    key,
-                    [...flippedCorners, flippedCorners[0]].map((point) => ({
-                      type: 'point',
-                      point,
-                    })),
-                    { closed: true },
-                  ),
-                ];
-              }
-              case 'ellipse': {
-                // IMPORTANT: the below algorithm does not properly handle flipping over non 90 or 45
-                // degree lines, since there isn't a way to represent a rotated rectangle currently.
-                //
-                // FIXME: Address this, it's a bug that is fairly noticable.
-
-                const mirroredCenter = mirrorPointOverLine(
-                  renderShape.center,
-                  filterData.pointA,
-                  filterData.pointB,
-                );
-                return [
-                  renderShape,
-                  RenderShape.ellipse(key, mirroredCenter, {
-                    radiusX: renderShape.radiusX,
-                    radiusY: renderShape.radiusY,
-                  }),
-                ];
-              }
-              case 'polygon': {
-                const mirroredPoints = renderShape.points.map((segment) => {
-                  const mirroredPoint = mirrorPointOverLine(
-                    segment.point,
-                    filterData.pointA,
-                    filterData.pointB,
-                  );
-                  switch (segment.type) {
-                    case 'point':
-                      return { type: 'point' as const, point: mirroredPoint };
-                    case 'arc-quadratic':
-                      return {
-                        type: 'arc-quadratic' as const,
-                        point: mirroredPoint,
-                        controlPoint: mirrorPointOverLine(
-                          segment.controlPoint,
-                          filterData.pointA,
-                          filterData.pointB,
-                        ),
-                      };
-                    case 'arc-cubic':
-                      return {
-                        type: 'arc-cubic' as const,
-                        point: mirroredPoint,
-                        controlPointA: mirrorPointOverLine(
-                          segment.controlPointA,
-                          filterData.pointA,
-                          filterData.pointB,
-                        ),
-                        controlPointB: mirrorPointOverLine(
-                          segment.controlPointB,
-                          filterData.pointA,
-                          filterData.pointB,
-                        ),
-                      };
-                    default:
-                      segment satisfies never;
-                      throw new Error(
-                        `getRenderShapes: Unknown polygon segment type ${(segment as any).type}`,
-                      );
-                  }
-                });
-
-                // If a polygon which is non closed is mirrored across the mirror line and the start
-                // and end points are both exactly ON the mirror line, then combine the two mirrored
-                // halves into one filled polygon
-                if (
-                  !renderShape.closed &&
-                  MirrorFilter.arePolygonEndpointsOnMirrorLine(filterData, renderShape.points)
-                ) {
-                  // In some cases (ie, when rendering in ShapePreview), combining together the
-                  // polygons actually isn't what is desired, so that the mirrored part can be
-                  // rendered differently.
-                  //
-                  // In this case, return them seperately, though importantly, the mirrored section
-                  // is CLOSED! Which is different than what would happen normally.
-                  if (!options.combineNonClosedPolygons) {
-                    return [
-                      { ...renderShape, closed: true },
-                      RenderShape.polygon(key, mirroredPoints, { closed: true }),
-                    ];
-                  }
-
-                  const combined = [
-                    ...renderShape.points,
-                    // Flip around the mirrored points so it can continue where `renderShape`
-                    // left off.
-                    ...PolygonSegment.reverseList(mirroredPoints),
-                  ];
-                  return [
-                    RenderShape.polygon(key, combined, {
-                      closed: true,
-                      primary: renderShape.primary,
-                    }),
-                  ];
-                }
-
-                return [
-                  renderShape,
-                  RenderShape.polygon(key, mirroredPoints, {
-                    closed: renderShape.closed,
-                    primary: false,
-                  }),
-                ];
-              }
-              default:
-                renderShape satisfies never;
-                throw new Error(
-                  `getRenderShapes: Unknown render shape type ${(renderShape as any).shape}`,
-                );
-            }
-          });
+          shapes = MirrorFilter.applyToRenderShape(
+            filterData,
+            shapes,
+            generateFilterKey,
+            options,
+          );
           break;
         }
         case 'fillet':
         case 'chamfer': {
-          const factory =
-            filterData.type === 'fillet'
-              ? CornerReplacement.filletArc<SheetPosition>
-              : CornerReplacement.chamferLine<SheetPosition>;
-          const offsetNum = filterData.offset.toSheetUnits(sheetDefaultUnit).magnitude;
-
-          shapes = shapes.flatMap((renderShape) => {
-            filterApplicationCounter += 1;
-            const key = `${filter.id}_${filterApplicationCounter}`;
-
-            let resultSegs: Array<
-              LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>
-            >;
-            let closed = false;
-
-            switch (renderShape.shape) {
-              case 'rectangle': {
-                switch (filterData.geometryType) {
-                  case 'rectangle':
-                    resultSegs = CornerReplacement.applyToRectangle(
-                      renderShape.upperLeft,
-                      renderShape.lowerRight,
-                      filterData.pointCenterKeyPoint,
-                      offsetNum,
-                      factory,
-                    ).segments;
-                    closed = true;
-                    break;
-                  case 'polygon':
-                    console.warn(
-                      'GeometryComponent.getRenderShapes: applying fillet/chamfer - geoemtryType of polygon cannot apply to renderShape of rectangle, skipping...',
-                    );
-                    return [];
-                  default:
-                    filterData satisfies never;
-                    return [];
-                }
-                break;
-              }
-              case 'polygon': {
-                // Convert polygon points to viewport segments
-                const pointsLength = renderShape.points.length;
-                const viewportSegs: Array<
-                  | LineSegment<SheetPosition>
-                  | QuadraticCurve<SheetPosition>
-                  | CubicCurve<SheetPosition>
-                > = [];
-                for (let i = 0; i < pointsLength - 1; i += 1) {
-                  viewportSegs.push(
-                    PolygonSegment.toLineSegmentOrCurve(
-                      renderShape.points[i].point,
-                      renderShape.points[i + 1],
-                    ),
-                  );
-                }
-
-                switch (filterData.geometryType) {
-                  case 'rectangle': {
-                    // Skip non corner points
-                    if (
-                      filterData.pointCenterKeyPoint !== 'upperLeft' &&
-                      filterData.pointCenterKeyPoint !== 'upperRight' &&
-                      filterData.pointCenterKeyPoint !== 'lowerLeft' &&
-                      filterData.pointCenterKeyPoint !== 'lowerRight'
-                    ) {
-                      return [];
-                    }
-
-                    // Find the viewport segment index whose end is the center vertex
-                    const cornerPositions = BoundingBox.corners(
-                      BoundingBox.fromPoints(renderShape.points.map((p) => p.point)),
-                    );
-                    const centerPos = cornerPositions[filterData.pointCenterKeyPoint];
-                    // Find the center vertex index in the polygon
-                    let centerPtIndex: number | null = null;
-                    for (let i = 0; i < pointsLength - 1; i += 1) {
-                      if (
-                        renderShape.points[i].point.x === centerPos.x &&
-                        renderShape.points[i].point.y === centerPos.y
-                      ) {
-                        centerPtIndex = i;
-                        break;
-                      }
-                    }
-                    if (centerPtIndex === null) {
-                      return [];
-                    }
-                    const cornerIndex =
-                      (centerPtIndex - 1 + viewportSegs.length) % viewportSegs.length;
-
-                    resultSegs = CornerReplacement.applyToPolygon(
-                      viewportSegs,
-                      cornerIndex,
-                      offsetNum,
-                      factory,
-                    ).segments;
-                    closed = renderShape.closed;
-                    break;
-                  }
-                  case 'polygon': {
-                    // Find the viewport segment index whose end is the center vertex
-                    const cornerIndex =
-                      (filterData.pointCenterIndex - 1 + viewportSegs.length) % viewportSegs.length;
-
-                    resultSegs = CornerReplacement.applyToPolygon(
-                      viewportSegs,
-                      cornerIndex,
-                      offsetNum,
-                      factory,
-                    ).segments;
-                    closed = renderShape.closed;
-                    break;
-                  }
-                  default:
-                    filterData satisfies never;
-                    return [];
-                }
-                break;
-              }
-              case 'ellipse':
-                // Ellipses can't have fillets / chamfers
-                // So just pass through unchanged
-                return [renderShape];
-              default:
-                renderShape satisfies never;
-                throw new Error(
-                  `getRenderShapes: Unknown render shape type ${(renderShape as any).shape}`,
-                );
-            }
-
-            // Convert viewport segments back to PolygonSegment[]
-            const newPoints: Array<PolygonSegment> = [];
-            const [firstPoint] = PolygonSegment.fromLineSegmentOrCurve(resultSegs[0]);
-            newPoints.push({ type: 'point', point: firstPoint });
-            for (const seg of resultSegs) {
-              const [, polySeg] = PolygonSegment.fromLineSegmentOrCurve(seg);
-              newPoints.push(polySeg);
-            }
-
-            return [RenderShape.polygon(key, newPoints, { closed, primary: renderShape.primary })];
-          });
+          shapes = FilletFilter.applyToRenderShape(
+            filterData,
+            shapes,
+            generateFilterKey,
+            sheetDefaultUnit,
+          )
           break;
         }
         default:

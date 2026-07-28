@@ -1,10 +1,11 @@
-import { closestPointOnSegment } from '@/lib/math';
+import { BoundingBox, closestPointOnSegment } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Entity, type Polygon, PolygonSegment } from '..';
 import { DEFAULT_COLOR } from '../colors';
 import { FillColorComponent } from '../components/FillColorComponent';
 import { FilterComponent } from '../components/FilterComponent';
-import { GeometryComponent } from '../components/GeometryComponent';
+import { GeometryComponent, GetRenderShapesOptions, RenderShape } from '../components/GeometryComponent';
+import { UnitType } from '@/lib/units/length';
 
 export type MirrorFilterData = {
   type: 'mirror';
@@ -141,6 +142,171 @@ export namespace MirrorFilter {
       return 'filled';
     }
     return 'unchanged';
+  }
+
+  /** Mirrors a point over an infinite line defined by two points. */
+  function mirrorPointOverLine(
+    point: SheetPosition,
+    lineA: SheetPosition,
+    lineB: SheetPosition,
+  ): SheetPosition {
+    const dx = lineB.x - lineA.x;
+    const dy = lineB.y - lineA.y;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) {
+      return point;
+    }
+    const t = ((point.x - lineA.x) * dx + (point.y - lineA.y) * dy) / lenSq;
+    const projX = lineA.x + t * dx;
+    const projY = lineA.y + t * dy;
+    return new SheetPosition(2 * projX - point.x, 2 * projY - point.y);
+  }
+
+  /** Given a filter, apply it to a list of {@link RenderShape}s, returning a new set of render
+    * shapes which should be rendered instead. */
+  export function applyToRenderShape(
+    filterData: MirrorFilterData,
+    shapes: Array<RenderShape>,
+    generateFilterKey: () => string,
+    options: GetRenderShapesOptions,
+  ): Array<RenderShape> {
+    return shapes.flatMap((renderShape) => {
+      const key = generateFilterKey();
+
+      switch (renderShape.shape) {
+        case 'rectangle': {
+          const corners = BoundingBox.cornersToArray(
+            BoundingBox.corners(
+              BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]),
+            ),
+          );
+          const flippedCorners = corners.map((point) =>
+            mirrorPointOverLine(point, filterData.pointA, filterData.pointB),
+          );
+
+          return [
+            renderShape,
+            RenderShape.polygon(
+              key,
+              [...flippedCorners, flippedCorners[0]].map((point) => ({
+                type: 'point',
+                point,
+              })),
+              { closed: true },
+            ),
+          ];
+        }
+        case 'ellipse': {
+          // IMPORTANT: the below algorithm does not properly handle flipping over non 90 or 45
+          // degree lines, since there isn't a way to represent a rotated rectangle currently.
+          //
+          // FIXME: Address this, it's a bug that is fairly noticable.
+
+          const mirroredCenter = mirrorPointOverLine(
+            renderShape.center,
+            filterData.pointA,
+            filterData.pointB,
+          );
+          return [
+            renderShape,
+            RenderShape.ellipse(key, mirroredCenter, {
+              radiusX: renderShape.radiusX,
+              radiusY: renderShape.radiusY,
+            }),
+          ];
+        }
+        case 'polygon': {
+          const mirroredPoints = renderShape.points.map((segment) => {
+            const mirroredPoint = mirrorPointOverLine(
+              segment.point,
+              filterData.pointA,
+              filterData.pointB,
+            );
+            switch (segment.type) {
+              case 'point':
+                return { type: 'point' as const, point: mirroredPoint };
+              case 'arc-quadratic':
+                return {
+                  type: 'arc-quadratic' as const,
+                  point: mirroredPoint,
+                  controlPoint: mirrorPointOverLine(
+                    segment.controlPoint,
+                    filterData.pointA,
+                    filterData.pointB,
+                  ),
+                };
+              case 'arc-cubic':
+                return {
+                  type: 'arc-cubic' as const,
+                  point: mirroredPoint,
+                  controlPointA: mirrorPointOverLine(
+                    segment.controlPointA,
+                    filterData.pointA,
+                    filterData.pointB,
+                  ),
+                  controlPointB: mirrorPointOverLine(
+                    segment.controlPointB,
+                    filterData.pointA,
+                    filterData.pointB,
+                  ),
+                };
+              default:
+                segment satisfies never;
+                throw new Error(
+                  `getRenderShapes: Unknown polygon segment type ${(segment as any).type}`,
+                );
+            }
+          });
+
+          // If a polygon which is non closed is mirrored across the mirror line and the start
+          // and end points are both exactly ON the mirror line, then combine the two mirrored
+          // halves into one filled polygon
+          if (
+            !renderShape.closed &&
+            MirrorFilter.arePolygonEndpointsOnMirrorLine(filterData, renderShape.points)
+          ) {
+            // In some cases (ie, when rendering in ShapePreview), combining together the
+            // polygons actually isn't what is desired, so that the mirrored part can be
+            // rendered differently.
+            //
+            // In this case, return them seperately, though importantly, the mirrored section
+            // is CLOSED! Which is different than what would happen normally.
+            if (!options.combineNonClosedPolygons) {
+              return [
+                { ...renderShape, closed: true },
+                RenderShape.polygon(key, mirroredPoints, { closed: true }),
+              ];
+            }
+
+            const combined = [
+              ...renderShape.points,
+              // Flip around the mirrored points so it can continue where `renderShape`
+              // left off.
+              ...PolygonSegment.reverseList(mirroredPoints),
+            ];
+            return [
+              RenderShape.polygon(key, combined, {
+                closed: true,
+                primary: renderShape.primary,
+              }),
+            ];
+          }
+
+          return [
+            renderShape,
+            RenderShape.polygon(key, mirroredPoints, {
+              closed: renderShape.closed,
+              primary: false,
+            }),
+          ];
+        }
+        default:
+          renderShape satisfies never;
+          throw new Error(
+            `getRenderShapes: Unknown render shape type ${(renderShape as any).shape}`,
+          );
+      }
+    });
   }
 }
 
