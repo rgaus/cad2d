@@ -340,6 +340,24 @@ export type MirrorFilterMoveEndpointsEntry = {
   afterPointB: SheetPosition;
 };
 
+/** Recorded when a pattern radial filter's center is moved. */
+export type PatternRadialFilterMoveCenterEntry = {
+  type: 'pattern-radial-filter-move-center';
+  id: Id;
+  beforeCenter: SheetPosition;
+  afterCenter: SheetPosition;
+};
+
+/** Recorded when a pattern grid filter's upper left / lower right is moved. */
+export type PatternGridFilterMoveUpperLeftLowerRightEntry = {
+  type: 'pattern-grid-filter-move-upper-left-lower-right';
+  id: Id;
+  beforeUpperLeft: SheetPosition;
+  afterUpperLeft: SheetPosition;
+  beforeLowerRight: SheetPosition;
+  afterLowerRight: SheetPosition;
+};
+
 // ==================== UNION TYPE ====================
 
 /** Discriminated union of all undoable operations. */
@@ -379,7 +397,9 @@ export type UndoEntry =
   | SheetDefaultUnitEntry
   | SheetUnitPlacesEntry
   | FilterChangeOffsetEntry
-  | MirrorFilterMoveEndpointsEntry;
+  | MirrorFilterMoveEndpointsEntry
+  | PatternGridFilterMoveUpperLeftLowerRightEntry
+  | PatternRadialFilterMoveCenterEntry;
 
 export namespace UndoEntry {
   /** Creates a raw transaction, useful with historyManager.push. Most likely you want {@link HistoryManager.applyTransaction} instead. */
@@ -776,6 +796,38 @@ export namespace UndoEntry {
       beforePointB,
       afterPointA,
       afterPointB,
+    };
+  }
+
+  /** Recorded when a pattern radial filter's center is moved. */
+  export function patternRadialFilterMoveCenter(
+    id: Id,
+    beforeCenter: SheetPosition,
+    afterCenter: SheetPosition,
+  ): PatternRadialFilterMoveCenterEntry {
+    return {
+      type: 'pattern-radial-filter-move-center',
+      id,
+      beforeCenter,
+      afterCenter,
+    };
+  }
+
+  /** Recorded when a pattern radial filter's center is moved. */
+  export function patternGridFilterMoveUpperLeftLowerRight(
+    id: Id,
+    beforeUpperLeft: SheetPosition,
+    beforeLowerRight: SheetPosition,
+    afterUpperLeft: SheetPosition,
+    afterLowerRight: SheetPosition,
+  ): PatternGridFilterMoveUpperLeftLowerRightEntry {
+    return {
+      type: 'pattern-grid-filter-move-upper-left-lower-right',
+      id,
+      beforeUpperLeft,
+      beforeLowerRight,
+      afterUpperLeft,
+      afterLowerRight,
     };
   }
 }

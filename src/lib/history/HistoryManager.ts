@@ -616,6 +616,19 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           }),
         );
         break;
+      case 'pattern-grid-filter-move-upper-left-lower-right':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, {
+            upperLeft: entry.afterUpperLeft,
+            lowerRight: entry.afterLowerRight,
+          }),
+        );
+        break;
+      case 'pattern-radial-filter-move-center':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, { center: entry.afterCenter }),
+        );
+        break;
       default:
         entry satisfies never;
         break;
@@ -1007,6 +1020,19 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
             pointA: entry.beforePointA,
             pointB: entry.beforePointB,
           }),
+        );
+        break;
+      case 'pattern-grid-filter-move-upper-left-lower-right':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, {
+            upperLeft: entry.beforeUpperLeft,
+            lowerRight: entry.beforeLowerRight,
+          }),
+        );
+        break;
+      case 'pattern-radial-filter-move-center':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, { center: entry.beforeCenter }),
         );
         break;
       default:
