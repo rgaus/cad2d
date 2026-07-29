@@ -18,7 +18,6 @@ export class PatternRadialFilterTool extends BaseTool<
 > {
   type = 'pattern-radial' as const;
   label = 'Radial Pattern';
-  stability = 'beta' as const;
   focusKeyCombo = 'g r' as const;
 
   get icon(): React.ReactNode {

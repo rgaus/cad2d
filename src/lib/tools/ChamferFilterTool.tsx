@@ -1,6 +1,4 @@
 import React from 'react';
-import { CornerReplacement, type CornerSegmentFactory } from '@/lib/math';
-import { SheetPosition } from '@/lib/viewport/types';
 import { ChamferFilter } from '../entity/filters/chamfer';
 import { Length } from '../units/length';
 import { BaseCornerGeometryReplacerTool, CornerState } from './BaseCornerGeometryReplacerTool';
@@ -41,10 +39,9 @@ function ChamferIcon() {
  * Rectangle shortcut: clicking any rectangle corner jumps directly from step 1
  * to step 2, since the two adjacent corners are always unambiguous.
  */
-export class ChamferTool extends BaseCornerGeometryReplacerTool<'chamfer'> {
+export class ChamferFilterTool extends BaseCornerGeometryReplacerTool<'chamfer'> {
   type = 'chamfer' as const;
   label = 'Chamfer';
-  stability = 'beta' as const;
   focusKeyCombo = 'g c' as const;
 
   get icon(): React.ReactNode {

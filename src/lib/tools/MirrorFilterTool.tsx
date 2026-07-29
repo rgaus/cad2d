@@ -8,14 +8,13 @@ import { ViewportControls } from '../viewport/ViewportControls';
 import { ScreenPosition, SheetPosition, ViewportState } from '../viewport/types';
 import { BaseTool } from './BaseTool';
 
-export type MirrorToolEvents = {
+export type MirrorFilterToolEvents = {
   previewSheetPositionChange: (pos: SheetPosition | null) => void;
 };
 
-export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
+export class MirrorFilterTool extends BaseTool<MirrorFilterToolEvents, 'mirror'> {
   type = 'mirror' as const;
   label = 'Mirror';
-  stability = 'beta' as const;
   focusKeyCombo = 'g m' as const;
 
   get icon(): React.ReactNode {

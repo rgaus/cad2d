@@ -27,7 +27,6 @@ import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { KeyPointSnapInfo } from '@/lib/snapping';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
-import { MirrorTool } from '@/lib/tools/MirrorTool';
 import {
   SELECTED_OUTSET_PX,
   SelectTool,

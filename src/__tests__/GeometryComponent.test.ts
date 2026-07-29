@@ -18,7 +18,7 @@ import type { QuadraticBezierSegment } from '@/lib/entity/geometry/polygon';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { Sheet } from '@/lib/sheet/Sheet';
-import { FilletTool } from '@/lib/tools/FilletTool';
+import { FilletFilterTool } from '@/lib/tools/FilletFilterTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { Length } from '@/lib/units/length';
@@ -37,7 +37,7 @@ describe('GeometryComponent', () => {
   let actionsManager: ActionsManager;
   let toolManager: ToolManager;
   let viewport: ViewportState;
-  let filletTool: FilletTool;
+  let filletTool: FilletFilterTool;
   let viewportControls: ViewportControls;
 
   beforeEach(() => {
@@ -64,7 +64,7 @@ describe('GeometryComponent', () => {
 
     toolManager.setActiveTool('edit');
     toolManager.changeToolSubTool('edit', 'fillet');
-    filletTool = toolManager.getTool('edit').activeSubTool as FilletTool;
+    filletTool = toolManager.getTool('edit').activeSubTool as FilletFilterTool;
   });
 
   describe('getRenderShapes', () => {
