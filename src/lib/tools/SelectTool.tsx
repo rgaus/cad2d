@@ -3246,6 +3246,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 break;
               }
             case 'mirror':
+            case 'pattern':
               break;
             default:
               workingFilter satisfies never;
