@@ -2119,7 +2119,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
-            selectedGeometryFilters: geometryIds.length === 1 ? this.getGeometryStore().findFiltersByGeometryId(geometryIds[0]) : [],
+            selectedGeometryFilters:
+              geometryIds.length === 1
+                ? this.getGeometryStore().findFiltersByGeometryId(geometryIds[0])
+                : [],
             viewportScale: liveViewport.scale,
           },
           this.getSheet()?.epsilon ?? 0.001,

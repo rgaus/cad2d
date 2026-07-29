@@ -11,7 +11,7 @@ import {
   type RectangleEndpoint,
 } from '@/lib/entity';
 import { type Geometry } from '@/lib/entity/geometry';
-import { Angle, BoundingBox, closestPointOnSegment, Vector2 } from '@/lib/math';
+import { Angle, BoundingBox, Vector2, closestPointOnSegment } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SheetPosition } from '@/lib/viewport/types';
 import { FilterComponent } from '../entity/components/FilterComponent';
@@ -32,12 +32,7 @@ export type SnappingOptions = SnapToFilterOptions & {
 export function applySnapping(pos: SheetPosition, options: SnappingOptions): SheetPosition {
   if (options.selectedGeometryFilters) {
     const threshold = KEY_POINT_SNAP_THRESHOLD_PX / (SHEET_UNITS_TO_PIXELS * options.viewportScale);
-    const filterSnapped = snapToFilters(
-      pos,
-      options.selectedGeometryFilters,
-      threshold,
-      options,
-    );
+    const filterSnapped = snapToFilters(pos, options.selectedGeometryFilters, threshold, options);
     if (filterSnapped) {
       return filterSnapped;
     }
@@ -353,7 +348,7 @@ function snapNearestKeyPoint(
 }
 
 type SnapToLineWhereIntersectsGridOptions = {
-  ctrlHeld: boolean,
+  ctrlHeld: boolean;
   primaryGridSize: number;
   secondaryGridSize: number | null;
 };
@@ -375,7 +370,11 @@ function snapToLineWhereIntersectsGrid(
 
   // Snap to the line but stop at "detents" at each grid line as well
   const lineSnapped = result.point;
-  const gridSnapped = snapToNearestGrid(result.point, options?.primaryGridSize, options?.secondaryGridSize);
+  const gridSnapped = snapToNearestGrid(
+    result.point,
+    options?.primaryGridSize,
+    options?.secondaryGridSize,
+  );
 
   // Find where the grid lines and snap line intersect
   const slope = lineSlope(pointA, pointB);
@@ -384,10 +383,18 @@ function snapToLineWhereIntersectsGrid(
   if (horizontalIntersections === 'coincident' && verticalIntersections === 'coincident') {
     return lineSnapped;
   }
-  if (horizontalIntersections === 'coincident' && verticalIntersections !== 'coincident' && verticalIntersections.length > 0) {
+  if (
+    horizontalIntersections === 'coincident' &&
+    verticalIntersections !== 'coincident' &&
+    verticalIntersections.length > 0
+  ) {
     return verticalIntersections[0];
   }
-  if (verticalIntersections === 'coincident' && horizontalIntersections !== 'coincident' && horizontalIntersections.length > 0) {
+  if (
+    verticalIntersections === 'coincident' &&
+    horizontalIntersections !== 'coincident' &&
+    horizontalIntersections.length > 0
+  ) {
     return horizontalIntersections[0];
   }
 
@@ -397,7 +404,10 @@ function snapToLineWhereIntersectsGrid(
     horizontalIntersections.length > 0 &&
     verticalIntersections.length > 0
   ) {
-    if (Vector2.distance(lineSnapped, horizontalIntersections[0]) < Vector2.distance(lineSnapped, verticalIntersections[0])) {
+    if (
+      Vector2.distance(lineSnapped, horizontalIntersections[0]) <
+      Vector2.distance(lineSnapped, verticalIntersections[0])
+    ) {
       return horizontalIntersections[0];
     } else {
       return verticalIntersections[0];
@@ -410,8 +420,8 @@ function snapToLineWhereIntersectsGrid(
 type SnapToFilterOptions = SnapToLineWhereIntersectsGridOptions;
 
 /** Given a position on the sheet, attempt to snap it to geometry features of different filters
-* types. Returns null if no snapping was possible or an updated SheetPosition if snapping occurred.
-* */
+ * types. Returns null if no snapping was possible or an updated SheetPosition if snapping occurred.
+ * */
 function snapToFilters(
   pos: SheetPosition,
   filters: Array<Entity<FilterComponent>>,
@@ -436,28 +446,22 @@ function snapToFilters(
           return snapped;
         }
         continue;
-      };
+      }
       case 'pattern': {
         switch (filterData.mode) {
           case 'grid':
             const corners = BoundingBox.cornersToArray(
               BoundingBox.corners(
-                BoundingBox.fromPoints([filterData.upperLeft, filterData.lowerRight])
+                BoundingBox.fromPoints([filterData.upperLeft, filterData.lowerRight]),
               ),
             );
-            for (let i = 0; i < corners.length-1; i += 1) {
+            for (let i = 0; i < corners.length - 1; i += 1) {
               const start = corners[i];
-              const end = corners[i+1];
-                const snapped = snapToLineWhereIntersectsGrid(
-                  pos,
-                  start,
-                  end,
-                  threshold,
-                  options,
-                );
-                if (snapped) {
-                  return snapped;
-                }
+              const end = corners[i + 1];
+              const snapped = snapToLineWhereIntersectsGrid(pos, start, end, threshold, options);
+              if (snapped) {
+                return snapped;
+              }
             }
             continue;
           case 'radial':
@@ -490,7 +494,7 @@ function snapToFilters(
             filterData satisfies never;
             continue;
         }
-      };
+      }
       default:
         filterData satisfies never;
         continue;
