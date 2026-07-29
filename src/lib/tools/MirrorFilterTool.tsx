@@ -108,6 +108,7 @@ export class MirrorFilterTool extends BaseTool<MirrorFilterToolEvents, 'mirror'>
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale: viewport.scale,
     };
 
     return prevPoint

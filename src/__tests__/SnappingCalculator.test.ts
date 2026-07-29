@@ -14,6 +14,7 @@ describe('applySnapping', () => {
         secondaryGridSize: 0.2,
         ctrlHeld: true,
         superHeld: false,
+        viewportScale: 1,
       });
       expect(result.x).toBeCloseTo(3.7);
       expect(result.y).toBeCloseTo(5.3);
@@ -28,6 +29,7 @@ describe('applySnapping', () => {
         secondaryGridSize: 0.2,
         ctrlHeld: false,
         superHeld: false,
+        viewportScale: 1,
       });
       expect(result.x).toBeCloseTo(3.8, 1);
       expect(result.y).toBeCloseTo(5.2, 1);
@@ -40,6 +42,7 @@ describe('applySnapping', () => {
         secondaryGridSize: null,
         ctrlHeld: false,
         superHeld: false,
+        viewportScale: 1,
       });
       expect(result.x).toBeCloseTo(4, 1);
       expect(result.y).toBeCloseTo(5, 1);
@@ -57,6 +60,7 @@ describe('applySnappingLineSeries', () => {
         secondaryGridSize: 0.2,
         ctrlHeld: false,
         superHeld: true,
+        viewportScale: 1,
       });
       expect(result.x).toBeCloseTo(5, 0);
       expect(result.y).toBeCloseTo(5, 0);
@@ -70,6 +74,7 @@ describe('applySnappingLineSeries', () => {
         secondaryGridSize: 0.2,
         ctrlHeld: false,
         superHeld: true,
+        viewportScale: 1,
       });
       expect(result.x).toBeCloseTo(0, 0);
       expect(result.y).toBeCloseTo(5, 0);
@@ -83,6 +88,7 @@ describe('applySnappingLineSeries', () => {
         secondaryGridSize: 0.2,
         ctrlHeld: false,
         superHeld: true,
+        viewportScale: 1,
       });
       expect(result.x).toBeCloseTo(result.y, 1);
     });
@@ -95,6 +101,7 @@ describe('applySnappingLineSeries', () => {
         secondaryGridSize: 0.2,
         ctrlHeld: false,
         superHeld: true,
+        viewportScale: 1,
       });
       expect(result.x).toBeCloseTo(result.y, 1);
     });
@@ -106,6 +113,7 @@ describe('applySnappingLineSeries', () => {
       secondaryGridSize: 0.1,
       ctrlHeld: false,
       superHeld: false,
+      viewportScale: 1,
     };
 
     it('constrains the result to be exactly at the given distance from prevPoint', () => {

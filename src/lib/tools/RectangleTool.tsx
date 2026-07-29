@@ -180,6 +180,7 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: false,
+      viewportScale: viewport.scale,
     });
   }
 
@@ -423,11 +424,13 @@ export class RectangleTool extends BaseTool<RectangleToolEvents> {
   }
 
   private applySnapping(pos: SheetPosition): SheetPosition {
+    const viewportScale = this.toolManager.getViewportControls()?.getState().viewport.scale ?? 1;
     return applySnapping(pos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale,
     });
   }
 }

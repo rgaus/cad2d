@@ -736,6 +736,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
+            selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(polygonId),
+            viewportScale: liveViewport.scale,
           },
           this.getSheet()?.epsilon ?? 0.001,
         );
@@ -1025,6 +1027,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           ctrlHeld: this.toolManager.getCtrlHeld(),
           superHeld: false,
+          selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(polygonId),
+          viewportScale: liveViewport.scale,
         });
 
         this.getGeometryStore().updateByIdDirect(this.draggingPolygonId, (prev) => {
@@ -1640,6 +1644,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         ctrlHeld,
         superHeld: false,
+        selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(entityId),
+        viewportScale: viewportControls.getState().viewport.scale,
       });
     }
 
@@ -1740,6 +1746,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
+            selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(entityId),
+            viewportScale: liveViewport.scale,
           },
           this.getSheet()?.epsilon ?? 0.001,
         );
@@ -1773,6 +1781,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
+            selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(entityId),
+            viewportScale: liveViewport.scale,
           });
         }
 
@@ -2109,6 +2119,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
+            selectedGeometryFilters: geometryIds.length === 1 ? this.getGeometryStore().findFiltersByGeometryId(geometryIds[0]) : [],
+            viewportScale: liveViewport.scale,
           },
           this.getSheet()?.epsilon ?? 0.001,
         );
@@ -2647,6 +2659,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: false,
+      viewportScale: viewportControls.getState().viewport.scale,
     });
 
     const originalEndpoint = constraint[pointKey] as ConstraintEndpoint;
@@ -2694,6 +2707,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               .listWithComponent(ConstraintComponent)
               .filter((g) => g.id !== constraintId),
             datums: this.getGeometryStore().listWithComponent(DatumComponent),
+            selectedGeometryFilters: [],
           },
         );
 
@@ -2732,6 +2746,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   .listWithComponent(ConstraintComponent)
                   .filter((g) => g.id !== constraintId),
                 datums: this.getGeometryStore().listWithComponent(DatumComponent),
+                selectedGeometryFilters: [],
               },
             );
             let snappedEndpoint = rawEp;
@@ -2830,6 +2845,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale: viewportControls.getState().viewport.scale,
     });
 
     const resolvedPos = snapped;
@@ -2865,6 +2881,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           ctrlHeld: this.toolManager.getCtrlHeld(),
           superHeld: this.toolManager.getSuperHeld(),
+          viewportScale: viewportControls.getState().viewport.scale,
         });
 
         this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
@@ -2891,6 +2908,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: this.toolManager.getSuperHeld(),
+            viewportScale: viewportControls.getState().viewport.scale,
           });
 
           this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>

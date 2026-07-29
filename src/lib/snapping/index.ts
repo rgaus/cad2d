@@ -11,15 +11,17 @@ import {
   type RectangleEndpoint,
 } from '@/lib/entity';
 import { type Geometry } from '@/lib/entity/geometry';
-import { Angle, Vector2 } from '@/lib/math';
+import { Angle, closestPointOnSegment, Vector2 } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SheetPosition } from '@/lib/viewport/types';
+import { FilterComponent } from '../entity/components/FilterComponent';
+import { PatternFilter } from '../entity/filters/pattern';
+import { lineLineIntersection, lineSlope } from '../math/intersection';
 
-export type SnappingOptions = {
-  primaryGridSize: number;
-  secondaryGridSize: number | null;
-  ctrlHeld: boolean;
+export type SnappingOptions = SnapToFilterOptions & {
   superHeld: boolean;
+  viewportScale: number;
+  selectedGeometryFilters?: Array<Entity<FilterComponent>>;
 };
 
 /**
@@ -28,6 +30,19 @@ export type SnappingOptions = {
  * {@link applySnappingLineSeries} for that.
  */
 export function applySnapping(pos: SheetPosition, options: SnappingOptions): SheetPosition {
+  if (options.selectedGeometryFilters) {
+    const threshold = KEY_POINT_SNAP_THRESHOLD_PX / (SHEET_UNITS_TO_PIXELS * options.viewportScale);
+    const filterSnapped = snapToFilters(
+      pos,
+      options.selectedGeometryFilters,
+      threshold,
+      options,
+    );
+    if (filterSnapped) {
+      return filterSnapped;
+    }
+  }
+
   if (options.ctrlHeld) {
     return pos;
   }
@@ -52,7 +67,7 @@ export function applySnappingLineSeries(
 ): SheetPosition {
   let snapped = pos;
   if (!options.ctrlHeld) {
-    snapped = snapToNearestGrid(pos, options.primaryGridSize, options.secondaryGridSize);
+    snapped = applySnapping(pos, options);
 
     if (options.superHeld) {
       snapped = snapToAngle(prevPoint, snapped);
@@ -165,6 +180,7 @@ export type KeyPointSnappingOptions = {
   constraints: Array<Entity<ConstraintComponent>>;
   /** Existing datums — checked as snap targets after constraint endpoints. */
   datums: Array<Entity<DatumComponent>>;
+  selectedGeometryFilters?: Array<Entity<FilterComponent>>;
 };
 
 export type KeyPointSnappingResult = {
@@ -336,6 +352,134 @@ function snapNearestKeyPoint(
   };
 }
 
+type SnapToLineWhereIntersectsGridOptions = {
+  ctrlHeld: boolean,
+  primaryGridSize: number;
+  secondaryGridSize: number | null;
+};
+
+function snapToLineWhereIntersectsGrid(
+  pos: SheetPosition,
+  pointA: SheetPosition,
+  pointB: SheetPosition,
+  threshold: number,
+  options: SnapToLineWhereIntersectsGridOptions,
+) {
+  const result = closestPointOnSegment(pointA, pointB, pos);
+  if (result.distance > threshold) {
+    return null;
+  }
+  if (options.ctrlHeld) {
+    return result.point;
+  }
+
+  // Snap to the line but stop at "detents" at each grid line as well
+  const lineSnapped = result.point;
+  const gridSnapped = snapToNearestGrid(result.point, options?.primaryGridSize, options?.secondaryGridSize);
+
+  // Find where the grid lines and snap line intersect
+  const slope = lineSlope(pointA, pointB);
+  const horizontalIntersections = lineLineIntersection(pointA, slope, gridSnapped, 0);
+  const verticalIntersections = lineLineIntersection(pointA, slope, gridSnapped, Infinity);
+  if (horizontalIntersections === 'coincident' && verticalIntersections === 'coincident') {
+    return lineSnapped;
+  }
+  if (horizontalIntersections === 'coincident' && verticalIntersections !== 'coincident' && verticalIntersections.length > 0) {
+    return verticalIntersections[0];
+  }
+  if (verticalIntersections === 'coincident' && horizontalIntersections !== 'coincident' && horizontalIntersections.length > 0) {
+    return horizontalIntersections[0];
+  }
+
+  if (
+    horizontalIntersections !== 'coincident' &&
+    verticalIntersections !== 'coincident' &&
+    horizontalIntersections.length > 0 &&
+    verticalIntersections.length > 0
+  ) {
+    if (Vector2.distance(lineSnapped, horizontalIntersections[0]) < Vector2.distance(lineSnapped, verticalIntersections[0])) {
+      return horizontalIntersections[0];
+    } else {
+      return verticalIntersections[0];
+    }
+  }
+
+  return result.point;
+}
+
+type SnapToFilterOptions = SnapToLineWhereIntersectsGridOptions;
+
+/** Given a position on the sheet, attempt to snap it to geometry features of different filters
+* types. Returns null if no snapping was possible or an updated SheetPosition if snapping occurred.
+* */
+function snapToFilters(
+  pos: SheetPosition,
+  filters: Array<Entity<FilterComponent>>,
+  threshold: number,
+  options: SnapToFilterOptions,
+): SheetPosition | null {
+  for (const filter of filters) {
+    const filterData = FilterComponent.get(filter);
+    switch (filterData.type) {
+      case 'fillet':
+      case 'chamfer':
+        continue;
+      case 'mirror': {
+        const snapped = snapToLineWhereIntersectsGrid(
+          pos,
+          filterData.pointA,
+          filterData.pointB,
+          threshold,
+          options,
+        );
+        if (snapped) {
+          return snapped;
+        }
+        continue;
+      };
+      case 'pattern': {
+        switch (filterData.mode) {
+          case 'grid':
+            continue;
+          case 'radial':
+            const [upperLeft, upperRight] = PatternFilter.getRadialCornerPoints(filterData);
+
+            const leftSnapped = snapToLineWhereIntersectsGrid(
+              pos,
+              filterData.center,
+              upperLeft,
+              threshold,
+              options,
+            );
+            if (leftSnapped) {
+              return leftSnapped;
+            }
+
+            const rightSnapped = snapToLineWhereIntersectsGrid(
+              pos,
+              filterData.center,
+              upperRight,
+              threshold,
+              options,
+            );
+            if (rightSnapped) {
+              return rightSnapped;
+            }
+
+            continue;
+          default:
+            filterData satisfies never;
+            continue;
+        }
+      };
+      default:
+        filterData satisfies never;
+        continue;
+    }
+  }
+  return null;
+}
+
 /**
  * Applies grid snapping and key point snapping to a position.
  *
@@ -358,6 +502,8 @@ export function applyKeyPointSnapping(
     secondaryGridSize: options.secondaryGridSize,
     ctrlHeld,
     superHeld: options.superHeld,
+    viewportScale: options.viewportScale,
+    selectedGeometryFilters: options.selectedGeometryFilters,
   });
 
   if (ctrlHeld) {

@@ -145,6 +145,7 @@ export class PatternRadialFilterTool extends BaseTool<
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale: viewport.scale,
     };
 
     return prevPoint

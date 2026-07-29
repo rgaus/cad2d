@@ -214,6 +214,7 @@ export abstract class LineSegmentConstraintTool<
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         ctrlHeld: this.toolManager.getCtrlHeld(),
         superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
       });
     }
 
@@ -222,6 +223,7 @@ export abstract class LineSegmentConstraintTool<
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale: viewport.scale,
     });
   }
 
@@ -533,6 +535,7 @@ export abstract class SegmentAndPointConstraintTool<
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         ctrlHeld: this.toolManager.getCtrlHeld(),
         superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
       });
     }
 
@@ -556,6 +559,7 @@ export abstract class SegmentAndPointConstraintTool<
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         ctrlHeld: this.toolManager.getCtrlHeld(),
         superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
       });
     }
 
@@ -564,6 +568,7 @@ export abstract class SegmentAndPointConstraintTool<
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale: viewport.scale,
     });
   }
 
@@ -868,6 +873,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         ctrlHeld: this.toolManager.getCtrlHeld(),
         superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
       });
     }
 
@@ -876,6 +882,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale: viewport.scale,
     });
   }
 
@@ -1210,6 +1217,7 @@ export abstract class TwoSegmentConstraintCreationTool<
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         ctrlHeld: this.toolManager.getCtrlHeld(),
         superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
       });
     }
 
@@ -1235,6 +1243,7 @@ export abstract class TwoSegmentConstraintCreationTool<
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         ctrlHeld: this.toolManager.getCtrlHeld(),
         superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
       });
     }
 
@@ -1243,6 +1252,7 @@ export abstract class TwoSegmentConstraintCreationTool<
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale: viewport.scale,
     });
   }
 
