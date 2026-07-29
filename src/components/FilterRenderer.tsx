@@ -215,6 +215,38 @@ const FilterOverlay: React.FunctionComponent = () => {
         );
         break;
       }
+      case 'pattern': {
+        switch (workingFilter.mode) {
+          case 'grid': {
+            if (!workingFilter.upperLeft || !workingFilter.lowerRight) {
+              return null;
+            }
+            return (
+              <PatternGridFilterIndicator
+                upperLeft={workingFilter.upperLeft}
+                lowerRight={workingFilter.lowerRight}
+                viewportScale={viewportScale}
+              />
+            );
+          }
+          case 'radial': {
+            if (!workingFilter.center || !workingFilter.radius || !workingFilter.radius) {
+              return null;
+            }
+            return (
+              <PatternRadialFilterIndicator
+                center={workingFilter.center}
+                radius={workingFilter.radius}
+                repeats={{ type: 'count', count: 4 }} // FIXME: un hardcode this
+                viewportScale={viewportScale}
+              />
+            );
+          }
+          default:
+            workingFilter satisfies never;
+            break;
+        }
+      }
       default:
         workingFilter satisfies never;
         break;
@@ -459,6 +491,7 @@ const FilterTooltips: React.FunctionComponent = () => {
           ref.style.top = `${screenPos.y}px`;
           break;
         case 'mirror':
+        case 'pattern':
           return null;
         default:
           workingFilter satisfies never;
@@ -577,6 +610,7 @@ const FilterTooltips: React.FunctionComponent = () => {
       );
     }
     case 'mirror':
+    case 'pattern':
       return null;
     default:
       workingFilter satisfies never;

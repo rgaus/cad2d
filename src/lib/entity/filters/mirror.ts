@@ -1,5 +1,4 @@
 import { BoundingBox, closestPointOnSegment } from '@/lib/math';
-import { UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Entity, type Polygon, PolygonSegment } from '..';
 import { DEFAULT_COLOR } from '../colors';

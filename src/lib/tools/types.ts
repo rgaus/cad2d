@@ -223,4 +223,30 @@ export type WorkingMirrorFilter = {
   shadowsFilterId: string | null;
 };
 
-export type WorkingFilter = WorkingFilletFilter | WorkingChamferFilter | WorkingMirrorFilter;
+export type WorkingPatternFilter =
+  | {
+      type: 'pattern';
+      mode: 'grid';
+      geometryId: Entity['id'];
+      upperLeft: SheetPosition | null;
+      lowerRight: SheetPosition | null;
+
+      /** If set, whenever this working filter is visible, the specified filter will be hidden. */
+      shadowsFilterId: string | null;
+    }
+  | {
+      type: 'pattern';
+      mode: 'radial';
+      geometryId: Entity['id'];
+      center: SheetPosition | null;
+      radius: number | null;
+
+      /** If set, whenever this working filter is visible, the specified filter will be hidden. */
+      shadowsFilterId: string | null;
+    };
+
+export type WorkingFilter =
+  | WorkingFilletFilter
+  | WorkingChamferFilter
+  | WorkingMirrorFilter
+  | WorkingPatternFilter;

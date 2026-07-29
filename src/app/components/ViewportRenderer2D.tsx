@@ -1327,6 +1327,68 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
+        {/* Pattern grid tooltips */}
+        {visibleTooltip === 'pattern-initial' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>Choose geometry to pattern</HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'pattern-geometry-hovered' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>Select geometry</HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'pattern-grid-place-upper-left' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>Place upper left point</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'pattern-grid-place-lower-right' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>Finish grid pattern</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {/* Pattern radial tooltips */}
+        {visibleTooltip === 'pattern-radial-place-center' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>Place center point</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'pattern-radial-place-radius' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>Finish radial pattern</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
         <FitToScreenButton onClick={() => viewportControlsRef.current?.fitToViewport()} />
       </div>
     </ViewportContextProvider>
