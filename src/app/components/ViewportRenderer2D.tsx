@@ -1306,6 +1306,7 @@ export default function ViewportRenderer2D({
                 <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
                   ctrl
                 </KeyboardShortcut>
+                <KeyboardShortcut label="Cancel">esc</KeyboardShortcut>
               </div>
             </div>
           </HoverTooltip>
@@ -1322,6 +1323,7 @@ export default function ViewportRenderer2D({
                 <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>
                   {PLATFORM_SUPER_KEY_STRING}
                 </KeyboardShortcut>
+                <KeyboardShortcut label="Cancel">esc</KeyboardShortcut>
               </div>
             </div>
           </HoverTooltip>
@@ -1344,6 +1346,7 @@ export default function ViewportRenderer2D({
                 <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
                   ctrl
                 </KeyboardShortcut>
+                <KeyboardShortcut label="Cancel">esc</KeyboardShortcut>
               </div>
             </div>
           </HoverTooltip>
@@ -1371,6 +1374,7 @@ export default function ViewportRenderer2D({
                 <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
                   ctrl
                 </KeyboardShortcut>
+                <KeyboardShortcut label="Cancel">esc</KeyboardShortcut>
               </div>
             </div>
           </HoverTooltip>
@@ -1384,6 +1388,7 @@ export default function ViewportRenderer2D({
                 <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
                   ctrl
                 </KeyboardShortcut>
+                <KeyboardShortcut label="Cancel">esc</KeyboardShortcut>
               </div>
             </div>
           </HoverTooltip>
