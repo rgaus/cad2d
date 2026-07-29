@@ -512,8 +512,18 @@ export namespace PatternFilter {
                     const results: Array<RenderShape> = [];
                     for (let i = 0; i < filterData.repeats.count; i += 1) {
                       const key = generateFilterKey();
+
+                      // Add the center point into the generated output, so it goes a) shape, b)
+                      // center, c) back to starting point.
+                      const segments = rotatedCopy(i * angleStep);
+                      const segmentsWithCenter = [
+                        ...segments,
+                        { type: 'point' as const, point: filterData.center },
+                        { type: 'point' as const, point: segments[0].point },
+                      ];
+
                       results.push(
-                        RenderShape.polygon(key, rotatedCopy(i * angleStep), {
+                        RenderShape.polygon(key, segmentsWithCenter, {
                           closed: true,
                           primary: i === 0 ? renderShape.primary : false,
                         }),
