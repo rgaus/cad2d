@@ -49,8 +49,8 @@ export namespace PatternFilter {
         geometryId,
         upperLeft,
         lowerRight,
-        xRepeats: options?.xRepeats ?? 1,
-        yRepeats: options?.yRepeats ?? 1,
+        xRepeats: options?.xRepeats ?? 2,
+        yRepeats: options?.yRepeats ?? 2,
       }),
     };
   }
