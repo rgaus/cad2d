@@ -11,7 +11,7 @@ import {
   type RectangleEndpoint,
 } from '@/lib/entity';
 import { type Geometry } from '@/lib/entity/geometry';
-import { Angle, closestPointOnSegment, Vector2 } from '@/lib/math';
+import { Angle, BoundingBox, closestPointOnSegment, Vector2 } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SheetPosition } from '@/lib/viewport/types';
 import { FilterComponent } from '../entity/components/FilterComponent';
@@ -440,6 +440,25 @@ function snapToFilters(
       case 'pattern': {
         switch (filterData.mode) {
           case 'grid':
+            const corners = BoundingBox.cornersToArray(
+              BoundingBox.corners(
+                BoundingBox.fromPoints([filterData.upperLeft, filterData.lowerRight])
+              ),
+            );
+            for (let i = 0; i < corners.length-1; i += 1) {
+              const start = corners[i];
+              const end = corners[i+1];
+                const snapped = snapToLineWhereIntersectsGrid(
+                  pos,
+                  start,
+                  end,
+                  threshold,
+                  options,
+                );
+                if (snapped) {
+                  return snapped;
+                }
+            }
             continue;
           case 'radial':
             const [upperLeft, upperRight] = PatternFilter.getRadialCornerPoints(filterData);
