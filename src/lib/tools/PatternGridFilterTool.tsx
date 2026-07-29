@@ -120,6 +120,9 @@ export class PatternGridFilterTool extends BaseTool<PatternGridFilterToolEvents,
   }
 
   handleGeometryFillEnter(geometryId: Entity['id']): void {
+    if (this.state !== 'picking-geometry') {
+      return;
+    }
     this.showTooltip('pattern-geometry-hovered');
     this.highlightGeometry(geometryId);
   }
@@ -142,8 +145,10 @@ export class PatternGridFilterTool extends BaseTool<PatternGridFilterToolEvents,
       }
     }
 
-    this.showTooltip('pattern-initial');
-    this.highlightGeometry(null);
+    if (this.state === 'picking-geometry') {
+      this.showTooltip('pattern-initial');
+      this.highlightGeometry(null);
+    }
   }
 
   handleGeometryFillPointerDown(
@@ -151,6 +156,10 @@ export class PatternGridFilterTool extends BaseTool<PatternGridFilterToolEvents,
     _viewportControls: ViewportControls,
     geometryId: Entity['id'],
   ) {
+    if (this.state !== 'picking-geometry') {
+      return false;
+    }
+
     const geometryStore = this.getGeometryStore();
     if (geometryStore.workingFilter?.type === 'pattern') {
       geometryStore.setWorkingFilter({ ...geometryStore.workingFilter, geometryId });

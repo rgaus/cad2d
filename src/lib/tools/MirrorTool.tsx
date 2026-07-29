@@ -125,6 +125,9 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
   }
 
   handleGeometryFillEnter(geometryId: Entity['id']): void {
+    if (this.state !== 'picking-geometry') {
+      return;
+    }
     this.showTooltip('mirror-geometry-hovered');
     this.highlightGeometry(geometryId);
   }
@@ -147,8 +150,10 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
       }
     }
 
-    this.showTooltip('mirror-initial');
-    this.highlightGeometry(null);
+    if (this.state === 'picking-geometry') {
+      this.showTooltip('mirror-initial');
+      this.highlightGeometry(null);
+    }
   }
 
   handleGeometryFillPointerDown(
@@ -156,6 +161,10 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
     _viewportControls: ViewportControls,
     geometryId: Entity['id'],
   ) {
+    if (this.state !== 'picking-geometry') {
+      return false;
+    }
+
     const geometryStore = this.getGeometryStore();
     if (geometryStore.workingFilter?.type === 'mirror') {
       geometryStore.setWorkingFilter({ ...geometryStore.workingFilter, geometryId });

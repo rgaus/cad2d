@@ -162,6 +162,9 @@ export class PatternRadialFilterTool extends BaseTool<
   }
 
   handleGeometryFillEnter(geometryId: Entity['id']): void {
+    if (this.state !== 'picking-geometry') {
+      return;
+    }
     this.showTooltip('pattern-geometry-hovered');
     this.highlightGeometry(geometryId);
   }
@@ -184,8 +187,10 @@ export class PatternRadialFilterTool extends BaseTool<
       }
     }
 
-    this.showTooltip('pattern-initial');
-    this.highlightGeometry(null);
+    if (this.state === 'picking-geometry') {
+      this.showTooltip('pattern-initial');
+      this.highlightGeometry(null);
+    }
   }
 
   handleGeometryFillPointerDown(
@@ -193,6 +198,10 @@ export class PatternRadialFilterTool extends BaseTool<
     _viewportControls: ViewportControls,
     geometryId: Entity['id'],
   ) {
+    if (this.state !== 'picking-geometry') {
+      return false;
+    }
+
     const geometryStore = this.getGeometryStore();
     if (geometryStore.workingFilter?.type === 'pattern') {
       geometryStore.setWorkingFilter({ ...geometryStore.workingFilter, geometryId });
