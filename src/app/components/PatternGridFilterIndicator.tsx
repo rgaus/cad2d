@@ -3,8 +3,14 @@
 import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
+import { HandleSprites } from '@/components/HandleSprites';
+import { LinearResizer } from '@/components/LinearResizer';
 import { Vector2 } from '@/lib/math';
-import { PatternGridFilterIconTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
+import {
+  PatternGridFilterIconTexture,
+  SPRITE_SCALE_FACTOR,
+  SelectionCornerHandleTexture,
+} from '@/lib/textures';
 import { SheetPosition, WorldPosition } from '@/lib/viewport/types';
 
 extend({
@@ -22,14 +28,18 @@ type PatternGridFilterIndicatorProps = {
   onPointerUp?: (e: FederatedPointerEvent) => void;
   onPointerEnter?: (e: FederatedPointerEvent) => void;
   onPointerLeave?: (e: FederatedPointerEvent) => void;
+  onEdgeResizerPointerDown?: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
+  onCornerHandlePointerDown?: (
+    corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
+  ) => void;
 };
 
 const LINE_WIDTH_PX = 1;
 
 const ICON_OFFSET_PX = 12;
 
-/** Renders a grid pattern filter indicator with a bounding rectangle and a clickable icon offset
- * upward from the midpoint. */
+/** Renders a grid pattern filter indicator with a bounding rectangle, a clickable icon,
+ * and resizable edge/corner handles when callbacks are provided. */
 export default function PatternGridFilterIndicator({
   upperLeft,
   lowerRight,
@@ -40,6 +50,8 @@ export default function PatternGridFilterIndicator({
   onPointerUp,
   onPointerEnter,
   onPointerLeave,
+  onEdgeResizerPointerDown,
+  onCornerHandlePointerDown,
 }: PatternGridFilterIndicatorProps) {
   const vUpperLeft = useMemo(() => upperLeft.toWorld(), [upperLeft]);
   const vLowerRight = useMemo(() => lowerRight.toWorld(), [lowerRight]);
@@ -72,6 +84,25 @@ export default function PatternGridFilterIndicator({
     [vUpperLeft, vLowerRight, color, lineWidth],
   );
 
+  const hasResizeHandles =
+    typeof onEdgeResizerPointerDown !== 'undefined' ||
+    typeof onCornerHandlePointerDown !== 'undefined';
+
+  const cornerPoints = useMemo(
+    () => [
+      new SheetPosition(upperLeft.x, upperLeft.y), // top-left
+      new SheetPosition(lowerRight.x, upperLeft.y), // top-right
+      new SheetPosition(lowerRight.x, lowerRight.y), // bottom-right
+      new SheetPosition(upperLeft.x, lowerRight.y), // bottom-left
+    ],
+    [upperLeft, lowerRight],
+  );
+
+  // Normalize to ensure upperLeft is the smaller coordinate
+  const top = upperLeft;
+  const bottom = new SheetPosition(lowerRight.x, upperLeft.y);
+  const leftEnd = new SheetPosition(upperLeft.x, lowerRight.y);
+
   return (
     <>
       <pixiGraphics
@@ -96,6 +127,53 @@ export default function PatternGridFilterIndicator({
           onPointerDown || onPointerUp || onPointerEnter || onPointerLeave ? 'static' : 'none'
         }
       />
+
+      {hasResizeHandles ? (
+        <>
+          <LinearResizer
+            startPosition={upperLeft}
+            endPosition={bottom}
+            viewportScale={viewportScale}
+            onPointerDown={() => onEdgeResizerPointerDown?.('top')}
+          />
+          <LinearResizer
+            startPosition={bottom}
+            endPosition={lowerRight}
+            viewportScale={viewportScale}
+            onPointerDown={() => onEdgeResizerPointerDown?.('right')}
+          />
+          <LinearResizer
+            startPosition={new SheetPosition(upperLeft.x, lowerRight.y)}
+            endPosition={lowerRight}
+            viewportScale={viewportScale}
+            onPointerDown={() => onEdgeResizerPointerDown?.('bottom')}
+          />
+          <LinearResizer
+            startPosition={upperLeft}
+            endPosition={leftEnd}
+            viewportScale={viewportScale}
+            onPointerDown={() => onEdgeResizerPointerDown?.('left')}
+          />
+
+          <HandleSprites
+            points={cornerPoints}
+            handleTexture={SelectionCornerHandleTexture.get()}
+            viewportScale={viewportScale}
+            onHandlePointerDown={(_e, index) => {
+              switch (index) {
+                case 0:
+                  return onCornerHandlePointerDown?.('top-left');
+                case 1:
+                  return onCornerHandlePointerDown?.('top-right');
+                case 2:
+                  return onCornerHandlePointerDown?.('bottom-right');
+                case 3:
+                  return onCornerHandlePointerDown?.('bottom-left');
+              }
+            }}
+          />
+        </>
+      ) : null}
     </>
   );
 }

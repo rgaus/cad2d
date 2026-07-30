@@ -141,6 +141,39 @@ const FilterOverlay: React.FunctionComponent = () => {
     [toolManager, viewportControls],
   );
 
+  const handlePatternGridEdgeResizerPointerDown = useCallback(
+    (filterId: Entity<FilterComponent>['id'], edge: 'top' | 'bottom' | 'left' | 'right') => {
+      if (!viewportControls) {
+        return;
+      }
+      toolManager
+        .getActiveTool()
+        .handleFilterPatternGridResizePointerDown(viewportControls, filterId, {
+          type: 'edge',
+          edge,
+        });
+    },
+    [toolManager, viewportControls],
+  );
+
+  const handlePatternGridCornerHandlePointerDown = useCallback(
+    (
+      filterId: Entity<FilterComponent>['id'],
+      corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
+    ) => {
+      if (!viewportControls) {
+        return;
+      }
+      toolManager
+        .getActiveTool()
+        .handleFilterPatternGridResizePointerDown(viewportControls, filterId, {
+          type: 'corner',
+          corner,
+        });
+    },
+    [toolManager, viewportControls],
+  );
+
   let workingFilterJsx: React.ReactNode | null = null;
   if (workingFilter) {
     switch (workingFilter.type) {
@@ -369,14 +402,18 @@ const FilterOverlay: React.FunctionComponent = () => {
                       onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
                       onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
                       onPointerLeave={handleFilterLabelPointerLeave}
+                      onEdgeResizerPointerDown={
+                        isSelected
+                          ? (edge) => handlePatternGridEdgeResizerPointerDown(geometry.id, edge)
+                          : undefined
+                      }
+                      onCornerHandlePointerDown={
+                        isSelected
+                          ? (corner) =>
+                              handlePatternGridCornerHandlePointerDown(geometry.id, corner)
+                          : undefined
+                      }
                     />
-                    {isSelected ? (
-                      <HandleSprites
-                        points={[gridFilter.upperLeft, gridFilter.lowerRight]}
-                        handleTexture={VertexHandleTexture.get()}
-                        viewportScale={viewportScale}
-                      />
-                    ) : null}
                   </Fragment>
                 );
               }

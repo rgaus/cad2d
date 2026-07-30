@@ -22,6 +22,7 @@ import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
+import { PatternFilter } from '@/lib/entity/filters/pattern';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
@@ -5817,6 +5818,99 @@ describe('SelectTool', () => {
 
       // Fill should be added on commit
       expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+    });
+  });
+
+  describe('pattern grid filter resize', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('resizes the top edge upward', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createGrid(rect.id, new SheetPosition(2, 4), new SheetPosition(8, 10)),
+      );
+
+      selectTool.handleFilterPatternGridResizePointerDown(viewportControls, filter.id, {
+        type: 'edge',
+        edge: 'top',
+      });
+
+      // Drag top edge from y=4 to y=2
+      const targetSheet = new SheetPosition(5, 2);
+      const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const data = FilterComponent.get(updated);
+      if (data.type !== 'pattern' || data.mode !== 'grid') {
+        throw new Error('Expected pattern grid filter');
+      }
+      expect(data.upperLeft.y).toBeCloseTo(2, 0);
+      expect(data.upperLeft.x).toBeCloseTo(2, 0);
+      expect(data.lowerRight.x).toBeCloseTo(8, 0);
+      expect(data.lowerRight.y).toBeCloseTo(10, 0);
+    });
+
+    it('resizes the bottom-right corner', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createGrid(rect.id, new SheetPosition(2, 4), new SheetPosition(6, 8)),
+      );
+
+      selectTool.handleFilterPatternGridResizePointerDown(viewportControls, filter.id, {
+        type: 'corner',
+        corner: 'bottom-right',
+      });
+
+      // Drag bottom-right corner from (6, 8) to (10, 14)
+      const targetSheet = new SheetPosition(10, 14);
+      const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const data = FilterComponent.get(updated);
+      if (data.type !== 'pattern' || data.mode !== 'grid') {
+        throw new Error('Expected pattern grid filter');
+      }
+      expect(data.lowerRight.x).toBeCloseTo(10, 0);
+      expect(data.lowerRight.y).toBeCloseTo(14, 0);
+      expect(data.upperLeft.x).toBeCloseTo(2, 0);
+      expect(data.upperLeft.y).toBeCloseTo(4, 0);
     });
   });
 });

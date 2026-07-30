@@ -2984,6 +2984,140 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
+  /** Starts resizing a pattern grid filter's bounding rectangle via an edge or corner handle. */
+  handleFilterPatternGridResizePointerDown(
+    viewportControls: ViewportControls,
+    filterId: Filter['id'],
+    resizeMode: ResizeMode,
+  ): void {
+    const filter = this.getGeometryStore().getByIdWithComponent(filterId, FilterComponent);
+    if (!filter) {
+      return;
+    }
+    const filterData = FilterComponent.get(filter);
+    if (filterData.type !== 'pattern' || filterData.mode !== 'grid') {
+      return;
+    }
+
+    const originalUpperLeft = new SheetPosition(filterData.upperLeft.x, filterData.upperLeft.y);
+    const originalLowerRight = new SheetPosition(filterData.lowerRight.x, filterData.lowerRight.y);
+
+    this.activeDragListener = createDragListener({
+      viewportControls,
+      onMove: (sp) => {
+        const liveViewport = viewportControls.getState().viewport;
+        const world = sp.toWorld(liveViewport);
+        const sheet = world.toSheet();
+        const snapped = applySnappingOnConstrainedTrack(
+          sheet,
+          'unconstrained',
+          {
+            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+            ctrlHeld: this.toolManager.getCtrlHeld(),
+            superHeld: false,
+            viewportScale: liveViewport.scale,
+          },
+          this.getSheet()?.epsilon ?? 0.001,
+        );
+
+        let newUpperLeft = new SheetPosition(originalUpperLeft.x, originalUpperLeft.y);
+        let newLowerRight = new SheetPosition(originalLowerRight.x, originalLowerRight.y);
+
+        if (resizeMode.type === 'edge') {
+          switch (resizeMode.edge) {
+            case 'top':
+              newUpperLeft = new SheetPosition(originalUpperLeft.x, snapped.y);
+              break;
+            case 'bottom':
+              newLowerRight = new SheetPosition(originalLowerRight.x, snapped.y);
+              break;
+            case 'left':
+              newUpperLeft = new SheetPosition(snapped.x, originalUpperLeft.y);
+              break;
+            case 'right':
+              newLowerRight = new SheetPosition(snapped.x, originalLowerRight.y);
+              break;
+          }
+        } else {
+          switch (resizeMode.corner) {
+            case 'top-left':
+              newUpperLeft = snapped;
+              break;
+            case 'top-right':
+              newUpperLeft = new SheetPosition(originalUpperLeft.x, snapped.y);
+              newLowerRight = new SheetPosition(snapped.x, originalLowerRight.y);
+              break;
+            case 'bottom-left':
+              newUpperLeft = new SheetPosition(snapped.x, originalUpperLeft.y);
+              newLowerRight = new SheetPosition(originalLowerRight.x, snapped.y);
+              break;
+            case 'bottom-right':
+              newLowerRight = snapped;
+              break;
+          }
+        }
+
+        // Normalize so upperLeft always has the smaller coordinate values
+        const ul = new SheetPosition(
+          Math.min(newUpperLeft.x, newLowerRight.x),
+          Math.min(newUpperLeft.y, newLowerRight.y),
+        );
+        const lr = new SheetPosition(
+          Math.max(newUpperLeft.x, newLowerRight.x),
+          Math.max(newUpperLeft.y, newLowerRight.y),
+        );
+
+        this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
+          FilterComponent.update(g, { upperLeft: ul, lowerRight: lr }),
+        );
+      },
+      onCommit: (_sp) => {
+        this.getHistoryManager().applyTransaction('pattern-grid-filter-resize', () => {
+          const afterFilterGeom = this.getGeometryStore().getByIdWithComponent(
+            filterId,
+            FilterComponent,
+          );
+          if (!afterFilterGeom) {
+            return;
+          }
+          const afterFilter = FilterComponent.get(afterFilterGeom);
+          if (afterFilter.type !== 'pattern' || afterFilter.mode !== 'grid') {
+            return;
+          }
+
+          const changed =
+            originalUpperLeft.x !== afterFilter.upperLeft.x ||
+            originalUpperLeft.y !== afterFilter.upperLeft.y ||
+            originalLowerRight.x !== afterFilter.lowerRight.x ||
+            originalLowerRight.y !== afterFilter.lowerRight.y;
+
+          if (changed) {
+            this.getHistoryManager().push(
+              UndoEntry.patternGridFilterMoveUpperLeftLowerRight(
+                filterId,
+                originalUpperLeft,
+                originalLowerRight,
+                afterFilter.upperLeft,
+                afterFilter.lowerRight,
+              ),
+            );
+          }
+        });
+        this.activeDragListener = null;
+      },
+      onCancel: () => {
+        this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
+          FilterComponent.update(g, {
+            upperLeft: originalUpperLeft,
+            lowerRight: originalLowerRight,
+          }),
+        );
+        this.activeDragListener = null;
+      },
+    });
+  }
+
   onConstraintLabelPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,

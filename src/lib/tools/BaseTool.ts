@@ -1,5 +1,5 @@
 import EventEmitter from 'eventemitter3';
-import { type Entity } from '@/lib/entity';
+import { type Entity, type ResizeMode } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { type FilterData } from '@/lib/entity/filters';
 import { forwardEvents } from '@/lib/events';
@@ -195,6 +195,13 @@ export abstract class BaseTool<
     _viewportControls: ViewportControls,
     _filterId: Entity['id'],
     _pointKey: keyof FD,
+  ): void {}
+
+  /** Called by the renderer when a pattern grid filter's edge or corner resize handle is clicked. */
+  handleFilterPatternGridResizePointerDown(
+    _viewportControls: ViewportControls,
+    _filterId: Entity['id'],
+    _resizeMode: ResizeMode,
   ): void {}
 
   /** Returns the GeometryStore. */
@@ -417,5 +424,16 @@ export abstract class BaseMultiTool<
   /** Called by the renderer when the pointer leaves the fill area of a shape. */
   handleGeometryFillLeave(geometryId: Entity['id']) {
     return this.subToolInstances[this.currentlyActiveIndex].handleGeometryFillLeave(geometryId);
+  }
+
+  /** Called by the renderer when a pattern grid filter's edge or corner resize handle is clicked. */
+  handleFilterPatternGridResizePointerDown(
+    viewportControls: ViewportControls,
+    filterId: Entity['id'],
+    resizeMode: ResizeMode,
+  ): void {
+    return this.subToolInstances[
+      this.currentlyActiveIndex
+    ].handleFilterPatternGridResizePointerDown(viewportControls, filterId, resizeMode);
   }
 }
