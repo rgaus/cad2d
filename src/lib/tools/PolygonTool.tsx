@@ -2063,11 +2063,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   /** Applies snapping to a sheet position (grid snap only). */
   private applySnapping(pos: SheetPosition): SheetPosition {
     const viewportScale = this.toolManager.getViewportControls()?.getState().viewport.scale ?? 1;
-    const wp = this.getGeometryStore().workingPolygon;
-    const selectedGeometryFilters =
-      wp?.source.type === 'existing-polygon'
-        ? this.getGeometryStore().findFiltersByGeometryId(wp.source.polygonId)
-        : undefined;
+    const selectedGeometryFilters = this.getSelectedGeometryFilters();
     return applySnapping(pos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
@@ -2078,26 +2074,33 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
     });
   }
 
+  /** Returns the filter patterns attached to the polygon currently being extended, if any. */
+  private getSelectedGeometryFilters() {
+    const wp = this.getGeometryStore().workingPolygon;
+    if (wp?.source.type === 'existing-polygon') {
+      return this.getGeometryStore().findFiltersByGeometryId(wp.source.polygonId);
+    }
+    if (this.state.state === 'hovering-polygon-endpoint') {
+      return this.getGeometryStore().findFiltersByGeometryId(this.state.polygonId);
+    }
+    return undefined;
+  }
+
   /** Applies snapping with 45-degree angular snapping from the previous point. */
   private applySnappingLineSeries(pos: SheetPosition, prevPoint: SheetPosition): SheetPosition {
     const viewportScale = this.toolManager.getViewportControls()?.getState().viewport.scale ?? 1;
-    const wp = this.getGeometryStore().workingPolygon;
-    const selectedGeometryFilters =
-      wp?.source.type === 'existing-polygon'
-        ? this.getGeometryStore().findFiltersByGeometryId(wp.source.polygonId)
-        : undefined;
-    console.log('FOO', wp, selectedGeometryFilters);
     const options: SnappingLineSeriesOptions = {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
       viewportScale,
-      selectedGeometryFilters,
+      selectedGeometryFilters: this.getSelectedGeometryFilters(),
     };
 
     // When extending from the start, then the "preview segment" is at the start
     // Otherwise, it's at the end.
+    const wp = this.getGeometryStore().workingPolygon;
     const index = wp?.source.type === 'existing-polygon' && wp.source.isStartPoint ? 0 : -1;
     const lastConstrainedLength = this.constrainedLengths.at(index);
 
