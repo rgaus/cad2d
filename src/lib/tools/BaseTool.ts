@@ -198,7 +198,7 @@ export abstract class BaseTool<
   ): void {}
 
   /** Called by the renderer when a pattern grid filter's edge or corner resize handle is clicked. */
-  handleFilterPatternGridResizePointerDown(
+  handleFrameResizePointerDown(
     _viewportControls: ViewportControls,
     _filterId: Entity['id'],
     _resizeMode: ResizeMode,
@@ -427,13 +427,15 @@ export abstract class BaseMultiTool<
   }
 
   /** Called by the renderer when a pattern grid filter's edge or corner resize handle is clicked. */
-  handleFilterPatternGridResizePointerDown(
+  handleFrameResizePointerDown(
     viewportControls: ViewportControls,
     filterId: Entity['id'],
     resizeMode: ResizeMode,
   ): void {
-    return this.subToolInstances[
-      this.currentlyActiveIndex
-    ].handleFilterPatternGridResizePointerDown(viewportControls, filterId, resizeMode);
+    return this.subToolInstances[this.currentlyActiveIndex].handleFrameResizePointerDown(
+      viewportControls,
+      filterId,
+      resizeMode,
+    );
   }
 }

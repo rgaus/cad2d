@@ -5,6 +5,7 @@ import {
   type Ellipse,
   Entity,
   FillColorComponent,
+  FrameComponent,
   GeometryComponent,
   LinkDimensionsComponent,
   type Polygon,
@@ -537,12 +538,15 @@ export function serializeFilter(filter: Entity): string {
       attrs.push(`data-type="pattern-filter"`);
       switch (fd.mode) {
         case 'grid':
+          if (!Entity.hasComponent(filter, FrameComponent)) {
+            break;
+          }
+          const frame = FrameComponent.get(filter);
           attrs.push(`data-pattern-mode="grid"`);
-          attrs.push(`data-upper-left-x="${fd.upperLeft.x}"`);
-          attrs.push(`data-upper-left-y="${fd.upperLeft.y}"`);
-          attrs.push(`data-lower-right-x="${fd.lowerRight.x}"`);
-          attrs.push(`data-lower-right-y="${fd.lowerRight.y}"`);
-          attrs.push(`data-lower-right-y="${fd.lowerRight.y}"`);
+          attrs.push(`data-upper-left-x="${frame.upperLeft.x}"`);
+          attrs.push(`data-upper-left-y="${frame.upperLeft.y}"`);
+          attrs.push(`data-lower-right-x="${frame.lowerRight.x}"`);
+          attrs.push(`data-lower-right-y="${frame.lowerRight.y}"`);
           attrs.push(`data-repeats-x="${fd.xRepeats}"`);
           attrs.push(`data-repeats-y="${fd.yRepeats}"`);
           break;

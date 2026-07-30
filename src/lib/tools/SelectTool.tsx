@@ -22,6 +22,7 @@ import {
 } from '@/lib/entity';
 import { ID_PREFIXES, getPrefixFromId } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { FrameComponent } from '@/lib/entity/components/FrameComponent';
 import {
   ConstrainedTrack,
   type ConstrainedTrackPath,
@@ -1892,13 +1893,21 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   case 'pattern':
                     switch (before.mode) {
                       case 'grid':
+                        if (
+                          !Entity.hasComponent(state.entity, FrameComponent) ||
+                          !Entity.hasComponent(entity, FrameComponent)
+                        ) {
+                          break;
+                        }
+                        const beforeFrame = FrameComponent.get(state.entity);
+                        const afterFrame = FrameComponent.get(entity);
                         forwardsActions.push(
-                          UndoEntry.patternGridFilterMoveUpperLeftLowerRight(
+                          UndoEntry.frameMove(
                             id,
-                            before.upperLeft,
-                            before.lowerRight,
-                            (after as typeof before).upperLeft,
-                            (after as typeof before).lowerRight,
+                            beforeFrame.upperLeft,
+                            beforeFrame.lowerRight,
+                            afterFrame.upperLeft,
+                            afterFrame.lowerRight,
                           ),
                         );
                         break;
@@ -2984,24 +2993,21 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  /** Starts resizing a pattern grid filter's bounding rectangle via an edge or corner handle.
+  /** Starts resizing a frame's bounding rectangle via an edge or corner handle.
    *  Supports shift (equal aspect ratio) and alt/option (resize from center) modifiers. */
-  handleFilterPatternGridResizePointerDown(
+  handleFrameResizePointerDown(
     viewportControls: ViewportControls,
     filterId: Filter['id'],
     resizeMode: ResizeMode,
   ): void {
-    const filter = this.getGeometryStore().getByIdWithComponent(filterId, FilterComponent);
-    if (!filter) {
+    const filter = this.getGeometryStore().getById(filterId);
+    if (!filter || !Entity.hasComponent(filter, FrameComponent)) {
       return;
     }
-    const filterData = FilterComponent.get(filter);
-    if (filterData.type !== 'pattern' || filterData.mode !== 'grid') {
-      return;
-    }
+    const frameData = FrameComponent.get(filter);
 
-    const originalUpperLeft = new SheetPosition(filterData.upperLeft.x, filterData.upperLeft.y);
-    const originalLowerRight = new SheetPosition(filterData.lowerRight.x, filterData.lowerRight.y);
+    const originalUpperLeft = new SheetPosition(frameData.upperLeft.x, frameData.upperLeft.y);
+    const originalLowerRight = new SheetPosition(frameData.lowerRight.x, frameData.lowerRight.y);
 
     const originalBBox: Rect<SheetPosition> = {
       position: originalUpperLeft,
@@ -3036,7 +3042,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           linkDimensions: false,
         };
 
-        const newBBox = GeometryComponent.resizeBBox(originalBBox, params);
+        const newBBox = FrameComponent.resizeBBox(originalBBox, params);
         if (!newBBox) {
           return;
         }
@@ -3047,38 +3053,35 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           newBBox.position.y + newBBox.height,
         );
 
-        this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
-          FilterComponent.update(g, { upperLeft: ul, lowerRight: lr }),
-        );
+        this.getGeometryStore().updateByIdDirect(filterId, (g) => {
+          if (!Entity.hasComponent(g, FrameComponent)) {
+            return g;
+          }
+          return FrameComponent.update(g, { upperLeft: ul, lowerRight: lr });
+        });
       },
       onCommit: (_sp) => {
-        this.getHistoryManager().applyTransaction('pattern-grid-filter-resize', () => {
-          const afterFilterGeom = this.getGeometryStore().getByIdWithComponent(
-            filterId,
-            FilterComponent,
-          );
-          if (!afterFilterGeom) {
+        this.getHistoryManager().applyTransaction('frame-resize', () => {
+          const afterFilterGeom = this.getGeometryStore().getById(filterId);
+          if (!afterFilterGeom || !Entity.hasComponent(afterFilterGeom, FrameComponent)) {
             return;
           }
-          const afterFilter = FilterComponent.get(afterFilterGeom);
-          if (afterFilter.type !== 'pattern' || afterFilter.mode !== 'grid') {
-            return;
-          }
+          const afterFrame = FrameComponent.get(afterFilterGeom);
 
           const changed =
-            originalUpperLeft.x !== afterFilter.upperLeft.x ||
-            originalUpperLeft.y !== afterFilter.upperLeft.y ||
-            originalLowerRight.x !== afterFilter.lowerRight.x ||
-            originalLowerRight.y !== afterFilter.lowerRight.y;
+            originalUpperLeft.x !== afterFrame.upperLeft.x ||
+            originalUpperLeft.y !== afterFrame.upperLeft.y ||
+            originalLowerRight.x !== afterFrame.lowerRight.x ||
+            originalLowerRight.y !== afterFrame.lowerRight.y;
 
           if (changed) {
             this.getHistoryManager().push(
-              UndoEntry.patternGridFilterMoveUpperLeftLowerRight(
+              UndoEntry.frameMove(
                 filterId,
                 originalUpperLeft,
                 originalLowerRight,
-                afterFilter.upperLeft,
-                afterFilter.lowerRight,
+                afterFrame.upperLeft,
+                afterFrame.lowerRight,
               ),
             );
           }
@@ -3086,12 +3089,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.activeDragListener = null;
       },
       onCancel: () => {
-        this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
-          FilterComponent.update(g, {
+        this.getGeometryStore().updateByIdDirect(filterId, (g) => {
+          if (!Entity.hasComponent(g, FrameComponent)) {
+            return g;
+          }
+          return FrameComponent.update(g, {
             upperLeft: originalUpperLeft,
             lowerRight: originalLowerRight,
-          }),
-        );
+          });
+        });
         this.activeDragListener = null;
       },
     });

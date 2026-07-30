@@ -7,6 +7,7 @@ import {
   DatumComponent,
   type EllipseEndpoint,
   Entity,
+  FrameComponent,
   GeometryComponent,
   type RectangleEndpoint,
 } from '@/lib/entity';
@@ -450,9 +451,13 @@ function snapToFilters(
       case 'pattern': {
         switch (filterData.mode) {
           case 'grid':
+            if (!Entity.hasComponent(filter, FrameComponent)) {
+              continue;
+            }
+            const frameData = FrameComponent.get(filter);
             const corners = BoundingBox.cornersToArray(
               BoundingBox.corners(
-                BoundingBox.fromPoints([filterData.upperLeft, filterData.lowerRight]),
+                BoundingBox.fromPoints([frameData.upperLeft, frameData.lowerRight]),
               ),
             );
             for (let i = 0; i < corners.length - 1; i += 1) {

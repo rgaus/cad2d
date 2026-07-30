@@ -4,6 +4,7 @@ import { Fragment, useMemo } from 'react';
 import {
   Entity,
   FillColorComponent,
+  FrameComponent,
   GeometryComponent,
   PolygonSegment,
   RenderShape,
@@ -274,13 +275,17 @@ export default function ShapePreview({
           case 'pattern':
             switch (filterData.mode) {
               case 'grid': {
+                if (!Entity.hasComponent(filter, FrameComponent)) {
+                  return null;
+                }
+                const frameData = FrameComponent.get(filter);
                 const [upperLeftX, upperLeftY] = toSvg(
-                  filterData.upperLeft.x,
-                  filterData.upperLeft.y,
+                  frameData.upperLeft.x,
+                  frameData.upperLeft.y,
                 );
                 const [lowerRightX, lowerRightY] = toSvg(
-                  filterData.lowerRight.x,
-                  filterData.lowerRight.y,
+                  frameData.lowerRight.x,
+                  frameData.lowerRight.y,
                 );
                 return (
                   <rect

@@ -19,6 +19,7 @@ import {
   VerticalConstraint,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { PatternFilter } from '@/lib/entity/filters/pattern';
 import {
   CentimetersLength,
   FeetLength,
@@ -619,23 +620,26 @@ function parsePatternFilter(
   }
 
   switch (attrs['data-pattern-mode']) {
-    case 'grid':
-      return {
-        type: 'pattern',
-        mode: 'grid',
-        id,
-        geometryId: rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
-        upperLeft: {
-          x: parseFloat(String(attrs['data-upper-left-x'] ?? '0')),
-          y: parseFloat(String(attrs['data-upper-left-y'] ?? '0')),
-        },
-        lowerRight: {
-          x: parseFloat(String(attrs['data-lower-right-x'] ?? '0')),
-          y: parseFloat(String(attrs['data-lower-right-y'] ?? '0')),
-        },
-        xRepeats: parseFloat(String(attrs['data-repeats-x'] ?? '1')),
-        yRepeats: parseFloat(String(attrs['data-repeats-y'] ?? '1')),
+    case 'grid': {
+      const upperLeft = {
+        x: parseFloat(String(attrs['data-upper-left-x'] ?? '0')),
+        y: parseFloat(String(attrs['data-upper-left-y'] ?? '0')),
       };
+      const lowerRight = {
+        x: parseFloat(String(attrs['data-lower-right-x'] ?? '0')),
+        y: parseFloat(String(attrs['data-lower-right-y'] ?? '0')),
+      };
+      const template = PatternFilter.createGrid(
+        rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
+        new SheetPosition(upperLeft.x, upperLeft.y),
+        new SheetPosition(lowerRight.x, lowerRight.y),
+        {
+          xRepeats: parseFloat(String(attrs['data-repeats-x'] ?? '2')),
+          yRepeats: parseFloat(String(attrs['data-repeats-y'] ?? '2')),
+        },
+      );
+      return { id, ...template };
+    }
     case 'radial':
       return {
         type: 'pattern',

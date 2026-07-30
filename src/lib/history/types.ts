@@ -348,9 +348,9 @@ export type PatternRadialFilterMoveCenterEntry = {
   afterCenter: SheetPosition;
 };
 
-/** Recorded when a pattern grid filter's upper left / lower right is moved. */
-export type PatternGridFilterMoveUpperLeftLowerRightEntry = {
-  type: 'pattern-grid-filter-move-upper-left-lower-right';
+/** Recorded when a frame's upper left / lower right is moved. */
+export type FrameMoveEntry = {
+  type: 'frame-move';
   id: Id;
   beforeUpperLeft: SheetPosition;
   afterUpperLeft: SheetPosition;
@@ -398,7 +398,7 @@ export type UndoEntry =
   | SheetUnitPlacesEntry
   | FilterChangeOffsetEntry
   | MirrorFilterMoveEndpointsEntry
-  | PatternGridFilterMoveUpperLeftLowerRightEntry
+  | FrameMoveEntry
   | PatternRadialFilterMoveCenterEntry;
 
 export namespace UndoEntry {
@@ -813,16 +813,16 @@ export namespace UndoEntry {
     };
   }
 
-  /** Recorded when a pattern radial filter's center is moved. */
-  export function patternGridFilterMoveUpperLeftLowerRight(
+  /** Recorded when a frame's upper left / lower right is moved. */
+  export function frameMove(
     id: Id,
     beforeUpperLeft: SheetPosition,
     beforeLowerRight: SheetPosition,
     afterUpperLeft: SheetPosition,
     afterLowerRight: SheetPosition,
-  ): PatternGridFilterMoveUpperLeftLowerRightEntry {
+  ): FrameMoveEntry {
     return {
-      type: 'pattern-grid-filter-move-upper-left-lower-right',
+      type: 'frame-move',
       id,
       beforeUpperLeft,
       beforeLowerRight,

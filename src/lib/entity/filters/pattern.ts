@@ -6,6 +6,7 @@ import { Entity, type Polygon, PolygonSegment } from '..';
 import { DEFAULT_COLOR } from '../colors';
 import { FillColorComponent } from '../components/FillColorComponent';
 import { FilterComponent } from '../components/FilterComponent';
+import { FrameComponent } from '../components/FrameComponent';
 import {
   GeometryComponent,
   GetRenderShapesOptions,
@@ -16,8 +17,6 @@ export type PatternGridFilterData = {
   type: 'pattern';
   mode: 'grid';
   geometryId: Polygon['id'];
-  upperLeft: SheetPosition;
-  lowerRight: SheetPosition;
   xRepeats: number;
   yRepeats: number;
 };
@@ -43,15 +42,16 @@ export namespace PatternFilter {
     options?: { xRepeats?: number; yRepeats?: number },
   ): PatternGridFilterTemplate {
     return {
-      components: FilterComponent.create({
-        type: 'pattern',
-        mode: 'grid',
-        geometryId,
-        upperLeft,
-        lowerRight,
-        xRepeats: options?.xRepeats ?? 2,
-        yRepeats: options?.yRepeats ?? 2,
-      }),
+      components: {
+        ...FilterComponent.create({
+          type: 'pattern',
+          mode: 'grid',
+          geometryId,
+          xRepeats: options?.xRepeats ?? 2,
+          yRepeats: options?.yRepeats ?? 2,
+        }),
+        ...FrameComponent.create(upperLeft, lowerRight),
+      },
     };
   }
 
@@ -142,8 +142,8 @@ export namespace PatternFilter {
     F extends
       | {
           mode: 'grid';
-          upperLeft: SheetPosition | null;
-          lowerRight: SheetPosition | null;
+          // upperLeft: SheetPosition | null;
+          // lowerRight: SheetPosition | null;
           xRepeats?: number;
           yRepeats?: number;
         }
@@ -201,10 +201,12 @@ export namespace PatternFilter {
     const filterData = FilterComponent.get(filter);
     switch (filterData.mode) {
       case 'grid':
-        return FilterComponent.update(filter, {
-          upperLeft: transform(filterData.upperLeft),
-          lowerRight: transform(filterData.lowerRight),
-        });
+        if (!Entity.hasComponent(filter, FrameComponent)) {
+          throw new Error(
+            `PatternFilter.translate: Pattern grid filter ${(filter as any).id} does not have FrameComponent!`,
+          );
+        }
+        return FrameComponent.translate(filter, transform);
       case 'radial':
         return FilterComponent.update(filter, {
           center: transform(filterData.center),
@@ -233,11 +235,14 @@ export namespace PatternFilter {
         if (bData.mode !== 'grid') {
           return false;
         }
+        if (!Entity.hasComponent(a, FrameComponent)) {
+          return false;
+        }
+        if (!Entity.hasComponent(b, FrameComponent)) {
+          return false;
+        }
         return (
-          aData.upperLeft.x === bData.upperLeft.x &&
-          aData.upperLeft.y === bData.upperLeft.y &&
-          aData.lowerRight.x === bData.lowerRight.x &&
-          aData.lowerRight.y === bData.lowerRight.y &&
+          FrameComponent.equals(a, b) &&
           aData.xRepeats === bData.xRepeats &&
           aData.yRepeats === bData.yRepeats
         );
@@ -297,14 +302,21 @@ export namespace PatternFilter {
 
   export function applyToRenderShape(
     filterData: PatternFilterData,
+    filter: Entity,
     shapes: Array<RenderShape>,
     generateFilterKey: () => string,
     options: GetRenderShapesOptions,
   ): Array<RenderShape> {
     switch (filterData.mode) {
       case 'grid': {
-        const dx = filterData.lowerRight.x - filterData.upperLeft.x;
-        const dy = filterData.lowerRight.y - filterData.upperLeft.y;
+        if (!Entity.hasComponent(filter, FrameComponent)) {
+          throw new Error(
+            `PatternFilter.applyToRenderShape: Pattern grid filter ${(filter as any).id} does not have FrameComponent!`,
+          );
+        }
+        const frameData = FrameComponent.get(filter);
+        const dx = frameData.lowerRight.x - frameData.upperLeft.x;
+        const dy = frameData.lowerRight.y - frameData.upperLeft.y;
 
         return shapes.flatMap((renderShape) => {
           const copies: Array<RenderShape> = [];
@@ -661,7 +673,10 @@ export namespace PatternFilter {
 
 export type PatternFilter = Entity<FilterComponent<PatternFilterData>>;
 
-export type PatternGridFilterTemplate = Omit<Entity<FilterComponent<PatternGridFilterData>>, 'id'>;
+export type PatternGridFilterTemplate = Omit<
+  Entity<FilterComponent<PatternGridFilterData> & FrameComponent>,
+  'id'
+>;
 export type PatternRadialFilterTemplate = Omit<
   Entity<FilterComponent<PatternRadialFilterData>>,
   'id'

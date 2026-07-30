@@ -12,7 +12,7 @@ import PatternGridFilterIndicator from '@/app/components/PatternGridFilterIndica
 import PatternRadialFilterIndicator from '@/app/components/PatternRadialFilterIndicator';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { type Entity } from '@/lib/entity';
+import { Entity, FrameComponent } from '@/lib/entity';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { PatternFilterData } from '@/lib/entity/filters/pattern';
@@ -146,12 +146,10 @@ const FilterOverlay: React.FunctionComponent = () => {
       if (!viewportControls) {
         return;
       }
-      toolManager
-        .getActiveTool()
-        .handleFilterPatternGridResizePointerDown(viewportControls, filterId, {
-          type: 'edge',
-          edge,
-        });
+      toolManager.getActiveTool().handleFrameResizePointerDown(viewportControls, filterId, {
+        type: 'edge',
+        edge,
+      });
     },
     [toolManager, viewportControls],
   );
@@ -164,12 +162,10 @@ const FilterOverlay: React.FunctionComponent = () => {
       if (!viewportControls) {
         return;
       }
-      toolManager
-        .getActiveTool()
-        .handleFilterPatternGridResizePointerDown(viewportControls, filterId, {
-          type: 'corner',
-          corner,
-        });
+      toolManager.getActiveTool().handleFrameResizePointerDown(viewportControls, filterId, {
+        type: 'corner',
+        corner,
+      });
     },
     [toolManager, viewportControls],
   );
@@ -389,11 +385,15 @@ const FilterOverlay: React.FunctionComponent = () => {
             switch (filter.mode) {
               case 'grid': {
                 const gridFilter = filter as PatternFilterData & { mode: 'grid' };
+                if (!Entity.hasComponent(geometry, FrameComponent)) {
+                  return null;
+                }
+                const frame = FrameComponent.get(geometry);
                 return (
                   <Fragment key={geometry.id}>
                     <PatternGridFilterIndicator
-                      upperLeft={gridFilter.upperLeft}
-                      lowerRight={gridFilter.lowerRight}
+                      upperLeft={frame.upperLeft}
+                      lowerRight={frame.lowerRight}
                       viewportScale={viewportScale}
                       lineWidthPx={
                         isSelected || hoveringFilterLabelId === geometry.id ? 2 : undefined

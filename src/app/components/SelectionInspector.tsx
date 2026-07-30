@@ -20,6 +20,7 @@ import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   Entity,
   FillColorComponent,
+  FrameComponent,
   GeometryComponent,
   type Id,
   LinkDimensionsComponent,
@@ -1556,17 +1557,21 @@ const PatternGridFilterInspector: React.FunctionComponent<{
   sheetDefaultUnit: UnitType;
 }> = ({ filterId, geometryStore, sheetUnitPlaces, sheetDefaultUnit }) => {
   const [filterEntity, setFilterEntity] = useState<Entity<
-    FilterComponent<PatternGridFilterData>
+    FilterComponent<PatternGridFilterData> & FrameComponent
   > | null>(() => {
-    const entity = geometryStore.getByIdWithComponent(filterId, FilterComponent);
-    if (!entity) {
+    const entity = geometryStore.getById(filterId);
+    if (
+      !entity ||
+      !Entity.hasComponent(entity, FilterComponent) ||
+      !Entity.hasComponent(entity, FrameComponent)
+    ) {
       return null;
     }
     const data = FilterComponent.get(entity);
     if (data.type !== 'pattern' || data.mode !== 'grid') {
       return null;
     }
-    return entity as Entity<FilterComponent<PatternGridFilterData>>;
+    return entity as Entity<FilterComponent<PatternGridFilterData> & FrameComponent>;
   });
 
   const filterData = useMemo(
@@ -1574,16 +1579,25 @@ const PatternGridFilterInspector: React.FunctionComponent<{
     [filterEntity],
   );
 
+  const frameData = useMemo(
+    () => (filterEntity ? FrameComponent.get(filterEntity) : null),
+    [filterEntity],
+  );
+
   useEffect(() => {
     const debouncedHandler = debounce((entity: Entity) => {
-      if (entity.id !== filterId || !Entity.hasComponent(entity, FilterComponent)) {
+      if (
+        entity.id !== filterId ||
+        !Entity.hasComponent(entity, FilterComponent) ||
+        !Entity.hasComponent(entity, FrameComponent)
+      ) {
         return;
       }
       const data = FilterComponent.get(entity);
       if (data.type !== 'pattern' || data.mode !== 'grid') {
         return;
       }
-      setFilterEntity(entity as Entity<FilterComponent<PatternGridFilterData>>);
+      setFilterEntity(entity as Entity<FilterComponent<PatternGridFilterData> & FrameComponent>);
     }, GEOMETRY_UPDATE_DEBOUNCE_MS);
 
     geometryStore.on('geometryUpdated', debouncedHandler);
@@ -1599,18 +1613,27 @@ const PatternGridFilterInspector: React.FunctionComponent<{
   const hInputRef = useRef<LengthInputHandle>(null);
   useEffect(() => {
     const handler = (entity: Entity) => {
-      if (entity.id !== filterId || !Entity.hasComponent(entity, FilterComponent)) {
+      if (
+        entity.id !== filterId ||
+        !Entity.hasComponent(entity, FilterComponent) ||
+        !Entity.hasComponent(entity, FrameComponent)
+      ) {
         return;
       }
       const data = FilterComponent.get(entity);
       if (data.type !== 'pattern' || data.mode !== 'grid') {
         return;
       }
-      xInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, data.upperLeft.x));
-      yInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, data.upperLeft.y));
-      const w = data.lowerRight.x - data.upperLeft.x;
+      const frame = FrameComponent.get(entity);
+      xInputRef.current?.setDisplayValue(
+        Length.fromSheetUnits(sheetDefaultUnit, frame.upperLeft.x),
+      );
+      yInputRef.current?.setDisplayValue(
+        Length.fromSheetUnits(sheetDefaultUnit, frame.upperLeft.y),
+      );
+      const w = frame.lowerRight.x - frame.upperLeft.x;
       wInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, w));
-      const h = data.lowerRight.y - data.upperLeft.y;
+      const h = frame.lowerRight.y - frame.upperLeft.y;
       hInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, h));
     };
     geometryStore.on('geometryUpdated', handler);
@@ -1619,75 +1642,87 @@ const PatternGridFilterInspector: React.FunctionComponent<{
     };
   }, [geometryStore, filterId]);
 
-  if (!filterData) {
+  if (!filterData || !frameData) {
     return null;
   }
 
-  const width = filterData.lowerRight.x - filterData.upperLeft.x;
-  const height = filterData.lowerRight.y - filterData.upperLeft.y;
+  const width = frameData.lowerRight.x - frameData.upperLeft.x;
+  const height = frameData.lowerRight.y - frameData.upperLeft.y;
 
   const handleXChange = useCallback(
     (len: Length) => {
-      if (!filterData) {
+      if (!frameData) {
         return;
       }
       const newX = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      const deltaX = newX - filterData.upperLeft.x;
-      geometryStore.updateByIdWithComponent(filterId, FilterComponent, (g) =>
-        FilterComponent.update(g, {
-          upperLeft: new SheetPosition(newX, filterData.upperLeft.y),
-          lowerRight: new SheetPosition(filterData.lowerRight.x + deltaX, filterData.lowerRight.y),
-        }),
-      );
+      const deltaX = newX - frameData.upperLeft.x;
+      geometryStore.updateById(filterId, (g) => {
+        if (!Entity.hasComponent(g, FrameComponent)) {
+          return g;
+        }
+        return FrameComponent.update(g, {
+          upperLeft: new SheetPosition(newX, frameData.upperLeft.y),
+          lowerRight: new SheetPosition(frameData.lowerRight.x + deltaX, frameData.lowerRight.y),
+        });
+      });
     },
-    [geometryStore, filterId, filterData, sheetDefaultUnit],
+    [geometryStore, filterId, frameData, sheetDefaultUnit],
   );
 
   const handleYChange = useCallback(
     (len: Length) => {
-      if (!filterData) {
+      if (!frameData) {
         return;
       }
       const newY = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      const deltaY = newY - filterData.upperLeft.y;
-      geometryStore.updateByIdWithComponent(filterId, FilterComponent, (g) =>
-        FilterComponent.update(g, {
-          upperLeft: new SheetPosition(filterData.upperLeft.x, newY),
-          lowerRight: new SheetPosition(filterData.lowerRight.x, filterData.lowerRight.y + deltaY),
-        }),
-      );
+      const deltaY = newY - frameData.upperLeft.y;
+      geometryStore.updateById(filterId, (g) => {
+        if (!Entity.hasComponent(g, FrameComponent)) {
+          return g;
+        }
+        return FrameComponent.update(g, {
+          upperLeft: new SheetPosition(frameData.upperLeft.x, newY),
+          lowerRight: new SheetPosition(frameData.lowerRight.x, frameData.lowerRight.y + deltaY),
+        });
+      });
     },
-    [geometryStore, filterId, filterData, sheetDefaultUnit],
+    [geometryStore, filterId, frameData, sheetDefaultUnit],
   );
 
   const handleWChange = useCallback(
     (len: Length) => {
-      if (!filterData) {
+      if (!frameData) {
         return;
       }
       const w = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updateByIdWithComponent(filterId, FilterComponent, (g) =>
-        FilterComponent.update(g, {
-          lowerRight: new SheetPosition(filterData.upperLeft.x + w, filterData.lowerRight.y),
-        }),
-      );
+      geometryStore.updateById(filterId, (g) => {
+        if (!Entity.hasComponent(g, FrameComponent)) {
+          return g;
+        }
+        return FrameComponent.update(g, {
+          lowerRight: new SheetPosition(frameData.upperLeft.x + w, frameData.lowerRight.y),
+        });
+      });
     },
-    [geometryStore, filterId, filterData, sheetDefaultUnit],
+    [geometryStore, filterId, frameData, sheetDefaultUnit],
   );
 
   const handleHChange = useCallback(
     (len: Length) => {
-      if (!filterData) {
+      if (!frameData) {
         return;
       }
       const h = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updateByIdWithComponent(filterId, FilterComponent, (g) =>
-        FilterComponent.update(g, {
-          lowerRight: new SheetPosition(filterData.lowerRight.x, filterData.upperLeft.y + h),
-        }),
-      );
+      geometryStore.updateById(filterId, (g) => {
+        if (!Entity.hasComponent(g, FrameComponent)) {
+          return g;
+        }
+        return FrameComponent.update(g, {
+          lowerRight: new SheetPosition(frameData.lowerRight.x, frameData.upperLeft.y + h),
+        });
+      });
     },
-    [geometryStore, filterId, filterData, sheetDefaultUnit],
+    [geometryStore, filterId, frameData, sheetDefaultUnit],
   );
 
   const handleXRepeatsChange = useCallback(
@@ -1723,7 +1758,7 @@ const PatternGridFilterInspector: React.FunctionComponent<{
           <LabeledRow label="X:">
             <LengthInput
               ref={xInputRef}
-              value={Length.fromSheetUnits(sheetDefaultUnit, filterData.upperLeft.x)}
+              value={Length.fromSheetUnits(sheetDefaultUnit, frameData.upperLeft.x)}
               onChange={handleXChange}
               roundPlaces={sheetUnitPlaces}
               readOnlyUnit
@@ -1734,7 +1769,7 @@ const PatternGridFilterInspector: React.FunctionComponent<{
           <LabeledRow label="Y:">
             <LengthInput
               ref={yInputRef}
-              value={Length.fromSheetUnits(sheetDefaultUnit, filterData.upperLeft.y)}
+              value={Length.fromSheetUnits(sheetDefaultUnit, frameData.upperLeft.y)}
               onChange={handleYChange}
               roundPlaces={sheetUnitPlaces}
               readOnlyUnit

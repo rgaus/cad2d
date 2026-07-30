@@ -6,8 +6,9 @@ import {
   Datum,
   DatumComponent,
   Ellipse,
-  type Entity,
+  Entity,
   FillColorComponent,
+  FrameComponent,
   GeometryComponent,
   HorizontalConstraint,
   LinearConstraint,
@@ -5858,7 +5859,7 @@ describe('SelectTool', () => {
         PatternFilter.createGrid(rect.id, new SheetPosition(2, 4), new SheetPosition(8, 10)),
       );
 
-      selectTool.handleFilterPatternGridResizePointerDown(viewportControls, filter.id, {
+      selectTool.handleFrameResizePointerDown(viewportControls, filter.id, {
         type: 'edge',
         edge: 'top',
       });
@@ -5869,11 +5870,11 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
       upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
 
-      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
-      const data = FilterComponent.get(updated);
-      if (data.type !== 'pattern' || data.mode !== 'grid') {
-        throw new Error('Expected pattern grid filter');
+      const updated = geometryStore.getById(filter.id);
+      if (!updated || !Entity.hasComponent(updated, FrameComponent)) {
+        throw new Error('Expected FrameComponent');
       }
+      const data = FrameComponent.get(updated);
       expect(data.upperLeft.y).toBeCloseTo(2, 0);
       expect(data.upperLeft.x).toBeCloseTo(2, 0);
       expect(data.lowerRight.x).toBeCloseTo(8, 0);
@@ -5891,7 +5892,7 @@ describe('SelectTool', () => {
         PatternFilter.createGrid(rect.id, new SheetPosition(2, 4), new SheetPosition(6, 8)),
       );
 
-      selectTool.handleFilterPatternGridResizePointerDown(viewportControls, filter.id, {
+      selectTool.handleFrameResizePointerDown(viewportControls, filter.id, {
         type: 'corner',
         corner: 'bottom-right',
       });
@@ -5902,11 +5903,11 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
       upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
 
-      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
-      const data = FilterComponent.get(updated);
-      if (data.type !== 'pattern' || data.mode !== 'grid') {
-        throw new Error('Expected pattern grid filter');
+      const updated = geometryStore.getById(filter.id);
+      if (!updated || !Entity.hasComponent(updated, FrameComponent)) {
+        throw new Error('Expected FrameComponent');
       }
+      const data = FrameComponent.get(updated);
       expect(data.lowerRight.x).toBeCloseTo(10, 0);
       expect(data.lowerRight.y).toBeCloseTo(14, 0);
       expect(data.upperLeft.x).toBeCloseTo(2, 0);
@@ -5927,7 +5928,7 @@ describe('SelectTool', () => {
 
       jest.spyOn(toolManager, 'getShiftHeld').mockReturnValue(true);
 
-      selectTool.handleFilterPatternGridResizePointerDown(viewportControls, filter.id, {
+      selectTool.handleFrameResizePointerDown(viewportControls, filter.id, {
         type: 'corner',
         corner: 'bottom-right',
       });
@@ -5941,11 +5942,11 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
       upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
 
-      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
-      const data = FilterComponent.get(updated);
-      if (data.type !== 'pattern' || data.mode !== 'grid') {
-        throw new Error('Expected pattern grid filter');
+      const updated = geometryStore.getById(filter.id);
+      if (!updated || !Entity.hasComponent(updated, FrameComponent)) {
+        throw new Error('Expected FrameComponent');
       }
+      const data = FrameComponent.get(updated);
       expect(data.lowerRight.x).toBeCloseTo(20, 1);
       expect(data.lowerRight.y).toBeCloseTo(28, 1);
       expect(data.upperLeft.x).toBeCloseTo(2, 1);
@@ -5966,7 +5967,7 @@ describe('SelectTool', () => {
 
       jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-      selectTool.handleFilterPatternGridResizePointerDown(viewportControls, filter.id, {
+      selectTool.handleFrameResizePointerDown(viewportControls, filter.id, {
         type: 'edge',
         edge: 'top',
       });
@@ -5977,11 +5978,11 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
       upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
 
-      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
-      const data = FilterComponent.get(updated);
-      if (data.type !== 'pattern' || data.mode !== 'grid') {
-        throw new Error('Expected pattern grid filter');
+      const updated = geometryStore.getById(filter.id);
+      if (!updated || !Entity.hasComponent(updated, FrameComponent)) {
+        throw new Error('Expected FrameComponent');
       }
+      const data = FrameComponent.get(updated);
       // With alt, top edge at y=2 means top expanded by 2 (4→2)
       // Bottom must also expand by 2 (10→12) to keep center at y=7
       // upperLeft.y = 2, lowerRight.y = 12
