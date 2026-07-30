@@ -2984,7 +2984,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  /** Starts resizing a pattern grid filter's bounding rectangle via an edge or corner handle. */
+  /** Starts resizing a pattern grid filter's bounding rectangle via an edge or corner handle.
+   *  Supports shift (equal aspect ratio) and alt/option (resize from center) modifiers. */
   handleFilterPatternGridResizePointerDown(
     viewportControls: ViewportControls,
     filterId: Filter['id'],
@@ -3001,6 +3002,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const originalUpperLeft = new SheetPosition(filterData.upperLeft.x, filterData.upperLeft.y);
     const originalLowerRight = new SheetPosition(filterData.lowerRight.x, filterData.lowerRight.y);
+
+    const originalBBox: Rect<SheetPosition> = {
+      position: originalUpperLeft,
+      width: originalLowerRight.x - originalUpperLeft.x,
+      height: originalLowerRight.y - originalUpperLeft.y,
+    };
 
     this.activeDragListener = createDragListener({
       viewportControls,
@@ -3021,51 +3028,23 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           this.getSheet()?.epsilon ?? 0.001,
         );
 
-        let newUpperLeft = new SheetPosition(originalUpperLeft.x, originalUpperLeft.y);
-        let newLowerRight = new SheetPosition(originalLowerRight.x, originalLowerRight.y);
+        const params: ResizeParams = {
+          to: snapped,
+          mode: resizeMode,
+          altHeld: this.toolManager.getAltHeld(),
+          shiftHeld: this.toolManager.getShiftHeld(),
+          linkDimensions: false,
+        };
 
-        if (resizeMode.type === 'edge') {
-          switch (resizeMode.edge) {
-            case 'top':
-              newUpperLeft = new SheetPosition(originalUpperLeft.x, snapped.y);
-              break;
-            case 'bottom':
-              newLowerRight = new SheetPosition(originalLowerRight.x, snapped.y);
-              break;
-            case 'left':
-              newUpperLeft = new SheetPosition(snapped.x, originalUpperLeft.y);
-              break;
-            case 'right':
-              newLowerRight = new SheetPosition(snapped.x, originalLowerRight.y);
-              break;
-          }
-        } else {
-          switch (resizeMode.corner) {
-            case 'top-left':
-              newUpperLeft = snapped;
-              break;
-            case 'top-right':
-              newUpperLeft = new SheetPosition(originalUpperLeft.x, snapped.y);
-              newLowerRight = new SheetPosition(snapped.x, originalLowerRight.y);
-              break;
-            case 'bottom-left':
-              newUpperLeft = new SheetPosition(snapped.x, originalUpperLeft.y);
-              newLowerRight = new SheetPosition(originalLowerRight.x, snapped.y);
-              break;
-            case 'bottom-right':
-              newLowerRight = snapped;
-              break;
-          }
+        const newBBox = GeometryComponent.resizeBBox(originalBBox, params);
+        if (!newBBox) {
+          return;
         }
 
-        // Normalize so upperLeft always has the smaller coordinate values
-        const ul = new SheetPosition(
-          Math.min(newUpperLeft.x, newLowerRight.x),
-          Math.min(newUpperLeft.y, newLowerRight.y),
-        );
+        const ul = newBBox.position;
         const lr = new SheetPosition(
-          Math.max(newUpperLeft.x, newLowerRight.x),
-          Math.max(newUpperLeft.y, newLowerRight.y),
+          newBBox.position.x + newBBox.width,
+          newBBox.position.y + newBBox.height,
         );
 
         this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>

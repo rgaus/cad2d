@@ -5912,5 +5912,84 @@ describe('SelectTool', () => {
       expect(data.upperLeft.x).toBeCloseTo(2, 0);
       expect(data.upperLeft.y).toBeCloseTo(4, 0);
     });
+
+    it('resizes bottom-right corner with shift held to preserve aspect ratio', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      // Non-square: width=6, height=8, aspect ratio = 6/8 = 0.75
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createGrid(rect.id, new SheetPosition(2, 4), new SheetPosition(8, 12)),
+      );
+
+      jest.spyOn(toolManager, 'getShiftHeld').mockReturnValue(true);
+
+      selectTool.handleFilterPatternGridResizePointerDown(viewportControls, filter.id, {
+        type: 'corner',
+        corner: 'bottom-right',
+      });
+
+      // Drag to (20, 14) — large x expansion, small y expansion.
+      // With shift, the larger delta drives the scale: dx=18 → scale=18/6=3
+      // newW=6*3=18, newH=8*3=24
+      // upperLeft stays at (2,4), lowerRight at (2+18, 4+24) = (20, 28)
+      const targetSheet = new SheetPosition(20, 14);
+      const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const data = FilterComponent.get(updated);
+      if (data.type !== 'pattern' || data.mode !== 'grid') {
+        throw new Error('Expected pattern grid filter');
+      }
+      expect(data.lowerRight.x).toBeCloseTo(20, 1);
+      expect(data.lowerRight.y).toBeCloseTo(28, 1);
+      expect(data.upperLeft.x).toBeCloseTo(2, 1);
+      expect(data.upperLeft.y).toBeCloseTo(4, 1);
+    });
+
+    it('resizes top edge with alt held to resize from center', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createGrid(rect.id, new SheetPosition(2, 4), new SheetPosition(8, 10)),
+      );
+      // original: upperLeft=(2,4), lowerRight=(8,10), center=(5,7), height=6
+
+      jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
+
+      selectTool.handleFilterPatternGridResizePointerDown(viewportControls, filter.id, {
+        type: 'edge',
+        edge: 'top',
+      });
+
+      // Drag top edge UP from y=4 to y=2
+      const targetSheet = new SheetPosition(5, 2);
+      const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const data = FilterComponent.get(updated);
+      if (data.type !== 'pattern' || data.mode !== 'grid') {
+        throw new Error('Expected pattern grid filter');
+      }
+      // With alt, top edge at y=2 means top expanded by 2 (4→2)
+      // Bottom must also expand by 2 (10→12) to keep center at y=7
+      // upperLeft.y = 2, lowerRight.y = 12
+      // x values unchanged
+      expect(data.upperLeft.y).toBeCloseTo(2, 0);
+      expect(data.lowerRight.y).toBeCloseTo(12, 0);
+      expect(data.upperLeft.x).toBeCloseTo(2, 0);
+      expect(data.lowerRight.x).toBeCloseTo(8, 0);
+    });
   });
 });
