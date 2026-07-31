@@ -397,15 +397,14 @@ const FilterOverlay: React.FunctionComponent = () => {
                 }
                 const frame = FrameComponent.get(geometry);
                 return (
-                  <Fragment key={geometry.id}>
-                    <PatternGridFilterIndicator
-                      upperLeft={frame.upperLeft}
-                      viewportScale={viewportScale}
-                      onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
-                      onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
-                      onPointerLeave={handleFilterLabelPointerLeave}
-                    />
-                  </Fragment>
+                  <PatternGridFilterIndicator
+                    key={geometry.id}
+                    upperLeft={frame.upperLeft}
+                    viewportScale={viewportScale}
+                    onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
+                    onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
+                    onPointerLeave={handleFilterLabelPointerLeave}
+                  />
                 );
               }
               case 'radial': {
