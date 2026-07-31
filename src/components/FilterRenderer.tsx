@@ -16,7 +16,7 @@ import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelec
 import { Entity, FrameComponent } from '@/lib/entity';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { MirrorFilterData } from '@/lib/entity/filters/mirror';
-import { PatternFilterData } from '@/lib/entity/filters/pattern';
+import { PatternFilterData, PatternRadialFilterData } from '@/lib/entity/filters/pattern';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SELECTION_COLOR, VertexHandleTexture } from '@/lib/textures';
@@ -137,6 +137,23 @@ const FilterOverlay: React.FunctionComponent = () => {
           viewportControls,
           filterId,
           pointKey,
+        );
+    },
+    [toolManager, viewportControls],
+  );
+
+  const handleRadialFilterCenterPointerDown = useCallback(
+    (e: FederatedPointerEvent, filterId: Entity<FilterComponent>['id']) => {
+      if (!viewportControls) {
+        return;
+      }
+      toolManager
+        .getActiveTool()
+        .handleFilterEndpointPointerDown<PatternRadialFilterData>(
+          new ScreenPosition(e.clientX, e.clientY),
+          viewportControls,
+          filterId,
+          'center',
         );
     },
     [toolManager, viewportControls],
@@ -402,6 +419,9 @@ const FilterOverlay: React.FunctionComponent = () => {
                         points={[radialFilter.center]}
                         handleTexture={VertexHandleTexture.get()}
                         viewportScale={viewportScale}
+                        onHandlePointerDown={(e) =>
+                          handleRadialFilterCenterPointerDown(e, geometry.id)
+                        }
                       />
                     ) : null}
                   </Fragment>
