@@ -400,7 +400,9 @@ const FilterOverlay: React.FunctionComponent = () => {
                   <PatternGridFilterIndicator
                     key={geometry.id}
                     upperLeft={frame.upperLeft}
+                    lowerRight={frame.lowerRight}
                     viewportScale={viewportScale}
+                    isHovered={hoveringFilterLabelId === geometry.id}
                     onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
                     onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
                     onPointerLeave={handleFilterLabelPointerLeave}

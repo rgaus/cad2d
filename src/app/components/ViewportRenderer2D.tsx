@@ -765,11 +765,11 @@ export default function ViewportRenderer2D({
       {/* Constraints: */}
       <SingleLayerRenderer layers={ConstraintLayers} layerName={layerName} />
 
-      {/* Filters: */}
-      <SingleLayerRenderer layers={FilterLayers} layerName={layerName} />
-
       {/* Frames: */}
       <SingleLayerRenderer layers={FrameLayers} layerName={layerName} />
+
+      {/* Filters: */}
+      <SingleLayerRenderer layers={FilterLayers} layerName={layerName} />
 
       <ListLayersRenderer
         layersItemsPairs={[

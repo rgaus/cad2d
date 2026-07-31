@@ -2,7 +2,7 @@
 
 import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Vector2 } from '@/lib/math';
 import {
   PatternGridFilterIconTexture,
@@ -17,7 +17,10 @@ extend({
 
 type PatternGridFilterIndicatorProps = {
   upperLeft: SheetPosition;
+  lowerRight?: SheetPosition;
   viewportScale: number;
+  isHovered?: boolean;
+  color?: number;
   onPointerDown?: (e: FederatedPointerEvent) => void;
   onPointerUp?: (e: FederatedPointerEvent) => void;
   onPointerEnter?: (e: FederatedPointerEvent) => void;
@@ -31,12 +34,16 @@ const ICON_OFFSET_PX = 12;
 export default function PatternGridFilterIndicator({
   upperLeft,
   viewportScale,
+  isHovered,
+  color = 0x666666,
+  lowerRight,
   onPointerDown,
   onPointerUp,
   onPointerEnter,
   onPointerLeave,
 }: PatternGridFilterIndicatorProps) {
   const vUpperLeft = useMemo(() => upperLeft.toWorld(), [upperLeft]);
+  const vLowerRight = useMemo(() => lowerRight?.toWorld(), [lowerRight]);
 
   // Icon at midpoint of the bounding rect, offset upward
   const iconPos = useMemo(() => {
@@ -48,21 +55,48 @@ export default function PatternGridFilterIndicator({
 
   const spriteScale = 1 / viewportScale;
 
-  return (
-    <pixiSprite
-      texture={PatternGridFilterIconTexture.get()}
-      x={iconPos.x}
-      y={iconPos.y}
-      anchor={0.5}
-      scale={spriteScale / SPRITE_SCALE_FACTOR}
-      cursor="pointer"
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-      onPointerEnter={onPointerEnter}
-      onPointerLeave={onPointerLeave}
-      eventMode={
-        onPointerDown || onPointerUp || onPointerEnter || onPointerLeave ? 'static' : 'none'
+  const draw = useCallback(
+    (graphics: Graphics) => {
+      graphics.clear();
+
+      if (!isHovered || !vLowerRight) {
+        return;
       }
-    />
+
+      graphics.setStrokeStyle({ color, width: 2 / viewportScale });
+
+      const x = vUpperLeft.x;
+      const y = vUpperLeft.y;
+      const w = vLowerRight.x - vUpperLeft.x;
+      const h = vLowerRight.y - vUpperLeft.y;
+
+      graphics.rect(x, y, w, h);
+      graphics.stroke();
+    },
+    [vUpperLeft, vLowerRight, isHovered, color, viewportScale],
+  );
+
+  return (
+    <>
+      {isHovered ? (
+        <pixiGraphics draw={draw} />
+      ) : null}
+
+      <pixiSprite
+        texture={PatternGridFilterIconTexture.get()}
+        x={iconPos.x}
+        y={iconPos.y}
+        anchor={0.5}
+        scale={spriteScale / SPRITE_SCALE_FACTOR}
+        cursor="pointer"
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+        eventMode={
+          onPointerDown || onPointerUp || onPointerEnter || onPointerLeave ? 'static' : 'none'
+        }
+      />
+    </>
   );
 }

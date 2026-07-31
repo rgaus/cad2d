@@ -1,12 +1,11 @@
 'use client';
 
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import FrameIndicator from '@/app/components/FrameIndicator';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { Entity, FrameComponent } from '@/lib/entity';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
-import { SELECTION_COLOR } from '@/lib/textures';
 import { ScreenPosition } from '@/lib/viewport/types';
 import { FederatedPointerEvent } from 'pixi.js';
 
