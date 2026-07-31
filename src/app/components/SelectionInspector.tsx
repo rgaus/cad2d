@@ -36,12 +36,7 @@ import {
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { type Filter } from '@/lib/entity/filters';
-import {
-  PatternFilterData,
-  PatternGridFilterData,
-  PatternRadialFilterData,
-} from '@/lib/entity/filters/pattern';
-import { GeometryData } from '@/lib/entity/geometry';
+import { PatternGridFilterData, PatternRadialFilterData } from '@/lib/entity/filters/pattern';
 import { EllipseData } from '@/lib/entity/geometry/ellipse';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
@@ -1686,7 +1681,8 @@ const PatternRadialFilterInspector: React.FunctionComponent<{
   );
 
   useEffect(() => {
-    const debouncedHandler = debounce((entity: Entity) => {
+    // NOTE: the "repeats" values don't change often, so a debounce isn't required here.
+    const handler = (entity: Entity) => {
       if (entity.id !== filterId || !Entity.hasComponent(entity, FilterComponent)) {
         return;
       }
@@ -1695,11 +1691,11 @@ const PatternRadialFilterInspector: React.FunctionComponent<{
         return;
       }
       setFilterEntity(entity as Entity<FilterComponent<PatternRadialFilterData>>);
-    }, GEOMETRY_UPDATE_DEBOUNCE_MS);
+    };
 
-    geometryStore.on('geometryUpdated', debouncedHandler);
+    geometryStore.on('geometryUpdated', handler);
     return () => {
-      geometryStore.off('geometryUpdated', debouncedHandler);
+      geometryStore.off('geometryUpdated', handler);
     };
   }, [geometryStore, filterId]);
 
@@ -1818,11 +1814,10 @@ const PatternRadialFilterInspector: React.FunctionComponent<{
       <LabeledRow label="Repeats:">
         <Input
           type="number"
-          min={2}
+          min={3}
           value={count}
           onChange={handleRepeatsChange}
           onKeyDown={(e) => e.stopPropagation()}
-          fieldSize="sm"
         />
       </LabeledRow>
       <LabeledRow label="Radius:">
