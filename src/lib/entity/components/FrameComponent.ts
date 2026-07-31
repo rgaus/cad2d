@@ -1,5 +1,6 @@
-import { Rect, SheetPosition } from '@/lib/viewport/types';
+import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { ResizeParams, type Entity, type EntityComponent } from '../types';
+import { BoundingBox } from '@/lib/math';
 
 export type FrameData = { upperLeft: SheetPosition; lowerRight: SheetPosition };
 
@@ -51,6 +52,82 @@ export namespace FrameComponent {
       aData.upperLeft.x === bData.upperLeft.x && aData.upperLeft.y === bData.upperLeft.y &&
       aData.lowerRight.x === bData.lowerRight.x && aData.lowerRight.y === bData.lowerRight.y
     );
+  }
+
+  export function getOrigin(entity: Entity<FrameComponent>): SheetPosition {
+    return FrameComponent.get(entity).upperLeft;
+  }
+
+  export function boundingBox(entity: Entity<FrameComponent>): Rect<SheetPosition> {
+    const frameData = FrameComponent.get(entity);
+    return BoundingBox.fromPoints([frameData.upperLeft, frameData.lowerRight]);
+  }
+
+  export function keyPoints(
+    entity: Entity<FrameComponent>,
+  ): KeyPoints<SheetPosition> {
+    const rectangle = FrameComponent.get(entity);
+    const rect: Rect<SheetPosition> = {
+      position: rectangle.upperLeft,
+      width: rectangle.lowerRight.x - rectangle.upperLeft.x,
+      height: rectangle.lowerRight.y - rectangle.upperLeft.y,
+    };
+    return {
+      // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
+      // expects.
+      perimeter: BoundingBox.cornersToArray(BoundingBox.corners(rect)),
+      perimeterLabels: ['upperLeft', 'upperRight', 'lowerRight', 'lowerLeft'] as const,
+      extras: {},
+    };
+  }
+
+  export function resize<F extends Entity<FrameComponent>>(
+    entity: F,
+    params: ResizeParams,
+    originalBBox?: Rect<SheetPosition>,
+  ): F | null {
+    const state = FrameComponent.get(entity);
+    if (!originalBBox) {
+      originalBBox = {
+        position: state.upperLeft,
+        width: state.lowerRight.x - state.upperLeft.x,
+        height: state.lowerRight.y - state.upperLeft.y,
+      };
+    }
+
+    const newBBox = FrameComponent.resizeBBox(originalBBox, params);
+    if (!newBBox) {
+      return null;
+    }
+
+    const pctLeft = (state.upperLeft.x - originalBBox.position.x) / originalBBox.width;
+    const pctTop = (state.upperLeft.y - originalBBox.position.y) / originalBBox.height;
+    const pctRight = (state.lowerRight.x - originalBBox.position.x) / originalBBox.width;
+    const pctBottom = (state.lowerRight.y - originalBBox.position.y) / originalBBox.height;
+
+    const newUpperLeft = new SheetPosition(
+      newBBox.position.x + pctLeft * newBBox.width,
+      newBBox.position.y + pctTop * newBBox.height,
+    );
+    const newLowerRight = new SheetPosition(
+      newBBox.position.x + pctRight * newBBox.width,
+      newBBox.position.y + pctBottom * newBBox.height,
+    );
+
+    const ul = new SheetPosition(
+      Math.min(newUpperLeft.x, newLowerRight.x),
+      Math.min(newUpperLeft.y, newLowerRight.y),
+    );
+    const lr = new SheetPosition(
+      Math.max(newUpperLeft.x, newLowerRight.x),
+      Math.max(newUpperLeft.y, newLowerRight.y),
+    );
+
+    if (ul.x !== lr.x && ul.y !== lr.y) {
+      return FrameComponent.update(entity, { upperLeft: ul, lowerRight: lr });
+    } else {
+      return null;
+    }
   }
 
   export function resizeBBox(

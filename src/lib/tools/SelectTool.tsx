@@ -177,7 +177,8 @@ function isEndpointOnEdge(
 type DragState =
   | { state: 'geometry'; geometry: Entity<GeometryComponent> }
   | { state: 'datum'; entity: Entity<DatumComponent> }
-  | { state: 'filter'; entity: Entity<FilterComponent> };
+  | { state: 'filter'; entity: Entity<FilterComponent> }
+  | { state: 'frame'; entity: Entity<FrameComponent> };
 
 namespace DragState {
   /** Extracts the {@link DragState} from the passed {@link Entity}, or null if nothing could be computed. */
@@ -186,6 +187,10 @@ namespace DragState {
       return { state: 'geometry', geometry: Entity.pickComponent(entity, GeometryComponent) };
     } else if (Entity.hasComponent(entity, DatumComponent)) {
       return { state: 'datum', entity };
+    } else if (Entity.hasComponent(entity, FrameComponent)) {
+      // NOTE: make sure this is before filter, so that a PatternGrid registers as
+      // a "frame", not a "filter".
+      return { state: 'frame', entity };
     } else if (Entity.hasComponent(entity, FilterComponent)) {
       return { state: 'filter', entity };
     }
@@ -201,6 +206,8 @@ namespace DragState {
         return Entity.assignComponent(entity, DatumComponent, state.entity);
       case 'filter':
         return Entity.assignComponent(entity, FilterComponent, state.entity);
+      case 'frame':
+        return Entity.assignComponent(entity, FrameComponent, state.entity);
       default:
         state satisfies never;
         throw new Error(`DragState.update: No drag state case for ${(state as any).state}`);
@@ -219,6 +226,8 @@ namespace DragState {
         return { ...state, entity: DatumComponent.translate(state.entity, transform) };
       case 'filter':
         return { ...state, entity: FilterComponent.translate(state.entity, transform) };
+      case 'frame':
+        return { ...state, entity: FrameComponent.translate(state.entity, transform) };
       default:
         state satisfies never;
         throw new Error(`DragState.translate: No drag state case for ${(state as any).state}`);
@@ -246,6 +255,11 @@ namespace DragState {
           return false;
         }
         return FilterComponent.equals(a.entity, b.entity);
+      case 'frame':
+        if (b.state !== 'frame') {
+          return false;
+        }
+        return FrameComponent.equals(a.entity, b.entity);
       default:
         a satisfies never;
         throw new Error(`DragState.equals: No drag state case for ${(a as any).state}`);
@@ -263,6 +277,8 @@ namespace DragState {
         return DatumComponent.getOrigin(state.entity);
       case 'filter':
         return null;
+      case 'frame':
+        return FrameComponent.getOrigin(state.entity);
       default:
         state satisfies never;
         throw new Error(`DragState.getOrigin: No drag state case for ${(state as any).state}`);
@@ -282,6 +298,8 @@ namespace DragState {
         };
       case 'filter':
         return null;
+      case 'frame':
+        return FrameComponent.boundingBox(state.entity);
       default:
         state satisfies never;
         throw new Error(`DragState.boundingBox: No drag state case for ${(state as any).state}`);
@@ -303,6 +321,11 @@ namespace DragState {
       case 'datum':
       case 'filter':
         return null;
+      case 'frame':
+        return {
+          ...state,
+          entity: FrameComponent.resize(state.entity, params, originalBBox) ?? state.entity,
+        };
       default:
         state satisfies never;
         console.warn(`DragState.resize: Unknown state.for ${(state as any)?.for}. Doing nothing.`);
@@ -1893,23 +1916,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   case 'pattern':
                     switch (before.mode) {
                       case 'grid':
-                        if (
-                          !Entity.hasComponent(state.entity, FrameComponent) ||
-                          !Entity.hasComponent(entity, FrameComponent)
-                        ) {
-                          break;
-                        }
-                        const beforeFrame = FrameComponent.get(state.entity);
-                        const afterFrame = FrameComponent.get(entity);
-                        forwardsActions.push(
-                          UndoEntry.frameMove(
-                            id,
-                            beforeFrame.upperLeft,
-                            beforeFrame.lowerRight,
-                            afterFrame.upperLeft,
-                            afterFrame.lowerRight,
-                          ),
-                        );
+                        // This case shouldn't get hit, a grid filter will be moved as a frame.
                         break;
                       case 'radial':
                         forwardsActions.push(
@@ -1929,6 +1936,24 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                     before satisfies never;
                     break;
                 }
+                break;
+              }
+              case 'frame': {
+                if (!Entity.hasComponent(entity, FrameComponent)) {
+                  // FIXME: add log
+                  return;
+                }
+                const before = FrameComponent.get(state.entity);
+                const after = FrameComponent.get(entity);
+                forwardsActions.push(
+                  UndoEntry.frameMove(
+                    id,
+                    before.upperLeft,
+                    before.lowerRight,
+                    after.upperLeft,
+                    after.lowerRight,
+                  ),
+                );
                 break;
               }
               default:
@@ -2178,11 +2203,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (this.resizeOriginalGroupStates && this.draggingGeometryIds) {
           this.getHistoryManager().applyTransaction('geometry-resize', () => {
             for (const [id, originalState] of this.resizeOriginalGroupStates!) {
-              const afterGeometry = this.getGeometryStore().getById(id);
-              if (!afterGeometry) {
+              const afterEntity = this.getGeometryStore().getById(id);
+              if (!afterEntity) {
                 continue;
               }
-              const afterState = DragState.get(afterGeometry);
+              const afterState = DragState.get(afterEntity);
               if (!afterState || DragState.equals(originalState, afterState)) {
                 continue;
               }
@@ -2190,32 +2215,32 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               // FIXME: replace with one single event
               switch (originalState.state) {
                 case 'geometry':
-                  if (!Entity.hasComponent(afterGeometry, GeometryComponent)) {
+                  if (!Entity.hasComponent(afterEntity, GeometryComponent)) {
                     // FIXME: add log
                     return;
                   }
                   if (
                     GeometryComponent.isPolygon(originalState.geometry) &&
-                    GeometryComponent.isPolygon(afterGeometry)
+                    GeometryComponent.isPolygon(afterEntity)
                   ) {
                     const before = GeometryComponent.get(originalState.geometry);
-                    const after = GeometryComponent.get(afterGeometry);
+                    const after = GeometryComponent.get(afterEntity);
                     this.getHistoryManager().push(
                       UndoEntry.polygonMove(id, before.points, after.points),
                     );
                   } else if (
                     GeometryComponent.isEllipse(originalState.geometry) &&
-                    GeometryComponent.isEllipse(afterGeometry)
+                    GeometryComponent.isEllipse(afterEntity)
                   ) {
                     const before = GeometryComponent.get(originalState.geometry);
-                    const after = GeometryComponent.get(afterGeometry);
+                    const after = GeometryComponent.get(afterEntity);
                     this.getHistoryManager().push(UndoEntry.ellipseMove(id, before, after));
                   } else if (
                     GeometryComponent.isRectangle(originalState.geometry) &&
-                    GeometryComponent.isRectangle(afterGeometry)
+                    GeometryComponent.isRectangle(afterEntity)
                   ) {
                     const before = GeometryComponent.get(originalState.geometry);
-                    const after = GeometryComponent.get(afterGeometry);
+                    const after = GeometryComponent.get(afterEntity);
                     this.getHistoryManager().push(UndoEntry.rectangleMove(id, before, after));
                   }
                   break;
@@ -2228,6 +2253,21 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   console.warn(
                     'SelectTool.onCommit: Filter was resized, but this should not be possible. Doing nothing.',
                   );
+                  break;
+                case 'frame':
+                  if (!Entity.hasComponent(afterEntity, FrameComponent)) {
+                    // FIXME: add log
+                    return;
+                  }
+                  const before = FrameComponent.get(originalState.entity);
+                  const after = FrameComponent.get(afterEntity);
+                  this.getHistoryManager().push(UndoEntry.frameMove(
+                    id,
+                    before.upperLeft,
+                    before.lowerRight,
+                    after.upperLeft,
+                    after.lowerRight,
+                  ));
                   break;
                 default:
                   originalState satisfies never;
@@ -2993,116 +3033,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     });
   }
 
-  /** Starts resizing a frame's bounding rectangle via an edge or corner handle.
-   *  Supports shift (equal aspect ratio) and alt/option (resize from center) modifiers. */
-  handleFrameResizePointerDown(
-    viewportControls: ViewportControls,
-    filterId: Filter['id'],
-    resizeMode: ResizeMode,
-  ): void {
-    const filter = this.getGeometryStore().getById(filterId);
-    if (!filter || !Entity.hasComponent(filter, FrameComponent)) {
-      return;
-    }
-    const frameData = FrameComponent.get(filter);
-
-    const originalUpperLeft = new SheetPosition(frameData.upperLeft.x, frameData.upperLeft.y);
-    const originalLowerRight = new SheetPosition(frameData.lowerRight.x, frameData.lowerRight.y);
-
-    const originalBBox: Rect<SheetPosition> = {
-      position: originalUpperLeft,
-      width: originalLowerRight.x - originalUpperLeft.x,
-      height: originalLowerRight.y - originalUpperLeft.y,
-    };
-
-    this.activeDragListener = createDragListener({
-      viewportControls,
-      onMove: (sp) => {
-        const liveViewport = viewportControls.getState().viewport;
-        const world = sp.toWorld(liveViewport);
-        const sheet = world.toSheet();
-        const snapped = applySnappingOnConstrainedTrack(
-          sheet,
-          'unconstrained',
-          {
-            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            ctrlHeld: this.toolManager.getCtrlHeld(),
-            superHeld: false,
-            viewportScale: liveViewport.scale,
-          },
-          this.getSheet()?.epsilon ?? 0.001,
-        );
-
-        const params: ResizeParams = {
-          to: snapped,
-          mode: resizeMode,
-          altHeld: this.toolManager.getAltHeld(),
-          shiftHeld: this.toolManager.getShiftHeld(),
-          linkDimensions: false,
-        };
-
-        const newBBox = FrameComponent.resizeBBox(originalBBox, params);
-        if (!newBBox) {
-          return;
-        }
-
-        const ul = newBBox.position;
-        const lr = new SheetPosition(
-          newBBox.position.x + newBBox.width,
-          newBBox.position.y + newBBox.height,
-        );
-
-        this.getGeometryStore().updateByIdDirect(filterId, (g) => {
-          if (!Entity.hasComponent(g, FrameComponent)) {
-            return g;
-          }
-          return FrameComponent.update(g, { upperLeft: ul, lowerRight: lr });
-        });
-      },
-      onCommit: (_sp) => {
-        this.getHistoryManager().applyTransaction('frame-resize', () => {
-          const afterFilterGeom = this.getGeometryStore().getById(filterId);
-          if (!afterFilterGeom || !Entity.hasComponent(afterFilterGeom, FrameComponent)) {
-            return;
-          }
-          const afterFrame = FrameComponent.get(afterFilterGeom);
-
-          const changed =
-            originalUpperLeft.x !== afterFrame.upperLeft.x ||
-            originalUpperLeft.y !== afterFrame.upperLeft.y ||
-            originalLowerRight.x !== afterFrame.lowerRight.x ||
-            originalLowerRight.y !== afterFrame.lowerRight.y;
-
-          if (changed) {
-            this.getHistoryManager().push(
-              UndoEntry.frameMove(
-                filterId,
-                originalUpperLeft,
-                originalLowerRight,
-                afterFrame.upperLeft,
-                afterFrame.lowerRight,
-              ),
-            );
-          }
-        });
-        this.activeDragListener = null;
-      },
-      onCancel: () => {
-        this.getGeometryStore().updateByIdDirect(filterId, (g) => {
-          if (!Entity.hasComponent(g, FrameComponent)) {
-            return g;
-          }
-          return FrameComponent.update(g, {
-            upperLeft: originalUpperLeft,
-            lowerRight: originalLowerRight,
-          });
-        });
-        this.activeDragListener = null;
-      },
-    });
-  }
-
   onConstraintLabelPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
@@ -3402,5 +3332,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    * pre-edited state. */
   onFilterLabelLengthInputDismiss() {
     this.getGeometryStore().clearWorkingFilter();
+  }
+
+  // ==================== FRAME HANDLERS ====================
+
+  handleFrameFillPointerDown(
+    screenPos: ScreenPosition,
+    viewportControls: ViewportControls,
+    frameId: Id,
+  ): boolean {
+    return this.handleFillPointerDown(screenPos, viewportControls, frameId);
   }
 }

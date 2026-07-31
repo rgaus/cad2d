@@ -197,12 +197,17 @@ export abstract class BaseTool<
     _pointKey: keyof FD,
   ): void {}
 
-  /** Called by the renderer when a pattern grid filter's edge or corner resize handle is clicked. */
-  handleFrameResizePointerDown(
+  /** Called by the renderer when the pointer is clicked within a frame's bounds.
+   *
+   * Returns a boolean which if true will register the event as being processed so it will no longer
+   * propegate. */
+  handleFrameFillPointerDown(
+    _screenPos: ScreenPosition,
     _viewportControls: ViewportControls,
-    _filterId: Entity['id'],
-    _resizeMode: ResizeMode,
-  ): void {}
+    _frameId: Entity['id'],
+  ): boolean {
+    return false;
+  }
 
   /** Returns the GeometryStore. */
   getGeometryStore(): GeometryStore {
@@ -426,16 +431,19 @@ export abstract class BaseMultiTool<
     return this.subToolInstances[this.currentlyActiveIndex].handleGeometryFillLeave(geometryId);
   }
 
-  /** Called by the renderer when a pattern grid filter's edge or corner resize handle is clicked. */
-  handleFrameResizePointerDown(
+  /** Called by the renderer when the pointer is clicked within a frame's bounds.
+   *
+   * Returns a boolean which if true will register the event as being processed so it will no longer
+   * propegate. */
+  handleFrameFillPointerDown(
+    screenPos: ScreenPosition,
     viewportControls: ViewportControls,
-    filterId: Entity['id'],
-    resizeMode: ResizeMode,
-  ): void {
-    return this.subToolInstances[this.currentlyActiveIndex].handleFrameResizePointerDown(
+    frameId: Entity['id'],
+  ): boolean {
+    return this.subToolInstances[this.currentlyActiveIndex].handleFrameFillPointerDown(
+      screenPos,
       viewportControls,
-      filterId,
-      resizeMode,
+      frameId,
     );
   }
 }

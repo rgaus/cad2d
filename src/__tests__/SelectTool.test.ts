@@ -5859,16 +5859,23 @@ describe('SelectTool', () => {
         PatternFilter.createGrid(rect.id, new SheetPosition(2, 4), new SheetPosition(8, 10)),
       );
 
-      selectTool.handleFrameResizePointerDown(viewportControls, filter.id, {
+      selectTool.onGeometryResizePointerDown(viewportControls, [filter.id], {
         type: 'edge',
         edge: 'top',
       });
 
       // Drag top edge from y=4 to y=2
+      // top edge: initialPointerDownOffsetYPx = +SELECTED_OUTSET_PX
       const targetSheet = new SheetPosition(5, 2);
       const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
-      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
-      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      moveHandler!({
+        clientX: targetScreen.x,
+        clientY: targetScreen.y - SELECTED_OUTSET_PX,
+      } as MouseEvent);
+      upHandler!({
+        clientX: targetScreen.x,
+        clientY: targetScreen.y - SELECTED_OUTSET_PX,
+      } as MouseEvent);
 
       const updated = geometryStore.getById(filter.id);
       if (!updated || !Entity.hasComponent(updated, FrameComponent)) {
@@ -5892,16 +5899,23 @@ describe('SelectTool', () => {
         PatternFilter.createGrid(rect.id, new SheetPosition(2, 4), new SheetPosition(6, 8)),
       );
 
-      selectTool.handleFrameResizePointerDown(viewportControls, filter.id, {
+      selectTool.onGeometryResizePointerDown(viewportControls, [filter.id], {
         type: 'corner',
         corner: 'bottom-right',
       });
 
       // Drag bottom-right corner from (6, 8) to (10, 14)
+      // bottom-right: offsetXPx = -SELECTED_OUTSET_PX, offsetYPx = -SELECTED_OUTSET_PX
       const targetSheet = new SheetPosition(10, 14);
       const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
-      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
-      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      moveHandler!({
+        clientX: targetScreen.x + SELECTED_OUTSET_PX,
+        clientY: targetScreen.y + SELECTED_OUTSET_PX,
+      } as MouseEvent);
+      upHandler!({
+        clientX: targetScreen.x + SELECTED_OUTSET_PX,
+        clientY: targetScreen.y + SELECTED_OUTSET_PX,
+      } as MouseEvent);
 
       const updated = geometryStore.getById(filter.id);
       if (!updated || !Entity.hasComponent(updated, FrameComponent)) {
@@ -5928,7 +5942,7 @@ describe('SelectTool', () => {
 
       jest.spyOn(toolManager, 'getShiftHeld').mockReturnValue(true);
 
-      selectTool.handleFrameResizePointerDown(viewportControls, filter.id, {
+      selectTool.onGeometryResizePointerDown(viewportControls, [filter.id], {
         type: 'corner',
         corner: 'bottom-right',
       });
@@ -5937,10 +5951,17 @@ describe('SelectTool', () => {
       // With shift, the larger delta drives the scale: dx=18 → scale=18/6=3
       // newW=6*3=18, newH=8*3=24
       // upperLeft stays at (2,4), lowerRight at (2+18, 4+24) = (20, 28)
+      // bottom-right: offsetXPx = -SELECTED_OUTSET_PX, offsetYPx = -SELECTED_OUTSET_PX
       const targetSheet = new SheetPosition(20, 14);
       const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
-      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
-      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      moveHandler!({
+        clientX: targetScreen.x + SELECTED_OUTSET_PX,
+        clientY: targetScreen.y + SELECTED_OUTSET_PX,
+      } as MouseEvent);
+      upHandler!({
+        clientX: targetScreen.x + SELECTED_OUTSET_PX,
+        clientY: targetScreen.y + SELECTED_OUTSET_PX,
+      } as MouseEvent);
 
       const updated = geometryStore.getById(filter.id);
       if (!updated || !Entity.hasComponent(updated, FrameComponent)) {
@@ -5967,16 +5988,23 @@ describe('SelectTool', () => {
 
       jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
 
-      selectTool.handleFrameResizePointerDown(viewportControls, filter.id, {
+      selectTool.onGeometryResizePointerDown(viewportControls, [filter.id], {
         type: 'edge',
         edge: 'top',
       });
 
       // Drag top edge UP from y=4 to y=2
+      // top edge: initialPointerDownOffsetYPx = +SELECTED_OUTSET_PX
       const targetSheet = new SheetPosition(5, 2);
       const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
-      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
-      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      moveHandler!({
+        clientX: targetScreen.x,
+        clientY: targetScreen.y - SELECTED_OUTSET_PX,
+      } as MouseEvent);
+      upHandler!({
+        clientX: targetScreen.x,
+        clientY: targetScreen.y - SELECTED_OUTSET_PX,
+      } as MouseEvent);
 
       const updated = geometryStore.getById(filter.id);
       if (!updated || !Entity.hasComponent(updated, FrameComponent)) {

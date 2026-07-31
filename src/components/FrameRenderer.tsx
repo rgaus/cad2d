@@ -7,6 +7,8 @@ import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelec
 import { Entity, FrameComponent } from '@/lib/entity';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SELECTION_COLOR } from '@/lib/textures';
+import { ScreenPosition } from '@/lib/viewport/types';
+import { FederatedPointerEvent } from 'pixi.js';
 
 const FrameOverlay: React.FunctionComponent = () => {
   const { geometryStore, viewportScale, toolManager, viewportControls } = useViewportContext();
@@ -29,31 +31,16 @@ const FrameOverlay: React.FunctionComponent = () => {
     };
   }, [geometryStore, rebuildFrames]);
 
-  const handleFrameEdgeResizerPointerDown = useCallback(
-    (filterId: Entity<FrameComponent>['id'], edge: 'top' | 'bottom' | 'left' | 'right') => {
+  const handleFillPointerDown = useCallback(
+    (e: FederatedPointerEvent, frameId: Entity['id']) => {
       if (!viewportControls) {
         return;
       }
-      toolManager.getActiveTool().handleFrameResizePointerDown(viewportControls, filterId, {
-        type: 'edge',
-        edge,
-      });
-    },
-    [toolManager, viewportControls],
-  );
-
-  const handleFrameCornerHandlePointerDown = useCallback(
-    (
-      filterId: Entity<FrameComponent>['id'],
-      corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
-    ) => {
-      if (!viewportControls) {
-        return;
-      }
-      toolManager.getActiveTool().handleFrameResizePointerDown(viewportControls, filterId, {
-        type: 'corner',
-        corner,
-      });
+      toolManager.getActiveTool().handleFrameFillPointerDown(
+        new ScreenPosition(e.clientX, e.clientY),
+        viewportControls,
+        frameId,
+      );
     },
     [toolManager, viewportControls],
   );
@@ -66,26 +53,14 @@ const FrameOverlay: React.FunctionComponent = () => {
         const isSelected = selectedIds.includes(frame.id);
         const frameData = FrameComponent.get(frame);
         return (
-          <Fragment key={frame.id}>
-            <FrameIndicator
-              upperLeft={frameData.upperLeft}
-              lowerRight={frameData.lowerRight}
-              viewportScale={viewportScale}
-              lineWidthPx={isSelected ? 2 : undefined}
-              color={isSelected ? SELECTION_COLOR : undefined}
-              onEdgeResizerPointerDown={
-                isSelected
-                  ? (edge) => handleFrameEdgeResizerPointerDown(frame.id, edge)
-                  : undefined
-              }
-              onCornerHandlePointerDown={
-                isSelected
-                  ? (corner) =>
-                      handleFrameCornerHandlePointerDown(frame.id, corner)
-                  : undefined
-              }
-            />
-          </Fragment>
+          <FrameIndicator
+            key={frame.id}
+            upperLeft={frameData.upperLeft}
+            lowerRight={frameData.lowerRight}
+            viewportScale={viewportScale}
+            lineWidthPx={isSelected ? 2 : undefined}
+            onPointerDown={isSelected ? (e) => handleFillPointerDown(e, frame.id) : undefined}
+          />
         );
       })}
     </>

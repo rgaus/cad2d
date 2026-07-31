@@ -400,26 +400,10 @@ const FilterOverlay: React.FunctionComponent = () => {
                   <Fragment key={geometry.id}>
                     <PatternGridFilterIndicator
                       upperLeft={frame.upperLeft}
-                      lowerRight={frame.lowerRight}
                       viewportScale={viewportScale}
-                      lineWidthPx={
-                        isSelected || hoveringFilterLabelId === geometry.id ? 2 : undefined
-                      }
-                      color={isSelected ? SELECTION_COLOR : undefined}
                       onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
                       onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
                       onPointerLeave={handleFilterLabelPointerLeave}
-                      onEdgeResizerPointerDown={
-                        isSelected
-                          ? (edge) => handlePatternGridEdgeResizerPointerDown(geometry.id, edge)
-                          : undefined
-                      }
-                      onCornerHandlePointerDown={
-                        isSelected
-                          ? (corner) =>
-                              handlePatternGridCornerHandlePointerDown(geometry.id, corner)
-                          : undefined
-                      }
                     />
                   </Fragment>
                 );

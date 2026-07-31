@@ -4,6 +4,7 @@ import { GeometryComponent } from './components/GeometryComponent';
 import { EllipseData } from './geometry/ellipse';
 import { PolygonData } from './geometry/polygon';
 import { RectangleData } from './geometry/rectangle';
+import { FrameComponent } from './components/FrameComponent';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -106,22 +107,26 @@ export namespace Entity {
   export function keyPoints(
     geometry: Entity<DatumComponent>,
   ): ReturnType<typeof DatumComponent.keyPoints>;
-  export function keyPoints(geometry: Entity): KeyPoints<SheetPosition, any> {
-    if (Entity.hasComponent(geometry, GeometryComponent)) {
-      return GeometryComponent.keyPoints(geometry as Entity<GeometryComponent>);
-    } else if (Entity.hasComponent(geometry, DatumComponent)) {
-      return DatumComponent.keyPoints(geometry);
+  export function keyPoints(entity: Entity): KeyPoints<SheetPosition, any> {
+    if (Entity.hasComponent(entity, GeometryComponent)) {
+      return GeometryComponent.keyPoints(entity as Entity<GeometryComponent>);
+    } else if (Entity.hasComponent(entity, DatumComponent)) {
+      return DatumComponent.keyPoints(entity);
+    } else if (Entity.hasComponent(entity, FrameComponent)) {
+      return FrameComponent.keyPoints(entity);
     }
-    throw new Error(`Geometry.keyPoints: unknown geometry type for id=${geometry.id}`);
+    throw new Error(`Entity.keyPoints: unknown geometry type for id=${entity.id}`);
   }
 
-  export function boundingBox(geometry: Entity): Rect<SheetPosition> {
-    if (Entity.hasComponent(geometry, GeometryComponent)) {
-      return GeometryComponent.boundingBox(geometry as Entity<GeometryComponent>);
-    } else if (Entity.hasComponent(geometry, DatumComponent)) {
-      return DatumComponent.boundingBox(geometry);
+  export function boundingBox(entity: Entity): Rect<SheetPosition> {
+    if (Entity.hasComponent(entity, GeometryComponent)) {
+      return GeometryComponent.boundingBox(entity as Entity<GeometryComponent>);
+    } else if (Entity.hasComponent(entity, DatumComponent)) {
+      return DatumComponent.boundingBox(entity);
+    } else if (Entity.hasComponent(entity, FrameComponent)) {
+      return FrameComponent.boundingBox(entity);
     }
-    throw new Error(`Geometry.boundingBox: unknown geometry type for id=${geometry.id}`);
+    throw new Error(`Entity.boundingBox: unknown geometry type for id=${entity.id}`);
   }
 }
 
