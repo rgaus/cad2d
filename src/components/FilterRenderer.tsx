@@ -142,35 +142,6 @@ const FilterOverlay: React.FunctionComponent = () => {
     [toolManager, viewportControls],
   );
 
-  const handlePatternGridEdgeResizerPointerDown = useCallback(
-    (filterId: Entity<FilterComponent>['id'], edge: 'top' | 'bottom' | 'left' | 'right') => {
-      if (!viewportControls) {
-        return;
-      }
-      toolManager.getActiveTool().handleFrameResizePointerDown(viewportControls, filterId, {
-        type: 'edge',
-        edge,
-      });
-    },
-    [toolManager, viewportControls],
-  );
-
-  const handlePatternGridCornerHandlePointerDown = useCallback(
-    (
-      filterId: Entity<FilterComponent>['id'],
-      corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
-    ) => {
-      if (!viewportControls) {
-        return;
-      }
-      toolManager.getActiveTool().handleFrameResizePointerDown(viewportControls, filterId, {
-        type: 'corner',
-        corner,
-      });
-    },
-    [toolManager, viewportControls],
-  );
-
   let workingFilterJsx: React.ReactNode | null = null;
   if (workingFilter) {
     switch (workingFilter.type) {
