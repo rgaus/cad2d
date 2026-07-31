@@ -107,6 +107,9 @@ export namespace Entity {
   export function keyPoints(
     geometry: Entity<DatumComponent>,
   ): ReturnType<typeof DatumComponent.keyPoints>;
+  export function keyPoints(
+    geometry: Entity<FrameComponent>,
+  ): ReturnType<typeof FrameComponent.keyPoints>;
   export function keyPoints(entity: Entity): KeyPoints<SheetPosition, any> {
     if (Entity.hasComponent(entity, GeometryComponent)) {
       return GeometryComponent.keyPoints(entity as Entity<GeometryComponent>);
