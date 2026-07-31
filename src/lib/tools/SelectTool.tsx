@@ -2261,13 +2261,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   }
                   const before = FrameComponent.get(originalState.entity);
                   const after = FrameComponent.get(afterEntity);
-                  this.getHistoryManager().push(UndoEntry.frameMove(
-                    id,
-                    before.upperLeft,
-                    before.lowerRight,
-                    after.upperLeft,
-                    after.lowerRight,
-                  ));
+                  this.getHistoryManager().push(
+                    UndoEntry.frameMove(
+                      id,
+                      before.upperLeft,
+                      before.lowerRight,
+                      after.upperLeft,
+                      after.lowerRight,
+                    ),
+                  );
                   break;
                 default:
                   originalState satisfies never;

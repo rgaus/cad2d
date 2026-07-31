@@ -7,6 +7,7 @@ import ConstraintLengthInput, {
   ConstraintLengthInputHandle,
 } from '@/app/components/ConstraintLengthInput';
 import FilletFilterIndicator from '@/app/components/FilletFilterIndicator';
+import FrameIndicator from '@/app/components/FrameIndicator';
 import MirrorFilterIndicator from '@/app/components/MirrorFilterIndicator';
 import PatternGridFilterIndicator from '@/app/components/PatternGridFilterIndicator';
 import PatternRadialFilterIndicator from '@/app/components/PatternRadialFilterIndicator';
@@ -24,7 +25,6 @@ import { Length } from '@/lib/units/length';
 import type { UnitType } from '@/lib/units/length';
 import { ScreenPosition } from '@/lib/viewport/types';
 import { HandleSprites } from './HandleSprites';
-import FrameIndicator from '@/app/components/FrameIndicator';
 
 const FilterOverlay: React.FunctionComponent = () => {
   const { geometryStore, viewportScale, sheet, toolManager, viewportControls } =

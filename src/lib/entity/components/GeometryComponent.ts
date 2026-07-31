@@ -381,7 +381,12 @@ export namespace GeometryComponent {
     }
   }
 
-  export const resizeBBox = FrameComponent.resizeBBox;
+  export function resizeBBox(
+    bbox: Rect<SheetPosition>,
+    params: ResizeParams,
+  ): Rect<SheetPosition> | null {
+    return FrameComponent.resizeBBox(bbox, params);
+  }
 
   export function addPointOnEdge<G extends Entity<GeometryComponent<PolygonData>>>(
     geometry: G,
@@ -465,7 +470,13 @@ export namespace GeometryComponent {
           break;
         }
         case 'pattern': {
-          shapes = PatternFilter.applyToRenderShape(filterData, filter, shapes, generateFilterKey, options);
+          shapes = PatternFilter.applyToRenderShape(
+            filterData,
+            filter,
+            shapes,
+            generateFilterKey,
+            options,
+          );
           break;
         }
         default:

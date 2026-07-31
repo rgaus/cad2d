@@ -1,10 +1,10 @@
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { DatumComponent } from './components/DatumComponent';
+import { FrameComponent } from './components/FrameComponent';
 import { GeometryComponent } from './components/GeometryComponent';
 import { EllipseData } from './geometry/ellipse';
 import { PolygonData } from './geometry/polygon';
 import { RectangleData } from './geometry/rectangle';
-import { FrameComponent } from './components/FrameComponent';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;

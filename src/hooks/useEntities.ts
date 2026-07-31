@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { Entity, GeometryComponent, RenderOrderComponent } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 
-export const useEntities = <E extends Entity>(geometryStore: GeometryStore, getter: (geometryStore: GeometryStore) => Array<E>): Array<E> => {
+export const useEntities = <E extends Entity>(
+  geometryStore: GeometryStore,
+  getter: (geometryStore: GeometryStore) => Array<E>,
+): Array<E> => {
   const [entity, setEntities] = useState<Array<E>>([]);
   useEffect(() => {
     const refresh = () => {
@@ -21,7 +24,9 @@ export const useEntities = <E extends Entity>(geometryStore: GeometryStore, gett
 };
 
 export const useGeometries = (geometryStore: GeometryStore) => {
-  return useEntities(geometryStore, (g) => g.listWithComponents(GeometryComponent, RenderOrderComponent));
+  return useEntities(geometryStore, (g) =>
+    g.listWithComponents(GeometryComponent, RenderOrderComponent),
+  );
 };
 
 /** Returns a renderable geometry if one exists for the given it.

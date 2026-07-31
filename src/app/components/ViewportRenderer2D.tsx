@@ -7,6 +7,7 @@ import { ConstraintLayers } from '@/components/ConstraintsRenderer';
 import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
 import { DatumLayers, WorkingDatumLayers } from '@/components/DatumRenderer';
 import { FilterLayers } from '@/components/FilterRenderer';
+import { FrameLayers } from '@/components/FrameRenderer';
 import { GeometryLayers } from '@/components/GeometryRenderer';
 import { HandleSprites } from '@/components/HandleSprites';
 import { SelectionBoxOverlay } from '@/components/SelectionBoxOverlay';
@@ -73,7 +74,6 @@ import CornerOverlay from './CornerOverlay';
 import FitToScreenButton from './FitToScreenButton';
 import { HoverTooltip } from './HoverTooltip';
 import { KeyboardShortcut } from './KeyboardShortcut';
-import { FrameLayers } from '@/components/FrameRenderer';
 
 extend({
   Container,

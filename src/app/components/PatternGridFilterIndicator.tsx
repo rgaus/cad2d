@@ -4,10 +4,7 @@ import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { Vector2 } from '@/lib/math';
-import {
-  PatternGridFilterIconTexture,
-  SPRITE_SCALE_FACTOR,
-} from '@/lib/textures';
+import { PatternGridFilterIconTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
 import { SheetPosition, WorldPosition } from '@/lib/viewport/types';
 
 extend({
@@ -78,9 +75,7 @@ export default function PatternGridFilterIndicator({
 
   return (
     <>
-      {isHovered ? (
-        <pixiGraphics draw={draw} />
-      ) : null}
+      {isHovered ? <pixiGraphics draw={draw} /> : null}
 
       <pixiSprite
         texture={PatternGridFilterIconTexture.get()}

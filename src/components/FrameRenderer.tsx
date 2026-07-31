@@ -1,5 +1,6 @@
 'use client';
 
+import { FederatedPointerEvent } from 'pixi.js';
 import { useCallback, useEffect, useState } from 'react';
 import FrameIndicator from '@/app/components/FrameIndicator';
 import { useViewportContext } from '@/contexts/viewport-context';
@@ -7,7 +8,6 @@ import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelec
 import { Entity, FrameComponent } from '@/lib/entity';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { ScreenPosition } from '@/lib/viewport/types';
-import { FederatedPointerEvent } from 'pixi.js';
 
 const FrameOverlay: React.FunctionComponent = () => {
   const { geometryStore, viewportScale, toolManager, viewportControls } = useViewportContext();
@@ -35,11 +35,13 @@ const FrameOverlay: React.FunctionComponent = () => {
       if (!viewportControls) {
         return;
       }
-      toolManager.getActiveTool().handleFrameFillPointerDown(
-        new ScreenPosition(e.clientX, e.clientY),
-        viewportControls,
-        frameId,
-      );
+      toolManager
+        .getActiveTool()
+        .handleFrameFillPointerDown(
+          new ScreenPosition(e.clientX, e.clientY),
+          viewportControls,
+          frameId,
+        );
     },
     [toolManager, viewportControls],
   );

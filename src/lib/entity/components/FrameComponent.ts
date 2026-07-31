@@ -1,6 +1,6 @@
-import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import { ResizeParams, type Entity, type EntityComponent } from '../types';
 import { BoundingBox } from '@/lib/math';
+import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
+import { type Entity, type EntityComponent, ResizeParams } from '../types';
 
 export type FrameData = { upperLeft: SheetPosition; lowerRight: SheetPosition };
 
@@ -42,15 +42,17 @@ export namespace FrameComponent {
     return FrameComponent.update(frame, {
       upperLeft: transform(frameData.upperLeft),
       lowerRight: transform(frameData.lowerRight),
-    })
+    });
   }
 
   export function equals(a: Entity<FrameComponent>, b: Entity<FrameComponent>): boolean {
     const aData = FrameComponent.get(a);
     const bData = FrameComponent.get(b);
     return (
-      aData.upperLeft.x === bData.upperLeft.x && aData.upperLeft.y === bData.upperLeft.y &&
-      aData.lowerRight.x === bData.lowerRight.x && aData.lowerRight.y === bData.lowerRight.y
+      aData.upperLeft.x === bData.upperLeft.x &&
+      aData.upperLeft.y === bData.upperLeft.y &&
+      aData.lowerRight.x === bData.lowerRight.x &&
+      aData.lowerRight.y === bData.lowerRight.y
     );
   }
 
@@ -63,9 +65,7 @@ export namespace FrameComponent {
     return BoundingBox.fromPoints([frameData.upperLeft, frameData.lowerRight]);
   }
 
-  export function keyPoints(
-    _entity: Entity<FrameComponent>,
-  ): KeyPoints<SheetPosition> {
+  export function keyPoints(_entity: Entity<FrameComponent>): KeyPoints<SheetPosition> {
     // TODO: Consider adding frame corner snap points back? I'm unclear if this is a good idea.
     // Pros: constraints can be attached to frames
     // Cons: frame corner points may conflict with other geometry corner points
