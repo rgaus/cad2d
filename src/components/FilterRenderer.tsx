@@ -24,6 +24,7 @@ import { Length } from '@/lib/units/length';
 import type { UnitType } from '@/lib/units/length';
 import { ScreenPosition } from '@/lib/viewport/types';
 import { HandleSprites } from './HandleSprites';
+import FrameIndicator from '@/app/components/FrameIndicator';
 
 const FilterOverlay: React.FunctionComponent = () => {
   const { geometryStore, viewportScale, sheet, toolManager, viewportControls } =
@@ -251,11 +252,18 @@ const FilterOverlay: React.FunctionComponent = () => {
               return null;
             }
             return (
-              <PatternGridFilterIndicator
-                upperLeft={workingFilter.upperLeft}
-                lowerRight={workingFilter.lowerRight}
-                viewportScale={viewportScale}
-              />
+              <>
+                <PatternGridFilterIndicator
+                  upperLeft={workingFilter.upperLeft}
+                  lowerRight={workingFilter.lowerRight}
+                  viewportScale={viewportScale}
+                />
+                <FrameIndicator
+                  upperLeft={workingFilter.upperLeft}
+                  lowerRight={workingFilter.lowerRight}
+                  viewportScale={viewportScale}
+                />
+              </>
             );
           }
           case 'radial': {
@@ -384,7 +392,6 @@ const FilterOverlay: React.FunctionComponent = () => {
           case 'pattern': {
             switch (filter.mode) {
               case 'grid': {
-                const gridFilter = filter as PatternFilterData & { mode: 'grid' };
                 if (!Entity.hasComponent(geometry, FrameComponent)) {
                   return null;
                 }

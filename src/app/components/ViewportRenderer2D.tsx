@@ -73,6 +73,7 @@ import CornerOverlay from './CornerOverlay';
 import FitToScreenButton from './FitToScreenButton';
 import { HoverTooltip } from './HoverTooltip';
 import { KeyboardShortcut } from './KeyboardShortcut';
+import { FrameLayers } from '@/components/FrameRenderer';
 
 extend({
   Container,
@@ -766,6 +767,9 @@ export default function ViewportRenderer2D({
 
       {/* Filters: */}
       <SingleLayerRenderer layers={FilterLayers} layerName={layerName} />
+
+      {/* Frames: */}
+      <SingleLayerRenderer layers={FrameLayers} layerName={layerName} />
 
       <ListLayersRenderer
         layersItemsPairs={[
