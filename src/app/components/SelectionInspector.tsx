@@ -1,7 +1,13 @@
 'use client';
 
 import debounce from 'lodash.debounce';
-import { Link2Icon, Link2OffIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import {
+  Link2Icon,
+  Link2OffIcon,
+  ListChevronsUpDownIcon,
+  PlusIcon,
+  Trash2Icon,
+} from 'lucide-react';
 import {
   Fragment,
   createRef,
@@ -1553,25 +1559,19 @@ const PolygonInspector: React.FunctionComponent<{
 const PatternGridFilterInspector: React.FunctionComponent<{
   filterId: Id;
   geometryStore: GeometryStore;
-  sheetUnitPlaces: Sheet['unitPlaces'];
-  sheetDefaultUnit: UnitType;
-}> = ({ filterId, geometryStore, sheetUnitPlaces, sheetDefaultUnit }) => {
+}> = ({ filterId, geometryStore }) => {
   const [filterEntity, setFilterEntity] = useState<Entity<
-    FilterComponent<PatternGridFilterData> & FrameComponent
+    FilterComponent<PatternGridFilterData>
   > | null>(() => {
     const entity = geometryStore.getById(filterId);
-    if (
-      !entity ||
-      !Entity.hasComponent(entity, FilterComponent) ||
-      !Entity.hasComponent(entity, FrameComponent)
-    ) {
+    if (!entity || !Entity.hasComponent(entity, FilterComponent)) {
       return null;
     }
     const data = FilterComponent.get(entity);
     if (data.type !== 'pattern' || data.mode !== 'grid') {
       return null;
     }
-    return entity as Entity<FilterComponent<PatternGridFilterData> & FrameComponent>;
+    return entity;
   });
 
   const filterData = useMemo(
@@ -1579,151 +1579,28 @@ const PatternGridFilterInspector: React.FunctionComponent<{
     [filterEntity],
   );
 
-  const frameData = useMemo(
-    () => (filterEntity ? FrameComponent.get(filterEntity) : null),
-    [filterEntity],
-  );
-
   useEffect(() => {
-    const debouncedHandler = debounce((entity: Entity) => {
-      if (
-        entity.id !== filterId ||
-        !Entity.hasComponent(entity, FilterComponent) ||
-        !Entity.hasComponent(entity, FrameComponent)
-      ) {
-        return;
-      }
-      const data = FilterComponent.get(entity);
-      if (data.type !== 'pattern' || data.mode !== 'grid') {
-        return;
-      }
-      setFilterEntity(entity as Entity<FilterComponent<PatternGridFilterData> & FrameComponent>);
-    }, GEOMETRY_UPDATE_DEBOUNCE_MS);
-
-    geometryStore.on('geometryUpdated', debouncedHandler);
-    return () => {
-      geometryStore.off('geometryUpdated', debouncedHandler);
-    };
-  }, [geometryStore, filterId]);
-
-  // Low-latency direct DOM updates during drag via refs
-  const xInputRef = useRef<LengthInputHandle>(null);
-  const yInputRef = useRef<LengthInputHandle>(null);
-  const wInputRef = useRef<LengthInputHandle>(null);
-  const hInputRef = useRef<LengthInputHandle>(null);
-  useEffect(() => {
+    // NOTE: the "repeats" values don't change often, so a debounce isn't required here.
     const handler = (entity: Entity) => {
-      if (
-        entity.id !== filterId ||
-        !Entity.hasComponent(entity, FilterComponent) ||
-        !Entity.hasComponent(entity, FrameComponent)
-      ) {
+      if (entity.id !== filterId || !Entity.hasComponent(entity, FilterComponent)) {
         return;
       }
       const data = FilterComponent.get(entity);
       if (data.type !== 'pattern' || data.mode !== 'grid') {
         return;
       }
-      const frame = FrameComponent.get(entity);
-      xInputRef.current?.setDisplayValue(
-        Length.fromSheetUnits(sheetDefaultUnit, frame.upperLeft.x),
-      );
-      yInputRef.current?.setDisplayValue(
-        Length.fromSheetUnits(sheetDefaultUnit, frame.upperLeft.y),
-      );
-      const w = frame.lowerRight.x - frame.upperLeft.x;
-      wInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, w));
-      const h = frame.lowerRight.y - frame.upperLeft.y;
-      hInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, h));
+      setFilterEntity(entity as Entity<FilterComponent<PatternGridFilterData>>);
     };
+
     geometryStore.on('geometryUpdated', handler);
     return () => {
       geometryStore.off('geometryUpdated', handler);
     };
   }, [geometryStore, filterId]);
 
-  if (!filterData || !frameData) {
+  if (!filterData) {
     return null;
   }
-
-  const width = frameData.lowerRight.x - frameData.upperLeft.x;
-  const height = frameData.lowerRight.y - frameData.upperLeft.y;
-
-  const handleXChange = useCallback(
-    (len: Length) => {
-      if (!frameData) {
-        return;
-      }
-      const newX = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      const deltaX = newX - frameData.upperLeft.x;
-      geometryStore.updateById(filterId, (g) => {
-        if (!Entity.hasComponent(g, FrameComponent)) {
-          return g;
-        }
-        return FrameComponent.update(g, {
-          upperLeft: new SheetPosition(newX, frameData.upperLeft.y),
-          lowerRight: new SheetPosition(frameData.lowerRight.x + deltaX, frameData.lowerRight.y),
-        });
-      });
-    },
-    [geometryStore, filterId, frameData, sheetDefaultUnit],
-  );
-
-  const handleYChange = useCallback(
-    (len: Length) => {
-      if (!frameData) {
-        return;
-      }
-      const newY = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      const deltaY = newY - frameData.upperLeft.y;
-      geometryStore.updateById(filterId, (g) => {
-        if (!Entity.hasComponent(g, FrameComponent)) {
-          return g;
-        }
-        return FrameComponent.update(g, {
-          upperLeft: new SheetPosition(frameData.upperLeft.x, newY),
-          lowerRight: new SheetPosition(frameData.lowerRight.x, frameData.lowerRight.y + deltaY),
-        });
-      });
-    },
-    [geometryStore, filterId, frameData, sheetDefaultUnit],
-  );
-
-  const handleWChange = useCallback(
-    (len: Length) => {
-      if (!frameData) {
-        return;
-      }
-      const w = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updateById(filterId, (g) => {
-        if (!Entity.hasComponent(g, FrameComponent)) {
-          return g;
-        }
-        return FrameComponent.update(g, {
-          lowerRight: new SheetPosition(frameData.upperLeft.x + w, frameData.lowerRight.y),
-        });
-      });
-    },
-    [geometryStore, filterId, frameData, sheetDefaultUnit],
-  );
-
-  const handleHChange = useCallback(
-    (len: Length) => {
-      if (!frameData) {
-        return;
-      }
-      const h = len.toSheetUnits(sheetDefaultUnit).magnitude;
-      geometryStore.updateById(filterId, (g) => {
-        if (!Entity.hasComponent(g, FrameComponent)) {
-          return g;
-        }
-        return FrameComponent.update(g, {
-          lowerRight: new SheetPosition(frameData.lowerRight.x, frameData.upperLeft.y + h),
-        });
-      });
-    },
-    [geometryStore, filterId, frameData, sheetDefaultUnit],
-  );
 
   const handleXRepeatsChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1753,80 +1630,32 @@ const PatternGridFilterInspector: React.FunctionComponent<{
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0 pr-8">
-          <LabeledRow label="X:">
-            <LengthInput
-              ref={xInputRef}
-              value={Length.fromSheetUnits(sheetDefaultUnit, frameData.upperLeft.x)}
-              onChange={handleXChange}
-              roundPlaces={sheetUnitPlaces}
-              readOnlyUnit
-            />
-          </LabeledRow>
-        </div>
-        <div className="flex-1 min-w-0">
-          <LabeledRow label="Y:">
-            <LengthInput
-              ref={yInputRef}
-              value={Length.fromSheetUnits(sheetDefaultUnit, frameData.upperLeft.y)}
-              onChange={handleYChange}
-              roundPlaces={sheetUnitPlaces}
-              readOnlyUnit
-            />
-          </LabeledRow>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0 pr-8">
-          <LabeledRow label="W:">
-            <LengthInput
-              ref={wInputRef}
-              value={Length.fromSheetUnits(sheetDefaultUnit, width)}
-              onChange={handleWChange}
-              roundPlaces={sheetUnitPlaces}
-              readOnlyUnit
-            />
-          </LabeledRow>
-        </div>
-        <div className="flex-1 min-w-0">
-          <LabeledRow label="H:">
-            <LengthInput
-              ref={hInputRef}
-              value={Length.fromSheetUnits(sheetDefaultUnit, height)}
-              onChange={handleHChange}
-              roundPlaces={sheetUnitPlaces}
-              readOnlyUnit
-            />
-          </LabeledRow>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0 pr-8">
-          <LabeledRow label="X repeats:">
+      <LabeledRow label="Repeats:" fullWidth>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 items-center grow shrink min-w-0">
+            <ListChevronsUpDownIcon size={16} className="shrink-0 rotate-90" />
             <Input
               type="number"
               min={1}
               value={filterData.xRepeats}
               onChange={handleXRepeatsChange}
               onKeyDown={(e) => e.stopPropagation()}
-              fieldSize="sm"
+              className="grow shrink min-w-0"
             />
-          </LabeledRow>
-        </div>
-        <div className="flex-1 min-w-0">
-          <LabeledRow label="Y repeats:">
+          </div>
+          <div className="flex gap-1 items-center grow shrink min-w-0">
+            <ListChevronsUpDownIcon size={16} className="shrink-0" />
             <Input
               type="number"
               min={1}
               value={filterData.yRepeats}
               onChange={handleYRepeatsChange}
               onKeyDown={(e) => e.stopPropagation()}
-              fieldSize="sm"
+              className="grow shrink min-w-0"
             />
-          </LabeledRow>
+          </div>
         </div>
-      </div>
+      </LabeledRow>
     </div>
   );
 };
@@ -2008,6 +1837,200 @@ const PatternRadialFilterInspector: React.FunctionComponent<{
   );
 };
 
+const FrameInspector: React.FunctionComponent<{
+  frameId: Id;
+  geometryStore: GeometryStore;
+  sheetUnitPlaces: Sheet['unitPlaces'];
+  sheetDefaultUnit: UnitType;
+}> = ({ frameId, geometryStore, sheetUnitPlaces, sheetDefaultUnit }) => {
+  const [frameEntity, setFrameEntity] = useState<Entity<FrameComponent> | null>(() => {
+    return geometryStore.getByIdWithComponent(frameId, FrameComponent);
+  });
+
+  const frameData = useMemo(
+    () => (frameEntity ? FrameComponent.get(frameEntity) : null),
+    [frameEntity],
+  );
+
+  useEffect(() => {
+    const debouncedHandler = debounce((entity: Entity) => {
+      if (entity.id !== frameId || !Entity.hasComponent(entity, FrameComponent)) {
+        return;
+      }
+      setFrameEntity(entity as Entity<FrameComponent>);
+    }, GEOMETRY_UPDATE_DEBOUNCE_MS);
+
+    geometryStore.on('geometryUpdated', debouncedHandler);
+    return () => {
+      geometryStore.off('geometryUpdated', debouncedHandler);
+    };
+  }, [geometryStore, frameId]);
+
+  // Low-latency direct DOM updates during drag via refs
+  const xInputRef = useRef<LengthInputHandle>(null);
+  const yInputRef = useRef<LengthInputHandle>(null);
+  const wInputRef = useRef<LengthInputHandle>(null);
+  const hInputRef = useRef<LengthInputHandle>(null);
+  useEffect(() => {
+    const handler = (entity: Entity) => {
+      if (entity.id !== frameId || !Entity.hasComponent(entity, FrameComponent)) {
+        return;
+      }
+      const frame = FrameComponent.get(entity);
+      xInputRef.current?.setDisplayValue(
+        Length.fromSheetUnits(sheetDefaultUnit, frame.upperLeft.x),
+      );
+      yInputRef.current?.setDisplayValue(
+        Length.fromSheetUnits(sheetDefaultUnit, frame.upperLeft.y),
+      );
+      const w = frame.lowerRight.x - frame.upperLeft.x;
+      wInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, w));
+      const h = frame.lowerRight.y - frame.upperLeft.y;
+      hInputRef.current?.setDisplayValue(Length.fromSheetUnits(sheetDefaultUnit, h));
+    };
+    geometryStore.on('geometryUpdated', handler);
+    return () => {
+      geometryStore.off('geometryUpdated', handler);
+    };
+  }, [geometryStore, frameId]);
+
+  if (!frameData) {
+    return null;
+  }
+
+  const width = frameData.lowerRight.x - frameData.upperLeft.x;
+  const height = frameData.lowerRight.y - frameData.upperLeft.y;
+
+  const handleXChange = useCallback(
+    (len: Length) => {
+      if (!frameData) {
+        return;
+      }
+      const newX = len.toSheetUnits(sheetDefaultUnit).magnitude;
+      const deltaX = newX - frameData.upperLeft.x;
+      geometryStore.updateById(frameId, (g) => {
+        if (!Entity.hasComponent(g, FrameComponent)) {
+          return g;
+        }
+        return FrameComponent.update(g, {
+          upperLeft: new SheetPosition(newX, frameData.upperLeft.y),
+          lowerRight: new SheetPosition(frameData.lowerRight.x + deltaX, frameData.lowerRight.y),
+        });
+      });
+    },
+    [geometryStore, frameId, frameData, sheetDefaultUnit],
+  );
+
+  const handleYChange = useCallback(
+    (len: Length) => {
+      if (!frameData) {
+        return;
+      }
+      const newY = len.toSheetUnits(sheetDefaultUnit).magnitude;
+      const deltaY = newY - frameData.upperLeft.y;
+      geometryStore.updateById(frameId, (g) => {
+        if (!Entity.hasComponent(g, FrameComponent)) {
+          return g;
+        }
+        return FrameComponent.update(g, {
+          upperLeft: new SheetPosition(frameData.upperLeft.x, newY),
+          lowerRight: new SheetPosition(frameData.lowerRight.x, frameData.lowerRight.y + deltaY),
+        });
+      });
+    },
+    [geometryStore, frameId, frameData, sheetDefaultUnit],
+  );
+
+  const handleWChange = useCallback(
+    (len: Length) => {
+      if (!frameData) {
+        return;
+      }
+      const w = len.toSheetUnits(sheetDefaultUnit).magnitude;
+      geometryStore.updateById(frameId, (g) => {
+        if (!Entity.hasComponent(g, FrameComponent)) {
+          return g;
+        }
+        return FrameComponent.update(g, {
+          lowerRight: new SheetPosition(frameData.upperLeft.x + w, frameData.lowerRight.y),
+        });
+      });
+    },
+    [geometryStore, frameId, frameData, sheetDefaultUnit],
+  );
+
+  const handleHChange = useCallback(
+    (len: Length) => {
+      if (!frameData) {
+        return;
+      }
+      const h = len.toSheetUnits(sheetDefaultUnit).magnitude;
+      geometryStore.updateById(frameId, (g) => {
+        if (!Entity.hasComponent(g, FrameComponent)) {
+          return g;
+        }
+        return FrameComponent.update(g, {
+          lowerRight: new SheetPosition(frameData.lowerRight.x, frameData.upperLeft.y + h),
+        });
+      });
+    },
+    [geometryStore, frameId, frameData, sheetDefaultUnit],
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 pr-8">
+          <LabeledRow label="X:">
+            <LengthInput
+              ref={xInputRef}
+              value={Length.fromSheetUnits(sheetDefaultUnit, frameData.upperLeft.x)}
+              onChange={handleXChange}
+              roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
+            />
+          </LabeledRow>
+        </div>
+        <div className="flex-1 min-w-0">
+          <LabeledRow label="Y:">
+            <LengthInput
+              ref={yInputRef}
+              value={Length.fromSheetUnits(sheetDefaultUnit, frameData.upperLeft.y)}
+              onChange={handleYChange}
+              roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
+            />
+          </LabeledRow>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0 pr-8">
+          <LabeledRow label="W:">
+            <LengthInput
+              ref={wInputRef}
+              value={Length.fromSheetUnits(sheetDefaultUnit, width)}
+              onChange={handleWChange}
+              roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
+            />
+          </LabeledRow>
+        </div>
+        <div className="flex-1 min-w-0">
+          <LabeledRow label="H:">
+            <LengthInput
+              ref={hInputRef}
+              value={Length.fromSheetUnits(sheetDefaultUnit, height)}
+              onChange={handleHChange}
+              roundPlaces={sheetUnitPlaces}
+              readOnlyUnit
+            />
+          </LabeledRow>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
   sheet,
   geometryStore,
@@ -2036,87 +2059,65 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
     };
   }, [sheet]);
 
-  const [singleRectangle, singleEllipse, singlePolygon, singlePatternGrid, singlePatternRadial] =
-    useMemo(() => {
-      const rectangles = Array.from(selectedGeometries.values()).filter(
-        (g): g is Entity<GeometryComponent<RectangleData>> =>
-          Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isRectangle(g),
-      );
-      const ellipses = Array.from(selectedGeometries.values()).filter(
-        (g): g is Entity<GeometryComponent<EllipseData>> =>
-          Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isEllipse(g),
-      );
-      const polygons = Array.from(selectedGeometries.values()).filter(
-        (g): g is Entity<GeometryComponent<PolygonData>> =>
-          Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isPolygon(g),
-      );
-      const patternGridFilters = Array.from(selectedGeometries.values()).filter(
-        (g): g is Entity<FilterComponent<PatternGridFilterData>> => {
-          if (!Entity.hasComponent(g, FilterComponent)) {
-            return false;
-          }
-          const data = FilterComponent.get(g);
-          return data.type === 'pattern' && data.mode === 'grid';
-        },
-      );
-      const patternRadialFilters = Array.from(selectedGeometries.values()).filter(
-        (g): g is Entity<FilterComponent<PatternRadialFilterData>> => {
-          if (!Entity.hasComponent(g, FilterComponent)) {
-            return false;
-          }
-          const data = FilterComponent.get(g);
-          return data.type === 'pattern' && data.mode === 'radial';
-        },
-      );
+  const [
+    singleRectangle,
+    singleEllipse,
+    singlePolygon,
+    singlePatternGrid,
+    singlePatternRadial,
+    singleFrame,
+  ] = useMemo(() => {
+    const rectangles = Array.from(selectedGeometries.values()).filter(
+      (g): g is Entity<GeometryComponent<RectangleData>> =>
+        Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isRectangle(g),
+    );
+    const ellipses = Array.from(selectedGeometries.values()).filter(
+      (g): g is Entity<GeometryComponent<EllipseData>> =>
+        Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isEllipse(g),
+    );
+    const polygons = Array.from(selectedGeometries.values()).filter(
+      (g): g is Entity<GeometryComponent<PolygonData>> =>
+        Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isPolygon(g),
+    );
+    const patternGridFilters = Array.from(selectedGeometries.values()).filter(
+      (g): g is Entity<FilterComponent<PatternGridFilterData>> => {
+        if (!Entity.hasComponent(g, FilterComponent)) {
+          return false;
+        }
+        const data = FilterComponent.get(g);
+        return data.type === 'pattern' && data.mode === 'grid';
+      },
+    );
+    const patternRadialFilters = Array.from(selectedGeometries.values()).filter(
+      (g): g is Entity<FilterComponent<PatternRadialFilterData>> => {
+        if (!Entity.hasComponent(g, FilterComponent)) {
+          return false;
+        }
+        const data = FilterComponent.get(g);
+        return data.type === 'pattern' && data.mode === 'radial';
+      },
+    );
+    const frames = Array.from(selectedGeometries.values()).filter(
+      (g): g is Entity<FrameComponent> => {
+        return Entity.hasComponent(g, FrameComponent);
+      },
+    );
 
-      const singleRectangle =
-        rectangles.length === 1 &&
-        ellipses.length === 0 &&
-        polygons.length === 0 &&
-        patternGridFilters.length === 0 &&
-        patternRadialFilters.length === 0
-          ? rectangles[0]
-          : null;
-      const singleEllipse =
-        ellipses.length === 1 &&
-        rectangles.length === 0 &&
-        polygons.length === 0 &&
-        patternGridFilters.length === 0 &&
-        patternRadialFilters.length === 0
-          ? ellipses[0]
-          : null;
-      const singlePolygon =
-        polygons.length === 1 &&
-        rectangles.length === 0 &&
-        ellipses.length === 0 &&
-        patternGridFilters.length === 0 &&
-        patternRadialFilters.length === 0
-          ? polygons[0]
-          : null;
-      const singlePatternGrid =
-        patternGridFilters.length === 1 &&
-        rectangles.length === 0 &&
-        ellipses.length === 0 &&
-        polygons.length === 0 &&
-        patternRadialFilters.length === 0
-          ? patternGridFilters[0]
-          : null;
-      const singlePatternRadial =
-        patternRadialFilters.length === 1 &&
-        rectangles.length === 0 &&
-        ellipses.length === 0 &&
-        polygons.length === 0 &&
-        patternGridFilters.length === 0
-          ? patternRadialFilters[0]
-          : null;
-      return [
-        singleRectangle,
-        singleEllipse,
-        singlePolygon,
-        singlePatternGrid,
-        singlePatternRadial,
-      ];
-    }, [selectedGeometries]);
+    const singleRectangle = rectangles.length === 1 ? rectangles[0] : null;
+    const singleEllipse = ellipses.length === 1 ? ellipses[0] : null;
+    const singlePolygon = polygons.length === 1 ? polygons[0] : null;
+    const singlePatternGrid = patternGridFilters.length === 1 ? patternGridFilters[0] : null;
+    const singlePatternRadial = patternRadialFilters.length === 1 ? patternRadialFilters[0] : null;
+    const singleFrame = frames.length === 1 ? frames[0] : null;
+    return [
+      singleRectangle,
+      singleEllipse,
+      singlePolygon,
+      singlePatternGrid,
+      singlePatternRadial,
+      singleFrame,
+    ];
+  }, [selectedGeometries]);
 
   // "non-homogenous" means the value is set differently across all selected geometries
   // "not-all" means that some selected geometries do NOT have that component
@@ -2205,12 +2206,18 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
               actionsManager={actionsManager}
             />
           )}
+          {singleFrame && (
+            <FrameInspector
+              frameId={singleFrame.id}
+              geometryStore={geometryStore}
+              sheetUnitPlaces={sheetUnitPlaces}
+              sheetDefaultUnit={sheetDefaultUnit}
+            />
+          )}
           {singlePatternGrid && (
             <PatternGridFilterInspector
               filterId={singlePatternGrid.id}
               geometryStore={geometryStore}
-              sheetUnitPlaces={sheetUnitPlaces}
-              sheetDefaultUnit={sheetDefaultUnit}
             />
           )}
           {singlePatternRadial && (
