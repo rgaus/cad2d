@@ -64,19 +64,34 @@ export namespace FrameComponent {
   }
 
   export function keyPoints(
-    entity: Entity<FrameComponent>,
+    _entity: Entity<FrameComponent>,
   ): KeyPoints<SheetPosition> {
-    const rectangle = FrameComponent.get(entity);
-    const rect: Rect<SheetPosition> = {
-      position: rectangle.upperLeft,
-      width: rectangle.lowerRight.x - rectangle.upperLeft.x,
-      height: rectangle.lowerRight.y - rectangle.upperLeft.y,
-    };
+    // TODO: Consider adding frame corner snap points back? I'm unclear if this is a good idea.
+    // Pros: constraints can be attached to frames
+    // Cons: frame corner points may conflict with other geometry corner points
+    //
+    // const rectangle = FrameComponent.get(entity);
+    // const rect: Rect<SheetPosition> = {
+    //   position: rectangle.upperLeft,
+    //   width: rectangle.lowerRight.x - rectangle.upperLeft.x,
+    //   height: rectangle.lowerRight.y - rectangle.upperLeft.y,
+    // };
+    // return {
+    //   // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
+    //   // expects.
+    //   perimeter: BoundingBox.cornersToArray(BoundingBox.corners(rect)),
+    //   perimeterLabels: ['upperLeft', 'upperRight', 'lowerRight', 'lowerLeft'] as const,
+    //   extras: {},
+    // };
+    // const rectangle = FrameComponent.get(entity);
+    // const rect: Rect<SheetPosition> = {
+    //   position: rectangle.upperLeft,
+    //   width: rectangle.lowerRight.x - rectangle.upperLeft.x,
+    //   height: rectangle.lowerRight.y - rectangle.upperLeft.y,
+    // };
     return {
-      // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
-      // expects.
-      perimeter: BoundingBox.cornersToArray(BoundingBox.corners(rect)),
-      perimeterLabels: ['upperLeft', 'upperRight', 'lowerRight', 'lowerLeft'] as const,
+      perimeter: [],
+      perimeterLabels: [],
       extras: {},
     };
   }
