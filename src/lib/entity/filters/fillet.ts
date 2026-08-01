@@ -1,7 +1,17 @@
+import { BoundingBox, CornerReplacement } from '@/lib/math';
 import { Length } from '@/lib/units/length';
 import type { UnitType } from '@/lib/units/length';
-import { Entity, type Polygon, type Rectangle, RectangleEndpoint } from '..';
+import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
+import {
+  Entity,
+  type Polygon,
+  PolygonSegment,
+  type Rectangle,
+  RectangleEndpoint,
+  RenderShape,
+} from '..';
 import { FilterComponent } from '../components/FilterComponent';
+import { ChamferFilterData } from './chamfer';
 
 export type FilletFilterData =
   | {
@@ -82,61 +92,151 @@ export namespace FilletFilter {
     );
   }
 
-  /**
-   * Serializes fillet filter data to a JSON-safe object for storage in the
-   * cad2d-state SVG comment.
-   */
-  export function toJson(data: FilletFilterData) {
-    if (data.geometryType === 'polygon') {
-      return {
-        type: 'fillet' as const,
-        geometryType: 'polygon' as const,
-        geometryId: data.geometryId,
-        offset: { magnitude: data.offset.magnitude, type: data.offset.type },
-        pointAIndex: data.pointAIndex,
-        pointCenterIndex: data.pointCenterIndex,
-        pointBIndex: data.pointBIndex,
-      };
-    } else {
-      return {
-        type: 'fillet' as const,
-        geometryType: 'rectangle' as const,
-        geometryId: data.geometryId,
-        offset: { magnitude: data.offset.magnitude, type: data.offset.type },
-        pointAKeyPoint: data.pointAKeyPoint,
-        pointCenterKeyPoint: data.pointCenterKeyPoint,
-        pointBKeyPoint: data.pointBKeyPoint,
-      };
-    }
-  }
+  /** Given a filter, apply it to a list of {@link RenderShape}s, returning a new set of render
+   * shapes which should be rendered instead. */
+  export function applyToRenderShape(
+    filterData: FilletFilterData | ChamferFilterData,
+    shapes: Array<RenderShape>,
+    generateFilterKey: () => string,
+    sheetDefaultUnit: UnitType,
+  ): Array<RenderShape> {
+    const factory =
+      filterData.type === 'fillet'
+        ? CornerReplacement.filletArc<SheetPosition>
+        : CornerReplacement.chamferLine<SheetPosition>;
+    const offsetNum = filterData.offset.toSheetUnits(sheetDefaultUnit).magnitude;
 
-  /**
-   * Deserializes a fillet filter data object from JSON.
-   */
-  export function fromJson(json: Record<string, unknown>): FilletFilterData {
-    const offsetData = json.offset as { magnitude: number; type: string };
-    const offset = Length.fromSheetUnits(offsetData.type as UnitType, offsetData.magnitude);
-    if (json.geometryType === 'polygon') {
-      return {
-        type: 'fillet',
-        offset,
-        geometryType: 'polygon',
-        geometryId: json.geometryId as string,
-        pointAIndex: json.pointAIndex as number,
-        pointCenterIndex: json.pointCenterIndex as number,
-        pointBIndex: json.pointBIndex as number,
-      };
-    } else {
-      return {
-        type: 'fillet',
-        offset,
-        geometryType: 'rectangle',
-        geometryId: json.geometryId as string,
-        pointAKeyPoint: json.pointAKeyPoint as RectangleEndpoint,
-        pointCenterKeyPoint: json.pointCenterKeyPoint as RectangleEndpoint,
-        pointBKeyPoint: json.pointBKeyPoint as RectangleEndpoint,
-      };
-    }
+    return shapes.flatMap((renderShape) => {
+      const key = generateFilterKey();
+
+      let resultSegs: Array<
+        LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>
+      >;
+      let closed = false;
+
+      switch (renderShape.shape) {
+        case 'rectangle': {
+          switch (filterData.geometryType) {
+            case 'rectangle':
+              resultSegs = CornerReplacement.applyToRectangle(
+                renderShape.upperLeft,
+                renderShape.lowerRight,
+                filterData.pointCenterKeyPoint,
+                offsetNum,
+                factory,
+              ).segments;
+              closed = true;
+              break;
+            case 'polygon':
+              console.warn(
+                'GeometryComponent.getRenderShapes: applying fillet/chamfer - geoemtryType of polygon cannot apply to renderShape of rectangle, skipping...',
+              );
+              return [];
+            default:
+              filterData satisfies never;
+              return [];
+          }
+          break;
+        }
+        case 'polygon': {
+          // Convert polygon points to viewport segments
+          const pointsLength = renderShape.points.length;
+          const viewportSegs: Array<
+            LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>
+          > = [];
+          for (let i = 0; i < pointsLength - 1; i += 1) {
+            viewportSegs.push(
+              PolygonSegment.toLineSegmentOrCurve(
+                renderShape.points[i].point,
+                renderShape.points[i + 1],
+              ),
+            );
+          }
+
+          switch (filterData.geometryType) {
+            case 'rectangle': {
+              // Skip non corner points
+              if (
+                filterData.pointCenterKeyPoint !== 'upperLeft' &&
+                filterData.pointCenterKeyPoint !== 'upperRight' &&
+                filterData.pointCenterKeyPoint !== 'lowerLeft' &&
+                filterData.pointCenterKeyPoint !== 'lowerRight'
+              ) {
+                return [];
+              }
+
+              // Find the viewport segment index whose end is the center vertex
+              const cornerPositions = BoundingBox.corners(
+                BoundingBox.fromPoints(renderShape.points.map((p) => p.point)),
+              );
+              const centerPos = cornerPositions[filterData.pointCenterKeyPoint];
+              // Find the center vertex index in the polygon
+              let centerPtIndex: number | null = null;
+              for (let i = 0; i < pointsLength - 1; i += 1) {
+                if (
+                  renderShape.points[i].point.x === centerPos.x &&
+                  renderShape.points[i].point.y === centerPos.y
+                ) {
+                  centerPtIndex = i;
+                  break;
+                }
+              }
+              if (centerPtIndex === null) {
+                return [];
+              }
+              const cornerIndex = (centerPtIndex - 1 + viewportSegs.length) % viewportSegs.length;
+
+              resultSegs = CornerReplacement.applyToPolygon(
+                viewportSegs,
+                cornerIndex,
+                offsetNum,
+                factory,
+              ).segments;
+              closed = renderShape.closed;
+              break;
+            }
+            case 'polygon': {
+              // Find the viewport segment index whose end is the center vertex
+              const cornerIndex =
+                (filterData.pointCenterIndex - 1 + viewportSegs.length) % viewportSegs.length;
+
+              resultSegs = CornerReplacement.applyToPolygon(
+                viewportSegs,
+                cornerIndex,
+                offsetNum,
+                factory,
+              ).segments;
+              closed = renderShape.closed;
+              break;
+            }
+            default:
+              filterData satisfies never;
+              return [];
+          }
+          break;
+        }
+        case 'ellipse':
+          // Ellipses can't have fillets / chamfers
+          // So just pass through unchanged
+          return [renderShape];
+        default:
+          renderShape satisfies never;
+          throw new Error(
+            `getRenderShapes: Unknown render shape type ${(renderShape as any).shape}`,
+          );
+      }
+
+      // Convert viewport segments back to PolygonSegment[]
+      const newPoints: Array<PolygonSegment> = [];
+      const [firstPoint] = PolygonSegment.fromLineSegmentOrCurve(resultSegs[0]);
+      newPoints.push({ type: 'point', point: firstPoint });
+      for (const seg of resultSegs) {
+        const [, polySeg] = PolygonSegment.fromLineSegmentOrCurve(seg);
+        newPoints.push(polySeg);
+      }
+
+      return [RenderShape.polygon(key, newPoints, { closed, primary: renderShape.primary })];
+    });
   }
 }
 

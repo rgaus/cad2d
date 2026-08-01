@@ -1,5 +1,5 @@
 import EventEmitter from 'eventemitter3';
-import { type Entity } from '@/lib/entity';
+import { type Entity, type ResizeMode } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { type FilterData } from '@/lib/entity/filters';
 import { forwardEvents } from '@/lib/events';
@@ -196,6 +196,18 @@ export abstract class BaseTool<
     _filterId: Entity['id'],
     _pointKey: keyof FD,
   ): void {}
+
+  /** Called by the renderer when the pointer is clicked within a frame's bounds.
+   *
+   * Returns a boolean which if true will register the event as being processed so it will no longer
+   * propegate. */
+  handleFrameFillPointerDown(
+    _screenPos: ScreenPosition,
+    _viewportControls: ViewportControls,
+    _frameId: Entity['id'],
+  ): boolean {
+    return false;
+  }
 
   /** Returns the GeometryStore. */
   getGeometryStore(): GeometryStore {
@@ -417,5 +429,36 @@ export abstract class BaseMultiTool<
   /** Called by the renderer when the pointer leaves the fill area of a shape. */
   handleGeometryFillLeave(geometryId: Entity['id']) {
     return this.subToolInstances[this.currentlyActiveIndex].handleGeometryFillLeave(geometryId);
+  }
+
+  /** Called by the renderer when the pointer is clicked within a frame's bounds.
+   *
+   * Returns a boolean which if true will register the event as being processed so it will no longer
+   * propegate. */
+  handleFrameFillPointerDown(
+    screenPos: ScreenPosition,
+    viewportControls: ViewportControls,
+    frameId: Entity['id'],
+  ): boolean {
+    return this.subToolInstances[this.currentlyActiveIndex].handleFrameFillPointerDown(
+      screenPos,
+      viewportControls,
+      frameId,
+    );
+  }
+
+  /** Called by the renderer when a mirror filter endpoint handle is clicked. */
+  handleFilterEndpointPointerDown<FD extends FilterData>(
+    screenPos: ScreenPosition,
+    viewportControls: ViewportControls,
+    filterId: Entity['id'],
+    pointKey: keyof FD,
+  ): void {
+    return this.subToolInstances[this.currentlyActiveIndex].handleFilterEndpointPointerDown<FD>(
+      screenPos,
+      viewportControls,
+      filterId,
+      pointKey,
+    );
   }
 }

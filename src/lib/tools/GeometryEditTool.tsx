@@ -1,15 +1,27 @@
 import { type CornerReplacementToolEvents } from './BaseCornerGeometryReplacerTool';
 import { BaseMultiTool } from './BaseTool';
-import { ChamferTool } from './ChamferTool';
-import { FilletTool } from './FilletTool';
-import { MirrorTool, MirrorToolEvents } from './MirrorTool';
+import { ChamferFilterTool } from './ChamferFilterTool';
+import { FilletFilterTool } from './FilletFilterTool';
+import { MirrorFilterTool, MirrorFilterToolEvents } from './MirrorFilterTool';
+import { PatternGridFilterTool, PatternGridFilterToolEvents } from './PatternGridFilterTool';
+import { PatternRadialFilterTool, PatternRadialFilterToolEvents } from './PatternRadialFilterTool';
 import { TrimSplitTool, TrimSplitToolEvents } from './TrimSplitTool';
 
-type ModifySubToolTypes = 'trim-split' | 'fillet' | 'chamfer' | 'mirror';
+type ModifySubToolTypes =
+  | 'trim-split'
+  | 'fillet'
+  | 'chamfer'
+  | 'mirror'
+  | 'pattern-grid'
+  | 'pattern-radial';
 
 /** A multi tool containing a list of ways one can modify a geometry. */
 export class GeometryEditTool extends BaseMultiTool<
-  TrimSplitToolEvents & CornerReplacementToolEvents & MirrorToolEvents,
+  TrimSplitToolEvents &
+    CornerReplacementToolEvents &
+    MirrorFilterToolEvents &
+    PatternGridFilterToolEvents &
+    PatternRadialFilterToolEvents,
   ModifySubToolTypes,
   'g'
 > {
@@ -17,5 +29,12 @@ export class GeometryEditTool extends BaseMultiTool<
 
   focusKeyCombo = 'g' as const;
 
-  subTools = [TrimSplitTool, FilletTool, ChamferTool, MirrorTool];
+  subTools = [
+    TrimSplitTool,
+    FilletFilterTool,
+    ChamferFilterTool,
+    MirrorFilterTool,
+    PatternGridFilterTool,
+    PatternRadialFilterTool,
+  ];
 }

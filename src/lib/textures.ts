@@ -567,6 +567,88 @@ export const ChamferFilterIconTexture = new CachedIconTexture(() => {
   return Texture.from(canvas);
 });
 
+/** A circular indicator labelling a radial pattern filter. The inner icon is a half-circle divided
+ * into radial wedge triangles pointing downward. */
+export const PatternRadialFilterIconTexture = new CachedIconTexture(() => {
+  const size = 40;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 16;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Bottom half-circle filled, divided into wedge triangles
+  const startAngle = Math.PI;
+  const endAngle = 2 * Math.PI;
+  const numWedges = 4;
+
+  ctx.fillStyle = '#cccccc';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, radius - 1, startAngle, endAngle);
+  ctx.closePath();
+  ctx.fill();
+
+  // Dividing lines from center to arc
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i <= numWedges; i += 1) {
+    const angle = startAngle + (i / numWedges) * (endAngle - startAngle);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + (radius - 1) * Math.cos(angle), cy + (radius - 1) * Math.sin(angle));
+    ctx.stroke();
+  }
+
+  return Texture.from(canvas);
+});
+
+/** A circular indicator labelling a grid pattern filter. The inner icon shows three rectangles in a
+ * horizontal line. */
+export const PatternGridFilterIconTexture = new CachedIconTexture(() => {
+  const size = 40;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 16;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Three rectangles in a horizontal row
+  ctx.fillStyle = '#cccccc';
+  const rectW = 3;
+  const rectH = 10;
+  const gap = 5;
+  const startX = cx - rectW - gap;
+  const rectY = cy - rectH / 2;
+  ctx.fillRect(startX, rectY, rectW, rectH);
+  ctx.fillRect(cx - rectW / 2, rectY, rectW, rectH);
+  ctx.fillRect(cx + gap + rectW / 2, rectY, rectW, rectH);
+
+  return Texture.from(canvas);
+});
+
 /** A crosshair icon for datum markers. */
 export const DatumCrosshairTexture = new CachedIconTexture(() => {
   const radius = DATUM_CIRCLE_RADIUS_PX * SPRITE_SCALE_FACTOR;

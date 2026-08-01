@@ -9,7 +9,7 @@ import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { CornerState } from '@/lib/tools/BaseCornerGeometryReplacerTool';
-import { FilletTool } from '@/lib/tools/FilletTool';
+import { FilletFilterTool } from '@/lib/tools/FilletFilterTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { CentimetersType, Length } from '@/lib/units/length';
@@ -32,7 +32,7 @@ describe('FilletTool', () => {
   let actionsManager: ActionsManager;
   let toolManager: ToolManager;
   let viewport: ViewportState;
-  let filletTool: FilletTool;
+  let filletTool: FilletFilterTool;
   let viewportControls: ViewportControls;
 
   beforeEach(() => {
@@ -59,7 +59,7 @@ describe('FilletTool', () => {
 
     toolManager.setActiveTool('edit');
     toolManager.changeToolSubTool('edit', 'fillet');
-    filletTool = toolManager.getTool('edit').activeSubTool as FilletTool;
+    filletTool = toolManager.getTool('edit').activeSubTool as FilletFilterTool;
   });
 
   describe('Rectangle corner clicks create filters', () => {

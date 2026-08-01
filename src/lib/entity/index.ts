@@ -5,6 +5,7 @@ export * from './components/LinkDimensionsComponent';
 export * from './components/DatumComponent';
 export * from './components/BoundingBoxVisibleComponent';
 export * from './components/ConstraintComponent';
+export * from './components/FrameComponent';
 export * from './components/GeometryComponent';
 export * from './ellipse';
 export * from './rectangle';

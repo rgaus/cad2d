@@ -4,12 +4,14 @@ import { Fragment, useMemo } from 'react';
 import {
   Entity,
   FillColorComponent,
+  FrameComponent,
   GeometryComponent,
   PolygonSegment,
   RenderShape,
 } from '@/lib/entity';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { Filter } from '@/lib/entity/filters';
+import { PatternFilter } from '@/lib/entity/filters/pattern';
 import { Sheet } from '@/lib/sheet/Sheet';
 
 /**
@@ -270,6 +272,56 @@ export default function ShapePreview({
                 strokeDasharray="2,2"
               />
             );
+          case 'pattern':
+            switch (filterData.mode) {
+              case 'grid': {
+                if (!Entity.hasComponent(filter, FrameComponent)) {
+                  return null;
+                }
+                const frameData = FrameComponent.get(filter);
+                const [upperLeftX, upperLeftY] = toSvg(
+                  frameData.upperLeft.x,
+                  frameData.upperLeft.y,
+                );
+                const [lowerRightX, lowerRightY] = toSvg(
+                  frameData.lowerRight.x,
+                  frameData.lowerRight.y,
+                );
+                return (
+                  <rect
+                    key={filter.id}
+                    x={upperLeftX}
+                    y={upperLeftY}
+                    width={lowerRightX - upperLeftX}
+                    height={lowerRightY - upperLeftY}
+                    fill="none"
+                    stroke="rgba(0,0,0,0.4)"
+                    strokeWidth="1"
+                    strokeDasharray="2,2"
+                  />
+                );
+              }
+              case 'radial': {
+                const [leftCorner, rightCorner] = PatternFilter.getRadialCornerPoints(filterData);
+                return (
+                  <polygon
+                    key={filter.id}
+                    points={[filterData.center, rightCorner, leftCorner]
+                      .map((pt) => toSvg(pt.x, pt.y).join(','))
+                      .join(' ')}
+                    fill="none"
+                    stroke="rgba(0,0,0,0.4)"
+                    strokeWidth="1"
+                    strokeDasharray="2,2"
+                  />
+                );
+              }
+              default:
+                filterData satisfies never;
+                throw new Error(
+                  `ShapePreview filter render: No filter with type=pattern and mode=${(filterData as any).mode} known!`,
+                );
+            }
           default:
             filterData satisfies never;
             throw new Error(

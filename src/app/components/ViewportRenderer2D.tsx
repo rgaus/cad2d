@@ -7,6 +7,7 @@ import { ConstraintLayers } from '@/components/ConstraintsRenderer';
 import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
 import { DatumLayers, WorkingDatumLayers } from '@/components/DatumRenderer';
 import { FilterLayers } from '@/components/FilterRenderer';
+import { FrameLayers } from '@/components/FrameRenderer';
 import { GeometryLayers } from '@/components/GeometryRenderer';
 import { HandleSprites } from '@/components/HandleSprites';
 import { SelectionBoxOverlay } from '@/components/SelectionBoxOverlay';
@@ -497,7 +498,7 @@ export default function ViewportRenderer2D({
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
           // Mirror
-          activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
+          activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
 
           // Fillet / Chamfer
           activeTool.off('pendingCornerChange', setPendingCornerState);
@@ -763,6 +764,9 @@ export default function ViewportRenderer2D({
     <Fragment key={layerName}>
       {/* Constraints: */}
       <SingleLayerRenderer layers={ConstraintLayers} layerName={layerName} />
+
+      {/* Frames: */}
+      <SingleLayerRenderer layers={FrameLayers} layerName={layerName} />
 
       {/* Filters: */}
       <SingleLayerRenderer layers={FilterLayers} layerName={layerName} />
@@ -1306,6 +1310,7 @@ export default function ViewportRenderer2D({
                 <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
                   ctrl
                 </KeyboardShortcut>
+                <KeyboardShortcut label="Cancel">esc</KeyboardShortcut>
               </div>
             </div>
           </HoverTooltip>
@@ -1322,6 +1327,72 @@ export default function ViewportRenderer2D({
                 <KeyboardShortcut label={<>Snap 15&deg;</>} disabled={superHeld}>
                   {PLATFORM_SUPER_KEY_STRING}
                 </KeyboardShortcut>
+                <KeyboardShortcut label="Cancel">esc</KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {/* Pattern grid tooltips */}
+        {visibleTooltip === 'pattern-initial' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>Choose geometry to pattern</HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'pattern-geometry-hovered' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>Select geometry</HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'pattern-grid-place-upper-left' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>Place upper left point</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+                <KeyboardShortcut label="Cancel">esc</KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'pattern-grid-place-lower-right' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>Finish grid pattern</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {/* Pattern radial tooltips */}
+        {visibleTooltip === 'pattern-radial-place-center' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>Place center point</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+                <KeyboardShortcut label="Cancel">esc</KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {visibleTooltip === 'pattern-radial-place-radius' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>Finish radial pattern</span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+                <KeyboardShortcut label="Cancel">esc</KeyboardShortcut>
               </div>
             </div>
           </HoverTooltip>

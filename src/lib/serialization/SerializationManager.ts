@@ -223,71 +223,12 @@ export class SerializationManager {
             }
             break;
           }
-          case 'fillet': {
-            const geoT = filterData.geometryType as string;
-            const offset = filterData.offset as { type: string; magnitude: number };
-            if (geoT === 'polygon') {
-              const template = FilletFilter.createOnPolygon(
-                filterData.geometryId as string,
-                filterData.pointAIndex as number,
-                filterData.pointCenterIndex as number,
-                filterData.pointBIndex as number,
-                Length.fromSheetUnits(offset.type as UnitType, offset.magnitude as number),
-              );
-              const entity = { id: filterData.id as string, ...template } as Entity;
-              if (eraseExisting) {
-                geometryStore.addDirect(entity);
-              } else {
-                this.getHistoryManager().apply(UndoEntry.insert(entity));
-              }
+          case 'pattern': {
+            const entity = { id: filterData.id as string, ...(filterData as any) } as Entity;
+            if (eraseExisting) {
+              geometryStore.addDirect(entity);
             } else {
-              const template = FilletFilter.createOnRectangle(
-                filterData.geometryId as string,
-                filterData.pointAKeyPoint as RectangleEndpoint,
-                filterData.pointCenterKeyPoint as RectangleEndpoint,
-                filterData.pointBKeyPoint as RectangleEndpoint,
-                Length.fromSheetUnits(offset.type as UnitType, offset.magnitude as number),
-              );
-              const entity = { id: filterData.id as string, ...template } as Entity;
-              if (eraseExisting) {
-                geometryStore.addDirect(entity);
-              } else {
-                this.getHistoryManager().apply(UndoEntry.insert(entity));
-              }
-            }
-            break;
-          }
-          case 'chamfer': {
-            const geoT = filterData.geometryType as string;
-            const offset = filterData.offset as { type: string; magnitude: number };
-            if (geoT === 'polygon') {
-              const template = ChamferFilter.createOnPolygon(
-                filterData.geometryId as string,
-                filterData.pointAIndex as number,
-                filterData.pointCenterIndex as number,
-                filterData.pointBIndex as number,
-                Length.fromSheetUnits(offset.type as UnitType, offset.magnitude as number),
-              );
-              const entity = { id: filterData.id as string, ...template } as Entity;
-              if (eraseExisting) {
-                geometryStore.addDirect(entity);
-              } else {
-                this.getHistoryManager().apply(UndoEntry.insert(entity));
-              }
-            } else {
-              const template = ChamferFilter.createOnRectangle(
-                filterData.geometryId as string,
-                filterData.pointAKeyPoint as RectangleEndpoint,
-                filterData.pointCenterKeyPoint as RectangleEndpoint,
-                filterData.pointBKeyPoint as RectangleEndpoint,
-                Length.fromSheetUnits(offset.type as UnitType, offset.magnitude as number),
-              );
-              const entity = { id: filterData.id as string, ...template } as Entity;
-              if (eraseExisting) {
-                geometryStore.addDirect(entity);
-              } else {
-                this.getHistoryManager().apply(UndoEntry.insert(entity));
-              }
+              this.getHistoryManager().apply(UndoEntry.insert(entity));
             }
             break;
           }

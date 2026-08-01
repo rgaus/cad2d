@@ -1235,7 +1235,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   setHoveringFirstHandle(hovering: boolean): void {
     switch (this.state.state) {
       case 'drawing-line':
-        this.setState({ ...this.state, isHoveringFirstHandle: hovering });
+        const workingPolygon = this.getGeometryStore().workingPolygon;
+        // Only mark the first handle as being hovered if the polygon is at least 2 points long
+        // Otherwise, it could be possible for the first click when creating the polygon to errantly
+        // trigger this case.
+        if (workingPolygon && workingPolygon.points.length > 2) {
+          this.setState({ ...this.state, isHoveringFirstHandle: hovering });
+        }
         break;
     }
   }
@@ -2062,21 +2068,40 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
 
   /** Applies snapping to a sheet position (grid snap only). */
   private applySnapping(pos: SheetPosition): SheetPosition {
+    const viewportScale = this.toolManager.getViewportControls()?.getState().viewport.scale ?? 1;
+    const selectedGeometryFilters = this.getSelectedGeometryFilters();
     return applySnapping(pos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale,
+      selectedGeometryFilters,
     });
+  }
+
+  /** Returns the filter patterns attached to the polygon currently being extended, if any. */
+  private getSelectedGeometryFilters() {
+    const wp = this.getGeometryStore().workingPolygon;
+    if (wp?.source.type === 'existing-polygon') {
+      return this.getGeometryStore().findFiltersByGeometryId(wp.source.polygonId);
+    }
+    if (this.state.state === 'hovering-polygon-endpoint') {
+      return this.getGeometryStore().findFiltersByGeometryId(this.state.polygonId);
+    }
+    return undefined;
   }
 
   /** Applies snapping with 45-degree angular snapping from the previous point. */
   private applySnappingLineSeries(pos: SheetPosition, prevPoint: SheetPosition): SheetPosition {
+    const viewportScale = this.toolManager.getViewportControls()?.getState().viewport.scale ?? 1;
     const options: SnappingLineSeriesOptions = {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale,
+      selectedGeometryFilters: this.getSelectedGeometryFilters(),
     };
 
     // When extending from the start, then the "preview segment" is at the start

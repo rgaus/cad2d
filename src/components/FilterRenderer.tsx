@@ -7,12 +7,16 @@ import ConstraintLengthInput, {
   ConstraintLengthInputHandle,
 } from '@/app/components/ConstraintLengthInput';
 import FilletFilterIndicator from '@/app/components/FilletFilterIndicator';
+import FrameIndicator from '@/app/components/FrameIndicator';
 import MirrorFilterIndicator from '@/app/components/MirrorFilterIndicator';
+import PatternGridFilterIndicator from '@/app/components/PatternGridFilterIndicator';
+import PatternRadialFilterIndicator from '@/app/components/PatternRadialFilterIndicator';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { type Entity } from '@/lib/entity';
+import { Entity, FrameComponent } from '@/lib/entity';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { MirrorFilterData } from '@/lib/entity/filters/mirror';
+import { PatternFilterData, PatternRadialFilterData } from '@/lib/entity/filters/pattern';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SELECTION_COLOR, VertexHandleTexture } from '@/lib/textures';
@@ -71,7 +75,7 @@ const FilterOverlay: React.FunctionComponent = () => {
 
     toolManager.on('toolChange', changeActiveTool);
     return () => {
-      toolManager.on('toolChange', changeActiveTool);
+      toolManager.off('toolChange', changeActiveTool);
       cleanup?.();
     };
   }, [toolManager]);
@@ -133,6 +137,23 @@ const FilterOverlay: React.FunctionComponent = () => {
           viewportControls,
           filterId,
           pointKey,
+        );
+    },
+    [toolManager, viewportControls],
+  );
+
+  const handleRadialFilterCenterPointerDown = useCallback(
+    (e: FederatedPointerEvent, filterId: Entity<FilterComponent>['id']) => {
+      if (!viewportControls) {
+        return;
+      }
+      toolManager
+        .getActiveTool()
+        .handleFilterEndpointPointerDown<PatternRadialFilterData>(
+          new ScreenPosition(e.clientX, e.clientY),
+          viewportControls,
+          filterId,
+          'center',
         );
     },
     [toolManager, viewportControls],
@@ -211,6 +232,45 @@ const FilterOverlay: React.FunctionComponent = () => {
           />
         );
         break;
+      }
+      case 'pattern': {
+        switch (workingFilter.mode) {
+          case 'grid': {
+            if (!workingFilter.upperLeft || !workingFilter.lowerRight) {
+              return null;
+            }
+            return (
+              <>
+                <PatternGridFilterIndicator
+                  upperLeft={workingFilter.upperLeft}
+                  lowerRight={workingFilter.lowerRight}
+                  viewportScale={viewportScale}
+                />
+                <FrameIndicator
+                  upperLeft={workingFilter.upperLeft}
+                  lowerRight={workingFilter.lowerRight}
+                  viewportScale={viewportScale}
+                />
+              </>
+            );
+          }
+          case 'radial': {
+            if (!workingFilter.center || !workingFilter.radius || !workingFilter.radius) {
+              return null;
+            }
+            return (
+              <PatternRadialFilterIndicator
+                center={workingFilter.center}
+                radius={workingFilter.radius}
+                repeats={{ type: 'count', count: 4 }} // FIXME: un hardcode this
+                viewportScale={viewportScale}
+              />
+            );
+          }
+          default:
+            workingFilter satisfies never;
+            break;
+        }
       }
       default:
         workingFilter satisfies never;
@@ -317,6 +377,61 @@ const FilterOverlay: React.FunctionComponent = () => {
               </Fragment>
             );
           }
+          case 'pattern': {
+            switch (filter.mode) {
+              case 'grid': {
+                if (!Entity.hasComponent(geometry, FrameComponent)) {
+                  return null;
+                }
+                const frame = FrameComponent.get(geometry);
+                return (
+                  <PatternGridFilterIndicator
+                    key={geometry.id}
+                    upperLeft={frame.upperLeft}
+                    lowerRight={frame.lowerRight}
+                    viewportScale={viewportScale}
+                    isHovered={hoveringFilterLabelId === geometry.id}
+                    onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
+                    onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
+                    onPointerLeave={handleFilterLabelPointerLeave}
+                  />
+                );
+              }
+              case 'radial': {
+                const radialFilter = filter as PatternFilterData & { mode: 'radial' };
+                return (
+                  <Fragment key={geometry.id}>
+                    <PatternRadialFilterIndicator
+                      center={radialFilter.center}
+                      radius={radialFilter.radius}
+                      repeats={radialFilter.repeats}
+                      viewportScale={viewportScale}
+                      lineWidthPx={
+                        isSelected || hoveringFilterLabelId === geometry.id ? 2 : undefined
+                      }
+                      color={isSelected ? SELECTION_COLOR : undefined}
+                      onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
+                      onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
+                      onPointerLeave={handleFilterLabelPointerLeave}
+                    />
+                    {isSelected ? (
+                      <HandleSprites
+                        points={[radialFilter.center]}
+                        handleTexture={VertexHandleTexture.get()}
+                        viewportScale={viewportScale}
+                        onHandlePointerDown={(e) =>
+                          handleRadialFilterCenterPointerDown(e, geometry.id)
+                        }
+                      />
+                    ) : null}
+                  </Fragment>
+                );
+              }
+              default:
+                filter satisfies never;
+                break;
+            }
+          }
           default:
             filter satisfies never;
             break;
@@ -396,6 +511,7 @@ const FilterTooltips: React.FunctionComponent = () => {
           ref.style.top = `${screenPos.y}px`;
           break;
         case 'mirror':
+        case 'pattern':
           return null;
         default:
           workingFilter satisfies never;
@@ -514,6 +630,7 @@ const FilterTooltips: React.FunctionComponent = () => {
       );
     }
     case 'mirror':
+    case 'pattern':
       return null;
     default:
       workingFilter satisfies never;

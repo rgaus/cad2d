@@ -22,6 +22,7 @@ import {
 } from '@/lib/entity';
 import { ID_PREFIXES, getPrefixFromId } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { FrameComponent } from '@/lib/entity/components/FrameComponent';
 import {
   ConstrainedTrack,
   type ConstrainedTrackPath,
@@ -176,7 +177,8 @@ function isEndpointOnEdge(
 type DragState =
   | { state: 'geometry'; geometry: Entity<GeometryComponent> }
   | { state: 'datum'; entity: Entity<DatumComponent> }
-  | { state: 'filter'; entity: Entity<FilterComponent> };
+  | { state: 'filter'; entity: Entity<FilterComponent> }
+  | { state: 'frame'; entity: Entity<FrameComponent> };
 
 namespace DragState {
   /** Extracts the {@link DragState} from the passed {@link Entity}, or null if nothing could be computed. */
@@ -185,6 +187,10 @@ namespace DragState {
       return { state: 'geometry', geometry: Entity.pickComponent(entity, GeometryComponent) };
     } else if (Entity.hasComponent(entity, DatumComponent)) {
       return { state: 'datum', entity };
+    } else if (Entity.hasComponent(entity, FrameComponent)) {
+      // NOTE: make sure this is before filter, so that a PatternGrid registers as
+      // a "frame", not a "filter".
+      return { state: 'frame', entity };
     } else if (Entity.hasComponent(entity, FilterComponent)) {
       return { state: 'filter', entity };
     }
@@ -200,6 +206,8 @@ namespace DragState {
         return Entity.assignComponent(entity, DatumComponent, state.entity);
       case 'filter':
         return Entity.assignComponent(entity, FilterComponent, state.entity);
+      case 'frame':
+        return Entity.assignComponent(entity, FrameComponent, state.entity);
       default:
         state satisfies never;
         throw new Error(`DragState.update: No drag state case for ${(state as any).state}`);
@@ -218,6 +226,8 @@ namespace DragState {
         return { ...state, entity: DatumComponent.translate(state.entity, transform) };
       case 'filter':
         return { ...state, entity: FilterComponent.translate(state.entity, transform) };
+      case 'frame':
+        return { ...state, entity: FrameComponent.translate(state.entity, transform) };
       default:
         state satisfies never;
         throw new Error(`DragState.translate: No drag state case for ${(state as any).state}`);
@@ -245,6 +255,11 @@ namespace DragState {
           return false;
         }
         return FilterComponent.equals(a.entity, b.entity);
+      case 'frame':
+        if (b.state !== 'frame') {
+          return false;
+        }
+        return FrameComponent.equals(a.entity, b.entity);
       default:
         a satisfies never;
         throw new Error(`DragState.equals: No drag state case for ${(a as any).state}`);
@@ -262,6 +277,8 @@ namespace DragState {
         return DatumComponent.getOrigin(state.entity);
       case 'filter':
         return null;
+      case 'frame':
+        return FrameComponent.getOrigin(state.entity);
       default:
         state satisfies never;
         throw new Error(`DragState.getOrigin: No drag state case for ${(state as any).state}`);
@@ -281,6 +298,8 @@ namespace DragState {
         };
       case 'filter':
         return null;
+      case 'frame':
+        return FrameComponent.boundingBox(state.entity);
       default:
         state satisfies never;
         throw new Error(`DragState.boundingBox: No drag state case for ${(state as any).state}`);
@@ -302,6 +321,11 @@ namespace DragState {
       case 'datum':
       case 'filter':
         return null;
+      case 'frame':
+        return {
+          ...state,
+          entity: FrameComponent.resize(state.entity, params, originalBBox) ?? state.entity,
+        };
       default:
         state satisfies never;
         console.warn(`DragState.resize: Unknown state.for ${(state as any)?.for}. Doing nothing.`);
@@ -736,6 +760,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
+            selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(polygonId),
+            viewportScale: liveViewport.scale,
           },
           this.getSheet()?.epsilon ?? 0.001,
         );
@@ -1025,6 +1051,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           ctrlHeld: this.toolManager.getCtrlHeld(),
           superHeld: false,
+          selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(polygonId),
+          viewportScale: liveViewport.scale,
         });
 
         this.getGeometryStore().updateByIdDirect(this.draggingPolygonId, (prev) => {
@@ -1640,6 +1668,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
         ctrlHeld,
         superHeld: false,
+        selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(entityId),
+        viewportScale: viewportControls.getState().viewport.scale,
       });
     }
 
@@ -1740,6 +1770,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
+            selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(entityId),
+            viewportScale: liveViewport.scale,
           },
           this.getSheet()?.epsilon ?? 0.001,
         );
@@ -1773,6 +1805,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
+            selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(entityId),
+            viewportScale: liveViewport.scale,
           });
         }
 
@@ -1879,10 +1913,47 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                       ),
                     );
                     break;
+                  case 'pattern':
+                    switch (before.mode) {
+                      case 'grid':
+                        // This case shouldn't get hit, a grid filter will be moved as a frame.
+                        break;
+                      case 'radial':
+                        forwardsActions.push(
+                          UndoEntry.patternRadialFilterMoveCenter(
+                            id,
+                            before.center,
+                            (after as typeof before).center,
+                          ),
+                        );
+                        break;
+                      default:
+                        before satisfies never;
+                        break;
+                    }
+                    break;
                   default:
                     before satisfies never;
                     break;
                 }
+                break;
+              }
+              case 'frame': {
+                if (!Entity.hasComponent(entity, FrameComponent)) {
+                  // FIXME: add log
+                  return;
+                }
+                const before = FrameComponent.get(state.entity);
+                const after = FrameComponent.get(entity);
+                forwardsActions.push(
+                  UndoEntry.frameMove(
+                    id,
+                    before.upperLeft,
+                    before.lowerRight,
+                    after.upperLeft,
+                    after.lowerRight,
+                  ),
+                );
                 break;
               }
               default:
@@ -2082,6 +2153,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
             ctrlHeld: this.toolManager.getCtrlHeld(),
             superHeld: false,
+            selectedGeometryFilters:
+              geometryIds.length === 1
+                ? this.getGeometryStore().findFiltersByGeometryId(geometryIds[0])
+                : [],
+            viewportScale: liveViewport.scale,
           },
           this.getSheet()?.epsilon ?? 0.001,
         );
@@ -2127,11 +2203,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (this.resizeOriginalGroupStates && this.draggingGeometryIds) {
           this.getHistoryManager().applyTransaction('geometry-resize', () => {
             for (const [id, originalState] of this.resizeOriginalGroupStates!) {
-              const afterGeometry = this.getGeometryStore().getById(id);
-              if (!afterGeometry) {
+              const afterEntity = this.getGeometryStore().getById(id);
+              if (!afterEntity) {
                 continue;
               }
-              const afterState = DragState.get(afterGeometry);
+              const afterState = DragState.get(afterEntity);
               if (!afterState || DragState.equals(originalState, afterState)) {
                 continue;
               }
@@ -2139,32 +2215,32 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               // FIXME: replace with one single event
               switch (originalState.state) {
                 case 'geometry':
-                  if (!Entity.hasComponent(afterGeometry, GeometryComponent)) {
+                  if (!Entity.hasComponent(afterEntity, GeometryComponent)) {
                     // FIXME: add log
                     return;
                   }
                   if (
                     GeometryComponent.isPolygon(originalState.geometry) &&
-                    GeometryComponent.isPolygon(afterGeometry)
+                    GeometryComponent.isPolygon(afterEntity)
                   ) {
                     const before = GeometryComponent.get(originalState.geometry);
-                    const after = GeometryComponent.get(afterGeometry);
+                    const after = GeometryComponent.get(afterEntity);
                     this.getHistoryManager().push(
                       UndoEntry.polygonMove(id, before.points, after.points),
                     );
                   } else if (
                     GeometryComponent.isEllipse(originalState.geometry) &&
-                    GeometryComponent.isEllipse(afterGeometry)
+                    GeometryComponent.isEllipse(afterEntity)
                   ) {
                     const before = GeometryComponent.get(originalState.geometry);
-                    const after = GeometryComponent.get(afterGeometry);
+                    const after = GeometryComponent.get(afterEntity);
                     this.getHistoryManager().push(UndoEntry.ellipseMove(id, before, after));
                   } else if (
                     GeometryComponent.isRectangle(originalState.geometry) &&
-                    GeometryComponent.isRectangle(afterGeometry)
+                    GeometryComponent.isRectangle(afterEntity)
                   ) {
                     const before = GeometryComponent.get(originalState.geometry);
-                    const after = GeometryComponent.get(afterGeometry);
+                    const after = GeometryComponent.get(afterEntity);
                     this.getHistoryManager().push(UndoEntry.rectangleMove(id, before, after));
                   }
                   break;
@@ -2176,6 +2252,23 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 case 'filter':
                   console.warn(
                     'SelectTool.onCommit: Filter was resized, but this should not be possible. Doing nothing.',
+                  );
+                  break;
+                case 'frame':
+                  if (!Entity.hasComponent(afterEntity, FrameComponent)) {
+                    // FIXME: add log
+                    return;
+                  }
+                  const before = FrameComponent.get(originalState.entity);
+                  const after = FrameComponent.get(afterEntity);
+                  this.getHistoryManager().push(
+                    UndoEntry.frameMove(
+                      id,
+                      before.upperLeft,
+                      before.lowerRight,
+                      after.upperLeft,
+                      after.lowerRight,
+                    ),
                   );
                   break;
                 default:
@@ -2620,6 +2713,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: false,
+      viewportScale: viewportControls.getState().viewport.scale,
     });
 
     const originalEndpoint = constraint[pointKey] as ConstraintEndpoint;
@@ -2667,6 +2761,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               .listWithComponent(ConstraintComponent)
               .filter((g) => g.id !== constraintId),
             datums: this.getGeometryStore().listWithComponent(DatumComponent),
+            selectedGeometryFilters: [],
           },
         );
 
@@ -2705,6 +2800,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   .listWithComponent(ConstraintComponent)
                   .filter((g) => g.id !== constraintId),
                 datums: this.getGeometryStore().listWithComponent(DatumComponent),
+                selectedGeometryFilters: [],
               },
             );
             let snappedEndpoint = rawEp;
@@ -2779,7 +2875,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Called when a mirror filter endpoint handle is clicked and dragged.
    *
    * Uses {@link applySnappingLineSeries} for grid + angular snapping relative to the other
-   * endpoint during drag. */
+   * endpoint during drag. For radial pattern filters, uses {@link applySnappingOnConstrainedTrack}
+   * for grid snap only (no reference endpoint). */
   handleFilterEndpointPointerDown<FD extends FilterData>(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
@@ -2791,149 +2888,250 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
     const filterData = FilterComponent.get<FD>(filter);
-    const rawFilter = filterData as Record<string, unknown>;
-
-    const otherPointKey = pointKey === 'pointA' ? 'pointB' : 'pointA';
-    const otherPoint = rawFilter[otherPointKey] as SheetPosition;
+    const rawFilter = filterData as unknown as Record<string, unknown>;
 
     const sheetPos = screenPos.toWorld(viewportControls.getState().viewport).toSheet();
 
-    const snapped = applySnappingLineSeries(sheetPos, otherPoint, {
-      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-      ctrlHeld: this.toolManager.getCtrlHeld(),
-      superHeld: this.toolManager.getSuperHeld(),
-    });
-
-    const resolvedPos = snapped;
-    const originalPointA = rawFilter.pointA as SheetPosition;
-    const originalPointB = rawFilter.pointB as SheetPosition;
-
-    const dragStartRawSheetPos = sheetPos;
-
-    this.activeDragListener = createDragListener({
-      viewportControls,
-      onMove: (sp) => {
-        const liveViewport = viewportControls.getState().viewport;
-        const world = sp.toWorld(liveViewport);
-        const sheet = world.toSheet();
-
-        const rawDx = sheet.x - (dragStartRawSheetPos?.x ?? 0);
-        const rawDy = sheet.y - (dragStartRawSheetPos?.y ?? 0);
-        const freePos = new SheetPosition(resolvedPos.x + rawDx, resolvedPos.y + rawDy);
-
-        const currentFilterGeom = this.getGeometryStore().getByIdWithComponent(
-          filterId,
-          FilterComponent,
-        );
-        if (!currentFilterGeom) {
+    switch (filterData.type) {
+      case 'chamfer':
+      case 'fillet':
+        break;
+      case 'pattern': {
+        const mode = (rawFilter as Record<string, unknown>).mode;
+        if (mode !== 'radial') {
           return;
         }
-        const currentFilter = FilterComponent.get(currentFilterGeom);
-        const currentRawFilter = currentFilter as unknown as Record<string, unknown>;
-        const currentOtherPoint = currentRawFilter[otherPointKey] as SheetPosition;
+        const radialData = filterData as unknown as { center: SheetPosition };
+        const originalCenter = new SheetPosition(radialData.center.x, radialData.center.y);
 
-        const snappedPoint = applySnappingLineSeries(freePos, currentOtherPoint, {
+        this.activeDragListener = createDragListener({
+          viewportControls,
+          onMove: (sp) => {
+            const liveViewport = viewportControls.getState().viewport;
+            const world = sp.toWorld(liveViewport);
+            const sheet = world.toSheet();
+            const snapped = applySnapping(sheet, {
+              primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+              secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+              ctrlHeld: this.toolManager.getCtrlHeld(),
+              superHeld: false,
+              viewportScale: viewportControls.getState().viewport.scale,
+            });
+            this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
+              FilterComponent.update(g, { center: snapped }),
+            );
+          },
+          onCommit: (_sp) => {
+            this.getHistoryManager().applyTransaction('radial-filter-center-move', () => {
+              const afterFilterGeom = this.getGeometryStore().getByIdWithComponent(
+                filterId,
+                FilterComponent,
+              );
+              if (!afterFilterGeom) {
+                return;
+              }
+              const afterFilter = FilterComponent.get(afterFilterGeom);
+              const afterRaw = afterFilter as unknown as { center: SheetPosition };
+
+              const changed =
+                originalCenter.x !== afterRaw.center.x || originalCenter.y !== afterRaw.center.y;
+
+              if (changed) {
+                this.getHistoryManager().push(
+                  UndoEntry.patternRadialFilterMoveCenter(
+                    filterId,
+                    originalCenter,
+                    afterRaw.center,
+                  ),
+                );
+              }
+
+              // After moving a filter endpoint, resync the filled state of any associated geometries
+              this.getGeometryStore().updateByIdWithComponentDirect(
+                filterData.geometryId,
+                GeometryComponent,
+                (geometry) => {
+                  const [output, historyEvents] = FilterComponent.syncFillColor(
+                    geometry,
+                    this.getGeometryStore().findFiltersByGeometryId(geometry.id),
+                  );
+                  if (output !== geometry) {
+                    for (const event of historyEvents) {
+                      this.getHistoryManager().push(event);
+                    }
+                  }
+                  return output;
+                },
+              );
+            });
+            this.activeDragListener = null;
+          },
+          onCancel: () => {
+            this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
+              FilterComponent.update(g, { center: originalCenter }),
+            );
+            this.activeDragListener = null;
+          },
+        });
+        return;
+      }
+      case 'mirror': {
+        const otherPointKey = pointKey === 'pointA' ? 'pointB' : 'pointA';
+        const otherPoint = rawFilter[otherPointKey] as SheetPosition;
+
+        const snapped = applySnappingLineSeries(sheetPos, otherPoint, {
           primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
           secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
           ctrlHeld: this.toolManager.getCtrlHeld(),
           superHeld: this.toolManager.getSuperHeld(),
+          viewportScale: viewportControls.getState().viewport.scale,
         });
 
-        this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
-          FilterComponent.update(g, { [pointKey as string]: snappedPoint }),
-        );
-      },
-      onCommit: (_sp) => {
-        this.getHistoryManager().applyTransaction('mirror-filter-endpoint-move', () => {
-          let afterFilterGeom = this.getGeometryStore().getByIdWithComponent(
-            filterId,
-            FilterComponent,
-          );
-          if (!afterFilterGeom) {
-            return;
-          }
-          const afterFilter = FilterComponent.get(afterFilterGeom);
-          const afterRawFilter = afterFilter as unknown as Record<string, unknown>;
+        const resolvedPos = snapped;
+        const originalPointA = rawFilter.pointA as SheetPosition;
+        const originalPointB = rawFilter.pointB as SheetPosition;
 
-          const finalPoint = afterRawFilter[pointKey as string] as SheetPosition;
-          const finalOtherPoint = afterRawFilter[otherPointKey] as SheetPosition;
+        const dragStartRawSheetPos = sheetPos;
 
-          const snappedFinal = applySnappingLineSeries(finalPoint, finalOtherPoint, {
-            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            ctrlHeld: this.toolManager.getCtrlHeld(),
-            superHeld: this.toolManager.getSuperHeld(),
-          });
+        this.activeDragListener = createDragListener({
+          viewportControls,
+          onMove: (sp) => {
+            const liveViewport = viewportControls.getState().viewport;
+            const world = sp.toWorld(liveViewport);
+            const sheet = world.toSheet();
 
-          this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
-            FilterComponent.update(g, { [pointKey as string]: snappedFinal }),
-          );
+            const rawDx = sheet.x - (dragStartRawSheetPos?.x ?? 0);
+            const rawDy = sheet.y - (dragStartRawSheetPos?.y ?? 0);
+            const freePos = new SheetPosition(resolvedPos.x + rawDx, resolvedPos.y + rawDy);
 
-          afterFilterGeom = this.getGeometryStore().getByIdWithComponent(filterId, FilterComponent);
-          if (!afterFilterGeom) {
-            return;
-          }
-          const finalFilter = FilterComponent.get(afterFilterGeom);
-          const finalRawFilter = finalFilter as unknown as Record<string, unknown>;
-
-          const finalPointA = finalRawFilter.pointA as SheetPosition;
-          const finalPointB = finalRawFilter.pointB as SheetPosition;
-
-          const changed =
-            originalPointA.x !== finalPointA.x ||
-            originalPointA.y !== finalPointA.y ||
-            originalPointB.x !== finalPointB.x ||
-            originalPointB.y !== finalPointB.y;
-
-          if (changed) {
-            this.getHistoryManager().push(
-              UndoEntry.mirrorFilterMoveEndpoints(
-                filterId,
-                originalPointA,
-                originalPointB,
-                finalPointA,
-                finalPointB,
-              ),
+            const currentFilterGeom = this.getGeometryStore().getByIdWithComponent(
+              filterId,
+              FilterComponent,
             );
-          }
+            if (!currentFilterGeom) {
+              return;
+            }
+            const currentFilter = FilterComponent.get(currentFilterGeom);
+            const currentRawFilter = currentFilter as unknown as Record<string, unknown>;
+            const currentOtherPoint = currentRawFilter[otherPointKey] as SheetPosition;
 
-          // After moving a filter endpoint, resync the filled state of any associated geometries
-          this.getGeometryStore().updateByIdWithComponentDirect(
-            filterData.geometryId,
-            GeometryComponent,
-            (geometry) => {
-              const [output, historyEvents] = FilterComponent.syncFillColor(
-                geometry,
-                this.getGeometryStore().findFiltersByGeometryId(geometry.id),
+            const snappedPoint = applySnappingLineSeries(freePos, currentOtherPoint, {
+              primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+              secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+              ctrlHeld: this.toolManager.getCtrlHeld(),
+              superHeld: this.toolManager.getSuperHeld(),
+              viewportScale: viewportControls.getState().viewport.scale,
+            });
+
+            this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
+              FilterComponent.update(g, { [pointKey as string]: snappedPoint }),
+            );
+          },
+          onCommit: (_sp) => {
+            this.getHistoryManager().applyTransaction('mirror-filter-endpoint-move', () => {
+              let afterFilterGeom = this.getGeometryStore().getByIdWithComponent(
+                filterId,
+                FilterComponent,
               );
-              if (output !== geometry) {
-                for (const event of historyEvents) {
-                  this.getHistoryManager().push(event);
-                }
+              if (!afterFilterGeom) {
+                return;
               }
-              return output;
-            },
-          );
+              const afterFilter = FilterComponent.get(afterFilterGeom);
+              const afterRawFilter = afterFilter as unknown as Record<string, unknown>;
+
+              const finalPoint = afterRawFilter[pointKey as string] as SheetPosition;
+              const finalOtherPoint = afterRawFilter[otherPointKey] as SheetPosition;
+
+              const snappedFinal = applySnappingLineSeries(finalPoint, finalOtherPoint, {
+                primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+                secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+                ctrlHeld: this.toolManager.getCtrlHeld(),
+                superHeld: this.toolManager.getSuperHeld(),
+                viewportScale: viewportControls.getState().viewport.scale,
+              });
+
+              this.getGeometryStore().updateByIdWithComponentDirect(
+                filterId,
+                FilterComponent,
+                (g) => FilterComponent.update(g, { [pointKey as string]: snappedFinal }),
+              );
+
+              afterFilterGeom = this.getGeometryStore().getByIdWithComponent(
+                filterId,
+                FilterComponent,
+              );
+              if (!afterFilterGeom) {
+                return;
+              }
+              const finalFilter = FilterComponent.get(afterFilterGeom);
+              const finalRawFilter = finalFilter as unknown as Record<string, unknown>;
+
+              const finalPointA = finalRawFilter.pointA as SheetPosition;
+              const finalPointB = finalRawFilter.pointB as SheetPosition;
+
+              const changed =
+                originalPointA.x !== finalPointA.x ||
+                originalPointA.y !== finalPointA.y ||
+                originalPointB.x !== finalPointB.x ||
+                originalPointB.y !== finalPointB.y;
+
+              if (changed) {
+                this.getHistoryManager().push(
+                  UndoEntry.mirrorFilterMoveEndpoints(
+                    filterId,
+                    originalPointA,
+                    originalPointB,
+                    finalPointA,
+                    finalPointB,
+                  ),
+                );
+              }
+
+              // After moving a filter endpoint, resync the filled state of any associated geometries
+              this.getGeometryStore().updateByIdWithComponentDirect(
+                filterData.geometryId,
+                GeometryComponent,
+                (geometry) => {
+                  const [output, historyEvents] = FilterComponent.syncFillColor(
+                    geometry,
+                    this.getGeometryStore().findFiltersByGeometryId(geometry.id),
+                  );
+                  if (output !== geometry) {
+                    for (const event of historyEvents) {
+                      this.getHistoryManager().push(event);
+                    }
+                  }
+                  return output;
+                },
+              );
+            });
+            this.activeDragListener = null;
+          },
+          onCancel: () => {
+            const currentFilterGeom = this.getGeometryStore().getByIdWithComponent(
+              filterId,
+              FilterComponent,
+            );
+            if (currentFilterGeom) {
+              this.getGeometryStore().updateByIdWithComponentDirect(
+                filterId,
+                FilterComponent,
+                (g) =>
+                  FilterComponent.update(g, {
+                    pointA: originalPointA,
+                    pointB: originalPointB,
+                  }),
+              );
+            }
+            this.activeDragListener = null;
+          },
         });
-        this.activeDragListener = null;
-      },
-      onCancel: () => {
-        const currentFilterGeom = this.getGeometryStore().getByIdWithComponent(
-          filterId,
-          FilterComponent,
-        );
-        if (currentFilterGeom) {
-          this.getGeometryStore().updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
-            FilterComponent.update(g, {
-              pointA: originalPointA,
-              pointB: originalPointB,
-            }),
-          );
-        }
-        this.activeDragListener = null;
-      },
-    });
+        break;
+      }
+      default:
+        filterData satisfies never;
+        break;
+    }
   }
 
   onConstraintLabelPointerDown(
@@ -3167,6 +3365,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           );
           break;
         case 'mirror':
+        case 'pattern':
           break;
         default:
           filter satisfies never;
@@ -3218,6 +3417,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 break;
               }
             case 'mirror':
+            case 'pattern':
               break;
             default:
               workingFilter satisfies never;
@@ -3233,5 +3433,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    * pre-edited state. */
   onFilterLabelLengthInputDismiss() {
     this.getGeometryStore().clearWorkingFilter();
+  }
+
+  // ==================== FRAME HANDLERS ====================
+
+  handleFrameFillPointerDown(
+    screenPos: ScreenPosition,
+    viewportControls: ViewportControls,
+    frameId: Id,
+  ): boolean {
+    return this.handleFillPointerDown(screenPos, viewportControls, frameId);
   }
 }

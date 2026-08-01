@@ -6,8 +6,9 @@ import {
   Datum,
   DatumComponent,
   Ellipse,
-  type Entity,
+  Entity,
   FillColorComponent,
+  FrameComponent,
   GeometryComponent,
   HorizontalConstraint,
   LinearConstraint,
@@ -22,12 +23,12 @@ import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
+import { PatternFilter, PatternRadialFilterData } from '@/lib/entity/filters/pattern';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { KeyPointSnapInfo } from '@/lib/snapping';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
-import { MirrorTool } from '@/lib/tools/MirrorTool';
 import {
   SELECTED_OUTSET_PX,
   SelectTool,
@@ -5818,6 +5819,291 @@ describe('SelectTool', () => {
 
       // Fill should be added on commit
       expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+    });
+  });
+
+  describe('pattern grid filter resize', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('resizes the top edge upward', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createGrid(rect.id, new SheetPosition(2, 4), new SheetPosition(8, 10)),
+      );
+
+      selectTool.onGeometryResizePointerDown(viewportControls, [filter.id], {
+        type: 'edge',
+        edge: 'top',
+      });
+
+      // Drag top edge from y=4 to y=2
+      // top edge: initialPointerDownOffsetYPx = +SELECTED_OUTSET_PX
+      const targetSheet = new SheetPosition(5, 2);
+      const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
+      moveHandler!({
+        clientX: targetScreen.x,
+        clientY: targetScreen.y - SELECTED_OUTSET_PX,
+      } as MouseEvent);
+      upHandler!({
+        clientX: targetScreen.x,
+        clientY: targetScreen.y - SELECTED_OUTSET_PX,
+      } as MouseEvent);
+
+      const updated = geometryStore.getById(filter.id);
+      if (!updated || !Entity.hasComponent(updated, FrameComponent)) {
+        throw new Error('Expected FrameComponent');
+      }
+      const data = FrameComponent.get(updated);
+      expect(data.upperLeft.y).toBeCloseTo(2, 0);
+      expect(data.upperLeft.x).toBeCloseTo(2, 0);
+      expect(data.lowerRight.x).toBeCloseTo(8, 0);
+      expect(data.lowerRight.y).toBeCloseTo(10, 0);
+    });
+
+    it('resizes the bottom-right corner', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createGrid(rect.id, new SheetPosition(2, 4), new SheetPosition(6, 8)),
+      );
+
+      selectTool.onGeometryResizePointerDown(viewportControls, [filter.id], {
+        type: 'corner',
+        corner: 'bottom-right',
+      });
+
+      // Drag bottom-right corner from (6, 8) to (10, 14)
+      // bottom-right: offsetXPx = -SELECTED_OUTSET_PX, offsetYPx = -SELECTED_OUTSET_PX
+      const targetSheet = new SheetPosition(10, 14);
+      const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
+      moveHandler!({
+        clientX: targetScreen.x + SELECTED_OUTSET_PX,
+        clientY: targetScreen.y + SELECTED_OUTSET_PX,
+      } as MouseEvent);
+      upHandler!({
+        clientX: targetScreen.x + SELECTED_OUTSET_PX,
+        clientY: targetScreen.y + SELECTED_OUTSET_PX,
+      } as MouseEvent);
+
+      const updated = geometryStore.getById(filter.id);
+      if (!updated || !Entity.hasComponent(updated, FrameComponent)) {
+        throw new Error('Expected FrameComponent');
+      }
+      const data = FrameComponent.get(updated);
+      expect(data.lowerRight.x).toBeCloseTo(10, 0);
+      expect(data.lowerRight.y).toBeCloseTo(14, 0);
+      expect(data.upperLeft.x).toBeCloseTo(2, 0);
+      expect(data.upperLeft.y).toBeCloseTo(4, 0);
+    });
+
+    it('resizes bottom-right corner with shift held to preserve aspect ratio', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      // Non-square: width=6, height=8, aspect ratio = 6/8 = 0.75
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createGrid(rect.id, new SheetPosition(2, 4), new SheetPosition(8, 12)),
+      );
+
+      jest.spyOn(toolManager, 'getShiftHeld').mockReturnValue(true);
+
+      selectTool.onGeometryResizePointerDown(viewportControls, [filter.id], {
+        type: 'corner',
+        corner: 'bottom-right',
+      });
+
+      // Drag to (20, 14) — large x expansion, small y expansion.
+      // With shift, the larger delta drives the scale: dx=18 → scale=18/6=3
+      // newW=6*3=18, newH=8*3=24
+      // upperLeft stays at (2,4), lowerRight at (2+18, 4+24) = (20, 28)
+      // bottom-right: offsetXPx = -SELECTED_OUTSET_PX, offsetYPx = -SELECTED_OUTSET_PX
+      const targetSheet = new SheetPosition(20, 14);
+      const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
+      moveHandler!({
+        clientX: targetScreen.x + SELECTED_OUTSET_PX,
+        clientY: targetScreen.y + SELECTED_OUTSET_PX,
+      } as MouseEvent);
+      upHandler!({
+        clientX: targetScreen.x + SELECTED_OUTSET_PX,
+        clientY: targetScreen.y + SELECTED_OUTSET_PX,
+      } as MouseEvent);
+
+      const updated = geometryStore.getById(filter.id);
+      if (!updated || !Entity.hasComponent(updated, FrameComponent)) {
+        throw new Error('Expected FrameComponent');
+      }
+      const data = FrameComponent.get(updated);
+      expect(data.lowerRight.x).toBeCloseTo(20, 1);
+      expect(data.lowerRight.y).toBeCloseTo(28, 1);
+      expect(data.upperLeft.x).toBeCloseTo(2, 1);
+      expect(data.upperLeft.y).toBeCloseTo(4, 1);
+    });
+
+    it('resizes top edge with alt held to resize from center', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createGrid(rect.id, new SheetPosition(2, 4), new SheetPosition(8, 10)),
+      );
+      // original: upperLeft=(2,4), lowerRight=(8,10), center=(5,7), height=6
+
+      jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
+
+      selectTool.onGeometryResizePointerDown(viewportControls, [filter.id], {
+        type: 'edge',
+        edge: 'top',
+      });
+
+      // Drag top edge UP from y=4 to y=2
+      // top edge: initialPointerDownOffsetYPx = +SELECTED_OUTSET_PX
+      const targetSheet = new SheetPosition(5, 2);
+      const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
+      moveHandler!({
+        clientX: targetScreen.x,
+        clientY: targetScreen.y - SELECTED_OUTSET_PX,
+      } as MouseEvent);
+      upHandler!({
+        clientX: targetScreen.x,
+        clientY: targetScreen.y - SELECTED_OUTSET_PX,
+      } as MouseEvent);
+
+      const updated = geometryStore.getById(filter.id);
+      if (!updated || !Entity.hasComponent(updated, FrameComponent)) {
+        throw new Error('Expected FrameComponent');
+      }
+      const data = FrameComponent.get(updated);
+      // With alt, top edge at y=2 means top expanded by 2 (4→2)
+      // Bottom must also expand by 2 (10→12) to keep center at y=7
+      // upperLeft.y = 2, lowerRight.y = 12
+      // x values unchanged
+      expect(data.upperLeft.y).toBeCloseTo(2, 0);
+      expect(data.lowerRight.y).toBeCloseTo(12, 0);
+      expect(data.upperLeft.x).toBeCloseTo(2, 0);
+      expect(data.lowerRight.x).toBeCloseTo(8, 0);
+    });
+  });
+
+  describe('radial filter center drag', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('drags the center and records history with undo/redo', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createRadial(rect.id, new SheetPosition(5, 5), 3, { count: 6 }),
+      );
+
+      // Start drag at center (5, 5)
+      const startScreen = new SheetPosition(5, 5).toScreen(viewportControls.getState().viewport);
+      selectTool.handleFilterEndpointPointerDown<PatternRadialFilterData>(
+        new ScreenPosition(startScreen.x, startScreen.y),
+        viewportControls,
+        filter.id,
+        'center' as any,
+      );
+
+      // Drag to (8, 9)
+      const targetSheet = new SheetPosition(8, 9);
+      const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      // Verify center was updated
+      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const data = FilterComponent.get(updated);
+      if (data.type !== 'pattern' || data.mode !== 'radial') {
+        throw new Error('Expected radial pattern filter');
+      }
+      expect(data.center.x).toBeCloseTo(8, 0);
+      expect(data.center.y).toBeCloseTo(9, 0);
+      expect(data.radius).toBeCloseTo(3, 0);
+      expect(data.repeats.count).toBe(6);
+
+      // Undo — center restored
+      historyManager.undo();
+      const afterUndo = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const undoData = FilterComponent.get(afterUndo);
+      if (undoData.type !== 'pattern' || undoData.mode !== 'radial') {
+        throw new Error('Expected radial pattern filter');
+      }
+      expect(undoData.center.x).toBeCloseTo(5, 0);
+      expect(undoData.center.y).toBeCloseTo(5, 0);
+
+      // Redo — center restored to dragged position
+      historyManager.redo();
+      const afterRedo = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const redoData = FilterComponent.get(afterRedo);
+      if (redoData.type !== 'pattern' || redoData.mode !== 'radial') {
+        throw new Error('Expected radial pattern filter');
+      }
+      expect(redoData.center.x).toBeCloseTo(8, 0);
+      expect(redoData.center.y).toBeCloseTo(9, 0);
     });
   });
 });

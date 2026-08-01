@@ -13,6 +13,8 @@ import {
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
@@ -2713,6 +2715,17 @@ describe('PolygonTool', () => {
     });
   });
 
+  it('should not allow closing a polygon until after it has at least 3 points', () => {
+    // CLick to create polygon
+    toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+
+    // Simulate hover handler triggering as part of initial click
+    polygonTool.setHoveringFirstHandle(true);
+
+    // Make sure that the tooltip is the expected state, NOT `closed-polygon`
+    expect(polygonTool.statusText).toStrictEqual('place-next-point');
+  });
+
   // // ================================================================================
   // // Section 7: Intersection Key Combos
   // // ================================================================================
@@ -3342,6 +3355,51 @@ describe('PolygonTool', () => {
           expect(c.pointB.type).toBe('locked-polygon');
         }
       }
+    });
+  });
+
+  describe('filter snapping while extending', () => {
+    it('snaps to mirror filter axis when extending a polygon that has a filter attached', () => {
+      // Create a non-closed polygon whose start point is near the mirror filter axis
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point', point: new SheetPosition(0, 9.5) },
+            { type: 'point', point: new SheetPosition(20, 9.5) },
+          ],
+          { closed: false, fillColor: null, openAtIndex: 0 },
+        ),
+      );
+
+      // Attach a mirror filter to the polygon — horizontal axis at y=10
+      geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(polygon.id, new SheetPosition(0, 10), new SheetPosition(20, 10)),
+      );
+
+      // Verify the filter is found
+      const filters = geometryStore.findFiltersByGeometryId(polygon.id);
+      expect(filters).toHaveLength(1);
+
+      // Set a huge grid so grid snap alone would pull the point to (0, 0)
+      polygonTool.setSnappingOptions({ primaryGridSize: 100, secondaryGridSize: null });
+
+      // Extend from the start point by clicking near the mirror axis
+      polygonTool.setHoveringEndpointOfPolygon({
+        polygonId: polygon.id,
+        pointIndex: 0,
+        isStartPoint: true,
+      });
+
+      // Sheet position (0, 9.8) — 0.2 from the mirror line at y=10, within threshold 0.25.
+      // Screen: x=0, y=9.8*64=627.2
+      toolManager.handleMouseDown(new ScreenPosition(0, 627.2), viewport);
+
+      // With grid snap alone this would be (0, 0). With filter snapping it should be (0, 10).
+      const workingPoints = geometryStore.workingPolygon!.points;
+      expect(workingPoints[0].point.x).toBeCloseTo(0, 2);
+      expect(workingPoints[0].point.y).toBeCloseTo(10, 2);
     });
   });
 });

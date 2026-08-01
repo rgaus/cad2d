@@ -5,6 +5,7 @@ import {
   type Ellipse,
   Entity,
   FillColorComponent,
+  FrameComponent,
   GeometryComponent,
   LinkDimensionsComponent,
   type Polygon,
@@ -528,11 +529,39 @@ export function serializeFilter(filter: Entity): string {
   switch (fd.type) {
     case 'mirror':
       attrs.push(`data-type="mirror-filter"`);
-      attrs.push(`data-point-a-x="${(fd as any).pointA.x}"`);
-      attrs.push(`data-point-a-y="${(fd as any).pointA.y}"`);
-      attrs.push(`data-point-b-x="${(fd as any).pointB.x}"`);
-      attrs.push(`data-point-b-y="${(fd as any).pointB.y}"`);
+      attrs.push(`data-point-a-x="${fd.pointA.x}"`);
+      attrs.push(`data-point-a-y="${fd.pointA.y}"`);
+      attrs.push(`data-point-b-x="${fd.pointB.x}"`);
+      attrs.push(`data-point-b-y="${fd.pointB.y}"`);
       break;
+    case 'pattern':
+      attrs.push(`data-type="pattern-filter"`);
+      switch (fd.mode) {
+        case 'grid':
+          if (!Entity.hasComponent(filter, FrameComponent)) {
+            break;
+          }
+          const frame = FrameComponent.get(filter);
+          attrs.push(`data-pattern-mode="grid"`);
+          attrs.push(`data-upper-left-x="${frame.upperLeft.x}"`);
+          attrs.push(`data-upper-left-y="${frame.upperLeft.y}"`);
+          attrs.push(`data-lower-right-x="${frame.lowerRight.x}"`);
+          attrs.push(`data-lower-right-y="${frame.lowerRight.y}"`);
+          attrs.push(`data-repeats-x="${fd.xRepeats}"`);
+          attrs.push(`data-repeats-y="${fd.yRepeats}"`);
+          break;
+        case 'radial':
+          attrs.push(`data-pattern-mode="radial"`);
+          attrs.push(`data-center-x="${fd.center.x}"`);
+          attrs.push(`data-center-x="${fd.center.y}"`);
+          attrs.push(`data-radius="${fd.radius}"`);
+          attrs.push(`data-repeats-type="${fd.repeats.type}"`);
+          attrs.push(`data-repeats-count="${fd.repeats.count}"`);
+          break;
+        default:
+          fd satisfies never;
+          throw new Error(`serializeFilter: unknown filter type ${(fd as any).type}`);
+      }
     case 'fillet': {
       const serializedOffset = (fd as any).offset.serialize();
       attrs.push(`data-type="fillet-filter"`);

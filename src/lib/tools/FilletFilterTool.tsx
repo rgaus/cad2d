@@ -14,10 +14,9 @@ import { BaseCornerGeometryReplacerTool, CornerState } from './BaseCornerGeometr
  * Rectangle shortcut: clicking any rectangle corner jumps directly from step 1
  * to step 2, since the two adjacent corners are always unambiguous.
  */
-export class FilletTool extends BaseCornerGeometryReplacerTool<'fillet'> {
+export class FilletFilterTool extends BaseCornerGeometryReplacerTool<'fillet'> {
   type = 'fillet' as const;
   label = 'Fillet';
-  stability = 'beta' as const;
   focusKeyCombo = 'g f' as const;
 
   get icon(): React.ReactNode {

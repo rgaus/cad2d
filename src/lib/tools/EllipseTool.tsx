@@ -160,6 +160,7 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: false,
+      viewportScale: viewport.scale,
     });
   }
 
@@ -440,11 +441,13 @@ export class EllipseTool extends BaseTool<EllipseToolEvents> {
   }
 
   private applySnapping(pos: SheetPosition): SheetPosition {
+    const viewportScale = this.toolManager.getViewportControls()?.getState().viewport.scale ?? 1;
     return applySnapping(pos, {
       primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale,
     });
   }
 }

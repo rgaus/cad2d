@@ -1,6 +1,19 @@
 import { CubicCurve, LineSegment, Position, QuadraticCurve } from '../viewport/types';
 
 /**
+ * Returns the slope of a line defined by two points.
+ * For vertical lines, returns Infinity.
+ */
+export function lineSlope<P extends Position>(pointA: P, pointB: P): number {
+  const numerator = pointB.y - pointA.y;
+  const denominator = pointB.x - pointA.x;
+  if (denominator === 0) {
+    return Infinity;
+  }
+  return numerator / denominator;
+}
+
+/**
  * Returns the y-intercept of a line defined by point + slope.
  * For vertical lines, returns Infinity.
  */

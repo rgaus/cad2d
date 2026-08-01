@@ -1,34 +1,36 @@
-import { SquareCenterlineDashedHorizontalIcon } from 'lucide-react';
+import { ChartPieIcon } from 'lucide-react';
 import { Entity, GeometryComponent } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
-import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { FilterComponent } from '../entity/components/FilterComponent';
+import { PatternFilter } from '../entity/filters/pattern';
 import { applySnapping, applySnappingLineSeries } from '../snapping';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { ScreenPosition, SheetPosition, ViewportState } from '../viewport/types';
 import { BaseTool } from './BaseTool';
 
-export type MirrorToolEvents = {
+export type PatternRadialFilterToolEvents = {
   previewSheetPositionChange: (pos: SheetPosition | null) => void;
 };
 
-export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
-  type = 'mirror' as const;
-  label = 'Mirror';
-  stability = 'beta' as const;
-  focusKeyCombo = 'g m' as const;
+export class PatternRadialFilterTool extends BaseTool<
+  PatternRadialFilterToolEvents,
+  'pattern-radial'
+> {
+  type = 'pattern-radial' as const;
+  label = 'Radial Pattern';
+  focusKeyCombo = 'g r' as const;
 
   get icon(): React.ReactNode {
-    return <SquareCenterlineDashedHorizontalIcon size={24} color="white" />;
+    return <ChartPieIcon size={24} color="white" className="-rotate-45" />;
   }
 
-  private state: 'picking-geometry' | 'placing-point-a' | 'placing-point-b' = 'picking-geometry';
+  private state: 'picking-geometry' | 'placing-center' | 'placing-radius' = 'picking-geometry';
 
   private previewSheetPos: SheetPosition | null = null;
 
   handleToolFocus(): void {
     this.emit('previewSheetPositionChange', null);
-    this.showTooltip('mirror-initial');
+    this.showTooltip('pattern-initial');
   }
 
   handleToolBlur(): void {
@@ -38,62 +40,96 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
     const geometryStore = this.getGeometryStore();
-    if (geometryStore.workingFilter?.type !== 'mirror') {
+    if (
+      geometryStore.workingFilter?.type !== 'pattern' ||
+      geometryStore.workingFilter.mode !== 'radial'
+    ) {
       // Geometry must be clicked first.
       return;
     }
 
     this.previewSheetPos = this.computePreviewSnappedPos(
       screenPos,
-      geometryStore.workingFilter.pointA,
+      geometryStore.workingFilter.center,
       viewport,
     );
 
-    // Render the preview "handle" at previewSheetPos
-    this.emit('previewSheetPositionChange', this.previewSheetPos);
-
-    // Set pointB to the preview sheet position so the working filter renders properly
-    if (this.state === 'placing-point-b') {
-      geometryStore.setWorkingFilter({
-        ...geometryStore.workingFilter,
-        pointB: this.previewSheetPos,
-      });
+    switch (this.state) {
+      case 'picking-geometry':
+      case 'placing-center':
+        // Render the preview "handle" at previewSheetPos
+        this.emit('previewSheetPositionChange', this.previewSheetPos);
+        break;
+      case 'placing-radius':
+        if (!geometryStore.workingFilter.center) {
+          throw new Error(
+            'PatternRadialFilterTool: in state=placing-radius, but workingFilter.center is unset, this should be impossible.',
+          );
+        }
+        geometryStore.setWorkingFilter({
+          ...geometryStore.workingFilter,
+          // Set radius to the preview sheet position so the working filter renders properly
+          radius: this.getRadiusFromPreviewPosition(
+            geometryStore.workingFilter.center,
+            this.previewSheetPos,
+          ),
+        });
+        break;
+      default:
+        this.state satisfies never;
+        break;
     }
   }
 
   handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
     const geometryStore = this.getGeometryStore();
-    if (geometryStore.workingFilter?.type !== 'mirror') {
+    if (
+      geometryStore.workingFilter?.type !== 'pattern' ||
+      geometryStore.workingFilter.mode !== 'radial'
+    ) {
       // Geometry must be clicked first.
       return;
     }
 
     this.previewSheetPos = this.computePreviewSnappedPos(
       screenPos,
-      geometryStore.workingFilter.pointA,
+      geometryStore.workingFilter.center,
       viewport,
     );
-    this.emit('previewSheetPositionChange', this.previewSheetPos);
 
     switch (this.state) {
       case 'picking-geometry':
+        this.emit('previewSheetPositionChange', this.previewSheetPos);
         break;
-      case 'placing-point-a':
+      case 'placing-center':
         geometryStore.setWorkingFilter({
           ...geometryStore.workingFilter,
-          pointA: this.previewSheetPos,
+          center: this.previewSheetPos,
         });
-        this.showTooltip('mirror-place-point-b');
-        this.state = 'placing-point-b';
+        this.emit('previewSheetPositionChange', null);
+        this.showTooltip('pattern-radial-place-radius');
+        this.state = 'placing-radius';
         break;
-      case 'placing-point-b':
+      case 'placing-radius':
+        if (!geometryStore.workingFilter.center) {
+          throw new Error(
+            'PatternRadialFilterTool: in state=placing-radius, but workingFilter.center is unset, this should be impossible.',
+          );
+        }
         geometryStore.setWorkingFilter({
           ...geometryStore.workingFilter,
-          pointB: this.previewSheetPos,
+          radius: this.getRadiusFromPreviewPosition(
+            geometryStore.workingFilter.center,
+            this.previewSheetPos,
+          ),
         });
         this.complete();
         break;
     }
+  }
+
+  private getRadiusFromPreviewPosition(center: SheetPosition, previewPosition: SheetPosition) {
+    return center.y - previewPosition.y;
   }
 
   private computePreviewSnappedPos(
@@ -109,6 +145,7 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale: viewport.scale,
     };
 
     return prevPoint
@@ -125,30 +162,35 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
   }
 
   handleGeometryFillEnter(geometryId: Entity['id']): void {
-    this.showTooltip('mirror-geometry-hovered');
+    if (this.state !== 'picking-geometry') {
+      return;
+    }
+    this.showTooltip('pattern-geometry-hovered');
     this.highlightGeometry(geometryId);
   }
 
   handleGeometryFillLeave(geometryId: Entity['id']): void {
     const workingFilter = this.getGeometryStore().workingFilter;
-    if (workingFilter?.type === 'mirror' && workingFilter.geometryId === geometryId) {
+    if (workingFilter?.type === 'pattern' && workingFilter.geometryId === geometryId) {
       // Skip removing if this geometry is part of the working filter
       // Reset the tooltip based on the current state
       switch (this.state) {
-        case 'placing-point-a':
-          this.showTooltip('mirror-place-point-a');
+        case 'placing-center':
+          this.showTooltip('pattern-radial-place-center');
           return;
-        case 'placing-point-b':
-          this.showTooltip('mirror-place-point-b');
+        case 'placing-radius':
+          this.showTooltip('pattern-radial-place-radius');
           return;
         case 'picking-geometry':
-          this.showTooltip('mirror-initial');
+          this.showTooltip('pattern-initial');
           return;
       }
     }
 
-    this.showTooltip('mirror-initial');
-    this.highlightGeometry(null);
+    if (this.state === 'picking-geometry') {
+      this.showTooltip('pattern-initial');
+      this.highlightGeometry(null);
+    }
   }
 
   handleGeometryFillPointerDown(
@@ -156,17 +198,22 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
     _viewportControls: ViewportControls,
     geometryId: Entity['id'],
   ) {
+    if (this.state !== 'picking-geometry') {
+      return false;
+    }
+
     const geometryStore = this.getGeometryStore();
-    if (geometryStore.workingFilter?.type === 'mirror') {
+    if (geometryStore.workingFilter?.type === 'pattern') {
       geometryStore.setWorkingFilter({ ...geometryStore.workingFilter, geometryId });
     } else {
-      this.showTooltip('mirror-place-point-a');
-      this.state = 'placing-point-a';
+      this.showTooltip('pattern-radial-place-center');
+      this.state = 'placing-center';
       geometryStore.setWorkingFilter({
-        type: 'mirror',
+        type: 'pattern',
+        mode: 'radial',
         geometryId,
-        pointA: null,
-        pointB: null,
+        center: null,
+        radius: null,
         shadowsFilterId: null,
       });
     }
@@ -178,7 +225,7 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
 
     this.highlightGeometry(null);
     this.getGeometryStore().clearWorkingFilter();
-    this.showTooltip('mirror-initial');
+    this.showTooltip('pattern-initial');
 
     this.previewSheetPos = null;
     this.emit('previewSheetPositionChange', null);
@@ -186,18 +233,23 @@ export class MirrorTool extends BaseTool<MirrorToolEvents, 'mirror'> {
 
   private complete() {
     const workingFilter = this.getGeometryStore().workingFilter;
-    if (workingFilter?.type !== 'mirror' || !workingFilter.pointA || !workingFilter.pointB) {
+    if (
+      workingFilter?.type !== 'pattern' ||
+      workingFilter.mode !== 'radial' ||
+      !workingFilter.center ||
+      !workingFilter.radius
+    ) {
       return;
     }
-    const pointA = workingFilter.pointA;
-    const pointB = workingFilter.pointB;
+    const center = workingFilter.center;
+    const radius = workingFilter.radius;
 
     this.getHistoryManager().applyTransaction(
-      'add-mirror-filter',
+      'add-pattern-radial-filter',
       () => {
         this.getGeometryStore().add(
           ID_PREFIXES.filter,
-          MirrorFilter.create(workingFilter.geometryId, pointA, pointB),
+          PatternFilter.createRadial(workingFilter.geometryId, center, radius),
         );
 
         // After making the filter, automatically apply / unapply the associated fill color to the

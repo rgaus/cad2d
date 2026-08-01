@@ -23,6 +23,7 @@ const defaultOptions: SnappingOptions = {
   secondaryGridSize: null,
   ctrlHeld: false,
   superHeld: false,
+  viewportScale: 1,
 };
 
 const ctrlOptions: SnappingOptions = { ...defaultOptions, ctrlHeld: true };

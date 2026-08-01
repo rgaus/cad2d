@@ -230,3 +230,5 @@ export class SheetPosition extends Position {
     return this.toWorld().toScreen(state);
   }
 }
+
+(globalThis as any).SheetPosition = SheetPosition;

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
-import { useGeometries } from '@/hooks/useGeoemtries';
-import { GeometryComponent } from '@/lib/entity';
+import { useRenderableGeometries } from '@/hooks/useEntities';
+import { Entity, GeometryComponent } from '@/lib/entity';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SPRITE_SCALE_FACTOR, SnapHintDiamondTexture } from '@/lib/textures';
@@ -9,7 +9,7 @@ import { SheetPosition } from '@/lib/viewport/types';
 
 const ShapsHintOverlaps: React.FunctionComponent = () => {
   const { viewportScale, geometryStore, snapHintsVisibility } = useViewportContext();
-  const geometries = useGeometries(geometryStore);
+  const geometries = useRenderableGeometries(geometryStore);
 
   const keyPoints = useMemo(() => {
     if (!snapHintsVisibility?.keyPoints) {
@@ -19,12 +19,12 @@ const ShapsHintOverlaps: React.FunctionComponent = () => {
     const pts: Array<SheetPosition> = [];
 
     for (const geometry of geometries) {
-      const kp = GeometryComponent.keyPoints(geometry);
+      const kp = Entity.keyPoints(geometry);
       for (const p of kp.perimeter) {
         pts.push(p);
       }
       for (const p of Object.values(kp.extras)) {
-        pts.push(p);
+        pts.push(p as SheetPosition);
       }
     }
 

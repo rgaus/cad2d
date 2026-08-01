@@ -4,7 +4,9 @@ import { type Id } from '@/lib/entity';
 import {
   ConstraintComponent,
   DatumComponent,
+  Entity,
   FillColorComponent,
+  FrameComponent,
   GeometryComponent,
   LinkDimensionsComponent,
   RenderOrderComponent,
@@ -616,6 +618,27 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           }),
         );
         break;
+      case 'frame-move': {
+        const geom = this.geometryStore.getById(entry.id);
+        if (!geom || !Entity.hasComponent(geom, FrameComponent)) {
+          break;
+        }
+        this.geometryStore.updateByIdDirect(entry.id, (g) => {
+          if (!Entity.hasComponent(g, FrameComponent)) {
+            return g;
+          }
+          return FrameComponent.update(g, {
+            upperLeft: entry.afterUpperLeft,
+            lowerRight: entry.afterLowerRight,
+          });
+        });
+        break;
+      }
+      case 'pattern-radial-filter-move-center':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, { center: entry.afterCenter }),
+        );
+        break;
       default:
         entry satisfies never;
         break;
@@ -1007,6 +1030,27 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
             pointA: entry.beforePointA,
             pointB: entry.beforePointB,
           }),
+        );
+        break;
+      case 'frame-move': {
+        const geom = this.geometryStore.getById(entry.id);
+        if (!geom || !Entity.hasComponent(geom, FrameComponent)) {
+          break;
+        }
+        this.geometryStore.updateByIdDirect(entry.id, (g) => {
+          if (!Entity.hasComponent(g, FrameComponent)) {
+            return g;
+          }
+          return FrameComponent.update(g, {
+            upperLeft: entry.beforeUpperLeft,
+            lowerRight: entry.beforeLowerRight,
+          });
+        });
+        break;
+      }
+      case 'pattern-radial-filter-move-center':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, { center: entry.beforeCenter }),
         );
         break;
       default:

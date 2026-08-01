@@ -492,6 +492,7 @@ export class DatumTool extends BaseTool<ConstraintToolEvents, 'datum'> {
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale: viewport.scale,
     });
     this.getGeometryStore().setWorkingDatum({ position: snapped });
   }
@@ -504,6 +505,7 @@ export class DatumTool extends BaseTool<ConstraintToolEvents, 'datum'> {
       secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
       ctrlHeld: this.toolManager.getCtrlHeld(),
       superHeld: this.toolManager.getSuperHeld(),
+      viewportScale: viewport.scale,
     });
     this.getGeometryStore().add(ID_PREFIXES.datum, Datum.create(snapped));
   }

@@ -46,6 +46,7 @@ import {
   Entity,
   EntityOmitComponents,
   FillColorComponent,
+  FrameComponent,
   GeometryComponent,
   type Id,
   LinkDimensionsComponent,
@@ -478,13 +479,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * FIXME: this is TEMPORARY, get rid of this when all renderable geometries are unified into a
    * single component like constraints... */
   getRenderableGeometryById(id: Entity['id']) {
-    return this.getByIdWithOneOfComponents(id, GeometryComponent, DatumComponent);
+    return this.getByIdWithOneOfComponents(id, GeometryComponent, DatumComponent, FrameComponent);
   }
   /** Returns a renderable geometry if one exists for the given it.
    * FIXME: this is TEMPORARY, get rid of this when all renderable geometries are unified into a
    * single component like constraints... */
   listRenderableGeometries() {
-    return this.listWithOneOfComponents(GeometryComponent, DatumComponent);
+    return this.listWithOneOfComponents(GeometryComponent, DatumComponent, FrameComponent);
   }
 
   /**
@@ -590,6 +591,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         const filter = FilterComponent.get(filterGeom);
         switch (filter.type) {
           case 'mirror':
+          case 'pattern':
             if (filter.geometryId === id) {
               this.historyManager.push(UndoEntry.deleteGeometry(filterGeom));
               this.deleteByIdDirect(filterGeom.id);

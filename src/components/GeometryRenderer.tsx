@@ -3,10 +3,10 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useClosestPointToSegment } from '@/hooks/useClosestPointToSegment';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
-import { useGeometries } from '@/hooks/useGeoemtries';
+import { useGeometries } from '@/hooks/useEntities';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { FillColorComponent, GeometryComponent, PolygonSegment } from '@/lib/entity';
-import { type Geometry } from '@/lib/entity/geometry';
+import { type Geometry, GeometryData } from '@/lib/entity/geometry';
 import { BoundingBox, CohenSutherland } from '@/lib/math';
 import { ListLayers, RendererLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
@@ -641,7 +641,7 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
                 center={renderShape.center}
                 radiusX={renderShape.radiusX}
                 radiusY={renderShape.radiusY}
-                showCenterCrosshairs={isSelected}
+                showCenterCrosshairs={isSelected && renderShape.primary}
                 fillColor={fillColor}
                 stroke={stroke}
                 strokeWidth={strokeWidth}
@@ -799,7 +799,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
   const idPolygonDataPairs = useMemo(
     () =>
       geometries.flatMap((g) => {
-        const data = GeometryComponent.get(g);
+        const data = GeometryComponent.get<GeometryData>(g);
         if (data.type === 'polygon') {
           return [[g.id, data] as const];
         } else {
