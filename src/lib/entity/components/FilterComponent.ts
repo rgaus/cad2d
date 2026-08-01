@@ -32,10 +32,10 @@ export namespace FilterComponent {
     return geometry.components.filter.data;
   }
 
-  export function update(
-    geometry: Entity<FilterComponent>,
+  export function update<E extends Entity<FilterComponent>>(
+    geometry: E,
     partial: Partial<FilterData>,
-  ): Entity<FilterComponent> {
+  ): E {
     const merged = { ...geometry.components.filter.data, ...partial } as FilterData;
     return {
       ...geometry,

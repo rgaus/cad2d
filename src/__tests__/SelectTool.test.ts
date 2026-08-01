@@ -23,7 +23,7 @@ import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
-import { PatternFilter } from '@/lib/entity/filters/pattern';
+import { PatternFilter, PatternRadialFilterData } from '@/lib/entity/filters/pattern';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
@@ -6019,6 +6019,91 @@ describe('SelectTool', () => {
       expect(data.lowerRight.y).toBeCloseTo(12, 0);
       expect(data.upperLeft.x).toBeCloseTo(2, 0);
       expect(data.lowerRight.x).toBeCloseTo(8, 0);
+    });
+  });
+
+  describe('radial filter center drag', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('drags the center and records history with undo/redo', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createRadial(rect.id, new SheetPosition(5, 5), 3, { count: 6 }),
+      );
+
+      // Start drag at center (5, 5)
+      const startScreen = new SheetPosition(5, 5).toScreen(viewportControls.getState().viewport);
+      selectTool.handleFilterEndpointPointerDown<PatternRadialFilterData>(
+        new ScreenPosition(startScreen.x, startScreen.y),
+        viewportControls,
+        filter.id,
+        'center' as any,
+      );
+
+      // Drag to (8, 9)
+      const targetSheet = new SheetPosition(8, 9);
+      const targetScreen = targetSheet.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      // Verify center was updated
+      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const data = FilterComponent.get(updated);
+      if (data.type !== 'pattern' || data.mode !== 'radial') {
+        throw new Error('Expected radial pattern filter');
+      }
+      expect(data.center.x).toBeCloseTo(8, 0);
+      expect(data.center.y).toBeCloseTo(9, 0);
+      expect(data.radius).toBeCloseTo(3, 0);
+      expect(data.repeats.count).toBe(6);
+
+      // Undo — center restored
+      historyManager.undo();
+      const afterUndo = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const undoData = FilterComponent.get(afterUndo);
+      if (undoData.type !== 'pattern' || undoData.mode !== 'radial') {
+        throw new Error('Expected radial pattern filter');
+      }
+      expect(undoData.center.x).toBeCloseTo(5, 0);
+      expect(undoData.center.y).toBeCloseTo(5, 0);
+
+      // Redo — center restored to dragged position
+      historyManager.redo();
+      const afterRedo = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const redoData = FilterComponent.get(afterRedo);
+      if (redoData.type !== 'pattern' || redoData.mode !== 'radial') {
+        throw new Error('Expected radial pattern filter');
+      }
+      expect(redoData.center.x).toBeCloseTo(8, 0);
+      expect(redoData.center.y).toBeCloseTo(9, 0);
     });
   });
 });
