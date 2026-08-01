@@ -27,6 +27,7 @@ import {
   type Id,
   RenderOrderComponent,
 } from '@/lib/entity';
+import { type Filter } from '@/lib/entity/filters';
 import { type Geometry } from '@/lib/entity/geometry';
 import { KeyCombo } from '@/lib/index-mapper';
 import {
@@ -261,6 +262,9 @@ function ListLayersRenderer<Pairs extends Array<ListLayersItemsPair>>(props: {
   const items = props.layersItemsPairs
     .flatMap(([layers, items], index) => {
       const layer = layers[props.layerName];
+      if (typeof layer === 'undefined') {
+        return [];
+      }
       if (typeof layer !== 'function') {
         return [{ key: `${index}`, renderOrder: 0, jsx: layer }];
       }
@@ -296,6 +300,9 @@ export default function ViewportRenderer2D({
     height: number;
   } | null>(null);
   const [geometries, setGeometries] = useState<Array<Geometry>>([]);
+  const [filtersByGeometryId, setFiltersByGeometryId] = useState<
+    Map<Geometry['id'], Array<Filter>>
+  >(new Map());
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
   const [datums, setDatums] = useState<Array<Datum>>([]);
@@ -363,7 +370,18 @@ export default function ViewportRenderer2D({
     geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
 
     const refreshAll = () => {
-      setGeometries(geometryStore.listWithComponents(GeometryComponent, RenderOrderComponent));
+      const geometries = geometryStore.listWithComponents(GeometryComponent, RenderOrderComponent);
+      setGeometries(geometries);
+
+      setFiltersByGeometryId(
+        new Map(
+          geometries.map((geom) => {
+            const filters = geometryStore.findFiltersByGeometryId(geom.id);
+            return [geom.id, filters] as const;
+          }),
+        ),
+      );
+
       setDatums(geometryStore.listWithComponent(DatumComponent));
     };
     geometryStore.on('geometryAdded', refreshAll);
@@ -725,6 +743,7 @@ export default function ViewportRenderer2D({
         mouseScreenPos, // FIXME: break this out into another context, it will change often
         snapHintsVisibility,
         highlightedGeometryId,
+        filtersByGeometryId,
       }) satisfies ViewportContextData,
     [
       sheet,
@@ -733,6 +752,7 @@ export default function ViewportRenderer2D({
       activeTool,
       selectionManager,
       mouseScreenPos,
+      filtersByGeometryId,
     ],
   );
 
@@ -1186,7 +1206,7 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {keyPointSnapInfo && viewportControlsState ? (
+        {keyPointSnapInfo && viewportControlsState && activeTool.type !== 'edit' ? (
           <HoverTooltip
             position={keyPointSnapInfo.sheetPosition
               .toWorld()

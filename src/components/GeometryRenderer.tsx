@@ -1,5 +1,5 @@
 import { EventMode, FederatedPointerEvent, Graphics } from 'pixi.js';
-import { Fragment, useCallback, useMemo } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useClosestPointToSegment } from '@/hooks/useClosestPointToSegment';
 import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
@@ -9,7 +9,7 @@ import { FillColorComponent, GeometryComponent, PolygonSegment } from '@/lib/ent
 import { type Geometry } from '@/lib/entity/geometry';
 import { BoundingBox, CohenSutherland } from '@/lib/math';
 import { ListLayers, RendererLayers } from '@/lib/renderer';
-import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import {
   HIGHLIGHT_COLOR_FILL,
   HIGHLIGHT_COLOR_STROKE,
@@ -418,9 +418,15 @@ const MIN_POLYGON_HIGH_FIDELITY_SIZE_PX = 48;
 const PROXIMITY_EDGE_DETECTOR_RADIUS_PX = 64;
 
 const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geometry }) => {
-  const { activeTool, viewportControls, viewportScale, mouseScreenPos, highlightedGeometryId } =
-    useViewportContext();
-  const geometryData = GeometryComponent.get(geometry);
+  const {
+    activeTool,
+    viewportControls,
+    viewportScale,
+    mouseScreenPos,
+    highlightedGeometryId,
+    filtersByGeometryId,
+    sheet,
+  } = useViewportContext();
 
   let fillColor = FillColorComponent.getOptional(geometry);
   let stroke = 0x000000;
@@ -485,148 +491,175 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
     );
   }, [activeTool.type, viewportControls, viewportScale, mouseScreenPos]);
 
-  switch (geometryData.type) {
-    case 'polygon':
-      return (
-        <>
-          <GeometryShapeRenderer
-            type="polygon"
-            segments={geometryData.points}
-            closed={geometryData.closed}
-            fillColor={fillColor}
-            stroke={stroke}
-            strokeWidth={strokeWidth}
-            viewportScale={viewportScale}
-            showHintStroke={isSelected && selectedIds.length > 1}
-            eventMode="static"
-            onFillPointerDown={onFillPointerDown}
-            onFillPointerOver={onFillPointerOver}
-            onFillPointerOut={onFillPointerOut}
-          />
+  const [sheetDefaultUnit, setSheetDefaultUnit] = useState<Sheet['defaultUnit']>(sheet.defaultUnit);
+  useEffect(() => {
+    sheet.on('defaultUnitChange', setSheetDefaultUnit);
+    return () => {
+      sheet.off('defaultUnitChange', setSheetDefaultUnit);
+    };
+  }, [sheet]);
 
-          {/* Edge detectors for non-closed, non-selected polygons based on mouse proximity.
-           * Only renders detectors for segments that might intersect the proximity AABB.
-           * This makes it easier to select edges on open polygons. */}
-          {!closed && !isSelected && mousePositionProximityAABB ? (
-            <>
-              {geometryData.points.slice(1).map((seg, i) => {
-                const prevSeg = geometryData.points[i];
-                if (!prevSeg) {
-                  return null;
-                }
+  const filters = useMemo(
+    () => filtersByGeometryId.get(geometry.id),
+    [filtersByGeometryId, geometry.id],
+  );
+  const renderShapes = useMemo(() => {
+    return GeometryComponent.getRenderShapes(geometry, sheetDefaultUnit, filters);
+  }, [geometry, sheetDefaultUnit, filters]);
 
-                // Use Cohen-Sutherland to quickly cull segments that don't intersect the proximity box
-                if (seg.type === 'point') {
-                  const segment = { start: prevSeg.point, end: seg.point };
-                  if (
-                    !CohenSutherland.lineSegmentMightIntersectBoundingBox(
-                      segment,
-                      mousePositionProximityAABB,
-                    )
-                  ) {
-                    return null;
-                  }
-                  return (
-                    <LineSegmentEdgeHitDetector
-                      key={`prox-edge-${i}`}
-                      startPosition={prevSeg.point}
-                      endPosition={seg.point}
-                      scale={viewportScale}
-                      onPointerDown={onFillPointerDown}
-                    />
-                  );
-                } else if (seg.type === 'arc-quadratic') {
-                  const curve: QuadraticCurve<SheetPosition> = {
-                    start: prevSeg.point,
-                    end: seg.point,
-                    controlPoint: seg.controlPoint,
-                  };
-                  if (
-                    !CohenSutherland.quadraticCurveMightIntersectBoundingBox(
-                      curve,
-                      mousePositionProximityAABB,
-                    )
-                  ) {
-                    return null;
-                  }
-                  return (
-                    <CurveEdgeHitDetector
-                      key={`prox-curve-edge-${i}`}
-                      curve={curve}
-                      scale={viewportScale}
-                      onPointerDown={onFillPointerDown}
-                    />
-                  );
-                } else if (seg.type === 'arc-cubic') {
-                  const curve: CubicCurve<SheetPosition> = {
-                    start: prevSeg.point,
-                    end: seg.point,
-                    controlPointA: seg.controlPointA,
-                    controlPointB: seg.controlPointB,
-                  };
-                  if (
-                    !CohenSutherland.cubicCurveMightIntersectBoundingBox(
-                      curve,
-                      mousePositionProximityAABB,
-                    )
-                  ) {
-                    return null;
-                  }
-                  return (
-                    <CurveEdgeHitDetector
-                      key={`prox-curve-edge-${i}`}
-                      curve={curve}
-                      scale={viewportScale}
-                      onPointerDown={onFillPointerDown}
-                    />
-                  );
-                }
-                return null;
-              })}
-            </>
-          ) : null}
-        </>
-      );
-    case 'rectangle':
-      return (
-        <GeometryShapeRenderer
-          type="rectangle"
-          upperLeft={geometryData.upperLeft}
-          lowerRight={geometryData.lowerRight}
-          fillColor={fillColor}
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-          viewportScale={viewportScale}
-          showHintStroke={isSelected && selectedIds.length > 1}
-          eventMode="static"
-          onFillPointerDown={onFillPointerDown}
-          onFillPointerOver={onFillPointerOver}
-          onFillPointerOut={onFillPointerOut}
-        />
-      );
-    case 'ellipse':
-      return (
-        <GeometryShapeRenderer
-          type="ellipse"
-          center={geometryData.center}
-          radiusX={geometryData.radiusX}
-          radiusY={geometryData.radiusY}
-          showCenterCrosshairs={isSelected}
-          fillColor={fillColor}
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-          viewportScale={viewportScale}
-          showHintStroke={isSelected && selectedIds.length > 1}
-          eventMode="static"
-          onFillPointerDown={onFillPointerDown}
-          onFillPointerOver={onFillPointerOver}
-          onFillPointerOut={onFillPointerOut}
-        />
-      );
-    default:
-      geometryData satisfies never;
-      break;
-  }
+  return (
+    <>
+      {renderShapes.map((renderShape) => {
+        switch (renderShape.shape) {
+          case 'polygon':
+            return (
+              <Fragment key={renderShape.key}>
+                <GeometryShapeRenderer
+                  type="polygon"
+                  segments={renderShape.points}
+                  closed={renderShape.closed}
+                  fillColor={fillColor}
+                  stroke={stroke}
+                  strokeWidth={strokeWidth}
+                  viewportScale={viewportScale}
+                  showHintStroke={isSelected && selectedIds.length > 1}
+                  eventMode="static"
+                  onFillPointerDown={onFillPointerDown}
+                  onFillPointerOver={onFillPointerOver}
+                  onFillPointerOut={onFillPointerOut}
+                />
+
+                {/* Edge detectors for non-closed, non-selected polygons based on mouse proximity.
+                 * Only renders detectors for segments that might intersect the proximity AABB.
+                 * This makes it easier to select edges on open polygons. */}
+                {renderShape.primary && !closed && !isSelected && mousePositionProximityAABB ? (
+                  <>
+                    {renderShape.points.slice(1).map((seg, i) => {
+                      const prevSeg = renderShape.points[i];
+                      if (!prevSeg) {
+                        return null;
+                      }
+
+                      // Use Cohen-Sutherland to quickly cull segments that don't intersect the proximity box
+                      switch (seg.type) {
+                        case 'point':
+                          const segment = { start: prevSeg.point, end: seg.point };
+                          if (
+                            !CohenSutherland.lineSegmentMightIntersectBoundingBox(
+                              segment,
+                              mousePositionProximityAABB,
+                            )
+                          ) {
+                            return null;
+                          }
+                          return (
+                            <LineSegmentEdgeHitDetector
+                              key={`prox-edge-${i}`}
+                              startPosition={prevSeg.point}
+                              endPosition={seg.point}
+                              scale={viewportScale}
+                              onPointerDown={onFillPointerDown}
+                            />
+                          );
+                        case 'arc-quadratic':
+                          const quadraticCurve: QuadraticCurve<SheetPosition> = {
+                            start: prevSeg.point,
+                            end: seg.point,
+                            controlPoint: seg.controlPoint,
+                          };
+                          if (
+                            !CohenSutherland.quadraticCurveMightIntersectBoundingBox(
+                              quadraticCurve,
+                              mousePositionProximityAABB,
+                            )
+                          ) {
+                            return null;
+                          }
+                          return (
+                            <CurveEdgeHitDetector
+                              key={`prox-curve-edge-${i}`}
+                              curve={quadraticCurve}
+                              scale={viewportScale}
+                              onPointerDown={onFillPointerDown}
+                            />
+                          );
+                        case 'arc-cubic':
+                          const cubicCurve: CubicCurve<SheetPosition> = {
+                            start: prevSeg.point,
+                            end: seg.point,
+                            controlPointA: seg.controlPointA,
+                            controlPointB: seg.controlPointB,
+                          };
+                          if (
+                            !CohenSutherland.cubicCurveMightIntersectBoundingBox(
+                              cubicCurve,
+                              mousePositionProximityAABB,
+                            )
+                          ) {
+                            return null;
+                          }
+                          return (
+                            <CurveEdgeHitDetector
+                              key={`prox-curve-edge-${i}`}
+                              curve={cubicCurve}
+                              scale={viewportScale}
+                              onPointerDown={onFillPointerDown}
+                            />
+                          );
+                        default:
+                          seg satisfies never;
+                          break;
+                      }
+                    })}
+                  </>
+                ) : null}
+              </Fragment>
+            );
+          case 'rectangle':
+            return (
+              <GeometryShapeRenderer
+                key={renderShape.key}
+                type="rectangle"
+                upperLeft={renderShape.upperLeft}
+                lowerRight={renderShape.lowerRight}
+                fillColor={fillColor}
+                stroke={stroke}
+                strokeWidth={strokeWidth}
+                viewportScale={viewportScale}
+                showHintStroke={isSelected && selectedIds.length > 1}
+                eventMode="static"
+                onFillPointerDown={onFillPointerDown}
+                onFillPointerOver={onFillPointerOver}
+                onFillPointerOut={onFillPointerOut}
+              />
+            );
+          case 'ellipse':
+            return (
+              <GeometryShapeRenderer
+                key={renderShape.key}
+                type="ellipse"
+                center={renderShape.center}
+                radiusX={renderShape.radiusX}
+                radiusY={renderShape.radiusY}
+                showCenterCrosshairs={isSelected}
+                fillColor={fillColor}
+                stroke={stroke}
+                strokeWidth={strokeWidth}
+                viewportScale={viewportScale}
+                showHintStroke={isSelected && selectedIds.length > 1}
+                eventMode="static"
+                onFillPointerDown={onFillPointerDown}
+                onFillPointerOver={onFillPointerOver}
+                onFillPointerOut={onFillPointerOut}
+              />
+            );
+          default:
+            renderShape satisfies never;
+            break;
+        }
+      })}
+    </>
+  );
 };
 
 type PolygonDecorationsRendererProps = {

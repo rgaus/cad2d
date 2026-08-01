@@ -4,7 +4,7 @@ The constraint system has two layers: user-facing constraints (persisted, visibl
 
 ## User-Facing Constraints
 
-Currently there are two user-facing types: `LinearConstraint` (target distance between two endpoints) and `PerpendicularConstraint` (right angle between three points — center, A, and B, where center→A ⟂ center→B).
+Currently there are two user-facing types: `LinearConstraint` (target distance between two endpoints) and `PerpendicularConstraint` (right angle between three points -- center, A, and B, where center->A is perpendicular to center->B).
 
 **Endpoints** (`ConstraintEndpoint`) can be:
 
@@ -52,7 +52,7 @@ Triggered by `ReconstrainAction` (key R) or programmatically:
    - Fixed point pins for vertices that should not move
 2. `gradientDescent()` runs the solver
 3. `DCELShapeIndex.computeShapesForVertexId()` maps solved vertex positions back to shape-level updates (polygon point indices, rectangle corners, ellipse key points)
-4. Each shape is updated via `updatePolygon()`/`updateRectangle()`/`updateEllipse()`
+4. Each shape is updated via `GeometryComponent.update` with the new geometry data
 5. DCEL is immediatly resynced for all touched shapes
 6. Entire solve is wrapped in a single history transaction
 

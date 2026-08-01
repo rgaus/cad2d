@@ -26,14 +26,9 @@ Within each layer, shapes are sorted ascending by `renderOrder: number`. New sha
 | Raise to Top | `renderOrder = 0` |
 | Lower to Bottom | `renderOrder = getMaxRenderOrder()` |
 
-## Per-Shape-Type Rendering
+## Rendering
 
-Each renderer file exports `ListLayers` or `SingleLayers` maps from `RendererLayers` to rendering components. For example, `PolygonLayers[Solids]` renders `<PolygonSolid>`, `PolygonLayers[Overlays]` renders `<PolygonOverlay>`.
-
-The `ViewportRenderer2D` composes all layers by iterating the layer order and for each layer, rendering:
-
-1. `ListLayersRenderer` -- iterates completed shapes (polygons, rectangles, ellipses) sorted by renderOrder
-2. `SingleLayerRenderer`s -- global overlays (constraints, working shapes, DCEL debug)
+All geometries are rendered by `GeometryRenderer.tsx` which iterates entities from the store, reads their `GeometryComponent` data, and dispatches to per-type draw routines via `switch (data.type)`.
 
 ## State Not Serialized
 
