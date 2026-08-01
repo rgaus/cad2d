@@ -4,6 +4,7 @@ import { useViewportContext } from '@/contexts/viewport-context';
 import { FaceId, HalfEdge, HalfEdgeId } from '@/lib/dcel';
 import { Vector2 } from '@/lib/math';
 import { SingleLayers } from '@/lib/renderer';
+import { SPRITE_SCALE_FACTOR } from '@/lib/textures';
 import { getDimensionTextTexture } from '@/lib/viewport/dimensionUtils';
 import { WorldPosition } from '@/lib/viewport/types';
 
@@ -262,7 +263,7 @@ const DCELDebugRendererOverlays: React.FunctionComponent = () => {
     return null;
   }
 
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * SPRITE_SCALE_FACTOR);
 
   return (
     <pixiContainer>

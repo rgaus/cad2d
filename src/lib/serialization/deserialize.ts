@@ -5,9 +5,8 @@ import {
   ConstraintComponent,
   ConstraintEndpoint,
   Datum,
-  DatumComponent,
   Ellipse,
-  Geometry,
+  Entity,
   HorizontalConstraint,
   Id,
   LinearConstraint,
@@ -18,8 +17,8 @@ import {
   Rectangle,
   RenderOrderComponent,
   VerticalConstraint,
-} from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import {
   CentimetersLength,
   FeetLength,
@@ -49,7 +48,7 @@ export type ParseResult = {
   /** Parsed ellipses. */
   ellipses: Array<Ellipse>;
   /** Parsed constraints. */
-  constraints: Array<Geometry<ConstraintComponent>>;
+  constraints: Array<Entity<ConstraintComponent>>;
   /** Parsed datums. */
   datums: Array<Datum>;
   /** Validation warnings logged during parsing. */
@@ -629,7 +628,7 @@ function parseConstraint(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
-): Geometry<ConstraintComponent> | null {
+): Entity<ConstraintComponent> | null {
   let id = attrs.id as string | undefined;
   if (typeof id === 'undefined' || doesIdExist(id)) {
     // Generate id if the id was missing or already exists
@@ -732,7 +731,7 @@ function parsePerpendicularConstraint(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
-): Geometry<ConstraintComponent> | null {
+): Entity<ConstraintComponent> | null {
   let id = attrs.id as string | undefined;
   if (typeof id === 'undefined' || doesIdExist(id)) {
     // Generate id if the id was missing or already exists
@@ -781,7 +780,7 @@ function parseParallelConstraint(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
-): Geometry<ConstraintComponent> | null {
+): Entity<ConstraintComponent> | null {
   let id = attrs.id as string | undefined;
   if (typeof id === 'undefined' || doesIdExist(id)) {
     // Generate id if the id was missing or already exists
@@ -831,7 +830,7 @@ function parseHorizontalConstraint(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
-): Geometry<ConstraintComponent> | null {
+): Entity<ConstraintComponent> | null {
   let id = attrs.id as string | undefined;
   if (typeof id === 'undefined' || doesIdExist(id)) {
     id = generateId(ID_PREFIXES.constraint);
@@ -877,7 +876,7 @@ function parseVerticalConstraint(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
-): Geometry<ConstraintComponent> | null {
+): Entity<ConstraintComponent> | null {
   let id = attrs.id as string | undefined;
   if (typeof id === 'undefined' || doesIdExist(id)) {
     id = generateId(ID_PREFIXES.constraint);
@@ -923,7 +922,7 @@ function parseColinearConstraint(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
-): Geometry<ConstraintComponent> | null {
+): Entity<ConstraintComponent> | null {
   let id = attrs.id as string | undefined;
   if (typeof id === 'undefined' || doesIdExist(id)) {
     id = generateId(ID_PREFIXES.constraint);

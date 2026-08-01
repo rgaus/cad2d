@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingDatum } from '@/hooks/useWorkingDatum';
-import { DATUM_CIRCLE_RADIUS_PX, Datum, DatumComponent } from '@/lib/geometry';
+import { DATUM_CIRCLE_RADIUS_PX, Datum, DatumComponent } from '@/lib/entity';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { DatumCrosshairTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
@@ -27,11 +27,17 @@ const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry })
       if (!viewportControls) {
         return;
       }
-      activeTool.handleGeometryFillPointerDown?.(
+      const shouldCancel = activeTool.handleDatumRingPointerDown(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         geometry.id,
       );
+
+      if (shouldCancel) {
+        // Don't trigger handleMouseDown too
+        e.preventDefault();
+        e.stopPropagation();
+      }
     },
     [activeTool, geometry.id],
   );

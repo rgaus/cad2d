@@ -3,8 +3,8 @@ import debounce from 'lodash.debounce';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HoverTooltip } from '@/app/components/HoverTooltip';
 import { KeyboardShortcut } from '@/app/components/KeyboardShortcut';
-import { FillColorComponent, Geometry, Id, Polygon, RenderOrderComponent } from '@/lib/geometry';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
+import { Entity, FillColorComponent, Id, Polygon, RenderOrderComponent } from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { BoundingBox } from '@/lib/math';
 import { cn } from '@/lib/utils';
 
@@ -101,7 +101,7 @@ const RenderOrderSlider: React.FunctionComponent<{
     if (!geometry) {
       return [];
     }
-    const bounds = Geometry.boundingBox(geometry);
+    const bounds = Entity.boundingBox(geometry);
     if (!bounds) {
       return [];
     }
@@ -116,12 +116,12 @@ const RenderOrderSlider: React.FunctionComponent<{
       if (other.id === geometry.id) {
         continue;
       }
-      const otherBounds = Geometry.boundingBox(other);
+      const otherBounds = Entity.boundingBox(other);
       if (!otherBounds) {
         continue;
       }
 
-      const otherRenderOrder = Geometry.hasComponent(other, RenderOrderComponent)
+      const otherRenderOrder = Entity.hasComponent(other, RenderOrderComponent)
         ? RenderOrderComponent.get(other)
         : null;
       const otherFillColor = FillColorComponent.getOptional(other);

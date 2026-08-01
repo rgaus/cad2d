@@ -6,14 +6,15 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { ConstraintLayers } from '@/components/ConstraintsRenderer';
 import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
 import { DatumLayers, WorkingDatumLayers } from '@/components/DatumRenderer';
-import { EllipseLayers, WorkingEllipseLayers } from '@/components/EllipseRenderer';
 import { FilterLayers } from '@/components/FilterRenderer';
+import { GeometryLayers } from '@/components/GeometryRenderer';
 import { HandleSprites } from '@/components/HandleSprites';
-import { PolygonLayers, WorkingPolygonLayers } from '@/components/PolygonRenderer';
-import { RectangleLayers, WorkingRectangleLayers } from '@/components/RectangleRenderer';
 import { SelectionBoxOverlay } from '@/components/SelectionBoxOverlay';
 import { SheetRenderer } from '@/components/SheetRenderer';
 import { SnapsHintLayers } from '@/components/SnapHintsLayers';
+import { WorkingEllipseLayers } from '@/components/WorkingEllipseRenderer';
+import { WorkingPolygonLayers } from '@/components/WorkingPolygonRenderer';
+import { WorkingRectangleLayers } from '@/components/WorkingRectangleRenderer';
 import { ViewportContextData, ViewportContextProvider } from '@/contexts/viewport-context';
 import { useDevicePixelRatio } from '@/hooks';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
@@ -21,17 +22,12 @@ import { PLATFORM_ALT_KEY_STRING, PLATFORM_SUPER_KEY_STRING } from '@/lib/detect
 import {
   type Datum,
   DatumComponent,
-  type Ellipse,
-  EllipseComponent,
-  FillColorComponent,
-  Geometry,
+  Entity,
+  GeometryComponent,
   type Id,
-  LinkDimensionsComponent,
-  PolygonComponent,
-  type Rectangle,
-  RectangleComponent,
   RenderOrderComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
+import { type Geometry } from '@/lib/entity/geometry';
 import { KeyCombo } from '@/lib/index-mapper';
 import {
   ListLayers,
@@ -58,7 +54,6 @@ import { ToolManager } from '@/lib/tools/ToolManager';
 import { type SplitPoint, TrimSegment } from '@/lib/tools/TrimSplitTool';
 import {
   WorkingConstraint,
-  type WorkingDatum,
   type WorkingEllipse,
   type WorkingPolygon,
   type WorkingRectangle,
@@ -254,9 +249,9 @@ function ListLayerRenderer<
 }
 
 type ListLayersItemsPair<
-  Item extends { id: Id } & Geometry<RenderOrderComponent> = {
+  Item extends { id: Id } & Entity<RenderOrderComponent> = {
     id: Id;
-  } & Geometry<RenderOrderComponent>,
+  } & Entity<RenderOrderComponent>,
 > = [ListLayers<Item, React.ReactNode>, Array<Item>];
 
 function ListLayersRenderer<Pairs extends Array<ListLayersItemsPair>>(props: {
@@ -300,11 +295,9 @@ export default function ViewportRenderer2D({
     width: number;
     height: number;
   } | null>(null);
-  const [polygons, setPolygons] = useState<Array<Geometry<PolygonComponent>>>([]);
+  const [geometries, setGeometries] = useState<Array<Geometry>>([]);
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
-  const [rectangles, setRectangles] = useState<Array<Rectangle>>([]);
   const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
-  const [ellipses, setEllipses] = useState<Array<Ellipse>>([]);
   const [datums, setDatums] = useState<Array<Datum>>([]);
   const [workingEllipse, setWorkingEllipse] = useState<WorkingEllipse | null>(null);
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
@@ -321,7 +314,7 @@ export default function ViewportRenderer2D({
   const [ellipseIsCenterMode, setEllipseIsCenterMode] = useState(false);
   const [isHoveringPolygonEdge, setIsHoveringPolygonEdge] = useState(false);
   const [visibleTooltip, setVisibleTooltip] = useState<string | null>(null);
-  const [highlightedGeometryId, setHighlightedGeometryId] = useState<Geometry['id'] | null>(null);
+  const [highlightedGeometryId, setHighlightedGeometryId] = useState<Entity['id'] | null>(null);
   const [closestPointToSegment, setClosestPointToSegment] = useState<{
     polygonId: string;
     segmentIndex: number;
@@ -370,23 +363,7 @@ export default function ViewportRenderer2D({
     geometryStore.on('workingConstraintsChanged', setWorkingConstraints);
 
     const refreshAll = () => {
-      setRectangles(
-        geometryStore.listWithComponents(
-          RectangleComponent,
-          FillColorComponent,
-          LinkDimensionsComponent,
-          RenderOrderComponent,
-        ),
-      );
-      setEllipses(
-        geometryStore.listWithComponents(
-          EllipseComponent,
-          FillColorComponent,
-          LinkDimensionsComponent,
-          RenderOrderComponent,
-        ),
-      );
-      setPolygons(geometryStore.listWithComponent(PolygonComponent));
+      setGeometries(geometryStore.listWithComponents(GeometryComponent, RenderOrderComponent));
       setDatums(geometryStore.listWithComponent(DatumComponent));
     };
     geometryStore.on('geometryAdded', refreshAll);
@@ -773,9 +750,7 @@ export default function ViewportRenderer2D({
       <ListLayersRenderer
         layersItemsPairs={[
           // FIXME: address type issues
-          [PolygonLayers, polygons] as unknown as ListLayersItemsPair,
-          [EllipseLayers, ellipses] as unknown as ListLayersItemsPair,
-          [RectangleLayers, rectangles] as unknown as ListLayersItemsPair,
+          [GeometryLayers, geometries] as unknown as ListLayersItemsPair,
           [DatumLayers, datums] as unknown as ListLayersItemsPair,
         ]}
         layerName={layerName}

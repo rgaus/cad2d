@@ -6,18 +6,19 @@ import {
   type CubicBezierSegment,
   DatumComponent,
   Ellipse,
+  Entity,
+  GeometryComponent,
   LinearConstraint,
   LinearConstraintData,
   type PointSegment,
   Polygon,
-  PolygonComponent,
   type QuadraticBezierSegment,
   Rectangle,
-  RectangleComponent,
-} from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { GeometryStore } from '@/lib/geometry/GeometryStore';
-import { DEFAULT_COLOR } from '@/lib/geometry/colors';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { DEFAULT_COLOR } from '@/lib/entity/colors';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
@@ -485,12 +486,18 @@ describe('TrimSplitTool', () => {
       );
 
       const initialPolygonCount = Array.from(
-        geometryStore.listWithComponent(PolygonComponent),
+        geometryStore
+          .listWithComponent(GeometryComponent)
+          .filter((g) => GeometryComponent.isPolygon(g as Entity<GeometryComponent>)),
       ).length;
 
       simulateMouseDown(toolManager, 200, 200, viewport);
 
-      expect(geometryStore.listWithComponent(PolygonComponent).length).toBe(initialPolygonCount);
+      expect(
+        geometryStore
+          .listWithComponent(GeometryComponent)
+          .filter((g) => GeometryComponent.isPolygon(g as Entity<GeometryComponent>)).length,
+      ).toBe(initialPolygonCount);
     });
   });
 
@@ -511,10 +518,14 @@ describe('TrimSplitTool', () => {
       toolManager.handleMouseDown(sheetToScreen(100, 75, viewport), viewport);
 
       // Result: there should be an upside down L shaped polygon
-      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      const polygons = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.isPolygon(g as Entity<GeometryComponent>));
       expect(polygons).toHaveLength(3);
 
-      const polygonDatas = polygons.map((p) => PolygonComponent.get(p));
+      const polygonDatas = polygons.map((p) =>
+        GeometryComponent.get(p as Entity<GeometryComponent<PolygonData>>),
+      );
 
       const closedPolygon = polygonDatas.find((p) => p.closed)!;
       expect(closedPolygon).toBeDefined();
@@ -558,10 +569,14 @@ describe('TrimSplitTool', () => {
       toolManager.handleMouseDown(sheetToScreen(50, 0, viewport), viewport);
 
       // Result: the polygon should be the same but just the first segment should be gone
-      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      const polygons = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.isPolygon(g as Entity<GeometryComponent>));
       expect(polygons).toHaveLength(1);
 
-      const polygonData = PolygonComponent.get(polygons[0]);
+      const polygonData = GeometryComponent.get(
+        polygons[0] as Entity<GeometryComponent<PolygonData>>,
+      );
 
       expect(polygonData.closed).toStrictEqual(false);
       expect(polygonData.points).toHaveLength(2);
@@ -586,10 +601,14 @@ describe('TrimSplitTool', () => {
       toolManager.handleMouseDown(sheetToScreen(90, 100, viewport), viewport);
 
       // Result: the rectangle should now be a polygon with a cubic curve in the corner
-      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      const polygons = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.isPolygon(g as Entity<GeometryComponent>));
       expect(polygons).toHaveLength(4);
 
-      const polygonDatas = polygons.map((p) => PolygonComponent.get(p));
+      const polygonDatas = polygons.map((p) =>
+        GeometryComponent.get(p as Entity<GeometryComponent<PolygonData>>),
+      );
 
       const closedPolygon = polygonDatas.find((p) => p.closed)!;
       expect(closedPolygon).toBeDefined();
@@ -685,10 +704,14 @@ describe('TrimSplitTool', () => {
 
       // Result: the rectangle should now be a SINGLE, unified polygon
       // Not multiple polygons which all are exactly the same on top of each other
-      const geometries = geometryStore.listWithComponent(PolygonComponent);
+      const geometries = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.isPolygon(g as Entity<GeometryComponent>));
       expect(geometries).toHaveLength(1);
 
-      const polygon = PolygonComponent.get(geometries[0]);
+      const polygon = GeometryComponent.get(
+        geometries[0] as Entity<GeometryComponent<PolygonData>>,
+      );
 
       expect(polygon.closed).toStrictEqual(true);
       const closedPoints = polygon.points
@@ -863,9 +886,15 @@ describe('TrimSplitTool', () => {
           fillColor: DEFAULT_COLOR,
         }),
       );
-      const mainPtsBefore = PolygonComponent.get(
-        geometryStore.getByIdWithComponent(mainPolygonId, PolygonComponent)!,
-      ).points;
+      const mainPolygonBefore = geometryStore.getByIdWithComponent(
+        mainPolygonId,
+        GeometryComponent,
+      );
+      const mainPtsBefore =
+        mainPolygonBefore && GeometryComponent.isPolygon(mainPolygonBefore)
+          ? GeometryComponent.get(mainPolygonBefore as Entity<GeometryComponent<PolygonData>>)
+              .points
+          : [];
 
       // Click the offcut — all associated geometries are <= 2 points
       // so the fast path triggers.
@@ -876,8 +905,11 @@ describe('TrimSplitTool', () => {
       expect(geometryStore.getById(offcutId)).toBeNull();
 
       // Main polygon is untouched
-      const mainAfter = geometryStore.getByIdWithComponent(mainPolygonId, PolygonComponent)!;
-      const mainPtsAfter = PolygonComponent.get(mainAfter).points;
+      const mainAfter = geometryStore.getByIdWithComponent(mainPolygonId, GeometryComponent);
+      const mainPtsAfter =
+        mainAfter && GeometryComponent.isPolygon(mainAfter)
+          ? GeometryComponent.get(mainAfter as Entity<GeometryComponent<PolygonData>>).points
+          : [];
       expect(mainPtsAfter.length).toBe(mainPtsBefore.length);
       for (let i = 0; i < mainPtsAfter.length; i += 1) {
         expect(mainPtsAfter[i].point.x).toBe(mainPtsBefore[i].point.x);
@@ -916,7 +948,9 @@ describe('TrimSplitTool', () => {
         }),
       );
 
-      expect(geometryStore.listWithComponent(RectangleComponent)).toHaveLength(2);
+      expect(
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isRectangle),
+      ).toHaveLength(2);
 
       // Move mouse to intersection point (10, 5) and verify split-point detection
       const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
@@ -934,18 +968,20 @@ describe('TrimSplitTool', () => {
       toolManager.handleMouseDown(new ScreenPosition(screenPos.x, screenPos.y), viewport);
 
       // Rectangles are now converted to polygons
-      const polygons = geometryStore.listWithComponent(PolygonComponent);
+      const polygons = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter(GeometryComponent.isPolygon);
       expect(polygons.length).toBeGreaterThanOrEqual(2);
 
       // Make sure both rectangles were converted into polygons properly.
       const upperLeftPoly = polygons.find((p) =>
-        PolygonComponent.get(p).points.some(
+        GeometryComponent.get(p as Entity<GeometryComponent<PolygonData>>).points.some(
           (seg) => seg.type === 'point' && seg.point.x === 0 && seg.point.y === 0,
         ),
       );
       expect(upperLeftPoly).toBeDefined();
       const lowerRightPoly = polygons.find((p) =>
-        PolygonComponent.get(p).points.some(
+        GeometryComponent.get(p as Entity<GeometryComponent<PolygonData>>).points.some(
           (seg) => seg.type === 'point' && seg.point.x === 5 && seg.point.y === 5,
         ),
       );
@@ -953,12 +989,12 @@ describe('TrimSplitTool', () => {
 
       // Make sure new points were added to bpth rectangle polygons.
       expect(
-        PolygonComponent.get(upperLeftPoly!).points.find(
+        GeometryComponent.get(upperLeftPoly as Entity<GeometryComponent<PolygonData>>).points.find(
           (seg) => seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
         ),
       ).toBeDefined();
       expect(
-        PolygonComponent.get(lowerRightPoly!).points.find(
+        GeometryComponent.get(lowerRightPoly as Entity<GeometryComponent<PolygonData>>).points.find(
           (seg) => seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
         ),
       ).toBeDefined();
@@ -1003,15 +1039,17 @@ describe('TrimSplitTool', () => {
       // Undo reverts the split: there should be two rectangles again
       historyManager.undo();
 
-      const rectanglesAfterUndo = geometryStore.listWithComponent(RectangleComponent);
+      const rectanglesAfterUndo = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter(GeometryComponent.isRectangle);
       expect(rectanglesAfterUndo.length).toBeGreaterThanOrEqual(2);
       const upperLeftRectangleAfterUndo = rectanglesAfterUndo.find((r) => {
-        const rectangle = RectangleComponent.get(r);
+        const rectangle = GeometryComponent.get(r);
         return rectangle.upperLeft.x === 0 && rectangle.upperLeft.y === 0;
       });
       expect(upperLeftRectangleAfterUndo).toBeDefined();
       const lowerRightRectangleAfterUndo = rectanglesAfterUndo.find((r) => {
-        const rectangle = RectangleComponent.get(r);
+        const rectangle = GeometryComponent.get(r);
         return rectangle.upperLeft.x === 5 && rectangle.upperLeft.y === 5;
       });
       expect(lowerRightRectangleAfterUndo).toBeDefined();
@@ -1029,13 +1067,15 @@ describe('TrimSplitTool', () => {
 
       // Make sure new points were again added to bpth rectangle polygons.
       expect(
-        PolygonComponent.get(upperLeftPoly!).points.find(
-          (seg) => seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
+        GeometryComponent.get(upperLeftPoly as Entity<GeometryComponent<PolygonData>>).points.find(
+          (seg): seg is PointSegment =>
+            seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
         ),
       ).toBeDefined();
       expect(
-        PolygonComponent.get(lowerRightPoly!).points.find(
-          (seg) => seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
+        GeometryComponent.get(lowerRightPoly as Entity<GeometryComponent<PolygonData>>).points.find(
+          (seg): seg is PointSegment =>
+            seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
         ),
       ).toBeDefined();
 

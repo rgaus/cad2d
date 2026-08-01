@@ -1,6 +1,6 @@
 import { ArrowUpFromLine } from 'lucide-react';
 import React from 'react';
-import { Geometry, RenderOrderComponent } from '../geometry';
+import { Entity, RenderOrderComponent } from '@/lib/entity';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 
@@ -28,7 +28,7 @@ export class RaiseToTopAction extends BaseAction {
   async execute() {
     for (const id of this.getSelectionManager().getSelectedIds()) {
       const geometry = this.getGeometryStore().getById(id);
-      if (geometry && Geometry.hasComponent(geometry, RenderOrderComponent)) {
+      if (geometry && Entity.hasComponent(geometry, RenderOrderComponent)) {
         this.getGeometryStore().setRenderOrder(id, 0);
         continue;
       }

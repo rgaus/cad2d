@@ -2,16 +2,16 @@ import {
   ConstraintComponent,
   type ConstraintEndpoint,
   DatumComponent,
-  EllipseComponent,
+  type Ellipse,
+  Entity,
   FillColorComponent,
-  Geometry,
+  GeometryComponent,
   LinkDimensionsComponent,
   type Polygon,
-  PolygonComponent,
   type PolygonSegment,
-  RectangleComponent,
+  type Rectangle,
   RenderOrderComponent,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import {
   type ColinearConstraintData,
   type ConstraintData,
@@ -20,13 +20,14 @@ import {
   type ParallelConstraintData,
   type PerpendicularConstraintData,
   type VerticalConstraintData,
-} from '@/lib/geometry/constraints';
-import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/geometry/datum';
+} from '@/lib/entity/constraints';
+import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/entity/datum';
 import {
   CONSTRAINT_COLOR,
   CONSTRAINT_LINE_WIDTH_PX,
   computeDimensionLinePoints,
 } from '@/lib/viewport/dimension-line-utils';
+import { GeometryData } from '../entity/geometry';
 import { type Sheet } from '../sheet/Sheet';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { type UnitType } from '../units/length';
@@ -89,17 +90,17 @@ function segmentsToPathData(segments: Array<PolygonSegment>): string {
 /** Serializes a polygon to an SVG <path> element string. */
 export function serializePolygon(polygon: Polygon): string {
   const fillColor = colorToHex(FillColorComponent.getOptional(polygon) ?? null);
+  const polygonData = GeometryComponent.get(polygon);
 
   const attrs: Array<string> = [
     `data-type="polygon"`,
     `fill="${fillColor}"`,
     `stroke="#000"`,
     `stroke-width="2"`,
-    `data-open-at-index="${PolygonComponent.get(polygon).openAtIndex}"`,
+    `data-open-at-index="${polygonData.openAtIndex}"`,
     `data-render-order="${RenderOrderComponent.get(polygon)}"`,
   ];
 
-  const polygonData = PolygonComponent.get(polygon);
   if (polygonData.closed && polygonData.points.every((p) => p.type === 'point')) {
     // For closed fully linear polygons, render as a polygon element
     // This is a more compact / human readable representation, especially for large polygons
@@ -122,14 +123,10 @@ export function serializePolygon(polygon: Polygon): string {
 }
 
 /** Serializes a rectangle to an SVG <rect> element string. */
-export function serializeRectangle(
-  geometry: Geometry<
-    RectangleComponent & LinkDimensionsComponent & FillColorComponent & RenderOrderComponent
-  >,
-): string {
-  const rectangle = RectangleComponent.get(geometry);
-  const upperLeft = positionToPixels(rectangle.upperLeft);
-  const lowerRight = positionToPixels(rectangle.lowerRight);
+export function serializeRectangle(geometry: Rectangle): string {
+  const rectangleData = GeometryComponent.get(geometry);
+  const upperLeft = positionToPixels(rectangleData.upperLeft);
+  const lowerRight = positionToPixels(rectangleData.lowerRight);
   const width = Math.abs(lowerRight.x - upperLeft.x);
   const height = Math.abs(lowerRight.y - upperLeft.y);
   const x = Math.min(upperLeft.x, lowerRight.x);
@@ -149,12 +146,8 @@ export function serializeRectangle(
 }
 
 /** Serializes an ellipse to an SVG <ellipse> element string. */
-export function serializeEllipse(
-  ellipse: Geometry<
-    EllipseComponent & LinkDimensionsComponent & FillColorComponent & RenderOrderComponent
-  >,
-): string {
-  const ellipseData = EllipseComponent.get(ellipse);
+export function serializeEllipse(ellipse: Ellipse): string {
+  const ellipseData = GeometryComponent.get(ellipse);
   const center = positionToPixels(ellipseData.center);
   const fillColor = colorToHex(FillColorComponent.get(ellipse));
 
@@ -171,7 +164,7 @@ export function serializeEllipse(
 }
 
 /** Serializes a datum to an SVG <g> element with crosshair + circle children. */
-export function serializeDatum(datum: Geometry<DatumComponent>): string {
+export function serializeDatum(datum: Entity<DatumComponent>): string {
   const pos = DatumComponent.get(datum);
   const px = pos.x * SHEET_UNITS_TO_PIXELS;
   const py = pos.y * SHEET_UNITS_TO_PIXELS;
@@ -549,33 +542,34 @@ export function serializeToSvg(
 
   // Collect all shapes and sort by render order (ascending, lower = further back)
   const allShapes: Array<{ renderOrder: number; serialize: () => string }> = [];
-  for (const rect of geometryStore.listWithComponents(
-    RectangleComponent,
-    FillColorComponent,
-    LinkDimensionsComponent,
+  for (const geometry of geometryStore.listWithComponents(
+    GeometryComponent,
     RenderOrderComponent,
   )) {
-    allShapes.push({
-      renderOrder: RenderOrderComponent.get(rect),
-      serialize: () => serializeRectangle(rect),
-    });
-  }
-  for (const ellipse of geometryStore.listWithComponents(
-    EllipseComponent,
-    FillColorComponent,
-    LinkDimensionsComponent,
-    RenderOrderComponent,
-  )) {
-    allShapes.push({
-      renderOrder: RenderOrderComponent.get(ellipse),
-      serialize: () => serializeEllipse(ellipse),
-    });
-  }
-  for (const polygon of geometryStore.listWithComponents(PolygonComponent, RenderOrderComponent)) {
-    allShapes.push({
-      renderOrder: RenderOrderComponent.get(polygon),
-      serialize: () => serializePolygon(polygon),
-    });
+    const data = GeometryComponent.get<GeometryData>(geometry);
+    switch (data.type) {
+      case 'polygon':
+        allShapes.push({
+          renderOrder: RenderOrderComponent.get(geometry),
+          serialize: () => serializePolygon(geometry as Polygon),
+        });
+        break;
+      case 'rectangle':
+        allShapes.push({
+          renderOrder: RenderOrderComponent.get(geometry),
+          serialize: () => serializeRectangle(geometry as Rectangle),
+        });
+        break;
+      case 'ellipse':
+        allShapes.push({
+          renderOrder: RenderOrderComponent.get(geometry),
+          serialize: () => serializeEllipse(geometry as Ellipse),
+        });
+        break;
+      default:
+        data satisfies never;
+        break;
+    }
   }
   allShapes.sort((a, b) => a.renderOrder - b.renderOrder);
   for (const shape of allShapes) {

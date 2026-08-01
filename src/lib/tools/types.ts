@@ -1,14 +1,14 @@
 import {
   Constraint,
   ConstraintEndpoint,
-  type Geometry,
+  type Entity,
   Id,
   type Polygon,
   PolygonSegment,
   type Rectangle,
   type RectangleEndpoint,
   type ResizeMode,
-} from '@/lib/geometry';
+} from '@/lib/entity';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '../units/length';
 import { TOOLS_BY_TYPE } from './ToolManager';
@@ -215,7 +215,7 @@ export type WorkingChamferFilter =
 
 export type WorkingMirrorFilter = {
   type: 'mirror';
-  geometryId: Geometry['id'];
+  geometryId: Entity['id'];
   pointA: SheetPosition | null;
   pointB: SheetPosition | null;
 

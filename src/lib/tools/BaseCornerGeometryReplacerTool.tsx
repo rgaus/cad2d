@@ -5,23 +5,23 @@ import {
   ConstraintEndpoint,
   Datum,
   DatumComponent,
-  EllipseComponent,
-  Geometry,
+  Entity,
+  GeometryComponent,
   HorizontalConstraint,
   type Id,
   Polygon,
-  PolygonComponent,
-  RectangleComponent,
   VerticalConstraint,
-} from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { PolygonSegment } from '@/lib/geometry/polygon';
-import { type RectangleEndpoint } from '@/lib/geometry/rectangle';
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { FilletFilter } from '@/lib/entity/filters';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
+import { PolygonSegment } from '@/lib/entity/polygon';
+import { type RectangleEndpoint } from '@/lib/entity/rectangle';
 import { Vector2 } from '@/lib/math';
 import { applyKeyPointSnapping } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
-import { FilletFilter } from '../geometry/filters';
 import { BaseTool } from './BaseTool';
 
 export type CornerState =
@@ -52,20 +52,12 @@ export type CornerReplacementToolEvents = {
   activeCornerChange: (state: CornerState | null) => void;
 };
 
-/**
- * Results from resolveGeometryAndIndices: resolves the polygon geometry and computes
- * center/pointA/pointB indices, handling both direct polygon selection and rectangle
- * shortcut modes. Also migrates any existing constraints attached to the center point
- * to a new datum.
- */
-type PolygonData = PolygonComponent[keyof PolygonComponent];
-
 export type ResolveGeometryAndIndicesResults = {
   /** The ID of the polygon geometry being used. May differ from the input ID if a
    *  rectangle was converted to a polygon. */
   geometryId: Id;
   /** The resolved polygon geometry with PolygonComponent. */
-  polygon: Geometry<PolygonComponent>;
+  polygon: Entity<GeometryComponent<PolygonData>>;
   /** The raw polygon data (points array and closed flag) from PolygonComponent.get. */
   polygonData: PolygonData;
   /** Zero-based index of the center (corner) vertex in polygon.points. */
@@ -117,7 +109,7 @@ export type ValidateOffsetResults = {
  */
 type SplitEdgesAtOffsetResults = {
   /** The updated polygon geometry after both edge splits. */
-  geometry: Geometry<PolygonComponent>;
+  geometry: Entity<GeometryComponent<PolygonData>>;
   /** Sheet position where the first edge was split (center->pointA side). */
   splitAPos: SheetPosition;
   /** Sheet position where the second edge was split (center->pointB side). */
@@ -136,7 +128,7 @@ type SplitEdgesAtOffsetResults = {
  */
 type BuildCornerSegmentResults = {
   /** The updated polygon geometry with the corner segment inserted. */
-  geometry: Geometry<PolygonComponent>;
+  geometry: Entity<GeometryComponent<PolygonData>>;
   /** The index in polygon.points where the segment was inserted. Used by subsequent
    *  steps to skip over the segment when iterating perimeter points. */
   addedSegmentIndex: number;
@@ -221,9 +213,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: geometryStore.listWithComponent(RectangleComponent),
-        ellipses: geometryStore.listWithComponent(EllipseComponent),
-        polygons: geometryStore.listWithComponent(PolygonComponent),
+        geometries: geometryStore.listWithComponent(GeometryComponent),
         constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
@@ -272,7 +262,10 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       // in processCornerReplacement.
       const rawEndpointRectangleGeometry =
         rawEndpoint.type === 'locked-rectangle'
-          ? this.getGeometryStore().getByIdWithComponent(rawEndpoint.id, RectangleComponent)
+          ? (this.getGeometryStore().getByIdWithComponent(
+              rawEndpoint.id,
+              GeometryComponent,
+            ) as Entity<GeometryComponent<RectangleData>>)
           : null;
 
       const result = this.commit();
@@ -329,11 +322,14 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         return;
       }
       case 'locked-polygon': {
-        const geometry = geometryStore.getByIdWithComponent(rawEndpoint.id, PolygonComponent);
+        const geometry = geometryStore.getByIdWithComponent(
+          rawEndpoint.id,
+          GeometryComponent,
+        ) as Entity<GeometryComponent<PolygonData>>;
         if (!geometry) {
           return;
         }
-        const polygon = PolygonComponent.get(geometry);
+        const polygon = GeometryComponent.get(geometry as Entity<GeometryComponent<PolygonData>>);
 
         let previousIndex = rawEndpoint.pointIndex - 1;
         while (previousIndex < 0) {
@@ -408,9 +404,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: geometryStore.listWithComponent(RectangleComponent),
-        ellipses: geometryStore.listWithComponent(EllipseComponent),
-        polygons: geometryStore.listWithComponent(PolygonComponent),
+        geometries: geometryStore.listWithComponent(GeometryComponent),
         constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
@@ -472,12 +466,15 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           return;
         }
 
-        const geometry = geometryStore.getByIdWithComponent(keyPointEndpoint.id, PolygonComponent);
+        const geometry = geometryStore.getByIdWithComponent(
+          keyPointEndpoint.id,
+          GeometryComponent,
+        ) as Entity<GeometryComponent<PolygonData>>;
         if (!geometry) {
           this.emit('pendingCornerChange', null);
           return;
         }
-        const polygon = PolygonComponent.get(geometry);
+        const polygon = GeometryComponent.get(geometry as Entity<GeometryComponent<PolygonData>>);
         const centerPoint = polygon.points[keyPointEndpoint.pointIndex].point;
 
         let previousIndex = keyPointEndpoint.pointIndex - 1;
@@ -613,12 +610,14 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
    * by +1.
    */
   private convertRectangleCornerToPolygonIndex(
-    rectangle: Geometry<RectangleComponent>,
+    rectangle: Entity<GeometryComponent<RectangleData>>,
     cornerLabel: RectangleEndpoint,
     outputPolygonId: Id,
     previousDecoratedCorner: RectangleEndpoint,
   ): Extract<ConstraintEndpoint, { type: 'locked-polygon' }> {
-    const perimeterLabels = RectangleComponent.keyPoints(rectangle).perimeterLabels;
+    const perimeterLabels = GeometryComponent.keyPoints(
+      rectangle as Entity<GeometryComponent<RectangleData>>,
+    ).perimeterLabels;
 
     const baseIndex = perimeterLabels.indexOf(cornerLabel as (typeof perimeterLabels)[0]);
     const previousIndex = perimeterLabels.indexOf(
@@ -663,7 +662,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     const geometryStore = this.getGeometryStore();
 
     let geometryId = pending.geometryId;
-    let geometry: Geometry<PolygonComponent>;
+    let geometry: Entity<GeometryComponent<PolygonData>>;
     let polygonData: PolygonData;
     let centerDatumId: Datum['id'] | null = null;
     let centerIndex: number = -1;
@@ -673,16 +672,14 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     let pointBIsAfterCenter: boolean;
     switch (pending.mode) {
       case 'polygon': {
-        geometry = geometryStore.getByIdWithComponent(
-          geometryId,
-          PolygonComponent,
-        ) as Geometry<PolygonComponent>;
-        if (!geometry) {
+        const result = geometryStore.getByIdWithComponent(geometryId, GeometryComponent);
+        if (!result || !GeometryComponent.isPolygon(result)) {
           throw new Error(
             'BaseCornerGeometryReplacerTool.resolveGeometryAndIndices: polygon not found',
           );
         }
-        polygonData = PolygonComponent.get(geometry);
+        geometry = result;
+        polygonData = GeometryComponent.get(geometry);
 
         centerIndex = pending.centerIndex;
         pointAIndex = pending.pointAIndex;
@@ -774,7 +771,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           insertConstraints: false,
         });
         geometryId = geometry.id;
-        polygonData = PolygonComponent.get(geometry);
+        polygonData = GeometryComponent.get(geometry);
 
         // Find all three point indices by position in the new polygon
         for (
@@ -937,7 +934,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
 
     for (const { index, t } of sortedSplits) {
       const currentConstraints = geometryStore.findConstraintsByGeometryId(geometryId);
-      const result = PolygonComponent.addPointOnEdge(geometry, currentConstraints, index, {
+      const result = GeometryComponent.addPointOnEdge(geometry, currentConstraints, index, {
         type: 't',
         t,
       });
@@ -960,7 +957,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     const splitAPos = Vector2.lerp(step2.centerPos, step2.pointAPos, step2.offset / step2.lenA);
     const splitBPos = Vector2.lerp(step2.centerPos, step2.pointBPos, step2.offset / step2.lenB);
 
-    const currentPoints = PolygonComponent.get(geometry).points;
+    const currentPoints = GeometryComponent.get(geometry).points;
     const splitAIdx = this.findPointIndexByPos(currentPoints, splitAPos);
     const splitBIdx = this.findPointIndexByPos(currentPoints, splitBPos);
     const centerIdxFirst = this.findPointIndexByPos(currentPoints, step2.centerPos);
@@ -1038,7 +1035,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
     // Compute tangents from polygon edge directions at the split points.
     // The tangent at P0 matches the direction from the previous vertex toward P0;
     // the tangent at P3 matches the direction from P3 toward the next vertex.
-    const pts = PolygonComponent.get(step3.geometry).points;
+    const pts = GeometryComponent.get(step3.geometry).points;
     let p0: SheetPosition;
     let p3: SheetPosition;
     let tStart: SheetPosition;
@@ -1075,10 +1072,10 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
 
     let addedSegmentIndex = -1;
     geometryStore.updateById(geometryId, (old) => {
-      if (!Geometry.hasComponent(old, PolygonComponent)) {
+      if (!Entity.hasComponent(old, GeometryComponent)) {
         return old;
       }
-      const oldPoints = PolygonComponent.get(old).points;
+      const oldPoints = GeometryComponent.get(old as Entity<GeometryComponent<PolygonData>>).points;
       let newPoints: Array<PolygonSegment>;
       if (isWrapping) {
         const segment = this.createCornerSegment(
@@ -1125,14 +1122,15 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         ];
         addedSegmentIndex = splitBIdx - 2;
       }
-      return PolygonComponent.update(old, { points: newPoints });
+      return GeometryComponent.update(old as Entity<GeometryComponent<PolygonData>>, {
+        points: newPoints,
+      });
     });
 
     return {
-      geometry: geometryStore.getByIdWithComponent(
-        geometryId,
-        PolygonComponent,
-      ) as Geometry<PolygonComponent>,
+      geometry: geometryStore.getByIdWithComponent(geometryId, GeometryComponent) as Entity<
+        GeometryComponent<PolygonData>
+      >,
       addedSegmentIndex,
     };
   }
@@ -1156,11 +1154,15 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
       return;
     }
 
-    const finalPoly = geometryStore.getByIdWithComponent(geometryId, PolygonComponent);
+    const finalPoly = geometryStore.getByIdWithComponent(geometryId, GeometryComponent) as Entity<
+      GeometryComponent<PolygonData>
+    >;
     if (!finalPoly) {
       return;
     }
-    const finalPoints = PolygonComponent.get(finalPoly).points;
+    const finalPoints = GeometryComponent.get(
+      finalPoly as Entity<GeometryComponent<PolygonData>>,
+    ).points;
 
     const farAIdx = this.findPointIndexByPos(finalPoints, step2.pointAPos);
     const splitAFinalIdx = this.findPointIndexByPos(finalPoints, step3.splitAPos);

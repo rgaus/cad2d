@@ -6,13 +6,13 @@ import {
   ConstraintTemplate,
   Datum,
   DatumComponent,
-  EllipseComponent,
-  Geometry,
-  PolygonComponent,
-  RectangleComponent,
-} from '@/lib/geometry';
-import { ID_PREFIXES } from '@/lib/geometry/GeometryStore';
-import { type GeometryStore } from '@/lib/geometry/GeometryStore';
+  Entity,
+  GeometryComponent,
+} from '@/lib/entity';
+import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { type GeometryStore } from '@/lib/entity/GeometryStore';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { FilterTemplate } from '@/lib/entity/filters';
 import { Vector2 } from '@/lib/math';
 import {
   KeyPointShouldCreateDatum,
@@ -22,8 +22,6 @@ import {
 } from '@/lib/snapping';
 import { Length } from '@/lib/units/length';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
-import { FilterComponent } from '../geometry/components/FilterComponent';
-import { FilterTemplate } from '../geometry/filters';
 import { BaseTool } from './BaseTool';
 import { type ConstraintToolEvents } from './ConstraintTool';
 import { ToolType, WorkingConstraint } from './types';
@@ -131,9 +129,7 @@ export abstract class LineSegmentConstraintTool<
           superHeld: this.toolManager.getSuperHeld(),
           manager: this,
           viewportScale: viewport.scale,
-          rectangles: geometryStore.listWithComponent(RectangleComponent),
-          ellipses: geometryStore.listWithComponent(EllipseComponent),
-          polygons: geometryStore.listWithComponent(PolygonComponent),
+          geometries: geometryStore.listWithComponent(GeometryComponent),
           constraints: geometryStore.listWithComponent(ConstraintComponent),
           datums: geometryStore.listWithComponent(DatumComponent),
         },
@@ -161,9 +157,7 @@ export abstract class LineSegmentConstraintTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
-        ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
-        polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+        geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
         constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
@@ -298,9 +292,9 @@ export abstract class LineSegmentConstraintTool<
         Length.fromSheetUnits(sheet.defaultUnit, yAxis),
       );
 
-      if (Geometry.hasComponent(template as Geometry<ConstraintComponent>, ConstraintComponent)) {
+      if (Entity.hasComponent(template as Entity<ConstraintComponent>, ConstraintComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
-      } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
+      } else if (Entity.hasComponent(template as Entity<FilterComponent>, FilterComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
       } else {
         throw new Error(
@@ -390,9 +384,7 @@ export abstract class SegmentAndPointConstraintTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: geometryStore.listWithComponent(RectangleComponent),
-        ellipses: geometryStore.listWithComponent(EllipseComponent),
-        polygons: geometryStore.listWithComponent(PolygonComponent),
+        geometries: geometryStore.listWithComponent(GeometryComponent),
         constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
@@ -463,9 +455,7 @@ export abstract class SegmentAndPointConstraintTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
-        ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
-        polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+        geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
         constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
@@ -634,9 +624,9 @@ export abstract class SegmentAndPointConstraintTool<
       const template = this.convertWorkingConstraintIntoConstraint(
         wc as WC & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
       );
-      if (Geometry.hasComponent(template as Geometry<ConstraintComponent>, ConstraintComponent)) {
+      if (Entity.hasComponent(template as Entity<ConstraintComponent>, ConstraintComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
-      } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
+      } else if (Entity.hasComponent(template as Entity<FilterComponent>, FilterComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
       } else {
         throw new Error(
@@ -726,9 +716,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: geometryStore.listWithComponent(RectangleComponent),
-        ellipses: geometryStore.listWithComponent(EllipseComponent),
-        polygons: geometryStore.listWithComponent(PolygonComponent),
+        geometries: geometryStore.listWithComponent(GeometryComponent),
         constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
@@ -797,9 +785,7 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
-        ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
-        polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+        geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
         constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
@@ -948,9 +934,9 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
 
       // Add the actual constraint
       const template = this.convertWorkingConstraintIntoConstraint(wc);
-      if (Geometry.hasComponent(template as Geometry<ConstraintComponent>, ConstraintComponent)) {
+      if (Entity.hasComponent(template as Entity<ConstraintComponent>, ConstraintComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
-      } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
+      } else if (Entity.hasComponent(template as Entity<FilterComponent>, FilterComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
       } else {
         throw new Error(
@@ -1044,9 +1030,7 @@ export abstract class TwoSegmentConstraintCreationTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: geometryStore.listWithComponent(RectangleComponent),
-        ellipses: geometryStore.listWithComponent(EllipseComponent),
-        polygons: geometryStore.listWithComponent(PolygonComponent),
+        geometries: geometryStore.listWithComponent(GeometryComponent),
         constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
       },
@@ -1137,9 +1121,7 @@ export abstract class TwoSegmentConstraintCreationTool<
         superHeld: this.toolManager.getSuperHeld(),
         manager: this,
         viewportScale: viewport.scale,
-        rectangles: this.getGeometryStore().listWithComponent(RectangleComponent),
-        ellipses: this.getGeometryStore().listWithComponent(EllipseComponent),
-        polygons: this.getGeometryStore().listWithComponent(PolygonComponent),
+        geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
         constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
       },
@@ -1321,9 +1303,9 @@ export abstract class TwoSegmentConstraintCreationTool<
 
       // Actually insert constraint
       const template = this.convertWorkingConstraintIntoConstraint(wc);
-      if (Geometry.hasComponent(template as Geometry<ConstraintComponent>, ConstraintComponent)) {
+      if (Entity.hasComponent(template as Entity<ConstraintComponent>, ConstraintComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
-      } else if (Geometry.hasComponent(template as Geometry<FilterComponent>, FilterComponent)) {
+      } else if (Entity.hasComponent(template as Entity<FilterComponent>, FilterComponent)) {
         this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
       } else {
         throw new Error(

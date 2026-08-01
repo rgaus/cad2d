@@ -1,6 +1,6 @@
 import { Shapes } from 'lucide-react';
 import React from 'react';
-import { EllipseComponent, PolygonComponent, RectangleComponent } from '../geometry';
+import { GeometryComponent } from '@/lib/entity';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 
@@ -16,15 +16,18 @@ export class ConvertToPolygonAction extends BaseAction {
   private updateDisabledState = () => {
     const selectedIds = this.getSelectionManager().getSelectedIds();
     const geometryStore = this.getGeometryStore();
-    const rectangleIds = selectedIds.filter(
-      (id) => geometryStore.getByIdWithComponent(id, RectangleComponent) !== null,
-    );
-    const ellipseIds = selectedIds.filter(
-      (id) => geometryStore.getByIdWithComponent(id, EllipseComponent) !== null,
-    );
-    const polygonIds = selectedIds.filter(
-      (id) => geometryStore.getByIdWithComponent(id, PolygonComponent) !== null,
-    );
+    const rectangleIds = selectedIds.filter((id) => {
+      const g = geometryStore.getByIdWithComponent(id, GeometryComponent);
+      return g !== null && GeometryComponent.get(g).type === 'rectangle';
+    });
+    const ellipseIds = selectedIds.filter((id) => {
+      const g = geometryStore.getByIdWithComponent(id, GeometryComponent);
+      return g !== null && GeometryComponent.get(g).type === 'ellipse';
+    });
+    const polygonIds = selectedIds.filter((id) => {
+      const g = geometryStore.getByIdWithComponent(id, GeometryComponent);
+      return g !== null && GeometryComponent.get(g).type === 'polygon';
+    });
     const singleRectangle =
       rectangleIds.length === 1 && ellipseIds.length === 0 && polygonIds.length === 0;
     const singleEllipse =
@@ -51,17 +54,20 @@ export class ConvertToPolygonAction extends BaseAction {
 
     historyManager.applyTransaction('convert-to-polygon', () => {
       for (const id of selectedIds) {
-        const rectangle = geometryStore.getByIdWithComponent(id, RectangleComponent);
-        if (rectangle) {
-          const polygon = geometryStore.convertRectangleToPolygon(rectangle.id);
-          selectionManager.deselect(rectangle.id);
+        const geom = geometryStore.getByIdWithComponent(id, GeometryComponent);
+        if (!geom) {
+          continue;
+        }
+        const geomData = GeometryComponent.get(geom);
+        if (geomData.type === 'rectangle') {
+          const polygon = geometryStore.convertRectangleToPolygon(geom.id);
+          selectionManager.deselect(geom.id);
           selectionManager.select(polygon.id);
           return;
         }
-        const ellipse = geometryStore.getByIdWithComponent(id, EllipseComponent);
-        if (ellipse) {
-          const polygon = geometryStore.convertEllipseToPolygon(ellipse.id);
-          selectionManager.deselect(ellipse.id);
+        if (geomData.type === 'ellipse') {
+          const polygon = geometryStore.convertEllipseToPolygon(geom.id);
+          selectionManager.deselect(geom.id);
           selectionManager.select(polygon.id);
           return;
         }
