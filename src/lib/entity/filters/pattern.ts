@@ -194,10 +194,10 @@ export namespace PatternFilter {
     }
   }
 
-  export function translate(
-    filter: Entity<FilterComponent<PatternFilterData>>,
+  export function translate<E extends Entity<FilterComponent<PatternFilterData>>>(
+    filter: E,
     transform: (point: SheetPosition) => SheetPosition,
-  ) {
+  ): E {
     const filterData = FilterComponent.get(filter);
     switch (filterData.mode) {
       case 'grid':
