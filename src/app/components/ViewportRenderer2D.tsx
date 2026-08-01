@@ -498,7 +498,7 @@ export default function ViewportRenderer2D({
         activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
         return () => {
           // Mirror
-          activeTool.on('previewSheetPositionChange', handlePreviewUpdate);
+          activeTool.off('previewSheetPositionChange', handlePreviewUpdate);
 
           // Fillet / Chamfer
           activeTool.off('pendingCornerChange', setPendingCornerState);

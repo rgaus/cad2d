@@ -961,7 +961,7 @@ const PolygonInspector: React.FunctionComponent<{
       return;
     }
     const data = GeometryComponent.get(geometry);
-    if (data.type === 'polygon') {
+    if (data.type !== 'polygon') {
       return;
     }
     setPolygon(geometry as Entity<GeometryComponent<PolygonData>>);

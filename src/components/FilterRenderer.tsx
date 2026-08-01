@@ -75,7 +75,7 @@ const FilterOverlay: React.FunctionComponent = () => {
 
     toolManager.on('toolChange', changeActiveTool);
     return () => {
-      toolManager.on('toolChange', changeActiveTool);
+      toolManager.off('toolChange', changeActiveTool);
       cleanup?.();
     };
   }, [toolManager]);
