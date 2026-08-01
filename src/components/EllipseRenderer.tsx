@@ -3,19 +3,17 @@
 import { FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useCallback } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
-import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingEllipse } from '@/hooks/useWorkingEllipse';
-import {
-  type Ellipse,
-  EllipseComponent,
-  FillColorComponent,
-  LinkDimensionsComponent,
-  RenderOrderComponent,
-} from '@/lib/geometry';
+import { type Ellipse, EllipseComponent, FillColorComponent } from '@/lib/geometry';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { SELECTION_HINT_WIDTH_PX } from '@/lib/textures';
+import {
+  HIGHLIGHT_COLOR_FILL,
+  HIGHLIGHT_COLOR_STROKE,
+  HIGHLIGHT_STROKE_WIDTH,
+  SELECTION_HINT_WIDTH_PX,
+} from '@/lib/textures';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 
 const CIRCLE_CENTER_MARKER_SIZE_PX = 8;
@@ -81,47 +79,49 @@ export const WorkingEllipseLayers: SingleLayers<React.ReactNode> = {
 };
 
 const EllipseSolid: React.FunctionComponent<{ geometry: Ellipse }> = ({ geometry }) => {
-  const { activeTool, viewportControls, viewportScale } = useViewportContext();
+  const { activeTool, viewportControls, viewportScale, highlightedGeometryId } =
+    useViewportContext();
 
-  const draggingShapeState = useDraggingShapeState();
-
-  const fill = FillColorComponent.getOptional(geometry);
-  const stroke = 0x000000;
-  const isDragging =
-    draggingShapeState?.type === 'ellipse' && draggingShapeState.ellipseId === geometry.id;
+  let fill = FillColorComponent.getOptional(geometry);
+  let stroke = 0x000000;
+  let strokeWidth = 1;
+  if (highlightedGeometryId === geometry.id) {
+    fill = HIGHLIGHT_COLOR_FILL;
+    stroke = HIGHLIGHT_COLOR_STROKE;
+    strokeWidth = HIGHLIGHT_STROKE_WIDTH;
+  }
 
   const selectedIds = useSelectionManagerSelectedIds();
   const isSelected = selectedIds.includes(geometry.id);
   const showHintStroke = isSelected && selectedIds.length > 1;
-  const eventMode = activeTool.type === 'select' || isSelected ? 'static' : 'none';
 
   const onFillPointerDown = useCallback(
     (e: FederatedPointerEvent) => {
-      if (activeTool.type !== 'select') {
-        return;
-      }
       if (!viewportControls) {
         return;
       }
-      activeTool.onGeometryFillPointerDown?.(
+
+      const shouldCancel = activeTool.handleGeometryFillPointerDown(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         geometry.id,
       );
+
+      if (shouldCancel) {
+        // Don't trigger handleMouseDown too
+        e.preventDefault();
+        e.stopPropagation();
+      }
     },
     [activeTool],
   );
 
   const onFillPointerOver = useCallback(() => {
-    if (activeTool.type === 'select') {
-      activeTool.onEnterGeometryFill(geometry.id);
-    }
+    activeTool.handleGeometryFillEnter(geometry.id);
   }, [activeTool, geometry.id]);
 
   const onFillPointerOut = useCallback(() => {
-    if (activeTool.type === 'select') {
-      activeTool.onLeaveGeometryFill(geometry.id);
-    }
+    activeTool.handleGeometryFillLeave(geometry.id);
   }, [activeTool, geometry.id]);
 
   const drawEllipse = useCallback(
@@ -157,7 +157,7 @@ const EllipseSolid: React.FunctionComponent<{ geometry: Ellipse }> = ({ geometry
 
       graphics.setStrokeStyle({
         color: stroke,
-        width: 1 / viewportScale,
+        width: strokeWidth / viewportScale,
       });
       graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
       graphics.stroke();
@@ -172,13 +172,13 @@ const EllipseSolid: React.FunctionComponent<{ geometry: Ellipse }> = ({ geometry
         graphics.stroke();
       }
     },
-    [geometry, fill, stroke, viewportScale, showHintStroke, isSelected],
+    [geometry, fill, stroke, strokeWidth, viewportScale, showHintStroke, isSelected],
   );
 
   return (
     <pixiGraphics
       draw={drawEllipse}
-      eventMode={isDragging ? 'none' : eventMode}
+      eventMode="static"
       onPointerDown={onFillPointerDown}
       onPointerOver={onFillPointerOver}
       onPointerOut={onFillPointerOut}

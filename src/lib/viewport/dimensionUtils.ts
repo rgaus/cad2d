@@ -1,4 +1,5 @@
 import { Texture } from 'pixi.js';
+import { SPRITE_SCALE_FACTOR } from '../textures';
 
 const TEXTURE_CACHE = new Map<string, Texture>();
 
@@ -30,13 +31,13 @@ export function getDimensionTextTexture(
   const textureWidth = textWidth + TEXT_PADDING * 2;
   const textureHeight = textHeight + TEXT_PADDING * 2;
 
-  canvas.width = Math.ceil(textureWidth);
-  canvas.height = Math.ceil(textureHeight);
+  canvas.width = Math.ceil(textureWidth * SPRITE_SCALE_FACTOR);
+  canvas.height = Math.ceil(textureHeight * SPRITE_SCALE_FACTOR);
 
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.font = `${TEXT_FONT_SIZE}px ${TEXT_FONT_FAMILY}`;
+  ctx.font = `${TEXT_FONT_SIZE * SPRITE_SCALE_FACTOR}px ${TEXT_FONT_FAMILY}`;
   ctx.fillStyle = textColor;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';

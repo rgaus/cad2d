@@ -44,6 +44,8 @@ import {
   applySnappingOnConstrainedTrack,
 } from '@/lib/snapping';
 import { type UnitType } from '@/lib/units/length';
+import { FilterComponent } from '../geometry/components/FilterComponent';
+import { Filter, FilterData } from '../geometry/filters';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { ViewportControls } from '../viewport/ViewportControls';
 import { Rect, ScreenPosition, SheetPosition, type ViewportState } from '../viewport/types';
@@ -62,6 +64,7 @@ export type SelectToolEvents = {
   closestPointToSegmentChange: (closestPoint: SelectToolClosestPointToSegmentChange | null) => void;
   hoveringPolygonSegmentChange: (hovering: boolean) => void;
   hoveringConstraintLabelChange: (constraintId: Constraint['id'] | null) => void;
+  hoveringFilterLabelChange: (filterId: Filter['id'] | null) => void;
   dragSelectBoundingBoxChange: (bounds: Rect<SheetPosition> | null) => void;
 };
 
@@ -302,12 +305,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   /** Called by the renderer when the pointer enters the fill area of a shape. */
-  onEnterGeometryFill(_id: Id): void {
+  handleGeometryFillEnter(_id: Id): void {
     this.scheduleTooltip('geometry-fill', GEOMETRY_FILL_TOOLTIP_TIMEOUT_MS);
   }
 
   /** Called by the renderer when the pointer leaves the fill area of a shape. */
-  onLeaveGeometryFill(_id: Id): void {
+  handleGeometryFillLeave(_id: Id): void {
     this.cancelTooltip();
   }
 
@@ -348,6 +351,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         return true;
       }
       this.getGeometryStore().clearWorkingConstraints();
+      this.onFilterLabelLengthInputDismiss();
       this.getSelectionManager().clearSelection();
       return true;
     }
@@ -387,6 +391,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
         });
         this.getGeometryStore().clearWorkingConstraints();
+        return true;
+      }
+      if (selectedIds.every((id) => id.startsWith(ID_PREFIXES.filter))) {
+        this.onFilterLabelLengthInputAccept();
         return true;
       }
     }
@@ -1387,11 +1395,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   // ==================== COMMON GEOMETEY  HANDLERS ====================
 
-  onGeometryFillPointerDown(
+  handleGeometryFillPointerDown(
     screenPos: ScreenPosition,
     viewportControls: ViewportControls,
     geometryId: Id,
-  ): void {
+  ): boolean {
     const shiftHeld = this.toolManager.getShiftHeld();
     const ctrlHeld = this.toolManager.getCtrlHeld();
     const altHeld = this.toolManager.getAltHeld();
@@ -1446,7 +1454,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const geometryIdPrefix = getPrefixFromId(geometry.id);
         if (!geometryIdPrefix) {
           throw new Error(
-            `SelectTool.onGeometryFillPointerDown: no prefix '${geometryIdPrefix}' is known!`,
+            `SelectTool.handleGeometryFillPointerDown: no prefix '${geometryIdPrefix}' is known!`,
           );
         }
         const duplicateGeometry = this.getGeometryStore().addOrdered(
@@ -1672,6 +1680,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.clearDragState();
       },
     });
+
+    // Don't cancel the event, let it propegate to handleMouseDown too.
+    return false;
   }
 
   /** Starts resizing one or more geometries via a corner or edge handle of the bounding box. */
@@ -2496,7 +2507,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     if (!constraintGeom) {
       return;
     }
-    const constraint = ConstraintComponent.get(constraintGeom);
+    const constraint = ConstraintComponent.get<ConstraintData>(constraintGeom);
 
     switch (constraint.type) {
       case 'linear':
@@ -2584,6 +2595,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           },
         });
         break;
+      case 'perpendicular':
+      case 'parallel':
+      case 'horizontal':
+      case 'vertical':
+      case 'colinear':
+        break;
+      default:
+        constraint satisfies never;
+        break;
     }
   }
 
@@ -2600,8 +2620,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         constraintId,
         ConstraintComponent,
       );
-      const constraint = constraintGeom ? ConstraintComponent.get(constraintGeom) : undefined;
-      switch (constraint?.type) {
+      if (!constraintGeom) {
+        return;
+      }
+      const constraint = ConstraintComponent.get<ConstraintData>(constraintGeom);
+      switch (constraint.type) {
         case 'linear':
           // Did the user drag their mouse while holding their mouse down?
           const didDragMouse =
@@ -2625,6 +2648,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             ]);
           }
           break;
+        case 'perpendicular':
+        case 'parallel':
+        case 'horizontal':
+        case 'vertical':
+        case 'colinear':
+          break;
+        default:
+          constraint satisfies never;
+          break;
       }
       return;
     }
@@ -2642,5 +2674,110 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   /** Called when a constraint's label icon is no longer being hovered over. */
   onConstraintLabelPointerLeave() {
     this.emit('hoveringConstraintLabelChange', null);
+  }
+
+  // ==================== FILTER HANDLERS ====================
+
+  onFilterLabelPointerUp(
+    _screenPos: ScreenPosition,
+    _viewportControls: ViewportControls,
+    filterId: Filter['id'],
+    shiftKey: boolean,
+  ): void {
+    const alreadySelected = this.getSelectionManager().isSelected(filterId);
+    if (alreadySelected) {
+      // If selected, then allow the user to change the value
+      const geoemtry = this.getGeometryStore().getByIdWithComponent(filterId, FilterComponent);
+      if (!geoemtry) {
+        return;
+      }
+      const filter = FilterComponent.get<FilterData>(geoemtry);
+      switch (filter.type) {
+        case 'fillet':
+        case 'chamfer':
+          this.getGeometryStore().setWorkingFilter(
+            filter.geometryType === 'polygon'
+              ? {
+                  type: filter.type,
+                  offset: filter.offset,
+                  geometryType: 'polygon',
+                  geometryId: filter.geometryId,
+                  pointAIndex: filter.pointAIndex,
+                  pointCenterIndex: filter.pointCenterIndex,
+                  pointBIndex: filter.pointBIndex,
+
+                  // This hides `filter` while this working constraint is visible.
+                  shadowsFilterId: filterId,
+                }
+              : {
+                  type: filter.type,
+                  offset: filter.offset,
+                  geometryType: 'rectangle',
+                  geometryId: filter.geometryId,
+                  pointAKeyPoint: filter.pointAKeyPoint,
+                  pointCenterKeyPoint: filter.pointCenterKeyPoint,
+                  pointBKeyPoint: filter.pointBKeyPoint,
+
+                  // This hides `filter` while this working constraint is visible.
+                  shadowsFilterId: filterId,
+                },
+          );
+          break;
+        case 'mirror':
+          break;
+        default:
+          filter satisfies never;
+          break;
+      }
+      return;
+    }
+
+    if (!shiftKey) {
+      this.getSelectionManager().clearSelection();
+    }
+    this.getSelectionManager().toggle(filterId);
+  }
+
+  /** Called when a filter's label icon is hovered over. */
+  onFilterLabelPointerEnter(filterId: Filter['id']) {
+    this.emit('hoveringFilterLabelChange', filterId);
+  }
+  /** Called when a filter's label icon is no longer being hovered over. */
+  onFilterLabelPointerLeave() {
+    this.emit('hoveringFilterLabelChange', null);
+  }
+
+  /** Called when a user accepts a working filter's offset length. */
+  onFilterLabelLengthInputAccept() {
+    const selectedIds = this.getSelectionManager().getSelectedIds();
+    this.getHistoryManager().applyTransaction('sync-working-filter-offset', () => {
+      const workingFilter = this.getGeometryStore().workingFilter;
+      for (const filterId of selectedIds) {
+        if (workingFilter?.shadowsFilterId === filterId) {
+          switch (workingFilter.type) {
+            case 'fillet':
+            case 'chamfer':
+              if (workingFilter.offset !== null) {
+                this.getGeometryStore().updateByIdWithComponent(filterId, FilterComponent, (g) =>
+                  FilterComponent.update(g, { offset: workingFilter.offset! }),
+                );
+                break;
+              }
+            case 'mirror':
+              break;
+            default:
+              workingFilter satisfies never;
+              break;
+          }
+        }
+      }
+    });
+    this.getGeometryStore().clearWorkingFilter();
+  }
+
+  /** Called when a user rejects a working filter's entered offset length, resetting back to the old
+   * pre-edited state. */
+  onFilterLabelLengthInputDismiss() {
+    this.getGeometryStore().clearWorkingFilter();
   }
 }

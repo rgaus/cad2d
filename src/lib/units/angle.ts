@@ -72,7 +72,7 @@ export class RadiansAngle extends Angle {
     return this;
   }
   toDegrees(): DegreesAngle {
-    return new RadiansAngle(MathAngle.toDegrees(this.magnitude));
+    return new DegreesAngle(MathAngle.toDegrees(this.magnitude));
   }
 
   toDisplayString(places?: number): string {

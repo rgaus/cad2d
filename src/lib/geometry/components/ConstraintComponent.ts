@@ -1,4 +1,4 @@
-import { Constraint, type ConstraintData, type ConstraintEndpoint } from '../constraints';
+import { Constraint, type ConstraintData } from '../constraints';
 import { type Geometry, type GeometryComponent } from '../types';
 
 /**

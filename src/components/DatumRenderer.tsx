@@ -6,9 +6,8 @@ import { useWorkingDatum } from '@/hooks/useWorkingDatum';
 import { DATUM_CIRCLE_RADIUS_PX, Datum, DatumComponent } from '@/lib/geometry';
 import { ListLayers, RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { DatumCrosshairTexture } from '@/lib/textures';
-import { type WorkingDatum } from '@/lib/tools/types';
-import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
+import { DatumCrosshairTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
+import { ScreenPosition } from '@/lib/viewport/types';
 
 const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry }) => {
   const { activeTool, viewportControls, viewportScale } = useViewportContext();
@@ -19,19 +18,16 @@ const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry })
   const y = pos.y * SHEET_UNITS_TO_PIXELS;
 
   // Scale so the sprites stay fixed screen-pixel size regardless of zoom
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * SPRITE_SCALE_FACTOR);
 
   const isSelected = selectedIds.includes(geometry.id);
 
-  const onCirclePointerDown = useCallback(
+  const onOuterRingPointerDown = useCallback(
     (e: FederatedPointerEvent) => {
-      if (activeTool.type !== 'select') {
-        return;
-      }
       if (!viewportControls) {
         return;
       }
-      activeTool.onGeometryFillPointerDown?.(
+      activeTool.handleGeometryFillPointerDown?.(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         geometry.id,
@@ -78,7 +74,7 @@ const DatumMarker: React.FunctionComponent<{ geometry: Datum }> = ({ geometry })
         draw={draw}
         eventMode={activeTool.type === 'select' ? 'static' : 'none'}
         cursor="pointer"
-        onPointerDown={onCirclePointerDown}
+        onPointerDown={onOuterRingPointerDown}
       />
     </pixiContainer>
   );
@@ -97,7 +93,7 @@ const WorkingDatumPreview: React.FunctionComponent = () => {
 
   const x = workingDatum.position.x * SHEET_UNITS_TO_PIXELS;
   const y = workingDatum.position.y * SHEET_UNITS_TO_PIXELS;
-  const spriteScale = 1 / viewportScale;
+  const spriteScale = 1 / (viewportScale * SPRITE_SCALE_FACTOR);
   const circleRadius = DATUM_CIRCLE_RADIUS_PX / viewportScale;
 
   return (
