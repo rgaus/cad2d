@@ -1235,7 +1235,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
   setHoveringFirstHandle(hovering: boolean): void {
     switch (this.state.state) {
       case 'drawing-line':
-        this.setState({ ...this.state, isHoveringFirstHandle: hovering });
+        const workingPolygon = this.getGeometryStore().workingPolygon;
+        // Only mark the first handle as being hovered if the polygon is at least 2 points long
+        // Otherwise, it could be possible for the first click when creating the polygon to errantly
+        // trigger this case.
+        if (workingPolygon && workingPolygon.points.length > 2) {
+          this.setState({ ...this.state, isHoveringFirstHandle: hovering });
+        }
         break;
     }
   }

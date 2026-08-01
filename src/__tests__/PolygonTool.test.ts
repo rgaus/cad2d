@@ -2715,6 +2715,17 @@ describe('PolygonTool', () => {
     });
   });
 
+  it('should not allow closing a polygon until after it has at least 3 points', () => {
+    // CLick to create polygon
+    toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+
+    // Simulate hover handler triggering as part of initial click
+    polygonTool.setHoveringFirstHandle(true);
+
+    // Make sure that the tooltip is the expected state, NOT `closed-polygon`
+    expect(polygonTool.statusText).toStrictEqual('place-next-point');
+  });
+
   // // ================================================================================
   // // Section 7: Intersection Key Combos
   // // ================================================================================
