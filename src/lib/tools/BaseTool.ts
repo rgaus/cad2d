@@ -446,4 +446,19 @@ export abstract class BaseMultiTool<
       frameId,
     );
   }
+
+  /** Called by the renderer when a mirror filter endpoint handle is clicked. */
+  handleFilterEndpointPointerDown<FD extends FilterData>(
+    screenPos: ScreenPosition,
+    viewportControls: ViewportControls,
+    filterId: Entity['id'],
+    pointKey: keyof FD,
+  ): void {
+    return this.subToolInstances[this.currentlyActiveIndex].handleFilterEndpointPointerDown<FD>(
+      screenPos,
+      viewportControls,
+      filterId,
+      pointKey,
+    );
+  }
 }
