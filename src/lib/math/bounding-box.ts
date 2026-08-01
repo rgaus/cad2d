@@ -68,6 +68,16 @@ export const BoundingBox = {
     );
   },
 
+  /** Returns a boolean indicating if two bounding boxes are exactly equal. */
+  equals<P extends Position>(a: Rect<P>, b: Rect<P>): boolean {
+    return (
+      a.position.x === b.position.x &&
+      a.position.y === b.position.y &&
+      a.width === b.width &&
+      a.height === b.height
+    );
+  },
+
   /**
    * Computes a bounding box encompassing the convex hull of all passed bounding boxes.
    * Returns null if boxes.length === 0.
