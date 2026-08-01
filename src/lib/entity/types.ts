@@ -112,7 +112,7 @@ export namespace Entity {
   ): ReturnType<typeof FrameComponent.keyPoints>;
   export function keyPoints(entity: Entity): KeyPoints<SheetPosition, any> {
     if (Entity.hasComponent(entity, GeometryComponent)) {
-      return GeometryComponent.keyPoints(entity as Entity<GeometryComponent>);
+      return GeometryComponent.keyPoints(entity);
     } else if (Entity.hasComponent(entity, DatumComponent)) {
       return DatumComponent.keyPoints(entity);
     } else if (Entity.hasComponent(entity, FrameComponent)) {
@@ -123,7 +123,7 @@ export namespace Entity {
 
   export function boundingBox(entity: Entity): Rect<SheetPosition> {
     if (Entity.hasComponent(entity, GeometryComponent)) {
-      return GeometryComponent.boundingBox(entity as Entity<GeometryComponent>);
+      return GeometryComponent.boundingBox(entity);
     } else if (Entity.hasComponent(entity, DatumComponent)) {
       return DatumComponent.boundingBox(entity);
     } else if (Entity.hasComponent(entity, FrameComponent)) {
