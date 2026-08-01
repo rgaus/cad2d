@@ -6,11 +6,12 @@ import {
   Datum,
   DatumComponent,
   Ellipse,
+  type Entity,
+  FillColorComponent,
   GeometryComponent,
   HorizontalConstraint,
   LinearConstraint,
   LinearConstraintData,
-  ParallelConstraint,
   Polygon,
   PolygonSegment,
   Rectangle,
@@ -19,11 +20,14 @@ import {
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { KeyPointSnapInfo } from '@/lib/snapping';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
+import { MirrorTool } from '@/lib/tools/MirrorTool';
 import {
   SELECTED_OUTSET_PX,
   SelectTool,
@@ -318,6 +322,119 @@ describe('SelectTool', () => {
       ).toBeCloseTo(3, 1);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
+    });
+
+    it('polygon fill drag also moves attached mirror filter endpoints and undo redo restores both', () => {
+      // Non-closed polygon: start (5,5), end (15,5)
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 5) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      // Attach mirror filter directly — the drag machinery also picks up
+      // associated filter pairs (see handleFillPointerDown)
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(polygon.id, new SheetPosition(0, 5), new SheetPosition(20, 5)),
+      );
+
+      const fd = FilterComponent.get(filter);
+      if (fd.type !== 'mirror') {
+        throw new Error('Expected mirror filter');
+      }
+      const beforePointA = fd.pointA;
+      const beforePointB = fd.pointB;
+
+      const polyGeom = geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!;
+      const polyData = GeometryComponent.get(polyGeom);
+      if (polyData.type !== 'polygon') {
+        throw new Error('Expected polygon');
+      }
+      const beforeP0 = polyData.points[0].point;
+
+      // Start a polygon fill drag (which also captures attached filter pairs)
+      const startScreen = polyData.points[0].point.toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(startScreen.x, startScreen.y),
+        viewportControls,
+        polygon.id,
+      );
+
+      // Move by (+5, +5)
+      const targetSheet = new SheetPosition(beforeP0.x + 5, beforeP0.y + 5);
+      const moveScreen = targetSheet.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      // Polygon should have moved
+      const afterPolyGeom = geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!;
+      const afterPolyData = GeometryComponent.get(afterPolyGeom);
+      if (afterPolyData.type !== 'polygon') {
+        throw new Error('Expected polygon');
+      }
+      expect(afterPolyData.points[0].point.x).toBeCloseTo(beforeP0.x + 5, 0);
+      expect(afterPolyData.points[0].point.y).toBeCloseTo(beforeP0.y + 5, 0);
+
+      // Mirror filter endpoints should have moved by the same delta
+      const afterFilter = FilterComponent.get(
+        geometryStore.getByIdWithComponent(filter.id, FilterComponent)!,
+      );
+      if (afterFilter.type !== 'mirror') {
+        throw new Error('Expected mirror filter');
+      }
+      expect(afterFilter.pointA.x).toBeCloseTo(beforePointA.x + 5, 0);
+      expect(afterFilter.pointA.y).toBeCloseTo(beforePointA.y + 5, 0);
+      expect(afterFilter.pointB.x).toBeCloseTo(beforePointB.x + 5, 0);
+      expect(afterFilter.pointB.y).toBeCloseTo(beforePointB.y + 5, 0);
+
+      // Undo — both polygon and filter should return to original positions
+      historyManager.undo();
+      const undonePoly = GeometryComponent.get(
+        geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!,
+      );
+      if (undonePoly.type !== 'polygon') {
+        throw new Error('Expected polygon');
+      }
+      expect(undonePoly.points[0].point.x).toBeCloseTo(beforeP0.x, 0);
+      expect(undonePoly.points[0].point.y).toBeCloseTo(beforeP0.y, 0);
+
+      const undoneFilter = FilterComponent.get(
+        geometryStore.getByIdWithComponent(filter.id, FilterComponent)!,
+      );
+      if (undoneFilter.type !== 'mirror') {
+        throw new Error('Expected mirror filter');
+      }
+      expect(undoneFilter.pointA.x).toBeCloseTo(beforePointA.x, 0);
+      expect(undoneFilter.pointA.y).toBeCloseTo(beforePointA.y, 0);
+      expect(undoneFilter.pointB.x).toBeCloseTo(beforePointB.x, 0);
+      expect(undoneFilter.pointB.y).toBeCloseTo(beforePointB.y, 0);
+
+      // Redo — both should move again
+      historyManager.redo();
+      const redonePoly = GeometryComponent.get(
+        geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!,
+      );
+      if (redonePoly.type !== 'polygon') {
+        throw new Error('Expected polygon');
+      }
+      expect(redonePoly.points[0].point.x).toBeCloseTo(beforeP0.x + 5, 0);
+      expect(redonePoly.points[0].point.y).toBeCloseTo(beforeP0.y + 5, 0);
+
+      const redoneFilter = FilterComponent.get(
+        geometryStore.getByIdWithComponent(filter.id, FilterComponent)!,
+      );
+      if (redoneFilter.type !== 'mirror') {
+        throw new Error('Expected mirror filter');
+      }
+      expect(redoneFilter.pointA.x).toBeCloseTo(beforePointA.x + 5, 0);
+      expect(redoneFilter.pointA.y).toBeCloseTo(beforePointA.y + 5, 0);
     });
   });
 
@@ -4788,6 +4905,919 @@ describe('SelectTool', () => {
       expect(ul1.y).toBeGreaterThan(0);
 
       upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+  });
+
+  describe('mirror filter endpoint dragging', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') {
+            moveHandler = handler;
+          }
+          if (event === 'mouseup') {
+            upHandler = handler;
+          }
+        },
+      );
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('moves pointA of a mirror filter on drag', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(rect.id, new SheetPosition(15, 0), new SheetPosition(15, 10)),
+      );
+
+      // Start drag on pointA at (15, 0)
+      const startScreen = new SheetPosition(15, 0).toScreen(viewportControls.getState().viewport);
+      selectTool.handleFilterEndpointPointerDown<MirrorFilterData>(
+        new ScreenPosition(startScreen.x, startScreen.y),
+        viewportControls,
+        filter.id,
+        'pointA',
+      );
+
+      // Move to (20, 2)
+      const targetScreen = new SheetPosition(20, 2).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const data = FilterComponent.get(updated);
+      if (data.type !== 'mirror') {
+        throw new Error('Expected mirror filter');
+      }
+      // pointA should have moved from (15, 0) to approximately (20, 2)
+      expect(data.pointA.x).toBeCloseTo(20, 0);
+      expect(data.pointA.y).toBeCloseTo(2, 0);
+      // pointB should be unchanged at (15, 10)
+      expect(data.pointB.x).toBeCloseTo(15, 0);
+      expect(data.pointB.y).toBeCloseTo(10, 0);
+    });
+
+    it('moves pointB of a mirror filter on drag', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(rect.id, new SheetPosition(20, 0), new SheetPosition(20, 10)),
+      );
+
+      const startScreen = new SheetPosition(20, 10).toScreen(viewportControls.getState().viewport);
+      selectTool.handleFilterEndpointPointerDown<MirrorFilterData>(
+        new ScreenPosition(startScreen.x, startScreen.y),
+        viewportControls,
+        filter.id,
+        'pointB',
+      );
+
+      // Move to (25, 12)
+      const targetScreen = new SheetPosition(25, 12).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+      const data = FilterComponent.get(updated);
+      if (data.type !== 'mirror') {
+        throw new Error('Expected mirror filter');
+      }
+      expect(data.pointB.x).toBeCloseTo(25, 0);
+      expect(data.pointB.y).toBeCloseTo(12, 0);
+      expect(data.pointA.x).toBeCloseTo(20, 0);
+      expect(data.pointA.y).toBeCloseTo(0, 0);
+    });
+
+    it('undo and redo restores mirror filter endpoints after move', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+
+      const filter = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(rect.id, new SheetPosition(15, 0), new SheetPosition(15, 10)),
+      );
+
+      const startScreen = new SheetPosition(15, 0).toScreen(viewportControls.getState().viewport);
+      selectTool.handleFilterEndpointPointerDown<MirrorFilterData>(
+        new ScreenPosition(startScreen.x, startScreen.y),
+        viewportControls,
+        filter.id,
+        'pointA',
+      );
+
+      const targetScreen = new SheetPosition(25, 5).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      // Verify pointA moved
+      {
+        const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+        const data = FilterComponent.get(updated);
+        if (data.type !== 'mirror') {
+          throw new Error('Expected mirror filter');
+        }
+        expect(data.pointA.x).toBeCloseTo(25, 0);
+        expect(data.pointA.y).toBeCloseTo(5, 0);
+      }
+
+      // Undo: pointA should be back at (15, 0)
+      historyManager.undo();
+      {
+        const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+        const data = FilterComponent.get(updated);
+        if (data.type !== 'mirror') {
+          throw new Error('Expected mirror filter');
+        }
+        expect(data.pointA.x).toBeCloseTo(15, 0);
+        expect(data.pointA.y).toBeCloseTo(0, 0);
+        expect(data.pointB.x).toBeCloseTo(15, 0);
+        expect(data.pointB.y).toBeCloseTo(10, 0);
+      }
+
+      // Redo: pointA should be at (25, 5) again
+      historyManager.redo();
+      {
+        const updated = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+        const data = FilterComponent.get(updated);
+        if (data.type !== 'mirror') {
+          throw new Error('Expected mirror filter');
+        }
+        expect(data.pointA.x).toBeCloseTo(25, 0);
+        expect(data.pointA.y).toBeCloseTo(5, 0);
+      }
+    });
+
+    it('mirror endpoint drag adds fill and undo redo restores both endpoint position and fill', () => {
+      // Non-closed polygon: start (5,8.75), end (15,6.25).
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 8.75) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 6.25) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      // Create mirror filter via MirrorTool — initial line (0,10)-(20,10) does NOT intersect polygon ends
+      toolManager.setActiveTool('edit');
+      toolManager.changeToolSubTool('edit', 'mirror');
+      toolManager
+        .getActiveTool()
+        .handleGeometryFillPointerDown(new ScreenPosition(0, 10), viewportControls, polygon.id);
+      toolManager.handleMouseDown(
+        new ScreenPosition(
+          new SheetPosition(0, 10).toScreen(viewportControls.getState().viewport).x,
+          new SheetPosition(0, 10).toScreen(viewportControls.getState().viewport).y,
+        ),
+        viewportControls.getState().viewport,
+      );
+      toolManager.handleMouseDown(
+        new ScreenPosition(
+          new SheetPosition(20, 10).toScreen(viewportControls.getState().viewport).x,
+          new SheetPosition(20, 10).toScreen(viewportControls.getState().viewport).y,
+        ),
+        viewportControls.getState().viewport,
+      );
+
+      // Get the created filter
+      const filters = geometryStore.findFiltersByGeometryId(polygon.id);
+      const filter = filters[filters.length - 1];
+
+      // No fill initially — polygon ends are not on the mirror line y=10
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+
+      // Switch to select tool and drag pointB from (20,10) to (20,5)
+      // so the line becomes (0,10)-(20,5) which intersects (5,8.75) at t≈0.25
+      // and (15,6.25) at t≈0.75 — both in (0,1).
+      const startScreen = new SheetPosition(20, 10).toScreen(viewportControls.getState().viewport);
+      selectTool.handleFilterEndpointPointerDown<MirrorFilterData>(
+        new ScreenPosition(startScreen.x, startScreen.y),
+        viewportControls,
+        filter.id,
+        'pointB',
+      );
+
+      const targetScreen = new SheetPosition(20, 5).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      // Fill should now be added (by syncFillColor inside handleFilterEndpointPointerDown)
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+
+      // Undo — fill removed, endpoint restored
+      historyManager.undo();
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+      {
+        const rf = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+        const fd = FilterComponent.get(rf);
+        if (fd.type !== 'mirror') {
+          throw new Error('Expected mirror filter');
+        }
+        expect(fd.pointB.x).toBeCloseTo(20, 0);
+        expect(fd.pointB.y).toBeCloseTo(10, 0);
+      }
+
+      // Redo — fill added, endpoint moved
+      historyManager.redo();
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+      {
+        const rf = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+        const fd = FilterComponent.get(rf);
+        if (fd.type !== 'mirror') {
+          throw new Error('Expected mirror filter');
+        }
+        expect(fd.pointB.x).toBeCloseTo(20, 0);
+        expect(fd.pointB.y).toBeCloseTo(5, 0);
+      }
+    });
+
+    it('mirror endpoint drag away removes fill preserves lastFillColor and undo redo', () => {
+      // Non-closed polygon whose start (5,5) and end (15,5) are on mirror line (0,5)-(20,5)
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 5) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      // Create mirror filter via MirrorTool — line (0,5)-(20,5) intersects both polygon ends
+      // MirrorTool.complete() automatically calls syncFillColor to add fill.
+      toolManager.setActiveTool('edit');
+      toolManager.changeToolSubTool('edit', 'mirror');
+      toolManager
+        .getActiveTool()
+        .handleGeometryFillPointerDown(new ScreenPosition(0, 5), viewportControls, polygon.id);
+      toolManager.handleMouseDown(
+        new ScreenPosition(
+          new SheetPosition(0, 5).toScreen(viewportControls.getState().viewport).x,
+          new SheetPosition(0, 5).toScreen(viewportControls.getState().viewport).y,
+        ),
+        viewportControls.getState().viewport,
+      );
+      toolManager.handleMouseDown(
+        new ScreenPosition(
+          new SheetPosition(20, 5).toScreen(viewportControls.getState().viewport).x,
+          new SheetPosition(20, 5).toScreen(viewportControls.getState().viewport).y,
+        ),
+        viewportControls.getState().viewport,
+      );
+
+      const filters = geometryStore.findFiltersByGeometryId(polygon.id);
+      const filter = filters[filters.length - 1];
+
+      // Fill should be present (added by MirrorTool.complete)
+      const fillColor = FillColorComponent.getOptional(geometryStore.getById(polygon.id)!);
+      expect(fillColor).toBeDefined();
+
+      // Drag pointA from (0,5) to (0,10) — polygon ends no longer on mirror line
+      const startScreen = new SheetPosition(0, 5).toScreen(viewportControls.getState().viewport);
+      selectTool.handleFilterEndpointPointerDown<MirrorFilterData>(
+        new ScreenPosition(startScreen.x, startScreen.y),
+        viewportControls,
+        filter.id,
+        'pointA',
+      );
+
+      const targetScreen = new SheetPosition(0, 10).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+      upHandler!({ clientX: targetScreen.x, clientY: targetScreen.y } as MouseEvent);
+
+      // Fill should be removed by syncFillColor inside handleFilterEndpointPointerDown
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+
+      // lastFillColor should be preserved
+      const polyData = GeometryComponent.get(geometryStore.getById(polygon.id)! as any);
+      if (polyData.type !== 'polygon') {
+        throw new Error('Expected polygon');
+      }
+      expect(polyData.lastFillColor).toBe(fillColor);
+
+      // Undo — fill returns with original color
+      historyManager.undo();
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBe(fillColor);
+      {
+        const rf = geometryStore.getByIdWithComponent(filter.id, FilterComponent)!;
+        const fd = FilterComponent.get(rf);
+        if (fd.type !== 'mirror') {
+          throw new Error('Expected mirror filter');
+        }
+        expect(fd.pointA.x).toBeCloseTo(0, 0);
+        expect(fd.pointA.y).toBeCloseTo(5, 0);
+      }
+
+      // Redo — fill removed again
+      historyManager.redo();
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+    });
+  });
+
+  describe('mirror filter fill sync', () => {
+    /** Helper: creates a mirror filter via MirrorTool, returning the created filter ID. */
+    function createMirrorViaTool(
+      polygonId: Entity['id'],
+      pointA: SheetPosition,
+      pointB: SheetPosition,
+    ): string {
+      toolManager.setActiveTool('edit');
+      toolManager.changeToolSubTool('edit', 'mirror');
+      toolManager
+        .getActiveTool()
+        .handleGeometryFillPointerDown(
+          new ScreenPosition(
+            pointA.toScreen(viewportControls.getState().viewport).x,
+            pointA.toScreen(viewportControls.getState().viewport).y,
+          ),
+          viewportControls,
+          polygonId,
+        );
+      toolManager.handleMouseDown(
+        new ScreenPosition(
+          pointA.toScreen(viewportControls.getState().viewport).x,
+          pointA.toScreen(viewportControls.getState().viewport).y,
+        ),
+        viewportControls.getState().viewport,
+      );
+      toolManager.handleMouseDown(
+        new ScreenPosition(
+          pointB.toScreen(viewportControls.getState().viewport).x,
+          pointB.toScreen(viewportControls.getState().viewport).y,
+        ),
+        viewportControls.getState().viewport,
+      );
+      const filters = geometryStore.findFiltersByGeometryId(polygonId);
+      return filters[filters.length - 1].id;
+    }
+
+    it('MirrorTool.complete adds FillColorComponent on non-closed polygon with endpoints on mirror line', () => {
+      // Non-closed polygon: start (5,5), end (15,5), both on mirror line (0,5)-(20,5)
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 5) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      // Create mirror filter via MirrorTool — complete() automatically syncs fill
+      createMirrorViaTool(polygon.id, new SheetPosition(0, 5), new SheetPosition(20, 5));
+
+      // Fill should have been added
+      const updated = geometryStore.getById(polygon.id)!;
+      expect(FillColorComponent.getOptional(updated as any)).toBeDefined();
+    });
+
+    it('MirrorTool.complete is no-op for closed polygon FillColorComponent', () => {
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 5) },
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+          ],
+          { closed: true, fillColor: 0xffffff, openAtIndex: 0 },
+        ),
+      );
+
+      createMirrorViaTool(polygon.id, new SheetPosition(0, 5), new SheetPosition(20, 5));
+
+      // FillColorComponent should still be the original value — not overwritten by mirror
+      const updated = geometryStore.getById(polygon.id)!;
+      expect(FillColorComponent.getOptional(updated as any)).toBe(0xffffff);
+    });
+
+    it('MirrorTool.complete does not add fill when endpoints are NOT on mirror line', () => {
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 5) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      // Mirror line (0,10)-(20,10) does NOT intersect polygon endpoints (5,5) and (15,5)
+      createMirrorViaTool(polygon.id, new SheetPosition(0, 10), new SheetPosition(20, 10));
+
+      const updated = geometryStore.getById(polygon.id)!;
+      expect(FillColorComponent.getOptional(updated as any)).toBeUndefined();
+    });
+
+    it('deleting mirror filter via select tool removes fill and undo restores both', () => {
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 5) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      // MirrorTool.complete adds fill via syncFillColor
+      createMirrorViaTool(polygon.id, new SheetPosition(0, 5), new SheetPosition(20, 5));
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+
+      // Get the filter that was created
+      const filters = geometryStore.findFiltersByGeometryId(polygon.id);
+      const filterId = filters[filters.length - 1].id;
+
+      // Delete via select tool (Backspace key — same path as deleteSelectedGeometry)
+      selectionManager.select(filterId);
+      selectTool.handleKeyDown(new KeyboardEvent('keydown', { key: 'Backspace' }) as any);
+
+      // Fill should be gone
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+
+      // Undo — filter should be restored, fill remains
+      historyManager.undo();
+      expect(geometryStore.getById(filterId)).not.toBeNull();
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+
+      // Redo — filter deleted again, fill should be gone
+      historyManager.redo();
+      expect(geometryStore.getById(filterId)).toBeNull();
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+    });
+  });
+
+  describe('nested mirror filters', () => {
+    it('non-closed polygon with mirror filter touching endpoints produces closed render shape', () => {
+      const sheet = Sheet.a4();
+      const geometryStore = sheet.geometryStore;
+      const historyManager = sheet.historyManager;
+      const selectionManager = new SelectionManager();
+      const toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
+      const viewportControls = new ViewportControls({ canvasWidth: 800, canvasHeight: 600, sheet });
+      const viewport = viewportControls.getState().viewport;
+      const toScreen = (sp: SheetPosition) => sp.toScreen(viewport);
+
+      // Create non-closed polygon: start (5,5), mid (10,10), end (15,5)
+      toolManager.setActiveTool('polygon');
+      toolManager.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
+      toolManager.handleMouseDown(toScreen(new SheetPosition(5, 5)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(10, 10)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(15, 5)), viewport);
+      toolManager.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }) as any);
+
+      const polygons = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+        const d = GeometryComponent.get(g as any);
+        return d.type === 'polygon';
+      });
+      expect(polygons).toHaveLength(1);
+      const polyId = polygons[0].id;
+
+      // Add first mirror filter that TOUCHES the endpoints (0,5)-(20,5)
+      toolManager.setActiveTool('edit');
+      toolManager.changeToolSubTool('edit', 'mirror');
+      const editTool = toolManager.getActiveTool();
+      editTool.handleGeometryFillPointerDown(
+        toScreen(new SheetPosition(0, 5)),
+        viewportControls,
+        polyId,
+      );
+      toolManager.handleMouseDown(toScreen(new SheetPosition(0, 5)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(20, 5)), viewport);
+
+      // Verify first filter was created
+      const filters1 = geometryStore.findFiltersByGeometryId(polyId);
+      expect(filters1).toHaveLength(1);
+
+      // Get render shapes — should have at exactly one closed polygon
+      const renders1 = GeometryComponent.getRenderShapes(
+        geometryStore.getById(polyId)! as any,
+        sheet.defaultUnit,
+        filters1,
+      );
+      const closedShapes1 = renders1.filter((rs) => rs.shape === 'polygon' && rs.closed);
+      expect(closedShapes1.length).toStrictEqual(1);
+    });
+
+    it('second mirror filter not touching endpoints preserves closed render shape', () => {
+      const sheet = Sheet.a4();
+      const geometryStore = sheet.geometryStore;
+      const historyManager = sheet.historyManager;
+      const selectionManager = new SelectionManager();
+      const toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
+      const viewportControls = new ViewportControls({ canvasWidth: 800, canvasHeight: 600, sheet });
+      const viewport = viewportControls.getState().viewport;
+      const toScreen = (sp: SheetPosition) => sp.toScreen(viewport);
+
+      // Create non-closed polygon: start (5,5), mid (10,10), end (15,5)
+      toolManager.setActiveTool('polygon');
+      toolManager.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
+      toolManager.handleMouseDown(toScreen(new SheetPosition(5, 5)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(10, 10)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(15, 5)), viewport);
+      toolManager.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }) as any);
+
+      const polygons = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+        const d = GeometryComponent.get(g as any);
+        return d.type === 'polygon';
+      });
+      expect(polygons).toHaveLength(1);
+      const polyId = polygons[0].id;
+
+      // Add first mirror filter that TOUCHES the endpoints (0,5)-(20,5)
+      toolManager.setActiveTool('edit');
+      toolManager.changeToolSubTool('edit', 'mirror');
+      let editTool = toolManager.getActiveTool();
+      editTool.handleGeometryFillPointerDown(
+        toScreen(new SheetPosition(0, 5)),
+        viewportControls,
+        polyId,
+      );
+      toolManager.handleMouseDown(toScreen(new SheetPosition(0, 5)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(20, 5)), viewport);
+
+      // Add second mirror filter that does NOT touch endpoints: line at y=20
+      toolManager.changeToolSubTool('edit', 'mirror');
+      editTool = toolManager.getActiveTool();
+      editTool.handleGeometryFillPointerDown(
+        toScreen(new SheetPosition(0, 20)),
+        viewportControls,
+        polyId,
+      );
+      toolManager.handleMouseDown(toScreen(new SheetPosition(0, 20)), viewport);
+      toolManager.handleMouseDown(toScreen(new SheetPosition(20, 20)), viewport);
+
+      const filters = geometryStore.findFiltersByGeometryId(polyId);
+      expect(filters).toHaveLength(2);
+
+      // Fill should STILL be present — the first mirror filter still qualifies
+      expect(FillColorComponent.getOptional(geometryStore.getById(polyId)! as any)).toBeDefined();
+
+      const renders = GeometryComponent.getRenderShapes(
+        geometryStore.getById(polyId)! as any,
+        sheet.defaultUnit,
+        filters,
+      );
+
+      // Should have at least one closed polygon render shape
+      const closedShapes = renders.filter((rs) => rs.shape === 'polygon' && rs.closed);
+      expect(closedShapes.length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  describe('resize with mirror filter fill sync', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') {
+            moveHandler = handler;
+          }
+          if (event === 'mouseup') {
+            upHandler = handler;
+          }
+        },
+      );
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    /** Helper: creates a mirror filter via MirrorTool, returning the created filter ID. */
+    function createMirrorViaTool(
+      polygonId: Entity['id'],
+      pointA: SheetPosition,
+      pointB: SheetPosition,
+    ): string {
+      toolManager.setActiveTool('edit');
+      toolManager.changeToolSubTool('edit', 'mirror');
+      toolManager
+        .getActiveTool()
+        .handleGeometryFillPointerDown(
+          new ScreenPosition(
+            pointA.toScreen(viewportControls.getState().viewport).x,
+            pointA.toScreen(viewportControls.getState().viewport).y,
+          ),
+          viewportControls,
+          polygonId,
+        );
+      toolManager.handleMouseDown(
+        new ScreenPosition(
+          pointA.toScreen(viewportControls.getState().viewport).x,
+          pointA.toScreen(viewportControls.getState().viewport).y,
+        ),
+        viewportControls.getState().viewport,
+      );
+      toolManager.handleMouseDown(
+        new ScreenPosition(
+          pointB.toScreen(viewportControls.getState().viewport).x,
+          pointB.toScreen(viewportControls.getState().viewport).y,
+        ),
+        viewportControls.getState().viewport,
+      );
+      const filters = geometryStore.findFiltersByGeometryId(polygonId);
+      return filters[filters.length - 1].id;
+    }
+
+    it('corner resize removes fill during drag when polygon endpoints leave mirror line', () => {
+      // Non-closed polygon: start (5,5), end (15,5), both on mirror line (0,5)-(20,5)
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 5) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      // Create mirror filter — endpoints are on mirror line, fill gets added
+      createMirrorViaTool(polygon.id, new SheetPosition(0, 5), new SheetPosition(20, 5));
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+
+      // Corner resize bottom-right — expands bounding box, moving endpoints off mirror line
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygon.id], {
+        type: 'corner',
+        corner: 'bottom-right',
+      });
+
+      const moveScreen = new SheetPosition(25, 15).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      // Fill should be removed during drag (syncFillColor on every mousemove)
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('edge resize adds fill during drag when polygon endpoints land on mirror line', () => {
+      // Non-closed polygon with both endpoints at the top edge of bbox (y=6.25).
+      // Mirror line is at y=5. Resizing the top edge down to y=5 moves both endpoints onto the line.
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 6.25) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 6.25) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      // Create mirror filter — endpoints are NOT on mirror line (y=6.25 vs y=5)
+      createMirrorViaTool(polygon.id, new SheetPosition(0, 5), new SheetPosition(20, 5));
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+
+      // Edge resize "top" — moving top edge from y=6.25 to y=5 puts both endpoints on mirror line
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygon.id], {
+        type: 'edge',
+        edge: 'top',
+      });
+
+      // For "top" edge resize, initialPointerDownOffsetYPx = 16 (SELECTED_OUTSET_PX).
+      // The mouse event Y must be adjusted so that after offset, screen Y converts to sheet Y=5.
+      // Sheet (10,5) -> screen (640, 320). Subtract offset 16 from clientY: 320 - 16 = 304.
+      const sheetTarget = new SheetPosition(10, 5);
+      const screenTarget = sheetTarget.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: screenTarget.x, clientY: screenTarget.y - 16 } as MouseEvent);
+
+      // Fill should be added during drag (syncFillColor on every mousemove)
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+
+      upHandler!({ clientX: screenTarget.x, clientY: screenTarget.y } as MouseEvent);
+    });
+
+    it('edge resize fill add is undoable and redoable', () => {
+      // Non-closed polygon with both endpoints at top edge of bbox (y=6.25)
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 6.25) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 6.25) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      createMirrorViaTool(polygon.id, new SheetPosition(0, 5), new SheetPosition(20, 5));
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+
+      // Edge resize "top" — moving top edge from y=6.25 to y=5 puts both endpoints on mirror line
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygon.id], {
+        type: 'edge',
+        edge: 'top',
+      });
+
+      // For "top" edge resize, initialPointerDownOffsetYPx = 16 (SELECTED_OUTSET_PX).
+      const sheetTarget = new SheetPosition(10, 5);
+      const screenTarget = sheetTarget.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: screenTarget.x, clientY: screenTarget.y - 16 } as MouseEvent);
+      upHandler!({ clientX: screenTarget.x, clientY: screenTarget.y } as MouseEvent);
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+
+      // Undo — fill removed, polygon restored
+      historyManager.undo();
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+
+      // Redo — fill added back
+      historyManager.redo();
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+    });
+
+    it('corner resize fill remove is undoable and redoable', () => {
+      // Non-closed polygon: start (5,5), end (15,5), both on mirror line
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 5) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      createMirrorViaTool(polygon.id, new SheetPosition(0, 5), new SheetPosition(20, 5));
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+
+      // Corner resize bottom-right to push endpoints off mirror line
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygon.id], {
+        type: 'corner',
+        corner: 'bottom-right',
+      });
+
+      const moveScreen = new SheetPosition(25, 15).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+
+      // Undo — fill restored, polygon points restored
+      historyManager.undo();
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+
+      // Redo — fill removed again
+      historyManager.redo();
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+    });
+
+    it('corner resize cancel restores original fill', () => {
+      // Non-closed polygon with endpoints on mirror line — fill present
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 5) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      createMirrorViaTool(polygon.id, new SheetPosition(0, 5), new SheetPosition(20, 5));
+      const before = geometryStore.getById(polygon.id)!;
+      expect(FillColorComponent.getOptional(before)).toBeDefined();
+      const originalFill = FillColorComponent.get(before as Entity<FillColorComponent>);
+
+      // Corner resize bottom-right to push endpoints off mirror line
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygon.id], {
+        type: 'corner',
+        corner: 'bottom-right',
+      });
+
+      const moveScreen = new SheetPosition(25, 15).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      // Fill should be removed during drag
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+
+      // Cancel — restore original points and fill
+      selectTool.handleKeyDown(new KeyboardEvent('keydown', { key: 'Escape' }) as any);
+
+      const restored = geometryStore.getById(polygon.id)!;
+      expect(FillColorComponent.getOptional(restored)).toBeDefined();
+      expect(FillColorComponent.get(restored as Entity<FillColorComponent>)).toBe(originalFill);
+    });
+
+    it('edge resize removes fill during drag when polygon endpoints leave mirror line', () => {
+      // Non-closed polygon: start (5,5), end (15,5), both on mirror line (0,5)-(20,5)
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 5) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 5) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      // Create mirror filter
+      createMirrorViaTool(polygon.id, new SheetPosition(0, 5), new SheetPosition(20, 5));
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
+
+      // Edge resize top — stretches polygon upward, moving endpoints off mirror line
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygon.id], {
+        type: 'edge',
+        edge: 'top',
+      });
+
+      const moveScreen = new SheetPosition(10, -2).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      // Fill should be removed during drag (syncFillColor on every mousemove)
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('edge resize adds fill on commit when polygon endpoints land on mirror line', () => {
+      // Non-closed polygon with both endpoints at top edge of bbox (y=6.25)
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(5, 6.25) },
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 6.25) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      );
+
+      createMirrorViaTool(polygon.id, new SheetPosition(0, 5), new SheetPosition(20, 5));
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeUndefined();
+
+      // Edge resize "top" — moving top edge from y=6.25 to y=5 puts both endpoints on mirror line
+      selectTool.onGeometryResizePointerDown(viewportControls, [polygon.id], {
+        type: 'edge',
+        edge: 'top',
+      });
+
+      // For "top" edge resize, initialPointerDownOffsetYPx = 16 (SELECTED_OUTSET_PX).
+      const sheetTarget = new SheetPosition(10, 5);
+      const screenTarget = sheetTarget.toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: screenTarget.x, clientY: screenTarget.y - 16 } as MouseEvent);
+      upHandler!({ clientX: screenTarget.x, clientY: screenTarget.y } as MouseEvent);
+
+      // Fill should be added on commit
+      expect(FillColorComponent.getOptional(geometryStore.getById(polygon.id)!)).toBeDefined();
     });
   });
 });

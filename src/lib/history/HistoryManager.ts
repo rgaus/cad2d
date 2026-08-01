@@ -14,6 +14,7 @@ import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
+import { FilterComponent } from '../entity/components/FilterComponent';
 import { UndoEntry } from './types';
 
 /** Events emitted by HistoryManager. */
@@ -240,9 +241,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.deleteByIdDirect(entry.geometry.id);
         break;
       case 'fill-color':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, FillColorComponent, (old) =>
+      case 'fill-color-add':
+        this.geometryStore.updateByIdDirect(entry.id, (old) =>
           FillColorComponent.update(old, entry.afterColor),
         );
+        break;
+      case 'fill-color-remove':
+        this.geometryStore.updateByIdDirect(entry.id, (old) => FillColorComponent.remove(old));
         break;
       case 'render-order':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, RenderOrderComponent, (old) =>
@@ -330,20 +335,43 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           const geometry = this.geometryStore.getByIdWithComponent(entry.id, GeometryComponent);
           if (geometry && GeometryComponent.isPolygon(geometry)) {
             const data = GeometryComponent.get(geometry);
-            const splitAt = data.points.length - (data.openAtIndex + 1);
-            this.geometryStore.updateByIdWithComponentDirect(entry.id, GeometryComponent, (old) => {
-              if (!GeometryComponent.isPolygon(old)) {
-                return old;
-              }
-              return GeometryComponent.update(old, {
-                points: [
-                  ...data.points.slice(splitAt),
-                  ...data.points.slice(0, splitAt),
-                  { type: 'point' as const, point: data.points[splitAt].point },
-                ],
-                closed: true,
-              });
-            });
+
+            // When openAtIndex is 0, the polygon points are already in the correct order
+            // and the closing segment is drawn by the renderer from the last point back
+            // to the first. No point manipulation is needed — just toggle the flag.
+            if (data.openAtIndex === 0) {
+              this.geometryStore.updateByIdWithComponentDirect(
+                entry.id,
+                GeometryComponent,
+                (old) => {
+                  if (!GeometryComponent.isPolygon(old)) {
+                    return old;
+                  }
+                  return GeometryComponent.update(old, {
+                    closed: true,
+                  });
+                },
+              );
+            } else {
+              const splitAt = data.points.length - (data.openAtIndex + 1);
+              this.geometryStore.updateByIdWithComponentDirect(
+                entry.id,
+                GeometryComponent,
+                (old) => {
+                  if (!GeometryComponent.isPolygon(old)) {
+                    return old;
+                  }
+                  return GeometryComponent.update(old, {
+                    points: [
+                      ...data.points.slice(splitAt),
+                      ...data.points.slice(0, splitAt),
+                      { type: 'point' as const, point: data.points[splitAt].point },
+                    ],
+                    closed: true,
+                  });
+                },
+              );
+            }
             const fillColorToSet = data.lastFillColor != null ? data.lastFillColor : DEFAULT_COLOR;
             this.geometryStore.updateByIdDirect(entry.id, (g) => ({
               ...g,
@@ -358,19 +386,40 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           if (geometry && GeometryComponent.isPolygon(geometry)) {
             const data = GeometryComponent.get(geometry);
             const currentFillColor = FillColorComponent.getOptional(geometry);
-            this.geometryStore.updateByIdWithComponentDirect(entry.id, GeometryComponent, (old) => {
-              if (!GeometryComponent.isPolygon(old)) {
-                return old;
-              }
-              return GeometryComponent.update(old, {
-                points: [
-                  ...data.points.slice(data.openAtIndex + 1, -1),
-                  ...data.points.slice(0, data.openAtIndex + 1),
-                ],
-                closed: false,
-                lastFillColor: currentFillColor ?? null,
-              });
-            });
+
+            if (data.openAtIndex === 0) {
+              this.geometryStore.updateByIdWithComponentDirect(
+                entry.id,
+                GeometryComponent,
+                (old) => {
+                  if (!GeometryComponent.isPolygon(old)) {
+                    return old;
+                  }
+                  return GeometryComponent.update(old, {
+                    closed: false,
+                    lastFillColor: currentFillColor ?? null,
+                  });
+                },
+              );
+            } else {
+              this.geometryStore.updateByIdWithComponentDirect(
+                entry.id,
+                GeometryComponent,
+                (old) => {
+                  if (!GeometryComponent.isPolygon(old)) {
+                    return old;
+                  }
+                  return GeometryComponent.update(old, {
+                    points: [
+                      ...data.points.slice(data.openAtIndex + 1, -1),
+                      ...data.points.slice(0, data.openAtIndex + 1),
+                    ],
+                    closed: false,
+                    lastFillColor: currentFillColor ?? null,
+                  });
+                },
+              );
+            }
             this.geometryStore.updateByIdDirect(entry.id, (g) => ({
               ...g,
               components: Object.fromEntries(
@@ -554,6 +603,19 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           DatumComponent.update(old, entry.after.position),
         );
         break;
+      case 'filter-change-offset':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, { offset: entry.afterLength }),
+        );
+        break;
+      case 'mirror-filter-move-endpoints':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, {
+            pointA: entry.afterPointA,
+            pointB: entry.afterPointB,
+          }),
+        );
+        break;
       default:
         entry satisfies never;
         break;
@@ -662,20 +724,40 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           const geometry = this.geometryStore.getByIdWithComponent(entry.id, GeometryComponent);
           if (geometry && GeometryComponent.isPolygon(geometry)) {
             const data = GeometryComponent.get(geometry);
-            const splitAt = data.points.length - (data.openAtIndex + 1);
-            this.geometryStore.updateByIdWithComponentDirect(entry.id, GeometryComponent, (old) => {
-              if (!GeometryComponent.isPolygon(old)) {
-                return old;
-              }
-              return GeometryComponent.update(old, {
-                points: [
-                  ...data.points.slice(splitAt),
-                  ...data.points.slice(0, splitAt),
-                  { type: 'point' as const, point: data.points[splitAt].point },
-                ],
-                closed: true,
-              });
-            });
+
+            if (data.openAtIndex === 0) {
+              this.geometryStore.updateByIdWithComponentDirect(
+                entry.id,
+                GeometryComponent,
+                (old) => {
+                  if (!GeometryComponent.isPolygon(old)) {
+                    return old;
+                  }
+                  return GeometryComponent.update(old, {
+                    closed: true,
+                  });
+                },
+              );
+            } else {
+              const splitAt = data.points.length - (data.openAtIndex + 1);
+              this.geometryStore.updateByIdWithComponentDirect(
+                entry.id,
+                GeometryComponent,
+                (old) => {
+                  if (!GeometryComponent.isPolygon(old)) {
+                    return old;
+                  }
+                  return GeometryComponent.update(old, {
+                    points: [
+                      ...data.points.slice(splitAt),
+                      ...data.points.slice(0, splitAt),
+                      { type: 'point' as const, point: data.points[splitAt].point },
+                    ],
+                    closed: true,
+                  });
+                },
+              );
+            }
             const fillColorToSet = data.lastFillColor != null ? data.lastFillColor : DEFAULT_COLOR;
             this.geometryStore.updateByIdDirect(entry.id, (g) => ({
               ...g,
@@ -690,19 +772,40 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           if (geometry && GeometryComponent.isPolygon(geometry)) {
             const data = GeometryComponent.get(geometry);
             const currentFillColor = FillColorComponent.getOptional(geometry);
-            this.geometryStore.updateByIdWithComponentDirect(entry.id, GeometryComponent, (old) => {
-              if (!GeometryComponent.isPolygon(old)) {
-                return old;
-              }
-              return GeometryComponent.update(old, {
-                points: [
-                  ...data.points.slice(data.openAtIndex + 1, -1),
-                  ...data.points.slice(0, data.openAtIndex + 1),
-                ],
-                closed: false,
-                lastFillColor: currentFillColor ?? null,
-              });
-            });
+
+            if (data.openAtIndex === 0) {
+              this.geometryStore.updateByIdWithComponentDirect(
+                entry.id,
+                GeometryComponent,
+                (old) => {
+                  if (!GeometryComponent.isPolygon(old)) {
+                    return old;
+                  }
+                  return GeometryComponent.update(old, {
+                    closed: false,
+                    lastFillColor: currentFillColor ?? null,
+                  });
+                },
+              );
+            } else {
+              this.geometryStore.updateByIdWithComponentDirect(
+                entry.id,
+                GeometryComponent,
+                (old) => {
+                  if (!GeometryComponent.isPolygon(old)) {
+                    return old;
+                  }
+                  return GeometryComponent.update(old, {
+                    points: [
+                      ...data.points.slice(data.openAtIndex + 1, -1),
+                      ...data.points.slice(0, data.openAtIndex + 1),
+                    ],
+                    closed: false,
+                    lastFillColor: currentFillColor ?? null,
+                  });
+                },
+              );
+            }
             this.geometryStore.updateByIdDirect(entry.id, (g) => ({
               ...g,
               components: Object.fromEntries(
@@ -726,9 +829,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         );
         break;
       case 'fill-color':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, FillColorComponent, (old) =>
+      case 'fill-color-remove':
+        this.geometryStore.updateByIdDirect(entry.id, (old) =>
           FillColorComponent.update(old, entry.beforeColor),
         );
+        break;
+      case 'fill-color-add':
+        this.geometryStore.updateByIdDirect(entry.id, (old) => FillColorComponent.remove(old));
         break;
       case 'render-order':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, RenderOrderComponent, (old) =>
@@ -887,6 +994,19 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'datum-move':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, DatumComponent, (old) =>
           DatumComponent.update(old, entry.before.position),
+        );
+        break;
+      case 'filter-change-offset':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, { offset: entry.beforeLength }),
+        );
+        break;
+      case 'mirror-filter-move-endpoints':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+          FilterComponent.update(g, {
+            pointA: entry.beforePointA,
+            pointB: entry.beforePointB,
+          }),
         );
         break;
       default:

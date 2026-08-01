@@ -1,7 +1,7 @@
 'use client';
 
 import { FederatedPointerEvent } from 'pixi.js';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import ChamferFilterIndicator from '@/app/components/ChamferFilterIndicator';
 import ConstraintLengthInput, {
   ConstraintLengthInputHandle,
@@ -12,13 +12,15 @@ import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { type Entity } from '@/lib/entity';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
-import { SELECTION_COLOR } from '@/lib/textures';
+import { SELECTION_COLOR, VertexHandleTexture } from '@/lib/textures';
 import { WorkingFilter } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
 import type { UnitType } from '@/lib/units/length';
 import { ScreenPosition } from '@/lib/viewport/types';
+import { HandleSprites } from './HandleSprites';
 
 const FilterOverlay: React.FunctionComponent = () => {
   const { geometryStore, viewportScale, sheet, toolManager, viewportControls } =
@@ -114,6 +116,27 @@ const FilterOverlay: React.FunctionComponent = () => {
 
     activeTool.onFilterLabelPointerLeave();
   }, [toolManager]);
+
+  const handleMirrorFilterEndpointPointerDown = useCallback(
+    (
+      e: FederatedPointerEvent,
+      filterId: Entity<FilterComponent>['id'],
+      pointKey: 'pointA' | 'pointB',
+    ) => {
+      if (!viewportControls) {
+        return;
+      }
+      toolManager
+        .getActiveTool()
+        .handleFilterEndpointPointerDown<MirrorFilterData>(
+          new ScreenPosition(e.clientX, e.clientY),
+          viewportControls,
+          filterId,
+          pointKey,
+        );
+    },
+    [toolManager, viewportControls],
+  );
 
   let workingFilterJsx: React.ReactNode | null = null;
   if (workingFilter) {
@@ -264,18 +287,34 @@ const FilterOverlay: React.FunctionComponent = () => {
           case 'mirror': {
             const targetGeometry = geometryStore.getById(filter.geometryId);
             return (
-              <MirrorFilterIndicator
-                key={geometry.id}
-                pointA={filter.pointA}
-                pointB={filter.pointB}
-                targetGeometry={targetGeometry}
-                viewportScale={viewportScale}
-                lineWidthPx={isSelected || hoveringFilterLabelId === geometry.id ? 2 : undefined}
-                color={isSelected ? SELECTION_COLOR : undefined}
-                onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
-                onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
-                onPointerLeave={handleFilterLabelPointerLeave}
-              />
+              <Fragment key={geometry.id}>
+                <MirrorFilterIndicator
+                  key={geometry.id}
+                  pointA={filter.pointA}
+                  pointB={filter.pointB}
+                  targetGeometry={targetGeometry}
+                  viewportScale={viewportScale}
+                  lineWidthPx={isSelected || hoveringFilterLabelId === geometry.id ? 2 : undefined}
+                  color={isSelected ? SELECTION_COLOR : undefined}
+                  onPointerUp={(e) => handleFilterLabelPointerUp(e, geometry.id)}
+                  onPointerEnter={() => handleFilterLabelPointerEnter(geometry.id)}
+                  onPointerLeave={handleFilterLabelPointerLeave}
+                />
+                {isSelected ? (
+                  <HandleSprites
+                    points={[filter.pointA, filter.pointB]}
+                    handleTexture={VertexHandleTexture.get()}
+                    viewportScale={viewportScale}
+                    onHandlePointerDown={(e, index) =>
+                      handleMirrorFilterEndpointPointerDown(
+                        e,
+                        geometry.id,
+                        index === 0 ? 'pointA' : 'pointB',
+                      )
+                    }
+                  />
+                ) : null}
+              </Fragment>
             );
           }
           default:

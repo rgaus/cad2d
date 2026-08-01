@@ -26,6 +26,9 @@ import {
   RenderOrderComponent,
 } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { type Filter } from '@/lib/entity/filters';
+import { GeometryData } from '@/lib/entity/geometry';
 import { EllipseData } from '@/lib/entity/geometry/ellipse';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
@@ -72,6 +75,32 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
   );
 }
 
+/** Returns a list of filters which are associated with the given geometry id. */
+function useGeometryFilters(geometryStore: GeometryStore, geometryId?: Entity['id'] | null) {
+  const [filters, setFilters] = useState<Array<Filter>>(() => {
+    return geometryId ? geometryStore.findFiltersByGeometryId(geometryId) : [];
+  });
+
+  useEffect(() => {
+    const update = (entity: Entity) => {
+      if (!Entity.hasComponent(entity, FilterComponent)) {
+        return;
+      }
+      const data = FilterComponent.get(entity);
+      if (data.geometryId !== geometryId) {
+        return;
+      }
+      setFilters(geometryStore.findFiltersByGeometryId(geometryId));
+    };
+    geometryStore.on('geometryUpdated', update);
+    return () => {
+      geometryStore.off('geometryUpdated', update);
+    };
+  }, [geometryStore, geometryId]);
+
+  return filters;
+}
+
 /** Listening to a full fidelity stream of geometry update events and rerendering on each event
  * update is probhibitively expensive, especially for geometry moves which can easily be sent many
  * tens of times per seconds. So, debounce the event stream to speed things up. */
@@ -100,6 +129,8 @@ const RectangleInspector: React.FunctionComponent<{
     }
     return geometry;
   });
+
+  const filters = useGeometryFilters(geometryStore, geometry?.id);
 
   const rectangle = useMemo(() => (geometry ? GeometryComponent.get(geometry) : null), [geometry]);
   const linkDimensions = useMemo(
@@ -274,7 +305,14 @@ const RectangleInspector: React.FunctionComponent<{
     <div className="flex flex-col gap-3">
       <div className="flex flex-row justify-center w-full py-2">
         <div className="w-20 shrink-0 aspect-square overflow-hidden">
-          {geometry ? <ShapePreview shape={geometry} editingDimension={editingDimension} /> : null}
+          {geometry ? (
+            <ShapePreview
+              geometry={geometry}
+              sheetDefaultUnit={sheetDefaultUnit}
+              filters={filters}
+              editingDimension={editingDimension}
+            />
+          ) : null}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -369,6 +407,8 @@ const EllipseInspector: React.FunctionComponent<{
     }
     return geometry;
   });
+
+  const filters = useGeometryFilters(geometryStore, geometry?.id);
 
   const ellipse = useMemo(() => (geometry ? GeometryComponent.get(geometry) : null), [geometry]);
   const linkDimensions = useMemo(
@@ -535,7 +575,14 @@ const EllipseInspector: React.FunctionComponent<{
     <div className="flex flex-col gap-3">
       <div className="flex flex-row justify-center w-full py-2">
         <div className="w-20 shrink-0 aspect-square overflow-hidden">
-          {geometry ? <ShapePreview shape={geometry} editingDimension={editingDimension} /> : null}
+          {geometry ? (
+            <ShapePreview
+              geometry={geometry}
+              sheetDefaultUnit={sheetDefaultUnit}
+              filters={filters}
+              editingDimension={editingDimension}
+            />
+          ) : null}
         </div>
       </div>
       <div className="flex items-center gap-2">
@@ -888,6 +935,8 @@ const PolygonInspector: React.FunctionComponent<{
     return geometry;
   });
 
+  const filters = useGeometryFilters(geometryStore, polygon?.id);
+
   const [shapePreviewHighlight, setShapePreviewHighlight] = useState<ShapePreviewHighlight | null>(
     null,
   );
@@ -980,7 +1029,6 @@ const PolygonInspector: React.FunctionComponent<{
       if (
         geometry.id !== polygonId ||
         !Entity.hasComponent(geometry, GeometryComponent) ||
-        !Entity.hasComponent(geometry, LinkDimensionsComponent) ||
         !GeometryComponent.isPolygon(geometry)
       ) {
         return;
@@ -1001,6 +1049,24 @@ const PolygonInspector: React.FunctionComponent<{
         : null,
     [polygon],
   );
+
+  // Some filters (ie, MirrorFilter) can fill a polygon automatically even if it isn't itself closed
+  // (ie, a non closed polygon attached to a mirror filter could have both mirrored sides combined
+  // into a fully closed shape). When this occurs, render the close / open polygon button in a
+  // special state.
+  const isPolygonFilledDueToFilter = useMemo(() => {
+    if (!polygon) {
+      return false;
+    }
+
+    const data = GeometryComponent.get(polygon);
+    if (data.closed) {
+      return false;
+    }
+
+    const fillColor = FillColorComponent.getOptional(polygon);
+    return typeof fillColor !== 'undefined';
+  }, [polygon]);
 
   const handlePointXChange = useCallback(
     (index: number, len: Length) => {
@@ -1307,7 +1373,9 @@ const PolygonInspector: React.FunctionComponent<{
       <div className="flex flex-row justify-center w-full py-2">
         <div className="w-20 shrink-0 aspect-square overflow-hidden">
           <ShapePreview
-            shape={polygon}
+            geometry={polygon}
+            sheetDefaultUnit={sheetDefaultUnit}
+            filters={filters}
             highlight={shapePreviewHighlight}
             editingDimension={editingDimension}
           />
@@ -1355,6 +1423,8 @@ const PolygonInspector: React.FunctionComponent<{
                 <LengthInput
                   value={Length.fromSheetUnits(sheetDefaultUnit, bounds.height)}
                   onChange={handleBoundsHChange}
+                  onFocus={() => setEditingDimension('height')}
+                  onBlur={() => setEditingDimension(null)}
                   roundPlaces={sheetUnitPlaces}
                   readOnlyUnit
                 />
@@ -1433,33 +1503,42 @@ const PolygonInspector: React.FunctionComponent<{
           })}
         </div>
       </div>
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={handleCloseOpen}
-        className={cn('w-full border border-2 border-transparent', {
-          'hover:border-[var(--teal-5)]': polygonData.closed,
-        })}
-        style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
-        onMouseEnter={() => {
-          if (polygonData.closed) {
-            setOpenAtIndexDragging(true);
-            setShapePreviewHighlight({
-              type: 'segment',
-              index: polygonData.openAtIndex,
-              color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
-            });
-          }
-        }}
-        onMouseLeave={() => {
-          if (polygonData.closed) {
-            setOpenAtIndexDragging(false);
-            setShapePreviewHighlight(null);
-          }
-        }}
-      >
-        {polygonData.closed ? 'Open polygon' : 'Close polygon'}
-      </Button>
+      {isPolygonFilledDueToFilter ? (
+        <div className="flex items-center justify-center px-3 h-9 bg-[var(--slate-4)] border-[var(--slate-6)] border-1">
+          <span className="text-xs font-medium select-none text-[var(--slate-9)]">
+            Auto closed by filter
+          </span>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={isPolygonFilledDueToFilter}
+          onClick={handleCloseOpen}
+          className={cn('w-full border border-2 border-transparent', {
+            'hover:border-[var(--teal-5)]': polygonData.closed,
+          })}
+          style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+          onMouseEnter={() => {
+            if (polygonData.closed) {
+              setOpenAtIndexDragging(true);
+              setShapePreviewHighlight({
+                type: 'segment',
+                index: polygonData.openAtIndex,
+                color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+              });
+            }
+          }}
+          onMouseLeave={() => {
+            if (polygonData.closed) {
+              setOpenAtIndexDragging(false);
+              setShapePreviewHighlight(null);
+            }
+          }}
+        >
+          {polygonData.closed ? 'Open polygon' : 'Close polygon'}
+        </Button>
+      )}
     </div>
   );
 };

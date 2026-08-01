@@ -9,6 +9,7 @@ import {
   SheetPosition,
 } from '@/lib/viewport/types';
 import { Filter, FilterData } from '../filters';
+import { MirrorFilter } from '../filters/mirror';
 import { type Geometry, type GeometryData } from '../geometry';
 import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
@@ -27,12 +28,14 @@ export type RenderShapePolygon = {
 export type RenderShapeRectangle = {
   shape: 'rectangle';
   key: string;
+  primary: boolean;
   upperLeft: SheetPosition;
   lowerRight: SheetPosition;
 };
 export type RenderShapeEllipse = {
   shape: 'ellipse';
   key: string;
+  primary: boolean;
   center: SheetPosition;
   radiusX: number;
   radiusY: number;
@@ -40,28 +43,69 @@ export type RenderShapeEllipse = {
 
 export type RenderShape = RenderShapePolygon | RenderShapeRectangle | RenderShapeEllipse;
 
-namespace RenderShape {
+export namespace RenderShape {
   export function polygon(
     key: string,
     points: Array<PolygonSegment>,
-    closed: boolean,
-    options?: { primary?: boolean },
+    options?: { closed?: boolean; primary?: boolean },
   ): RenderShape {
-    return { shape: 'polygon' as const, key, primary: options?.primary ?? false, points, closed };
+    return {
+      shape: 'polygon' as const,
+      key,
+      primary: options?.primary ?? false,
+      points,
+      closed: options?.closed ?? false,
+    };
   }
   export function rectangle(
     key: string,
     upperLeft: SheetPosition,
     lowerRight: SheetPosition,
+    options?: { primary?: boolean },
   ): RenderShape {
-    return { shape: 'rectangle' as const, key, upperLeft, lowerRight };
+    return {
+      shape: 'rectangle' as const,
+      key,
+      primary: options?.primary ?? false,
+      upperLeft,
+      lowerRight,
+    };
   }
   export function ellipse(
     key: string,
     center: SheetPosition,
-    args: { radiusX: number; radiusY: number },
+    args: { radiusX: number; radiusY: number; primary?: boolean },
   ): RenderShape {
-    return { shape: 'ellipse' as const, key, center, radiusX: args.radiusX, radiusY: args.radiusY };
+    return {
+      shape: 'ellipse' as const,
+      key,
+      primary: args?.primary ?? false,
+      center,
+      radiusX: args.radiusX,
+      radiusY: args.radiusY,
+    };
+  }
+
+  export function boundingBox(renderShape: RenderShape) {
+    switch (renderShape.shape) {
+      case 'polygon':
+        return BoundingBox.fromPoints(renderShape.points.map((p) => p.point));
+      case 'rectangle':
+        return BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]);
+      case 'ellipse':
+        return BoundingBox.fromPoints([
+          renderShape.center,
+          new SheetPosition(renderShape.center.x, renderShape.center.y + renderShape.radiusY),
+          new SheetPosition(renderShape.center.x, renderShape.center.y - renderShape.radiusY),
+          new SheetPosition(renderShape.center.x + renderShape.radiusX, renderShape.center.y),
+          new SheetPosition(renderShape.center.x - renderShape.radiusX, renderShape.center.y),
+        ]);
+      default:
+        renderShape satisfies never;
+        throw new Error(
+          `RenderShape.boundingBox: Unknown render shape ${(renderShape as any).shape}`,
+        );
+    }
   }
 }
 
@@ -254,6 +298,51 @@ export namespace GeometryComponent {
         throw new Error(
           `GeometryComponent.equals: Unknown geometry data type ${(state as any).type}`,
         );
+    }
+  }
+
+  /**
+   * Returns true if a geometry entity and a render shape are geometrically
+   * identical (same type, same positions). Ignores metadata like `primary`
+   * and `key` on the render shape.
+   *
+   * Used during serialization to skip rendering a render shape that is a
+   * duplicate of the entity's own native SVG element.
+   */
+  export function isGeometricallyEqual(
+    geometry: Entity<GeometryComponent>,
+    renderShape: RenderShape,
+  ): boolean {
+    const data = GeometryComponent.get(geometry);
+    switch (data.type) {
+      case 'polygon':
+        if (renderShape.shape !== 'polygon') {
+          return false;
+        }
+        return PolygonData.isGeometricallyEqualToRenderShape(data.points, data.closed, renderShape);
+      case 'rectangle':
+        if (renderShape.shape !== 'rectangle') {
+          return false;
+        }
+        return (
+          data.upperLeft.x === renderShape.upperLeft.x &&
+          data.upperLeft.y === renderShape.upperLeft.y &&
+          data.lowerRight.x === renderShape.lowerRight.x &&
+          data.lowerRight.y === renderShape.lowerRight.y
+        );
+      case 'ellipse':
+        if (renderShape.shape !== 'ellipse') {
+          return false;
+        }
+        return (
+          data.center.x === renderShape.center.x &&
+          data.center.y === renderShape.center.y &&
+          data.radiusX === renderShape.radiusX &&
+          data.radiusY === renderShape.radiusY
+        );
+      default:
+        data satisfies never;
+        return false;
     }
   }
 
@@ -577,22 +666,33 @@ export namespace GeometryComponent {
     geometry: Entity<GeometryComponent<GeometryData>>,
     sheetDefaultUnit: UnitType,
     filters: Array<Filter> = [],
+    options: {
+      /** Defaults to true. When set to false, a non closed polygon which would become closed (ie,
+       * polygon mirrored over a mirror line) will be returned as two distinct polygons (one
+       * primary, one not) so that the two halves can be rendered differently. */
+      combineNonClosedPolygons: boolean;
+    } = { combineNonClosedPolygons: true },
   ): Array<RenderShape> {
     let shapes;
 
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
-        shapes = [RenderShape.polygon(geometry.id, state.points, state.closed, { primary: true })];
+        shapes = [
+          RenderShape.polygon(geometry.id, state.points, { closed: state.closed, primary: true }),
+        ];
         break;
       case 'rectangle':
-        shapes = [RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight)];
+        shapes = [
+          RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight, { primary: true }),
+        ];
         break;
       case 'ellipse':
         shapes = [
           RenderShape.ellipse(geometry.id, state.center, {
             radiusX: state.radiusX,
             radiusY: state.radiusY,
+            primary: true,
           }),
         ];
         break;
@@ -612,16 +712,12 @@ export namespace GeometryComponent {
       const filterData = FilterComponent.get(filter);
       switch (filterData.type) {
         case 'mirror': {
-          const mirrorResults = shapes.flatMap((renderShape) => {
+          shapes = shapes.flatMap((renderShape) => {
             filterApplicationCounter += 1;
             const key = `${filter.id}_${filterApplicationCounter}`;
 
             switch (renderShape.shape) {
               case 'rectangle': {
-                // IMPORTANT: the below algorithm does not properly handle flipping over non 90 or 45
-                // degree lines, since there isn't a way to represent a rotated rectangle currently.
-                //
-                // FIXME: Address this, it's a bug that is fairly noticable.
                 const corners = BoundingBox.cornersToArray(
                   BoundingBox.corners(
                     BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]),
@@ -630,23 +726,32 @@ export namespace GeometryComponent {
                 const flippedCorners = corners.map((point) =>
                   mirrorPointOverLine(point, filterData.pointA, filterData.pointB),
                 );
-                const ul = new SheetPosition(
-                  Math.min(...flippedCorners.map((p) => p.x)),
-                  Math.min(...flippedCorners.map((p) => p.y)),
-                );
-                const lr = new SheetPosition(
-                  Math.max(...flippedCorners.map((p) => p.x)),
-                  Math.max(...flippedCorners.map((p) => p.y)),
-                );
-                return [RenderShape.rectangle(key, ul, lr)];
+
+                return [
+                  renderShape,
+                  RenderShape.polygon(
+                    key,
+                    [...flippedCorners, flippedCorners[0]].map((point) => ({
+                      type: 'point',
+                      point,
+                    })),
+                    { closed: true },
+                  ),
+                ];
               }
               case 'ellipse': {
+                // IMPORTANT: the below algorithm does not properly handle flipping over non 90 or 45
+                // degree lines, since there isn't a way to represent a rotated rectangle currently.
+                //
+                // FIXME: Address this, it's a bug that is fairly noticable.
+
                 const mirroredCenter = mirrorPointOverLine(
                   renderShape.center,
                   filterData.pointA,
                   filterData.pointB,
                 );
                 return [
+                  renderShape,
                   RenderShape.ellipse(key, mirroredCenter, {
                     radiusX: renderShape.radiusX,
                     radiusY: renderShape.radiusY,
@@ -695,8 +800,45 @@ export namespace GeometryComponent {
                       );
                   }
                 });
+
+                // If a polygon which is non closed is mirrored across the mirror line and the start
+                // and end points are both exactly ON the mirror line, then combine the two mirrored
+                // halves into one filled polygon
+                if (
+                  !renderShape.closed &&
+                  MirrorFilter.arePolygonEndpointsOnMirrorLine(filterData, renderShape.points)
+                ) {
+                  // In some cases (ie, when rendering in ShapePreview), combining together the
+                  // polygons actually isn't what is desired, so that the mirrored part can be
+                  // rendered differently.
+                  //
+                  // In this case, return them seperately, though importantly, the mirrored section
+                  // is CLOSED! Which is different than what would happen normally.
+                  if (!options.combineNonClosedPolygons) {
+                    return [
+                      { ...renderShape, closed: true },
+                      RenderShape.polygon(key, mirroredPoints, { closed: true }),
+                    ];
+                  }
+
+                  const combined = [
+                    ...renderShape.points,
+                    // Flip around the mirrored points so it can continue where `renderShape`
+                    // left off.
+                    ...PolygonSegment.reverseList(mirroredPoints),
+                  ];
+                  return [
+                    RenderShape.polygon(key, combined, {
+                      closed: true,
+                      primary: renderShape.primary,
+                    }),
+                  ];
+                }
+
                 return [
-                  RenderShape.polygon(key, mirroredPoints, renderShape.closed, {
+                  renderShape,
+                  RenderShape.polygon(key, mirroredPoints, {
+                    closed: renderShape.closed,
                     primary: false,
                   }),
                 ];
@@ -708,7 +850,6 @@ export namespace GeometryComponent {
                 );
             }
           });
-          shapes.push(...mirrorResults);
           break;
         }
         case 'fillet':
@@ -725,7 +866,8 @@ export namespace GeometryComponent {
 
             let resultSegs: Array<
               LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>
-            > | null = null;
+            >;
+            let closed = false;
 
             switch (renderShape.shape) {
               case 'rectangle': {
@@ -738,15 +880,16 @@ export namespace GeometryComponent {
                       offsetNum,
                       factory,
                     ).segments;
+                    closed = true;
                     break;
                   case 'polygon':
                     console.warn(
                       'GeometryComponent.getRenderShapes: applying fillet/chamfer - geoemtryType of polygon cannot apply to renderShape of rectangle, skipping...',
                     );
-                    break;
+                    return [];
                   default:
                     filterData satisfies never;
-                    break;
+                    return [];
                 }
                 break;
               }
@@ -776,7 +919,7 @@ export namespace GeometryComponent {
                       filterData.pointCenterKeyPoint !== 'lowerLeft' &&
                       filterData.pointCenterKeyPoint !== 'lowerRight'
                     ) {
-                      break;
+                      return [];
                     }
 
                     // Find the viewport segment index whose end is the center vertex
@@ -807,6 +950,7 @@ export namespace GeometryComponent {
                       offsetNum,
                       factory,
                     ).segments;
+                    closed = renderShape.closed;
                     break;
                   }
                   case 'polygon': {
@@ -820,10 +964,12 @@ export namespace GeometryComponent {
                       offsetNum,
                       factory,
                     ).segments;
+                    closed = renderShape.closed;
                     break;
                   }
                   default:
                     filterData satisfies never;
+                    return [];
                 }
                 break;
               }
@@ -838,10 +984,6 @@ export namespace GeometryComponent {
                 );
             }
 
-            if (!resultSegs) {
-              return [];
-            }
-
             // Convert viewport segments back to PolygonSegment[]
             const newPoints: Array<PolygonSegment> = [];
             const [firstPoint] = PolygonSegment.fromLineSegmentOrCurve(resultSegs[0]);
@@ -851,7 +993,7 @@ export namespace GeometryComponent {
               newPoints.push(polySeg);
             }
 
-            return [RenderShape.polygon(key, newPoints, true)];
+            return [RenderShape.polygon(key, newPoints, { closed, primary: renderShape.primary })];
           });
           break;
         }

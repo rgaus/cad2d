@@ -1,4 +1,5 @@
 import { Vector2 } from '@/lib/math';
+import { lineIntercept, lineLineIntersection } from '@/lib/math/intersection';
 import { UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Constraint } from '.';
@@ -112,17 +113,6 @@ function circleCircleIntersection(
 }
 
 /**
- * Returns the y-intercept of a line defined by point + slope.
- * For vertical lines, returns Infinity.
- */
-function lineIntercept(linePoint: SheetPosition, slope: number): number {
-  if (!Number.isFinite(slope)) {
-    return Infinity;
-  }
-  return linePoint.y - slope * linePoint.x;
-}
-
-/**
  * Computes the intersection points of an infinite line (defined by a point and slope)
  * with a circle (center, radius). Returns 0, 1, or 2 points.
  */
@@ -179,59 +169,6 @@ function lineCircleIntersection(
   const x1 = (-B - sqrtD) / (2 * A);
   const x2 = (-B + sqrtD) / (2 * A);
   return [new SheetPosition(x1, slope * x1 + b), new SheetPosition(x2, slope * x2 + b)];
-}
-
-/**
- * Computes the intersection of two infinite lines.
- *
- * Each line is defined by a point + slope.
- *
- * Returns:
- *  - A single intersection point if the lines converge.
- *  - 'coincident' if the lines are the same line.
- *  - An empty array if the lines are parallel and distinct.
- */
-function lineLineIntersection(
-  p1: SheetPosition,
-  m1: number,
-  p2: SheetPosition,
-  m2: number,
-  epsilon: number,
-): Array<SheetPosition> | 'coincident' {
-  const bothVertical = !Number.isFinite(m1) && !Number.isFinite(m2);
-  const oneVertical = !Number.isFinite(m1) || !Number.isFinite(m2);
-
-  if (bothVertical) {
-    if (Math.abs(p1.x - p2.x) < epsilon) {
-      return 'coincident';
-    }
-    return [];
-  }
-
-  if (oneVertical) {
-    // m1 is vertical, m2 is finite (swap if needed)
-    const vLine = !Number.isFinite(m1) ? p1 : p2;
-    const fLine = !Number.isFinite(m1) ? { point: p2, m: m2 } : { point: p1, m: m1 };
-    const x = vLine.x;
-    const y = fLine.m * (x - fLine.point.x) + fLine.point.y;
-    return [new SheetPosition(x, y)];
-  }
-
-  // Both slopes finite
-  if (Math.abs(m1 - m2) < epsilon) {
-    const b1 = lineIntercept(p1, m1);
-    const b2 = lineIntercept(p2, m2);
-    if (Math.abs(b1 - b2) < epsilon) {
-      return 'coincident';
-    }
-    return [];
-  }
-
-  // m1 != m2 — solve m1*x + b1 = m2*x + b2
-  const b1 = lineIntercept(p1, m1);
-  const b2 = lineIntercept(p2, m2);
-  const x = (b2 - b1) / (m1 - m2);
-  return [new SheetPosition(x, m1 * x + b1)];
 }
 
 export namespace ConstrainedTrack {

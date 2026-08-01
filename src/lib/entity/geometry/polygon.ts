@@ -399,6 +399,24 @@ export namespace PolygonData {
     );
   }
 
+  /**
+   * Compares polygon data points and closed state against a render shape.
+   * Returns true if both describe the same geometric path.
+   */
+  export function isGeometricallyEqualToRenderShape(
+    points: Array<PolygonSegment>,
+    closed: boolean,
+    renderShape: { shape: 'polygon'; points: Array<PolygonSegment>; closed: boolean },
+  ): boolean {
+    if (closed !== renderShape.closed) {
+      return false;
+    }
+    if (points.length !== renderShape.points.length) {
+      return false;
+    }
+    return points.every((seg, i) => PolygonSegment.equals(seg, renderShape.points[i]));
+  }
+
   export function resize<E extends Entity<GeometryComponent<PolygonData>>>(
     geometry: E,
     params: ResizeParams,
@@ -555,5 +573,66 @@ export namespace PolygonSegment {
     } else {
       throw new Error(`Unknown segment type: ${c}`);
     }
+  }
+
+  /**
+   * Reverses the direction of a polygon path, so that it is traversed from the last
+   * point back to the first. For cubic Bezier segments, controlPointA and
+   * controlPointB are swapped so the curve retains its geometric shape when drawn
+   * backwards. Quadratic and line segments require no control-point adjustments.
+   *
+   * A polygon path is stored as an array where the first element is the moveTo
+   * start point, and each subsequent element is a curve/line whose `.point` is
+   * its endpoint. This function shifts the `.point` values by one position in the
+   * reversed array so that the new first element is a proper moveTo start point.
+   */
+  export function reverseList(segments: Array<PolygonSegment>): Array<PolygonSegment> {
+    if (segments.length <= 1) {
+      if (segments.length === 0) {
+        return [];
+      }
+      return [{ type: 'point' as const, point: segments[0].point }];
+    }
+
+    const n = segments.length;
+    const reversed: Array<PolygonSegment> = [];
+
+    // The last point of the original path becomes the moveTo start of the reversed path.
+    reversed.push({ type: 'point' as const, point: segments[n - 1].point });
+
+    // For each remaining position, the reversed segment comes from the forward segment
+    // at index j = n - i, with the endpoint shifted to the earlier point.
+    for (let i = 1; i < n; i += 1) {
+      const forwardSeg = segments[n - i];
+      const newPoint = segments[n - i - 1].point;
+
+      switch (forwardSeg.type) {
+        case 'point':
+          reversed.push({ type: 'point', point: newPoint });
+          break;
+        case 'arc-quadratic':
+          reversed.push({
+            type: 'arc-quadratic',
+            point: newPoint,
+            controlPoint: forwardSeg.controlPoint,
+          });
+          break;
+        case 'arc-cubic':
+          reversed.push({
+            type: 'arc-cubic',
+            point: newPoint,
+            controlPointA: forwardSeg.controlPointB,
+            controlPointB: forwardSeg.controlPointA,
+          });
+          break;
+        default:
+          forwardSeg satisfies never;
+          throw new Error(
+            `PolygonSegment.reverse: unknown segment type ${(forwardSeg as any).type}`,
+          );
+      }
+    }
+
+    return reversed;
   }
 }

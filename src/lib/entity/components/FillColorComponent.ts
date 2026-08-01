@@ -23,7 +23,7 @@ export namespace FillColorComponent {
     }
   }
   export function has(geometry: Entity): geometry is Entity<FillColorComponent> {
-    return 'fillColor' in Entity;
+    return 'fillColor' in geometry.components;
   }
   /** Update the given value of the {@link FillColorComponent} for a given {@link Entity}. */
   export function update<G extends Entity<Partial<FillColorComponent>>>(

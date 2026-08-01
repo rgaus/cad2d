@@ -1,6 +1,7 @@
 import EventEmitter from 'eventemitter3';
 import { type Entity } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { type FilterData } from '@/lib/entity/filters';
 import { forwardEvents } from '@/lib/events';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { KeyCombo, KeyComboDetector, keyComboEqual } from '@/lib/index-mapper';
@@ -187,6 +188,14 @@ export abstract class BaseTool<
   ): boolean {
     return false;
   }
+
+  /** Called by the renderer when a mirror filter endpoint handle is clicked. */
+  handleFilterEndpointPointerDown<FD extends FilterData>(
+    _screenPos: ScreenPosition,
+    _viewportControls: ViewportControls,
+    _filterId: Entity['id'],
+    _pointKey: keyof FD,
+  ): void {}
 
   /** Returns the GeometryStore. */
   getGeometryStore(): GeometryStore {

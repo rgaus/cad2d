@@ -1,3 +1,4 @@
+import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintComponent,
   type CubicBezierSegment,
@@ -31,13 +32,26 @@ import {
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { FilletFilter } from '@/lib/entity/filters/fillet';
+import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { UndoEntry } from '@/lib/history/types';
+import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { parseSvg } from '@/lib/serialization/deserialize';
-import { serializeToSvg } from '@/lib/serialization/serialize';
+import {
+  serializeFilter,
+  serializePolygon,
+  serializeRectangle,
+  serializeToSvg,
+} from '@/lib/serialization/serialize';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION } from '@/lib/serialization/versions';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import { ToolManager } from '@/lib/tools/ToolManager';
 import { Length } from '@/lib/units/length';
-import { SheetPosition } from '@/lib/viewport/types';
+import { ViewportControls } from '@/lib/viewport/ViewportControls';
+import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 
 function makePoint(x: number, y: number): PointSegment {
   return { type: 'point', point: new SheetPosition(x, y) };
@@ -2085,6 +2099,408 @@ describe('round-trip', () => {
     expect(loadedCData.pointA.type).toStrictEqual('locked-datum');
     if (loadedCData.pointA.type === 'locked-datum') {
       expect(loadedCData.pointA.id).toStrictEqual(loadedDatums[0].id);
+    }
+  });
+});
+
+describe('filter serialization', () => {
+  it('serializes and deserializes a mirror filter roundtrip', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    // Create a rectangle
+    const rect = makeRectangle({
+      id: 'rect_1',
+      upperLeft: new SheetPosition(0, 0),
+      lowerRight: new SheetPosition(10, 10),
+    });
+    geometryStore.addDirect(rect);
+
+    // Create a mirror filter on the rectangle
+    const filter = MirrorFilter.create(
+      'rect_1',
+      new SheetPosition(15, 0),
+      new SheetPosition(15, 10),
+    );
+    const filterEntity = { id: 'ftr_1', ...filter } as Entity;
+    geometryStore.addDirect(filterEntity);
+
+    // Serialize
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+
+    // Verify filter is serialized as an SVG <g> element, not in the state comment
+    expect(svg).toContain('data-type="mirror-filter"');
+    expect(svg).toContain('data-id="ftr_1"');
+    expect(svg).toContain('data-point-a-x="15"');
+    expect(svg).toContain('data-point-b-x="15"');
+
+    // Verify render shapes are in the SVG (non-data-type elements)
+    // The mirrored rectangle should appear as a <rect> without data-type
+    expect(svg).toContain('<rect ');
+
+    // Parse — use a fresh store's hasId so original IDs are preserved
+    const freshStore = makeSheet().geometryStore;
+    const parseResult = parseSvg(
+      svg,
+      historyManager.generateStableId.bind(historyManager),
+      freshStore.hasId.bind(freshStore),
+    );
+
+    // Verify filter was parsed
+    expect(parseResult.filters).toHaveLength(1);
+    expect(parseResult.filters[0].type).toBe('mirror');
+    expect(parseResult.filters[0].geometryId).toBe('rect_1');
+
+    // The rectangle was parsed only once (render shape duplicate is discarded)
+    expect(parseResult.rectangles).toHaveLength(1);
+    expect(parseResult.rectangles[0].id).toBe('rect_1');
+  });
+
+  it('serialize and deserialize preserves mirror filter endpoints exactly', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    const poly = makePolygon({
+      id: 'poly_1',
+      points: [makePoint(5, 5), makePoint(10, 10), makePoint(15, 5)],
+      closed: false,
+      openAtIndex: 0,
+    });
+    geometryStore.addDirect(poly);
+
+    const filter = MirrorFilter.create('poly_1', new SheetPosition(0, 5), new SheetPosition(20, 5));
+    geometryStore.addDirect({ id: 'ftr_mir_1', ...filter } as Entity);
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const parseResult = parseSvg(
+      svg,
+      historyManager.generateStableId.bind(historyManager),
+      makeSheet().geometryStore.hasId.bind(makeSheet().geometryStore),
+    );
+
+    expect(parseResult.filters).toHaveLength(1);
+    const parsedFilter = parseResult.filters[0];
+    expect(parsedFilter.pointA).toEqual({ x: 0, y: 5 });
+    expect(parsedFilter.pointB).toEqual({ x: 20, y: 5 });
+  });
+
+  it('render shape path includes arc commands for fillet curve segments', () => {
+    const { sheet, geometryStore } = makeSheet();
+
+    // Create a rectangle
+    const rect = makeRectangle({
+      id: 'rect_f1',
+      upperLeft: new SheetPosition(0, 0),
+      lowerRight: new SheetPosition(10, 10),
+      fillColor: 0xff0000,
+    });
+    geometryStore.addDirect(rect);
+
+    // Create a fillet filter on the rectangle's top-right corner
+    const fillet = FilletFilter.createOnRectangle(
+      'rect_f1',
+      'topLeft' as any,
+      'topRight' as any,
+      'bottomRight' as any,
+      Length.fromSheetUnits('cm', 1),
+    );
+    geometryStore.addDirect({ id: 'ftr_fil_1', ...fillet } as Entity);
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+
+    // The render shape path for the fillet should contain C (cubic) arc commands
+    expect(svg).toContain('C');
+  });
+
+  it('re-loading preserves fill color on non-closed polygon with mirror filter', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    // Non-closed polygon whose start/end touch the mirror line
+    const poly = makePolygon({
+      id: 'poly_nc1',
+      points: [makePoint(5, 5), makePoint(10, 10), makePoint(15, 5)],
+      closed: false,
+      openAtIndex: 0,
+    });
+    geometryStore.addDirect(poly);
+
+    // Mirror filter whose line intersects the polygon endpoints
+    const filter = MirrorFilter.create(
+      'poly_nc1',
+      new SheetPosition(0, 5),
+      new SheetPosition(20, 5),
+    );
+    geometryStore.addDirect({ id: 'ftr_nc1', ...filter } as Entity);
+
+    // Manually sync fill (simulating MirrorTool.complete)
+    const geomEntity = geometryStore.getById('poly_nc1')! as any;
+    const filtersForGeom = geometryStore.findFiltersByGeometryId('poly_nc1') as any[];
+    const [output] = FilterComponent.syncFillColor(geomEntity, filtersForGeom);
+    if (output !== geomEntity) {
+      geometryStore.updateByIdDirect('poly_nc1', () => output);
+    }
+
+    // Verify fill is present before serialization
+    const polyBefore = geometryStore.getById('poly_nc1')! as any;
+    expect(FillColorComponent.getOptional(polyBefore)).toBeDefined();
+
+    // Serialize → parse → load into fresh store
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const freshSheet = makeSheet();
+    const freshStore = freshSheet.geometryStore;
+    const freshHistory = freshSheet.historyManager;
+    const parseResult = parseSvg(
+      svg,
+      freshHistory.generateStableId.bind(freshHistory),
+      freshStore.hasId.bind(freshStore),
+    );
+
+    // Load geometries and filters into fresh store
+    for (const p of parseResult.polygons) {
+      freshStore.addDirect(p);
+    }
+    for (const r of parseResult.rectangles) {
+      freshStore.addDirect(r);
+    }
+    for (const e of parseResult.ellipses) {
+      freshStore.addDirect(e);
+    }
+
+    // Simulate loadInternal's filter insertion + syncFillColor logic
+    for (const fd of parseResult.filters) {
+      if (fd.type === 'mirror') {
+        const pa = fd.pointA as { x: number; y: number };
+        const pb = fd.pointB as { x: number; y: number };
+        const template = MirrorFilter.create(
+          fd.geometryId as string,
+          new SheetPosition(pa.x, pa.y),
+          new SheetPosition(pb.x, pb.y),
+        );
+        freshStore.addDirect({ id: fd.id as string, ...template } as Entity);
+      }
+    }
+
+    // Sync fill color (as SerializationManager.loadInternal does)
+    for (const geom of freshStore.listWithComponent(GeometryComponent)) {
+      const attached = freshStore.findFiltersByGeometryId(geom.id) as any[];
+      if (attached.length === 0) continue;
+      const [synced] = FilterComponent.syncFillColor(geom as any, attached);
+      if (synced !== geom) {
+        freshStore.updateByIdDirect(geom.id, () => synced);
+      }
+    }
+
+    // Verify fill color was restored
+    const loadedPoly = freshStore.getById('poly_nc1')! as any;
+    expect(FillColorComponent.getOptional(loadedPoly)).toBeDefined();
+  });
+
+  it('copy-paste geometry with attached fillet filter creates one copy with correctly linked filter', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    // Original rectangle + fillet filter
+    const rect = makeRectangle({
+      id: 'rect_orig',
+      upperLeft: new SheetPosition(0, 0),
+      lowerRight: new SheetPosition(10, 10),
+      fillColor: 0xff0000,
+    });
+    geometryStore.addDirect(rect);
+
+    const fillet = FilletFilter.createOnRectangle(
+      'rect_orig',
+      'topLeft' as any,
+      'topRight' as any,
+      'bottomRight' as any,
+      Length.fromSheetUnits('cm', 1),
+    );
+    const filterEntity = { id: 'ftr_orig', ...fillet } as Entity;
+    geometryStore.addDirect(filterEntity);
+
+    // Build a fragment (simulating what formatSelectedAsFragment + Ctrl+C outputs)
+    const rectOutput = serializeRectangle(rect);
+    const filterOutput = serializeFilter(filterEntity);
+    const fragment = `<g>\n  ${rectOutput}\n  ${filterOutput}\n</g>`;
+
+    // Parse the fragment
+    const parseResult = parseSvg(
+      fragment,
+      historyManager.generateStableId.bind(historyManager),
+      geometryStore.hasId.bind(geometryStore),
+    );
+
+    // Verify parsed results
+    expect(parseResult.rectangles).toHaveLength(1);
+    expect(parseResult.filters).toHaveLength(1);
+
+    // The parsed IDs should be REWRITTEN (original IDs already exist in store)
+    const newRectId = parseResult.rectangles[0].id;
+    expect(newRectId).not.toBe('rect_orig');
+
+    const newFilter = parseResult.filters[0];
+    expect(newFilter.id).not.toBe('ftr_orig');
+    // Filter's geometryId must point to the NEW rectangle, not the original
+    expect(newFilter.geometryId).toBe(newRectId);
+
+    // Insert into the store (simulating paste)
+    geometryStore.addDirect(parseResult.rectangles[0]);
+
+    // Reconstruct and insert the filter (simulating loadInternal logic)
+    const fd = newFilter as any;
+    const offset = Length.fromSheetUnits(fd.offset.type, fd.offset.magnitude);
+    const template = FilletFilter.createOnRectangle(
+      fd.geometryId,
+      fd.pointAKeyPoint as any,
+      fd.pointCenterKeyPoint as any,
+      fd.pointBKeyPoint as any,
+      offset,
+    );
+    geometryStore.addDirect({ id: fd.id, ...template } as Entity);
+
+    // After insert, verify store state
+    // Original rect (1) + new rect (1) = 2 rectangles
+    const allRects = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+      const d = GeometryComponent.get(g as any);
+      return d.type === 'rectangle';
+    });
+    expect(allRects).toHaveLength(2);
+
+    // Original filter (1) + new filter (1) = 2 filters
+    const allFilters = geometryStore.listWithComponent(FilterComponent);
+    expect(allFilters).toHaveLength(2);
+
+    // The NEW filter must reference the NEW rectangle
+    const pastedFilter = allFilters.find((f) => f.id === newFilter.id);
+    expect(pastedFilter).toBeDefined();
+    if (pastedFilter) {
+      expect(FilterComponent.get(pastedFilter as any).geometryId).toBe(newRectId);
+    }
+  });
+
+  it('old cad2d SVGs without filters are backwards compatible', () => {
+    const { sheet } = makeSheet();
+
+    // Simulate a pre-filter SVG: only has the cad2d-state comment without filters
+    const oldStyleSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" data-cad2d-version="1">
+<rect x="10" y="10" width="80" height="80" fill="#ffffff" data-type="rectangle" data-id="rect_1" />
+<!-- cad2d-state:{"version":1,"sheet":{"width":{"magnitude":1000,"type":"mm"},"height":{"magnitude":1000,"type":"mm"},"defaultUnit":"cm"},"viewport":{"position":{"x":0,"y":0},"scale":1},"selection":[],"history":{"undoStack":[],"redoStack":[],"stableIdCounter":0},"activeTool":"select"} -->
+</svg>`;
+
+    const parseResult = parseSvg(
+      oldStyleSvg,
+      () => 'new_id',
+      () => false,
+    );
+
+    expect(parseResult.filters).toEqual([]);
+    expect(parseResult.rectangles).toHaveLength(1);
+  });
+
+  it('copy-paste non-closed polygon with mirror filter preserves fill through undo and redo', () => {
+    const sheet = Sheet.a4();
+    const geometryStore = sheet.geometryStore;
+    const historyManager = sheet.historyManager;
+    const selectionManager = new SelectionManager();
+    const toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
+    const actionsManager = new ActionsManager(
+      sheet,
+      geometryStore,
+      selectionManager,
+      historyManager,
+    );
+    const serializationManager = new SerializationManager(actionsManager, toolManager, sheet);
+    actionsManager.setSerializationManager(serializationManager);
+    toolManager.setSerializationManager(serializationManager);
+    const viewportControls = new ViewportControls({ canvasWidth: 800, canvasHeight: 600, sheet });
+
+    const viewport = viewportControls.getState().viewport;
+    const toScreen = (sp: SheetPosition) => sp.toScreen(viewport);
+
+    // 1. Create a non-closed polygon with start and end at same y coordinate
+    toolManager.setActiveTool('polygon');
+    toolManager.setSnappingOptions({ primaryGridSize: 0.001, secondaryGridSize: 0.001 });
+
+    // Click 1: (5, 5) in sheet units
+    toolManager.handleMouseDown(toScreen(new SheetPosition(5, 5)), viewport);
+    // Click 2: (10, 10)
+    toolManager.handleMouseDown(toScreen(new SheetPosition(10, 10)), viewport);
+    // Click 3: (15, 5)
+    toolManager.handleMouseDown(toScreen(new SheetPosition(15, 5)), viewport);
+    // Press Enter to complete (non-closed)
+    toolManager.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }) as any);
+
+    // Get the created polygon
+    const polygons = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+      const d = GeometryComponent.get(g as any);
+      return d.type === 'polygon';
+    });
+    expect(polygons).toHaveLength(1);
+    const polygonId = polygons[0].id;
+
+    // 2. Create a mirror filter via MirrorTool
+    toolManager.setActiveTool('edit');
+    toolManager.changeToolSubTool('edit', 'mirror');
+    const editTool = toolManager.getActiveTool();
+
+    // Click to pick the polygon
+    editTool.handleGeometryFillPointerDown(
+      toScreen(new SheetPosition(0, 5)),
+      viewportControls,
+      polygonId,
+    );
+    // First click: pointA at (0, 5) — puts mirror line through start point
+    toolManager.handleMouseDown(toScreen(new SheetPosition(0, 5)), viewport);
+    // Second click: pointB at (20, 5) — mirror line passes through both endpoints
+    toolManager.handleMouseDown(toScreen(new SheetPosition(20, 5)), viewport);
+
+    // Verify filter was created and fill was synced
+    const filters = geometryStore.listWithComponent(FilterComponent);
+    expect(filters).toHaveLength(1);
+    const poly = geometryStore.getById(polygonId)! as any;
+    expect(FillColorComponent.getOptional(poly)).toBeDefined();
+
+    // 3. Select the polygon, copy, and paste
+    selectionManager.select(polygonId);
+    const fragment = serializationManager.formatSelectedAsFragment();
+    expect(fragment).not.toBeNull();
+
+    // Wrap paste in a transaction so one undo reverts the entire paste
+    historyManager.applyTransaction('paste', () => {
+      serializationManager.loadFragment(fragment!);
+    });
+
+    // After paste: 2 polygons, 2 filters, both filled
+    const allPolys = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+      const d = GeometryComponent.get(g as any);
+      return d.type === 'polygon';
+    });
+    expect(allPolys).toHaveLength(2);
+
+    const allFilters = geometryStore.listWithComponent(FilterComponent);
+    expect(allFilters).toHaveLength(2);
+
+    for (const p of allPolys) {
+      expect(FillColorComponent.getOptional(p as any)).toBeDefined();
+    }
+
+    // 4. Undo — should revert to 1 polygon, 1 filter, both filled
+    historyManager.undo();
+    const afterUndo = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+      const d = GeometryComponent.get(g as any);
+      return d.type === 'polygon';
+    });
+    expect(afterUndo).toHaveLength(1);
+    expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(1);
+    expect(FillColorComponent.getOptional(geometryStore.getById(polygonId)! as any)).toBeDefined();
+
+    // 5. Redo — should restore 2 polygons, 2 filters, both filled
+    historyManager.redo();
+    const afterRedo = geometryStore.listWithComponent(GeometryComponent).filter((g) => {
+      const d = GeometryComponent.get(g as any);
+      return d.type === 'polygon';
+    });
+    expect(afterRedo).toHaveLength(2);
+    expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(2);
+    for (const p of afterRedo) {
+      expect(FillColorComponent.getOptional(p as any)).toBeDefined();
     }
   });
 });

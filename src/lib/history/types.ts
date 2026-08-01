@@ -1,12 +1,10 @@
 import {
   type ConstraintEndpoint,
   Entity,
-  FillColorComponent,
   GeometryComponent,
   type Id,
   Polygon,
   PolygonSegment,
-  RenderOrderComponent,
 } from '@/lib/entity';
 import { type Length, type SerializedLength, type UnitType } from '@/lib/units/length';
 import type { SheetPosition } from '@/lib/viewport/types';
@@ -39,6 +37,24 @@ export type FillColorEntry = {
   id: Id;
   beforeColor: number | null;
   afterColor: number | null;
+};
+
+/** Recorded when a geometry fill color component is forcefully added (ie, polygon being attached
+ * to a mirror filter, making a non closed polygon filled.) */
+export type FillColorAddEntry = {
+  type: 'fill-color-add';
+  id: Id;
+  // Before is unset
+  afterColor: number | null;
+};
+
+/** Recorded when a geometry fill color component is forcefully removed (ie, polygon being detached
+ * from a mirror filter, making a non closed polygon no longer filled.) */
+export type FillColorRemoveEntry = {
+  type: 'fill-color-remove';
+  id: Id;
+  beforeColor: number | null;
+  // After is unset
 };
 
 /** Recorded when a geometry render order is changed. */
@@ -305,6 +321,25 @@ export type SheetUnitPlacesEntry = {
   afterUnitPlaces: number;
 };
 
+export type FilterChangeOffsetEntry = {
+  type: 'filter-change-offset';
+  id: Entity['id'];
+  beforeLength: Length;
+  afterLength: Length;
+};
+
+// ==================== MIRROR FILTER ENTRIES ====================
+
+/** Recorded when a mirror filter's endpoint (pointA/pointB) is moved. */
+export type MirrorFilterMoveEndpointsEntry = {
+  type: 'mirror-filter-move-endpoints';
+  id: Id;
+  beforePointA: SheetPosition;
+  beforePointB: SheetPosition;
+  afterPointA: SheetPosition;
+  afterPointB: SheetPosition;
+};
+
 // ==================== UNION TYPE ====================
 
 /** Discriminated union of all undoable operations. */
@@ -313,6 +348,8 @@ export type UndoEntry =
   | InsertEntry
   | DeleteEntry
   | FillColorEntry
+  | FillColorAddEntry
+  | FillColorRemoveEntry
   | RenderOrderEntry
   | LinkDimensionsEntry
   | PolygonMoveEntry
@@ -340,7 +377,9 @@ export type UndoEntry =
   | SheetWidthEntry
   | SheetHeightEntry
   | SheetDefaultUnitEntry
-  | SheetUnitPlacesEntry;
+  | SheetUnitPlacesEntry
+  | FilterChangeOffsetEntry
+  | MirrorFilterMoveEndpointsEntry;
 
 export namespace UndoEntry {
   /** Creates a raw transaction, useful with historyManager.push. Most likely you want {@link HistoryManager.applyTransaction} instead. */
@@ -490,6 +529,18 @@ export namespace UndoEntry {
     afterColor: number | null,
   ): FillColorEntry {
     return { type: 'fill-color', id, beforeColor, afterColor };
+  }
+
+  /** Recorded when a geometry fill color component is forcefully addd (ie, polygon being detachec
+   * from a mirror filter, making a non closed polygon no longer filled.) */
+  export function fillColorAdd(id: Id, afterColor: number | null): FillColorAddEntry {
+    return { type: 'fill-color-add', id, afterColor };
+  }
+
+  /** Recorded when a geometry fill color component is forcefully removed (ie, polygon being detachec
+   * from a mirror filter, making a non closed polygon no longer filled.) */
+  export function fillColorRemove(id: Id, beforeColor: number | null): FillColorRemoveEntry {
+    return { type: 'fill-color-remove', id, beforeColor };
   }
 
   /** Creates an entry for changing a geometry's render order. */
@@ -694,5 +745,37 @@ export namespace UndoEntry {
     afterUnitPlaces: number,
   ): SheetUnitPlacesEntry {
     return { type: 'sheet-unit-places', beforeUnitPlaces, afterUnitPlaces };
+  }
+
+  /** Creates an entry recording that the offset of a filter has changed. */
+  export function filterChangeOffset(
+    filterId: Entity['id'],
+    beforeLength: Length,
+    afterLength: Length,
+  ): FilterChangeOffsetEntry {
+    return {
+      type: 'filter-change-offset',
+      id: filterId,
+      beforeLength,
+      afterLength,
+    };
+  }
+
+  /** Creates an entry for moving a mirror filter's endpoints (pointA/pointB). */
+  export function mirrorFilterMoveEndpoints(
+    id: Id,
+    beforePointA: SheetPosition,
+    beforePointB: SheetPosition,
+    afterPointA: SheetPosition,
+    afterPointB: SheetPosition,
+  ): MirrorFilterMoveEndpointsEntry {
+    return {
+      type: 'mirror-filter-move-endpoints',
+      id,
+      beforePointA,
+      beforePointB,
+      afterPointA,
+      afterPointB,
+    };
   }
 }

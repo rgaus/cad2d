@@ -2499,6 +2499,80 @@ describe('PolygonTool', () => {
     });
   });
 
+  it('should extend a non closed polygon from the end point and close it, and undo + redo should work', () => {
+    // Create a small, two point polygon
+    const polygon = geometryStore.addOrdered(
+      ID_PREFIXES.polygon,
+      Polygon.create(
+        [
+          {
+            type: 'point',
+            point: new SheetPosition(10 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+          {
+            type: 'point',
+            point: new SheetPosition(20 / SHEET_UNITS_TO_PIXELS, 10 / SHEET_UNITS_TO_PIXELS),
+          },
+        ],
+        { closed: false, fillColor: null, openAtIndex: 0 },
+      ),
+    );
+
+    // Hover over the last polygon point
+    polygonTool.setHoveringEndpointOfPolygon({
+      polygonId: polygon.id,
+      pointIndex: 1,
+      isStartPoint: false,
+    });
+    toolManager.handleMouseDown(new ScreenPosition(20, 10), viewport);
+    polygonTool.setHoveringEndpointOfPolygon(null);
+
+    expect(geometryStore.workingPolygon?.points).toHaveLength(3);
+
+    // Place a few more points
+    toolManager.handleMouseDown(new ScreenPosition(50, 50), viewport);
+    toolManager.handleMouseDown(new ScreenPosition(80, 60), viewport);
+
+    // Hover over the final point of the polygon and click
+    polygonTool.setHoveringFirstHandle(true);
+    toolManager.handleMouseDown(new ScreenPosition(10, 10), viewport);
+    polygonTool.setHoveringFirstHandle(false);
+
+    // Make sure there is one polygon still, and it has all the points
+    expect(geometryStore.workingPolygon).toBeNull();
+    expect(
+      geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+    ).toHaveLength(1);
+    let polygonGeometry = geometryStore
+      .listWithComponent(GeometryComponent)
+      .filter(GeometryComponent.isPolygon)[0];
+    expect(GeometryComponent.get(polygonGeometry).closed).toBeTruthy();
+    expect(GeometryComponent.get(polygonGeometry).points).toHaveLength(5);
+    expect(FillColorComponent.has(polygonGeometry)).toBeTruthy();
+
+    // Trigger undo
+    historyManager.undo();
+
+    // Make sure the state is back to before it was prior to the polygon extension
+    polygonGeometry = geometryStore
+      .listWithComponent(GeometryComponent)
+      .filter(GeometryComponent.isPolygon)[0];
+    expect(GeometryComponent.get(polygonGeometry).closed).toBeFalsy();
+    expect(GeometryComponent.get(polygonGeometry).points).toHaveLength(2);
+    expect(FillColorComponent.has(polygonGeometry)).toBeFalsy();
+
+    // Trigger redo
+    historyManager.redo();
+
+    // Make sure the state is back to the fully extended version
+    polygonGeometry = geometryStore
+      .listWithComponent(GeometryComponent)
+      .filter(GeometryComponent.isPolygon)[0];
+    expect(GeometryComponent.get(polygonGeometry).closed).toBeTruthy();
+    expect(GeometryComponent.get(polygonGeometry).points).toHaveLength(5);
+    expect(FillColorComponent.has(polygonGeometry)).toBeTruthy();
+  });
+
   describe('line intersection', () => {
     it.skip('should do an intersection with another linear polygon, forming a "+" shape', () => {
       const { id: existingPolygonId } = geometryStore.addOrdered(

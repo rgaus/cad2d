@@ -13,6 +13,8 @@ import {
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
+import { PolygonSegment } from '@/lib/entity/geometry/polygon';
+import type { QuadraticBezierSegment } from '@/lib/entity/geometry/polygon';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -301,12 +303,20 @@ describe('GeometryComponent', () => {
       expect(rectangleOriginal.lowerRight.x).toStrictEqual(100);
       expect(rectangleOriginal.lowerRight.y).toStrictEqual(100);
 
-      expect(shapes[1].shape).toStrictEqual('rectangle');
-      const rectangleMirrored = shapes[1] as RenderShapeRectangle;
-      expect(rectangleMirrored.upperLeft.x).toStrictEqual(300);
-      expect(rectangleMirrored.upperLeft.y).toStrictEqual(0);
-      expect(rectangleMirrored.lowerRight.x).toStrictEqual(400);
-      expect(rectangleMirrored.lowerRight.y).toStrictEqual(100);
+      // The mirrored version should be a polygon
+      expect(shapes[1].shape).toStrictEqual('polygon');
+      const mirrored = shapes[1] as RenderShapePolygon;
+      expect(mirrored.points).toHaveLength(5);
+      expect(mirrored.points[0].point.x).toStrictEqual(400);
+      expect(mirrored.points[0].point.y).toStrictEqual(0);
+      expect(mirrored.points[1].point.x).toStrictEqual(300);
+      expect(mirrored.points[1].point.y).toStrictEqual(0);
+      expect(mirrored.points[2].point.x).toStrictEqual(300);
+      expect(mirrored.points[2].point.y).toStrictEqual(100);
+      expect(mirrored.points[3].point.x).toStrictEqual(400);
+      expect(mirrored.points[3].point.y).toStrictEqual(100);
+      expect(mirrored.points[4].point.x).toStrictEqual(400);
+      expect(mirrored.points[4].point.y).toStrictEqual(0);
     });
 
     it('should mirror rectangle with fillet across a line', async () => {
@@ -412,6 +422,142 @@ describe('GeometryComponent', () => {
       expect(mirroredShape.points[5].type).toStrictEqual('point');
       expect(mirroredShape.points[5].point.x).toStrictEqual(400);
       expect(mirroredShape.points[5].point.y).toStrictEqual(0);
+    });
+  });
+
+  describe('PolygonSegment.reverseList', () => {
+    it('returns empty array for empty input', () => {
+      expect(PolygonSegment.reverseList([])).toEqual([]);
+    });
+
+    it('returns single plain point for a one-segment path', () => {
+      const result = PolygonSegment.reverseList([
+        { type: 'point', point: new SheetPosition(5, 10) },
+      ]);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({ type: 'point', point: new SheetPosition(5, 10) });
+    });
+
+    it('reverses a path of plain point segments', () => {
+      // Original: P0(0,0) -> P1(10,0) -> P2(10,10)
+      // Reversed: P2(10,10) -> P1(10,0) -> P0(0,0)
+      const result = PolygonSegment.reverseList([
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(10, 0) },
+        { type: 'point', point: new SheetPosition(10, 10) },
+      ]);
+
+      expect(result).toHaveLength(3);
+      // First element is moveTo at old end
+      expect(result[0]).toEqual({ type: 'point', point: new SheetPosition(10, 10) });
+      // Second draws from (10,10) to (10,0)
+      expect(result[1]).toEqual({ type: 'point', point: new SheetPosition(10, 0) });
+      // Third draws from (10,0) to (0,0)
+      expect(result[2]).toEqual({ type: 'point', point: new SheetPosition(0, 0) });
+    });
+
+    it('reverses a path with a quadratic bezier segment', () => {
+      // Original: P0(0,0) -> P1(10,5) via C(5,10) -> P2(20,5)
+      // Quadratic bezier is symmetric, control point stays the same
+      const result = PolygonSegment.reverseList([
+        { type: 'point', point: new SheetPosition(0, 0) },
+        {
+          type: 'arc-quadratic',
+          point: new SheetPosition(10, 5),
+          controlPoint: new SheetPosition(5, 10),
+        },
+        { type: 'point', point: new SheetPosition(20, 5) },
+      ]);
+
+      expect(result).toHaveLength(3);
+      // moveTo at old end
+      expect(result[0]).toEqual({ type: 'point', point: new SheetPosition(20, 5) });
+      // previously line from P1(10,5) to P2(20,5), reversed as line from P2 to P1
+      expect(result[1]).toEqual({ type: 'point', point: new SheetPosition(10, 5) });
+      // previously quadratic from P0(0,0) to P1(10,5) via C(5,10),
+      // reversed as quadratic from P1 to P0 with same control point
+      const revQuad = result[2] as QuadraticBezierSegment;
+      expect(revQuad.type).toBe('arc-quadratic');
+      expect(revQuad.point.x).toBeCloseTo(0, 0);
+      expect(revQuad.point.y).toBeCloseTo(0, 0);
+      expect(revQuad.controlPoint.x).toBeCloseTo(5, 0);
+      expect(revQuad.controlPoint.y).toBeCloseTo(10, 0);
+    });
+
+    it('reverses a path with a cubic bezier segment, swapping control points', () => {
+      // Original: P0(0,0) -> P1(20,0) via CA(5,5), CB(15,5) -> P2(30,0)
+      const result = PolygonSegment.reverseList([
+        { type: 'point', point: new SheetPosition(0, 0) },
+        {
+          type: 'arc-cubic',
+          point: new SheetPosition(20, 0),
+          controlPointA: new SheetPosition(5, 5),
+          controlPointB: new SheetPosition(15, 5),
+        },
+        { type: 'point', point: new SheetPosition(30, 0) },
+      ]);
+
+      expect(result).toHaveLength(3);
+      expect(result[0]).toEqual({ type: 'point', point: new SheetPosition(30, 0) });
+      // line from P1(20,0) to P2(30,0) reversed = line from P2 to P1
+      expect(result[1]).toEqual({ type: 'point', point: new SheetPosition(20, 0) });
+      // cubic from P0(0,0) to P1(20,0) via CA(5,5),CB(15,5) reversed:
+      // cubic from P1 to P0 via CB(15,5),CA(5,5)
+      const revCubic = result[2] as CubicBezierSegment;
+      expect(revCubic.type).toBe('arc-cubic');
+      expect(revCubic.point.x).toBeCloseTo(0, 0);
+      expect(revCubic.point.y).toBeCloseTo(0, 0);
+      expect(revCubic.controlPointA.x).toBeCloseTo(15, 0);
+      expect(revCubic.controlPointA.y).toBeCloseTo(5, 0);
+      expect(revCubic.controlPointB.x).toBeCloseTo(5, 0);
+      expect(revCubic.controlPointB.y).toBeCloseTo(5, 0);
+    });
+
+    it('reverses a mixed path with point, quadratic, and cubic segments', () => {
+      // Original: P0(0,0) -> P1(10,0) -> P2(20,5) cubic via cA(12,10),cB(18,10) -> P3(30,10)
+      const segments: Array<PolygonSegment> = [
+        { type: 'point', point: new SheetPosition(0, 0) },
+        { type: 'point', point: new SheetPosition(10, 0) },
+        {
+          type: 'arc-cubic',
+          point: new SheetPosition(20, 5),
+          controlPointA: new SheetPosition(12, 10),
+          controlPointB: new SheetPosition(18, 10),
+        },
+        {
+          type: 'arc-quadratic',
+          point: new SheetPosition(30, 10),
+          controlPoint: new SheetPosition(25, 15),
+        },
+      ];
+
+      const result = PolygonSegment.reverseList(segments);
+
+      expect(result).toHaveLength(4);
+
+      // moveTo at old end P3(30,10)
+      expect(result[0]).toEqual({ type: 'point', point: new SheetPosition(30, 10) });
+
+      // quadratic reverse: from P3(30,10) to P2(20,5), same control
+      const revQuad = result[1] as QuadraticBezierSegment;
+      expect(revQuad.type).toBe('arc-quadratic');
+      expect(revQuad.point.x).toBeCloseTo(20, 0);
+      expect(revQuad.point.y).toBeCloseTo(5, 0);
+      expect(revQuad.controlPoint.x).toBeCloseTo(25, 0);
+      expect(revQuad.controlPoint.y).toBeCloseTo(15, 0);
+
+      // cubic reverse: from P2(20,5) to P1(10,0), control points swapped
+      const revCubic = result[2] as CubicBezierSegment;
+      expect(revCubic.type).toBe('arc-cubic');
+      expect(revCubic.point.x).toBeCloseTo(10, 0);
+      expect(revCubic.point.y).toBeCloseTo(0, 0);
+      expect(revCubic.controlPointA.x).toBeCloseTo(18, 0);
+      expect(revCubic.controlPointA.y).toBeCloseTo(10, 0);
+      expect(revCubic.controlPointB.x).toBeCloseTo(12, 0);
+      expect(revCubic.controlPointB.y).toBeCloseTo(10, 0);
+
+      // line reverse: from P1(10,0) to P0(0,0)
+      expect(result[3]).toEqual({ type: 'point', point: new SheetPosition(0, 0) });
     });
   });
 });

@@ -51,6 +51,8 @@ export type ParseResult = {
   constraints: Array<Entity<ConstraintComponent>>;
   /** Parsed datums. */
   datums: Array<Datum>;
+  /** Parsed filters (from cad2d-state comment). */
+  filters: Array<Record<string, unknown>>;
   /** Validation warnings logged during parsing. */
   warnings: Array<string>;
 };
@@ -551,6 +553,102 @@ function parseDatum(
   ];
 }
 
+/** Parses a <g data-type="mirror-filter"> element. */
+function parseMirrorFilter(
+  attrs: Record<string, string | number>,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
+  generateId: (prefix?: string) => Id,
+): Record<string, unknown> | null {
+  let id = attrs.id as Id;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    id = generateId(ID_PREFIXES.filter);
+    if (typeof attrs.id !== 'undefined') {
+      rewrittenIdMap.set(attrs.id as Id, id);
+    }
+  } else {
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
+
+  const geometryId = attrs['data-geometry-id'];
+  if (typeof geometryId === 'undefined') {
+    return null;
+  }
+
+  return {
+    type: 'mirror',
+    id,
+    geometryId: rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
+    pointA: {
+      x: parseFloat(String(attrs['data-point-a-x'] ?? '0')),
+      y: parseFloat(String(attrs['data-point-a-y'] ?? '0')),
+    },
+    pointB: {
+      x: parseFloat(String(attrs['data-point-b-x'] ?? '0')),
+      y: parseFloat(String(attrs['data-point-b-y'] ?? '0')),
+    },
+  };
+}
+
+/** Parses a <g data-type="fillet-filter"> or <g data-type="chamfer-filter"> element. */
+function parseFilletOrChamferFilter(
+  type: 'fillet' | 'chamfer',
+  attrs: Record<string, string | number>,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
+  generateId: (prefix?: string) => Id,
+): Record<string, unknown> | null {
+  let id = attrs.id as Id;
+  if (typeof id === 'undefined' || doesIdExist(id)) {
+    id = generateId(ID_PREFIXES.filter);
+    if (typeof attrs.id !== 'undefined') {
+      rewrittenIdMap.set(attrs.id as Id, id);
+    }
+  } else {
+    const rewritten = rewrittenIdMap.get(id);
+    if (rewritten) {
+      id = rewritten;
+    }
+  }
+
+  const geometryId = attrs['data-geometry-id'];
+  const geometryType = attrs['data-geometry-type'] as string;
+
+  if (typeof geometryId === 'undefined' || !geometryType) {
+    return null;
+  }
+
+  const offsetMagnitude = parseFloat(String(attrs['data-offset-magnitude'] ?? '0'));
+  const offsetType = String(attrs['data-offset-type'] ?? 'cm');
+
+  const base = {
+    id,
+    type,
+    geometryId: rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
+    offset: { magnitude: offsetMagnitude, type: offsetType },
+    geometryType,
+  };
+
+  if (geometryType === 'polygon') {
+    return {
+      ...base,
+      pointAIndex: parseInt(String(attrs['data-point-a-index'] ?? '0'), 10),
+      pointCenterIndex: parseInt(String(attrs['data-point-center-index'] ?? '0'), 10),
+      pointBIndex: parseInt(String(attrs['data-point-b-index'] ?? '0'), 10),
+    };
+  } else {
+    return {
+      ...base,
+      pointAKeyPoint: String(attrs['data-point-a-key-point'] ?? ''),
+      pointCenterKeyPoint: String(attrs['data-point-center-key-point'] ?? ''),
+      pointBKeyPoint: String(attrs['data-point-b-key-point'] ?? ''),
+    };
+  }
+}
+
 /** Parses a single ConstraintEndpoint from SVG data attributes. */
 function parseEndpoint(
   attrs: Record<string, string | number>,
@@ -982,6 +1080,7 @@ export function parseSvg(
     ellipses: [],
     constraints: [],
     datums: [],
+    filters: [],
     warnings: [],
   };
   const rewrittenIdMap = new Map<Id, Id>();
@@ -1018,6 +1117,16 @@ export function parseSvg(
   // Track render order for auto-incrementing when data-render-order is not set
   let lastRenderOrder = 0;
 
+  // Entities parsed from non-data-type elements are collected here and only
+  // promoted to the result if no data-type elements are found in the entire
+  // file. When a data-type element IS found, this list is cleared.
+  let pendingNonDataTypeGeometries: Array<
+    | { type: 'polygon'; geometry: Polygon; renderOrder: number }
+    | { type: 'rectangle'; geometry: Rectangle; renderOrder: number }
+    | { type: 'ellipse'; geometry: Ellipse; renderOrder: number }
+  > = [];
+  let hasSeenDataType = false;
+
   // Iterate through all elements in the SVG
   function processElement(element: Node): void {
     if (element.type !== 'element') {
@@ -1026,6 +1135,11 @@ export function parseSvg(
 
     const tagName = element.tagName?.toLowerCase();
     const attrs = element.properties ?? {};
+
+    if (typeof attrs['data-type'] === 'string' && !hasSeenDataType) {
+      hasSeenDataType = true;
+      pendingNonDataTypeGeometries = [];
+    }
 
     switch (attrs['data-type']) {
       case 'rectangle':
@@ -1186,6 +1300,43 @@ export function parseSvg(
           warn(result, `data-type=colinear-constraint was not g, found ${tagName}`);
         }
         break;
+      case 'mirror-filter': {
+        const filter = parseMirrorFilter(attrs, rewrittenIdMap, doesIdExist, generateId);
+        if (filter) {
+          result.filters.push(filter);
+          // Bail out early — no nested data within a filter
+          return;
+        }
+        break;
+      }
+      case 'fillet-filter': {
+        const filter = parseFilletOrChamferFilter(
+          'fillet',
+          attrs,
+          rewrittenIdMap,
+          doesIdExist,
+          generateId,
+        );
+        if (filter) {
+          result.filters.push(filter);
+          return;
+        }
+        break;
+      }
+      case 'chamfer-filter': {
+        const filter = parseFilletOrChamferFilter(
+          'chamfer',
+          attrs,
+          rewrittenIdMap,
+          doesIdExist,
+          generateId,
+        );
+        if (filter) {
+          result.filters.push(filter);
+          return;
+        }
+        break;
+      }
       case 'datum':
         if (tagName === 'g') {
           const datumAndOrder = parseDatum(attrs, generateId, rewrittenIdMap, doesIdExist);
@@ -1195,8 +1346,12 @@ export function parseSvg(
         }
         break;
       default:
-        // No data-type, so fallback to defaults for each element type
-        // This gets hit for `isFallback` type cases.
+        // No data-type, so fallback to defaults for each element type.
+        // If a data-type element has already been seen, these are rendered
+        // filter shapes and should be discarded.
+        if (hasSeenDataType) {
+          break;
+        }
         switch (tagName) {
           case 'rect': {
             const rectangleAndOrder = parseRectangle(
@@ -1207,7 +1362,11 @@ export function parseSvg(
               lastRenderOrder,
             );
             if (rectangleAndOrder) {
-              result.rectangles.push(rectangleAndOrder[0]);
+              pendingNonDataTypeGeometries.push({
+                type: 'rectangle',
+                geometry: rectangleAndOrder[0],
+                renderOrder: rectangleAndOrder[1],
+              });
               lastRenderOrder = rectangleAndOrder[1];
             }
             break;
@@ -1221,7 +1380,11 @@ export function parseSvg(
               lastRenderOrder,
             );
             if (ellipseAndOrder) {
-              result.ellipses.push(ellipseAndOrder[0]);
+              pendingNonDataTypeGeometries.push({
+                type: 'ellipse',
+                geometry: ellipseAndOrder[0],
+                renderOrder: ellipseAndOrder[1],
+              });
               lastRenderOrder = ellipseAndOrder[1];
             }
             break;
@@ -1235,7 +1398,11 @@ export function parseSvg(
               lastRenderOrder,
             );
             if (polygonAndOrder) {
-              result.polygons.push(polygonAndOrder[0]);
+              pendingNonDataTypeGeometries.push({
+                type: 'polygon',
+                geometry: polygonAndOrder[0],
+                renderOrder: polygonAndOrder[1],
+              });
               lastRenderOrder = polygonAndOrder[1];
             }
             break;
@@ -1249,12 +1416,22 @@ export function parseSvg(
               lastRenderOrder,
             );
             if (polygonAndOrder) {
-              result.polygons.push(polygonAndOrder[0]);
+              pendingNonDataTypeGeometries.push({
+                type: 'polygon',
+                geometry: polygonAndOrder[0],
+                renderOrder: polygonAndOrder[1],
+              });
               lastRenderOrder = polygonAndOrder[1];
             }
             break;
           }
+          case 'g': {
+            // Recurse into groups without data-type — children are processed
+            // by the generic children-processing loop below.
+            break;
+          }
         }
+        break;
     }
 
     // Process children if any
@@ -1271,6 +1448,27 @@ export function parseSvg(
   // Process all top-level elements
   for (const child of parsed.children) {
     processElement(child);
+  }
+
+  // If no data-type elements were found, this is a non-cad2d SVG.
+  // Promote the pending non-data-type geometries to the result.
+  if (!hasSeenDataType) {
+    for (const item of pendingNonDataTypeGeometries) {
+      switch (item.type) {
+        case 'polygon':
+          result.polygons.push(item.geometry);
+          break;
+        case 'rectangle':
+          result.rectangles.push(item.geometry);
+          break;
+        case 'ellipse':
+          result.ellipses.push(item.geometry);
+          break;
+        default:
+          item satisfies never;
+          break;
+      }
+    }
   }
 
   // If we have a magic comment, parse and migrate the state

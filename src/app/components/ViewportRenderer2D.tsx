@@ -1060,6 +1060,7 @@ export default function ViewportRenderer2D({
               <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
                 ctrl
               </KeyboardShortcut>
+              <KeyboardShortcut label="Cancel">esc</KeyboardShortcut>
               {draggingShapeState.type === 'geometry-resize' ? (
                 <KeyboardShortcut label="Around center" disabled={altHeld}>
                   {PLATFORM_ALT_KEY_STRING}

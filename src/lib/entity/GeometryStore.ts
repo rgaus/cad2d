@@ -570,6 +570,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       return;
     }
 
+    // If the entity being deleted is a filter, capture the geometry it
+    // is attached to so the fill color can be re-synced after deletion.
+    let filterAssociatedGeometryId: Entity['id'] | null = null;
+    if (Entity.hasComponent(geometry, FilterComponent)) {
+      const fd = FilterComponent.get(geometry as Entity<FilterComponent>);
+      filterAssociatedGeometryId = fd.geometryId;
+    }
+
     this.historyManager.applyTransaction('delete-geometry-cascade', () => {
       // Record and cascade delete attached constraints
       for (const constraintGeom of this.findConstraintsByGeometryId(id)) {
@@ -599,6 +607,28 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       // Record and delete the geometry
       this.historyManager.push(UndoEntry.deleteGeometry(geometry));
       this.deleteByIdDirect(id);
+
+      // If the entity being deleted is a filter, it could potentialyl effect whether associated
+      // geometries are filled (ie, MirrorFilter). So recompute the filled state on any previously
+      // linked geometries.
+      if (filterAssociatedGeometryId) {
+        this.updateByIdWithComponentDirect(
+          filterAssociatedGeometryId,
+          GeometryComponent,
+          (geometry) => {
+            const [output, events] = FilterComponent.syncFillColor(
+              geometry,
+              this.findFiltersByGeometryId(geometry.id),
+            );
+            if (output !== geometry) {
+              for (const event of events) {
+                this.historyManager.push(event);
+              }
+            }
+            return output;
+          },
+        );
+      }
     });
   }
 
@@ -685,7 +715,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     const [before, after] = results;
 
     if (Entity.hasComponent(before, GeometryComponent)) {
-      const beforeData = GeometryComponent.get(before);
+      const beforeData = GeometryComponent.get<GeometryData>(before);
       const afterData = GeometryComponent.get(after as Entity<GeometryComponent>);
       switch (beforeData.type) {
         case 'polygon': {
@@ -693,6 +723,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           if (afterPolyData.points !== beforeData.points) {
             this.historyManager.push(
               UndoEntry.polygonMove(id, beforeData.points, afterPolyData.points),
+            );
+          }
+          if (beforeData.closed !== afterPolyData.closed) {
+            this.historyManager.push(
+              UndoEntry.polygonClose(id, beforeData.closed, afterPolyData.closed),
+            );
+          }
+          if (beforeData.openAtIndex !== afterPolyData.openAtIndex) {
+            this.historyManager.push(
+              UndoEntry.polygonOpenAtIndex(id, beforeData.openAtIndex, afterPolyData.openAtIndex),
             );
           }
           break;
@@ -719,12 +759,50 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           break;
         }
         default:
+          beforeData satisfies never;
           break;
       }
+
+      // After updating a geometry, resync its filled state based on any associated filters which
+      // may effect it.
+      this.updateByIdWithComponentDirect(id, GeometryComponent, (geometry) => {
+        const [output, events] = FilterComponent.syncFillColor(
+          geometry,
+          this.findFiltersByGeometryId(id),
+        );
+        if (output !== geometry) {
+          for (const event of events) {
+            this.historyManager.push(event);
+          }
+        }
+        return output;
+      });
     } else if (Entity.hasComponent(before, DatumComponent)) {
       const beforeData = { position: DatumComponent.get(before) };
       const afterData = { position: DatumComponent.get(after as Entity<DatumComponent>) };
       this.historyManager.push(UndoEntry.datumMove(before.id, beforeData, afterData));
+    }
+
+    // Track fill component additions, removals, or modifications
+    if (
+      !Entity.hasComponent(before, FillColorComponent) &&
+      Entity.hasComponent(after, FillColorComponent)
+    ) {
+      const afterColor = FillColorComponent.get(after);
+      this.historyManager.push(UndoEntry.fillColorAdd(before.id, afterColor));
+    } else if (
+      Entity.hasComponent(before, FillColorComponent) &&
+      !Entity.hasComponent(after, FillColorComponent)
+    ) {
+      const beforeColor = FillColorComponent.get(before);
+      this.historyManager.push(UndoEntry.fillColorRemove(before.id, beforeColor));
+    } else if (
+      Entity.hasComponent(before, FillColorComponent) &&
+      Entity.hasComponent(after, FillColorComponent)
+    ) {
+      const beforeColor = FillColorComponent.get(before);
+      const afterColor = FillColorComponent.get(after);
+      this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, afterColor));
     }
   }
 

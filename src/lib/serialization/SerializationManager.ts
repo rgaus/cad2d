@@ -8,12 +8,18 @@ import {
   GeometryComponent,
   type Polygon,
   type Rectangle,
+  type RectangleEndpoint,
   RenderOrderComponent,
 } from '@/lib/entity';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { ChamferFilter } from '@/lib/entity/filters/chamfer';
+import { FilletFilter } from '@/lib/entity/filters/fillet';
+import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
-import { Length } from '@/lib/units/length';
+import { Length, type UnitType } from '@/lib/units/length';
+import { SheetPosition } from '@/lib/viewport/types';
 import { GeometryData } from '../entity/geometry';
 import { UndoEntry } from '../history/types';
 import { canLoad as canLoadSvg, parseSvg } from './deserialize';
@@ -21,6 +27,7 @@ import {
   serializeColinearConstraint,
   serializeDatum,
   serializeEllipse,
+  serializeFilter,
   serializeHorizontalConstraint,
   serializeLinearConstraint,
   serializeParallelConstraint,
@@ -196,6 +203,122 @@ export class SerializationManager {
         }
       }
 
+      // Insert parsed filters (from SVG <g> elements)
+      for (const filterData of parseResult.filters) {
+        const type = filterData.type as string;
+        switch (type) {
+          case 'mirror': {
+            const pointA = filterData.pointA as { x: number; y: number };
+            const pointB = filterData.pointB as { x: number; y: number };
+            const template = MirrorFilter.create(
+              filterData.geometryId as string,
+              new SheetPosition(pointA.x, pointA.y),
+              new SheetPosition(pointB.x, pointB.y),
+            );
+            const entity = { id: filterData.id as string, ...template } as Entity;
+            if (eraseExisting) {
+              geometryStore.addDirect(entity);
+            } else {
+              this.getHistoryManager().apply(UndoEntry.insert(entity));
+            }
+            break;
+          }
+          case 'fillet': {
+            const geoT = filterData.geometryType as string;
+            const offset = filterData.offset as { type: string; magnitude: number };
+            if (geoT === 'polygon') {
+              const template = FilletFilter.createOnPolygon(
+                filterData.geometryId as string,
+                filterData.pointAIndex as number,
+                filterData.pointCenterIndex as number,
+                filterData.pointBIndex as number,
+                Length.fromSheetUnits(offset.type as UnitType, offset.magnitude as number),
+              );
+              const entity = { id: filterData.id as string, ...template } as Entity;
+              if (eraseExisting) {
+                geometryStore.addDirect(entity);
+              } else {
+                this.getHistoryManager().apply(UndoEntry.insert(entity));
+              }
+            } else {
+              const template = FilletFilter.createOnRectangle(
+                filterData.geometryId as string,
+                filterData.pointAKeyPoint as RectangleEndpoint,
+                filterData.pointCenterKeyPoint as RectangleEndpoint,
+                filterData.pointBKeyPoint as RectangleEndpoint,
+                Length.fromSheetUnits(offset.type as UnitType, offset.magnitude as number),
+              );
+              const entity = { id: filterData.id as string, ...template } as Entity;
+              if (eraseExisting) {
+                geometryStore.addDirect(entity);
+              } else {
+                this.getHistoryManager().apply(UndoEntry.insert(entity));
+              }
+            }
+            break;
+          }
+          case 'chamfer': {
+            const geoT = filterData.geometryType as string;
+            const offset = filterData.offset as { type: string; magnitude: number };
+            if (geoT === 'polygon') {
+              const template = ChamferFilter.createOnPolygon(
+                filterData.geometryId as string,
+                filterData.pointAIndex as number,
+                filterData.pointCenterIndex as number,
+                filterData.pointBIndex as number,
+                Length.fromSheetUnits(offset.type as UnitType, offset.magnitude as number),
+              );
+              const entity = { id: filterData.id as string, ...template } as Entity;
+              if (eraseExisting) {
+                geometryStore.addDirect(entity);
+              } else {
+                this.getHistoryManager().apply(UndoEntry.insert(entity));
+              }
+            } else {
+              const template = ChamferFilter.createOnRectangle(
+                filterData.geometryId as string,
+                filterData.pointAKeyPoint as RectangleEndpoint,
+                filterData.pointCenterKeyPoint as RectangleEndpoint,
+                filterData.pointBKeyPoint as RectangleEndpoint,
+                Length.fromSheetUnits(offset.type as UnitType, offset.magnitude as number),
+              );
+              const entity = { id: filterData.id as string, ...template } as Entity;
+              if (eraseExisting) {
+                geometryStore.addDirect(entity);
+              } else {
+                this.getHistoryManager().apply(UndoEntry.insert(entity));
+              }
+            }
+            break;
+          }
+          default:
+            break;
+        }
+      }
+
+      // After inserting filters, sync fill color state on affected geometries.
+      // This restores FillColorComponent on non-closed polygons whose mirror
+      // filters touch the polygon endpoints.
+      for (const geomId of geometryStore
+        .listWithComponent(GeometryComponent)
+        .map((g: any) => g.id)) {
+        const filters = geometryStore.findFiltersByGeometryId(geomId) as any[];
+        if (filters.length === 0) {
+          continue;
+        }
+        const geometry = geometryStore.getByIdWithComponent(geomId, GeometryComponent);
+        if (!geometry) {
+          continue;
+        }
+        const [output, events] = FilterComponent.syncFillColor(geometry as any, filters);
+        if (output !== geometry) {
+          geometryStore.updateByIdDirect(geomId, () => output);
+          for (const event of events) {
+            this.getHistoryManager().push(event);
+          }
+        }
+      }
+
       // Restore history if available
       if (eraseExisting && parseResult.state) {
         const state = parseResult.state;
@@ -340,6 +463,18 @@ export class SerializationManager {
           default:
             constraint satisfies never;
             break;
+        }
+      }
+    }
+
+    // Also include any filters attached to the selected geometries
+    const addedFilterIds = new Set<string>();
+    for (const id of this.getSelectionManager().getSelectedIds()) {
+      const filters = geometryStore.findFiltersByGeometryId(id);
+      for (const filter of filters) {
+        if (!addedFilterIds.has(filter.id)) {
+          addedFilterIds.add(filter.id);
+          entries.push(serializeFilter(filter));
         }
       }
     }

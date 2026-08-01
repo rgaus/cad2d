@@ -12,6 +12,7 @@ import {
   type Rectangle,
   RenderOrderComponent,
 } from '@/lib/entity';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import {
   type ColinearConstraintData,
   type ConstraintData,
@@ -517,6 +518,62 @@ export function serializeLinearConstraint(
 </g>`;
 }
 
+/** Serializes a filter entity to an SVG <g> element string with data attributes. */
+export function serializeFilter(filter: Entity): string {
+  const fd = FilterComponent.get(filter as any);
+  const attrs: Array<string> = [
+    `data-id="${filter.id}"`,
+    `data-geometry-id="${(fd as any).geometryId}"`,
+  ];
+  switch (fd.type) {
+    case 'mirror':
+      attrs.push(`data-type="mirror-filter"`);
+      attrs.push(`data-point-a-x="${(fd as any).pointA.x}"`);
+      attrs.push(`data-point-a-y="${(fd as any).pointA.y}"`);
+      attrs.push(`data-point-b-x="${(fd as any).pointB.x}"`);
+      attrs.push(`data-point-b-y="${(fd as any).pointB.y}"`);
+      break;
+    case 'fillet': {
+      const serializedOffset = (fd as any).offset.serialize();
+      attrs.push(`data-type="fillet-filter"`);
+      attrs.push(`data-offset-magnitude="${serializedOffset.magnitude}"`);
+      attrs.push(`data-offset-type="${serializedOffset.type}"`);
+      attrs.push(`data-geometry-type="${(fd as any).geometryType}"`);
+      if ((fd as any).geometryType === 'polygon') {
+        attrs.push(`data-point-a-index="${(fd as any).pointAIndex}"`);
+        attrs.push(`data-point-center-index="${(fd as any).pointCenterIndex}"`);
+        attrs.push(`data-point-b-index="${(fd as any).pointBIndex}"`);
+      } else {
+        attrs.push(`data-point-a-key-point="${String((fd as any).pointAKeyPoint)}"`);
+        attrs.push(`data-point-center-key-point="${String((fd as any).pointCenterKeyPoint)}"`);
+        attrs.push(`data-point-b-key-point="${String((fd as any).pointBKeyPoint)}"`);
+      }
+      break;
+    }
+    case 'chamfer': {
+      const serializedOffset = (fd as any).offset.serialize();
+      attrs.push(`data-type="chamfer-filter"`);
+      attrs.push(`data-offset-magnitude="${serializedOffset.magnitude}"`);
+      attrs.push(`data-offset-type="${serializedOffset.type}"`);
+      attrs.push(`data-geometry-type="${(fd as any).geometryType}"`);
+      if ((fd as any).geometryType === 'polygon') {
+        attrs.push(`data-point-a-index="${(fd as any).pointAIndex}"`);
+        attrs.push(`data-point-center-index="${(fd as any).pointCenterIndex}"`);
+        attrs.push(`data-point-b-index="${(fd as any).pointBIndex}"`);
+      } else {
+        attrs.push(`data-point-a-key-point="${String((fd as any).pointAKeyPoint)}"`);
+        attrs.push(`data-point-center-key-point="${String((fd as any).pointCenterKeyPoint)}"`);
+        attrs.push(`data-point-b-key-point="${String((fd as any).pointBKeyPoint)}"`);
+      }
+      break;
+    }
+    default:
+      fd satisfies never;
+      throw new Error(`serializeFilter: unknown filter type ${(fd as any).type}`);
+  }
+  return `<g ${attrs.join(' ')}></g>`;
+}
+
 /**
  * Serializes the full state of the system into an SVG string.
  * The SVG is a valid superset that includes all geometry plus cad2d metadata
@@ -574,6 +631,82 @@ export function serializeToSvg(
   allShapes.sort((a, b) => a.renderOrder - b.renderOrder);
   for (const shape of allShapes) {
     svgParts.push(shape.serialize());
+  }
+
+  // Render shapes: for each geometry that has attached filters, serialize
+  // the non-primary render shapes (from getRenderShapes()) as SVG elements
+  // without data-type. These provide visual fidelity when the file is opened
+  // in external tools, showing the filtered/mirrored/filleted output.
+  const filterGeometries = geometryStore.listWithComponent(FilterComponent);
+  for (const geometry of geometryStore.listWithComponent(GeometryComponent)) {
+    const attached = filterGeometries.filter(
+      (f) => FilterComponent.get(f).geometryId === (geometry as unknown as { id: string }).id,
+    );
+    if (attached.length === 0) {
+      continue;
+    }
+
+    const fillColor = FillColorComponent.getOptional(geometry);
+    const renderShapes = GeometryComponent.getRenderShapes(
+      geometry as any,
+      sheet.defaultUnit,
+      attached,
+    );
+
+    for (const rs of renderShapes) {
+      // Skip the primary render shape if it is identical to the native
+      // geometry — it's already serialized with data-type above.
+      if (rs.primary && GeometryComponent.isGeometricallyEqual(geometry, rs)) {
+        continue;
+      }
+
+      switch (rs.shape) {
+        case 'polygon': {
+          const d = segmentsToPathData(rs.points);
+          if (rs.closed) {
+            const fillAttr =
+              typeof fillColor === 'number'
+                ? ` fill="#${fillColor.toString(16).padStart(6, '0')}"`
+                : '';
+            svgParts.push(`<path d="${d} Z"${fillAttr} stroke="#000" stroke-width="1" />`);
+          } else {
+            svgParts.push(`<path d="${d}" fill="none" stroke="#000" stroke-width="1" />`);
+          }
+          break;
+        }
+        case 'rectangle': {
+          const fillAttr =
+            typeof fillColor === 'number'
+              ? ` fill="#${fillColor.toString(16).padStart(6, '0')}"`
+              : '';
+          const x = rs.upperLeft.x * SHEET_UNITS_TO_PIXELS;
+          const y = rs.upperLeft.y * SHEET_UNITS_TO_PIXELS;
+          const w = (rs.lowerRight.x - rs.upperLeft.x) * SHEET_UNITS_TO_PIXELS;
+          const h = (rs.lowerRight.y - rs.upperLeft.y) * SHEET_UNITS_TO_PIXELS;
+          svgParts.push(
+            `<rect x="${x}" y="${y}" width="${w}" height="${h}"${fillAttr} stroke="#000" stroke-width="1" />`,
+          );
+          break;
+        }
+        case 'ellipse': {
+          const fillAttr =
+            typeof fillColor === 'number'
+              ? ` fill="#${fillColor.toString(16).padStart(6, '0')}"`
+              : '';
+          const cx = rs.center.x * SHEET_UNITS_TO_PIXELS;
+          const cy = rs.center.y * SHEET_UNITS_TO_PIXELS;
+          const rx = rs.radiusX * SHEET_UNITS_TO_PIXELS;
+          const ry = rs.radiusY * SHEET_UNITS_TO_PIXELS;
+          svgParts.push(
+            `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"${fillAttr} stroke="#000" stroke-width="1" />`,
+          );
+          break;
+        }
+        default:
+          rs satisfies never;
+          break;
+      }
+    }
   }
 
   // Serialize datums after geometry but before constraints
@@ -644,6 +777,12 @@ export function serializeToSvg(
           `serializeToSvg: unexpected constraint type ${(constraint as ConstraintData).type}`,
         );
     }
+  }
+
+  // Serialize filters as <g> elements with data attributes, mirroring the
+  // pattern used for constraints.
+  for (const filterGeom of filterGeometries) {
+    svgParts.push(serializeFilter(filterGeom));
   }
 
   // Build state object for the magic comment
