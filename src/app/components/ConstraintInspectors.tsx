@@ -22,6 +22,7 @@ import { Length, type UnitType } from '@/lib/units/length';
 import ConstraintEndpointField from './ConstraintEndpointField';
 import LabeledRow from './LabeledRow';
 import LengthInput from './LengthInput';
+import { useEntities } from '@/hooks/useEntities';
 
 type ConstraintInspectorProps = {
   constraintId: Id;
@@ -37,36 +38,17 @@ function useConstraintEntity<C extends ConstraintData>(
   geometryStore: GeometryStore,
   constraintType: C['type'],
 ): Entity<ConstraintComponent<C>> | null {
-  const [entity, setEntity] = useState<Entity<ConstraintComponent<C>> | null>(() => {
-    const e = geometryStore.getByIdWithComponent(constraintId, ConstraintComponent);
-    if (!e) {
+  return useEntities(geometryStore, (store) => {
+    const entity = store.getByIdWithComponent(constraintId, ConstraintComponent);
+    if (!entity) {
       return null;
     }
-    const data = ConstraintComponent.get(e);
+    const data = ConstraintComponent.get<C>(entity);
     if (data.type !== constraintType) {
       return null;
     }
-    return e as Entity<ConstraintComponent<C>>;
+    return entity as Entity<ConstraintComponent<C>>;
   });
-
-  useEffect(() => {
-    const handler = (updated: Entity) => {
-      if (updated.id !== constraintId || !Entity.hasComponent(updated, ConstraintComponent)) {
-        return;
-      }
-      const data = ConstraintComponent.get(updated);
-      if (data.type !== constraintType) {
-        return;
-      }
-      setEntity(updated as Entity<ConstraintComponent<C>>);
-    };
-    geometryStore.on('geometryUpdated', handler);
-    return () => {
-      geometryStore.off('geometryUpdated', handler);
-    };
-  }, [geometryStore, constraintId, constraintType]);
-
-  return entity;
 }
 
 // ==================== LINEAR ====================

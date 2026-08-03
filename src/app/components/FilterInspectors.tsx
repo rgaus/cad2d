@@ -15,6 +15,7 @@ import { Length, type UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import LabeledRow from './LabeledRow';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
+import { useEntities } from '@/hooks/useEntities';
 
 const RECTANGLE_KEYPOINTS = [
   'upperLeft',
@@ -33,10 +34,8 @@ const MirrorFilterInspector: React.FunctionComponent<{
   sheetUnitPlaces: number;
   sheetDefaultUnit: UnitType;
 }> = ({ filterId, geometryStore, historyManager, sheetUnitPlaces, sheetDefaultUnit }) => {
-  const [filterEntity, setFilterEntity] = useState<Entity<
-    FilterComponent<MirrorFilterData>
-  > | null>(() => {
-    const entity = geometryStore.getByIdWithComponent(filterId, FilterComponent);
+  const filterEntity = useEntities(geometryStore, (store) => {
+    const entity = store.getByIdWithComponent(filterId, FilterComponent);
     if (!entity) {
       return null;
     }
@@ -51,23 +50,6 @@ const MirrorFilterInspector: React.FunctionComponent<{
     () => (filterEntity ? FilterComponent.get(filterEntity) : null),
     [filterEntity],
   );
-
-  useEffect(() => {
-    const handler = (entity: Entity) => {
-      if (entity.id !== filterId || !Entity.hasComponent(entity, FilterComponent)) {
-        return;
-      }
-      const data = FilterComponent.get(entity);
-      if (data.type !== 'mirror') {
-        return;
-      }
-      setFilterEntity(entity as Entity<FilterComponent<MirrorFilterData>>);
-    };
-    geometryStore.on('geometryUpdated', handler);
-    return () => {
-      geometryStore.off('geometryUpdated', handler);
-    };
-  }, [geometryStore, filterId]);
 
   // Low-latency direct DOM updates during drag via refs
   const axInputRef = useRef<LengthInputHandle>(null);
@@ -244,10 +226,8 @@ const CornerFilterInspector: React.FunctionComponent<{
   sheetUnitPlaces: number;
   sheetDefaultUnit: UnitType;
 }> = ({ filterId, filterType, geometryStore, historyManager, sheetUnitPlaces }) => {
-  const [filterEntity, setFilterEntity] = useState<Entity<
-    FilterComponent<CornerFilterData>
-  > | null>(() => {
-    const entity = geometryStore.getByIdWithComponent(filterId, FilterComponent);
+  const filterEntity = useEntities(geometryStore, (store) => {
+    const entity = store.getByIdWithComponent(filterId, FilterComponent);
     if (!entity) {
       return null;
     }
@@ -262,23 +242,6 @@ const CornerFilterInspector: React.FunctionComponent<{
     () => (filterEntity ? FilterComponent.get(filterEntity) : null),
     [filterEntity],
   );
-
-  useEffect(() => {
-    const handler = (entity: Entity) => {
-      if (entity.id !== filterId || !Entity.hasComponent(entity, FilterComponent)) {
-        return;
-      }
-      const data = FilterComponent.get(entity);
-      if (data.type !== filterType) {
-        return;
-      }
-      setFilterEntity(entity as Entity<FilterComponent<CornerFilterData>>);
-    };
-    geometryStore.on('geometryUpdated', handler);
-    return () => {
-      geometryStore.off('geometryUpdated', handler);
-    };
-  }, [geometryStore, filterId, filterType]);
 
   const handleOffsetChange = useCallback(
     (len: Length) => {

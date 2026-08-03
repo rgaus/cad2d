@@ -1,15 +1,22 @@
-import { useEffect, useState } from 'react';
-import { Entity, GeometryComponent, RenderOrderComponent } from '@/lib/entity';
+import { useEffect, useRef, useState } from 'react';
+import { GeometryComponent, RenderOrderComponent } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 
-export const useEntities = <E extends Entity>(
+export const useEntities = <Return>(
   geometryStore: GeometryStore,
-  getter: (geometryStore: GeometryStore) => Array<E>,
-): Array<E> => {
-  const [entity, setEntities] = useState<Array<E>>([]);
+  getter: (geometryStore: GeometryStore) => Return,
+  deps?: Array<any>,
+): Return => {
+  const [entity, setEntities] = useState<Return>(() => getter(geometryStore));
+
+  const getterRef = useRef<typeof getter>(getter);
+  useEffect(() => {
+    getterRef.current = getter;
+  }, deps);
+
   useEffect(() => {
     const refresh = () => {
-      setEntities(getter(geometryStore));
+      setEntities(getterRef.current(geometryStore));
     };
     geometryStore.on('geometryAdded', refresh);
     geometryStore.on('geometryUpdated', refresh);
