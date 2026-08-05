@@ -2,7 +2,9 @@ import EventEmitter from 'eventemitter3';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
-import { Length, type SerializedLength, type UnitType } from '@/lib/units/length';
+import { Length, type UnitType } from '@/lib/units/length';
+import { SelectionManager } from '../tools/SelectionManager';
+import { SelectionInspectorManager } from '../selection/SelectionInspectorManager';
 
 /** Conversion factor: default sheet units to pixels. */
 export const SHEET_UNITS_TO_PIXELS = 64;
@@ -78,6 +80,8 @@ export type SheetEvents = {
 export class Sheet extends EventEmitter<SheetEvents> {
   width: Length;
   height: Length;
+  selectionManager: SelectionManager;
+  selectionInspectorManager: SelectionInspectorManager;
   geometryStore: GeometryStore;
   historyManager: HistoryManager;
 
@@ -122,6 +126,9 @@ export class Sheet extends EventEmitter<SheetEvents> {
     historyManager.setSheet(this);
     this.geometryStore = geometryStore;
     this.historyManager = historyManager;
+
+    this.selectionManager = new SelectionManager();
+    this.selectionInspectorManager = new SelectionInspectorManager(this, this.selectionManager, this.geometryStore);
   }
 
   private static makeSheetPresetConstructor(key: SheetSizePresetKey): () => Sheet {
