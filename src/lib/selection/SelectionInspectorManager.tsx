@@ -69,22 +69,13 @@ function button(key: string, label: string | SelectionInspectorIcon): SelectionI
   return { type: 'button', key, label }
 }
 
-type SelectionInspectorLabelledField = {
-  type: 'label';
-  key: string;
-  label: string;
-  fields: Array<SelectionInspectorField>;
-};
+type SelectionInspectorLabelledField = Label<SelectionInspectorField>;
 
 function labelled(key: string, label: string, fields: SelectionInspectorField | Array<SelectionInspectorField>): SelectionInspectorLabelledField {
   return { type: 'label', key, label, fields: Array.isArray(fields) ? fields : [fields] };
 }
 
-type SelectionInspectorFieldRow = {
-  type: 'row';
-  key: string;
-  fields: Array<SelectionInspectorLabelledField | SelectionInspectorField>;
-};
+type SelectionInspectorFieldRow = Row<SelectionInspectorLabelledField | SelectionInspectorField>;
 
 function row(
   key: string,
@@ -93,8 +84,19 @@ function row(
   return { type: 'row', key, fields };
 }
 
+type Variance<T extends { type: string }> = { type: 'heterogeneous' } | T;
+
+type Row<T> = { type: 'row'; key: string; fields: Array<T> };
+
+type Label<T> = { type: 'label'; key: string; label: string; fields: Array<T> };
+
+type Field<F extends { type: string } = SelectionInspectorField | SelectionInspectorFieldRow> =
+  | Variance<F>
+  | Row<Variance<SelectionInspectorLabelledField | SelectionInspectorField>>
+  | Label<Variance<SelectionInspectorField>>;
+
 type SelectionInspectorManagerEvents = {
-  fieldsChange: (fields: Array<SelectionInspectorField | SelectionInspectorFieldRow>) => void;
+  fieldsChange: (fields: Array<Field>) => void;
 };
 
 export class SelectionInspectorManager extends EventEmitter<SelectionInspectorManagerEvents> {
@@ -196,14 +198,14 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
     console.log('FIELDS:', fieldKeyOrder.map((key) => fields.get(key)!));
 
-    console.log('PROCESSED:', fieldKeyOrder.map((key) => this.aggregateFieldValue(fields.get(key)!)));
+    const processed = fieldKeyOrder.map((key) => this.aggregateFieldValue(fields.get(key)!));
+    console.log('PROCESSED:', processed);
+    this.emit('fieldsChange', processed);
   }
 
-  private aggregateRows(rows: Array<SelectionInspectorFieldRow>): {
-    type: 'row';
-    key: string;
-    fields: Array<{ type: 'heterogeneous' } | { type: 'homogeneous', value: SelectionInspectorField | SelectionInspectorLabelledField }>;
-  } {
+  private aggregateRows(
+    rows: Array<SelectionInspectorFieldRow>
+  ): Row<Variance<SelectionInspectorField | SelectionInspectorLabelledField>> {
     // console.log('AGGR ROWS', rows);
     if (rows.length === 0) {
       return { type: 'row' as const, key: 'no op', fields: [] };
@@ -237,7 +239,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           }
         }
         // console.log('FIELDS FOR KEYS ACROSS ROWS:', key, fieldsForKeyAcrossRows);
-        return this.aggregateFieldValue(fieldsForKeyAcrossRows) as { type: 'heterogeneous' } | { type: 'homogeneous', value: SelectionInspectorField | SelectionInspectorLabelledField };
+        return this.aggregateFieldValue(fieldsForKeyAcrossRows) as Variance<SelectionInspectorField | SelectionInspectorLabelledField>;
       }),
     };
     return output;
@@ -247,7 +249,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     type: 'label';
     key: string;
     label: string;
-    fields: Array<{ type: 'heterogeneous' } | { type: 'homogeneous', value: SelectionInspectorField }>;
+    fields: Array<Variance<SelectionInspectorField>>;
   } {
     // console.log('AGGR LABELS', entries);
     if (entries.length === 0) {
@@ -284,7 +286,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           }
         }
         // console.log('FIELDS FOR KEYS ACROSS LABELS:', key, fieldsForKeyAcrossLabels);
-        return this.aggregateFieldValue(fieldsForKeyAcrossLabels) as { type: 'heterogeneous' } | { type: 'homogeneous', value: SelectionInspectorField };
+        return this.aggregateFieldValue(fieldsForKeyAcrossLabels) as Variance<SelectionInspectorField>;
       }),
     };
     return output;
@@ -292,27 +294,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
   private aggregateFieldValue<F extends SelectionInspectorField | SelectionInspectorFieldRow | SelectionInspectorLabelledField>(
     entries: Array<F>,
-  ): (
-    | { type: 'homogeneous'; value: F }
-    | { type: 'heterogeneous' }
-    | {
-      type: 'row';
-      key: string;
-      fields: Array<
-        | { type: 'homogeneous'; value: SelectionInspectorLabelledField | SelectionInspectorField }
-        | { type: 'heterogeneous' }
-      >;
-    }
-    | {
-      type: 'label';
-      key: string;
-      label: string;
-      fields: Array<
-        | { type: 'homogeneous'; value: SelectionInspectorField }
-        | { type: 'heterogeneous' }
-      >;
-    }
-  ) {
+  ): Field<F> {
     // console.log('AGGR', entries);
     if (entries.length === 0) {
       return { type: 'heterogeneous' };
@@ -323,7 +305,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       if (entries[0].type === 'label') {
         return this.aggregateLabels([entries[0]]);
       }
-      return { type: 'homogeneous', value: entries[0] };
+      return entries[0]; // homogeneous
     }
     
     const first = entries[0];
@@ -339,7 +321,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       if (first.type === 'label') {
         return this.aggregateLabels(entries as Array<SelectionInspectorLabelledField>);
       }
-      return { type: 'homogeneous', value: entries[0] };
+      return entries[0]; // homogeneous
     }
 
     const combined = entries.reduce((acc, e) => {
@@ -370,7 +352,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     }, first.value);
 
     // console.log('COMBINED', combined);
-    return combined.length === 1 ? { type: 'homogeneous', value: combined[0] as unknown as F } : { type: 'heterogeneous' };
+    if (combined.length === 1) {
+      return combined[0] as unknown as F; // homogeneous
+    } else {
+      return { type: 'heterogeneous' };
+    }
   }
 
   computeFieldsForComponent(
