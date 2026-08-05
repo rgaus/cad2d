@@ -79,6 +79,7 @@ import FloatingPanel from './FloatingPanel';
 import LabeledRow from './LabeledRow';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from './ShapePreview';
+import { FieldLabel, FieldRow, SelectionInspectorField } from '@/lib/selection/SelectionInspectorManager';
 
 type SelectionInspectorProps = {
   sheet: Sheet;
@@ -2051,6 +2052,58 @@ const FrameInspector: React.FunctionComponent<{
   );
 };
 
+const FieldLeafRenderer: React.FunctionComponent<{ field: SelectionInspectorField }> = ({ field }) => {
+  switch (field.type) {
+    case 'number':
+    case 'length':
+    case 'render-order':
+    case 'angle':
+    case 'color':
+      return (
+        <Input type="number" />
+      );
+    case 'read-only':
+      return (
+        <span>{field.value[0]}</span>
+      );
+    case 'button':
+      return (
+        <Button>{typeof field.label === 'string' ? field.label : field.label.icon}</Button>
+      );
+  }
+};
+
+const FieldLabelRenderer: React.FunctionComponent<{ label: string; fields: FieldLabel['fields'] }> = ({ label, fields }) => {
+  return (
+    <div className="flex gap-2">
+      <span>{label}</span>
+      {fields.map((field, index) => {
+        if (field.type === 'heterogeneous') {
+          return <span key={index}>&mdash;</span>;
+        } else {
+          return <FieldLeafRenderer key={field.key} field={field} />;
+        }
+      })}
+    </div>
+  );
+};
+
+const FieldRowRenderer: React.FunctionComponent<{ fields: FieldRow['fields'] }> = ({ fields }) => {
+  return (
+    <div className="flex gap-2">
+      {fields.map((field, index) => {
+        if (field.type === 'label') {
+          return <FieldLabelRenderer key={field.key} label={field.label} fields={field.fields} />;
+        } else if (field.type === 'heterogeneous') {
+          return <span key={index}>&mdash;</span>;
+        } else {
+          return <FieldLeafRenderer key={field.key} field={field} />;
+        }
+      })}
+    </div>
+  );
+};
+
 const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
   sheet,
   geometryStore,
@@ -2271,6 +2324,16 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
     [geometryStore, selectedIds],
   );
 
+
+
+  const [fields, setFields] = useState(sheet.selectionInspectorManager.fields);
+  useEffect(() => {
+    sheet.selectionInspectorManager.on('fieldsChange', setFields);
+    return () => {
+      sheet.selectionInspectorManager.off('fieldsChange', setFields);
+    };
+  }, [sheet.selectionInspectorManager]);
+
   if (selectedIds.length === 0) {
     return null;
   }
@@ -2279,6 +2342,24 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
     <div className="absolute right-4 bottom-4 z-30 w-[320px]">
       <FloatingPanel>
         <div className="flex flex-col gap-3">
+          {/* <AngleInput value={Angle.degrees(0)} onChange={(ang) => console.log(ang)} /> */}
+
+          <br />
+
+          {fields.map((field, index) => {
+            if (field.type === 'row') {
+              return <FieldRowRenderer key={field.key} fields={field.fields} />;
+            } else if (field.type === 'label') {
+              return <FieldLabelRenderer key={field.key} label={field.label} fields={field.fields} />;
+            } else if (field.type === 'heterogeneous') {
+              return <span key={index}>&mdash;</span>;
+            } else {
+              return <FieldLeafRenderer key={field.key} field={field} />;
+            }
+          })}
+
+          <br />
+
           {singleRectangle && (
             <RectangleInspector
               rectangleId={singleRectangle.id}

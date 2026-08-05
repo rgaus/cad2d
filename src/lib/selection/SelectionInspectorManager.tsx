@@ -32,7 +32,7 @@ function icon(icon: React.ReactNode): SelectionInspectorIcon {
   return { type: 'icon', icon };
 }
 
-type SelectionInspectorField =
+export type SelectionInspectorField =
   | { type: 'read-only'; key: string, value: Array<string> }
   | { type: 'number'; key: string; value: Array<number> }
   | { type: 'length'; key: string; value: Array<Length> }
@@ -69,13 +69,13 @@ function button(key: string, label: string | SelectionInspectorIcon): SelectionI
   return { type: 'button', key, label }
 }
 
-type SelectionInspectorLabelledField = Label<SelectionInspectorField>;
+export type SelectionInspectorLabelledField = Label<SelectionInspectorField>;
 
 function labelled(key: string, label: string, fields: SelectionInspectorField | Array<SelectionInspectorField>): SelectionInspectorLabelledField {
   return { type: 'label', key, label, fields: Array.isArray(fields) ? fields : [fields] };
 }
 
-type SelectionInspectorFieldRow = Row<SelectionInspectorLabelledField | SelectionInspectorField>;
+export type SelectionInspectorFieldRow = Row<SelectionInspectorLabelledField | SelectionInspectorField>;
 
 function row(
   key: string,
@@ -90,10 +90,13 @@ type Row<T> = { type: 'row'; key: string; fields: Array<T> };
 
 type Label<T> = { type: 'label'; key: string; label: string; fields: Array<T> };
 
-type Field<F extends { type: string } = SelectionInspectorField | SelectionInspectorFieldRow> =
+export type FieldRow = Row<Variance<SelectionInspectorLabelledField | SelectionInspectorField>>;
+export type FieldLabel = Label<Variance<SelectionInspectorField>>;
+
+export type Field<F extends { type: string } = SelectionInspectorField | SelectionInspectorFieldRow> =
   | Variance<F>
-  | Row<Variance<SelectionInspectorLabelledField | SelectionInspectorField>>
-  | Label<Variance<SelectionInspectorField>>;
+  | FieldRow
+  | FieldLabel;
 
 type SelectionInspectorManagerEvents = {
   fieldsChange: (fields: Array<Field>) => void;
@@ -137,6 +140,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     this.recomputeFields();
   };
 
+  fields: Array<Field> = [];
   recomputeFields() {
     const fields = new Map<string, Array<SelectionInspectorField | SelectionInspectorFieldRow>>();
     const fieldKeyOrder: Array<string> = [];
@@ -200,6 +204,8 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
     const processed = fieldKeyOrder.map((key) => this.aggregateFieldValue(fields.get(key)!));
     console.log('PROCESSED:', processed);
+
+    this.fields = processed;
     this.emit('fieldsChange', processed);
   }
 
