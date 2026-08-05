@@ -33,6 +33,15 @@ function icon(icon: React.ReactNode): SelectionInspectorIcon {
 }
 
 export type SelectionInspectorField =
+  | { type: 'read-only'; key: string, value: string }
+  | { type: 'number'; key: string; value: number }
+  | { type: 'length'; key: string; value: Length }
+  | { type: 'angle'; key: string; value: Angle }
+  | { type: 'render-order'; value: number, key: string }
+  | { type: 'color'; key: string; value: number | null }
+  | { type: 'button'; label: string | SelectionInspectorIcon, key: string };
+
+export type SelectionInspectorFieldOptions =
   | { type: 'read-only'; key: string, value: Array<string> }
   | { type: 'number'; key: string; value: Array<number> }
   | { type: 'length'; key: string; value: Array<Length> }
@@ -41,45 +50,45 @@ export type SelectionInspectorField =
   | { type: 'color'; key: string; value: Array<number | null> }
   | { type: 'button'; label: string | SelectionInspectorIcon, key: string };
 
-function readOnly(key: string, text: string ): SelectionInspectorField {
+function readOnly(key: string, text: string ): SelectionInspectorFieldOptions {
   return { type: 'read-only', key, value: [text] };
 }
 
-function number(key: string, value: number): SelectionInspectorField {
+function number(key: string, value: number): SelectionInspectorFieldOptions {
   return { type: 'number', key, value: [value] };
 }
 
-function length(key: string, value: Length): SelectionInspectorField {
+function length(key: string, value: Length): SelectionInspectorFieldOptions {
   return { type: 'length', key, value: [value] };
 }
 
-function angle(key: string, value: Angle): SelectionInspectorField {
+function angle(key: string, value: Angle): SelectionInspectorFieldOptions {
   return { type: 'angle', key, value: [value] }
 }
 
-function renderOrder(key: string, renderOrder: number): SelectionInspectorField {
+function renderOrder(key: string, renderOrder: number): SelectionInspectorFieldOptions {
   return { type: 'render-order', key, value: [renderOrder] };
 }
 
-function color(key: string, color: number | null): SelectionInspectorField {
+function color(key: string, color: number | null): SelectionInspectorFieldOptions {
   return { type: 'color', key, value: [color] };
 }
 
-function button(key: string, label: string | SelectionInspectorIcon): SelectionInspectorField {
+function button(key: string, label: string | SelectionInspectorIcon): SelectionInspectorFieldOptions {
   return { type: 'button', key, label }
 }
 
-export type SelectionInspectorLabelledField = Label<SelectionInspectorField>;
+export type SelectionInspectorLabelledField = Label<SelectionInspectorFieldOptions>;
 
-function labelled(key: string, label: string, fields: SelectionInspectorField | Array<SelectionInspectorField>): SelectionInspectorLabelledField {
+function labelled(key: string, label: string, fields: SelectionInspectorFieldOptions | Array<SelectionInspectorFieldOptions>): SelectionInspectorLabelledField {
   return { type: 'label', key, label, fields: Array.isArray(fields) ? fields : [fields] };
 }
 
-export type SelectionInspectorFieldRow = Row<SelectionInspectorLabelledField | SelectionInspectorField>;
+export type SelectionInspectorFieldRow = Row<SelectionInspectorLabelledField | SelectionInspectorFieldOptions>;
 
 function row(
   key: string,
-  fields: Array<SelectionInspectorLabelledField | SelectionInspectorField>
+  fields: Array<SelectionInspectorLabelledField | SelectionInspectorFieldOptions>
 ): SelectionInspectorFieldRow {
   return { type: 'row', key, fields };
 }
@@ -90,10 +99,17 @@ type Row<T> = { type: 'row'; key: string; fields: Array<T> };
 
 type Label<T> = { type: 'label'; key: string; label: string; fields: Array<T> };
 
-export type FieldRow = Row<Variance<SelectionInspectorLabelledField | SelectionInspectorField>>;
+export type FieldRow = Row<Variance<FieldLabel | SelectionInspectorField>>;
 export type FieldLabel = Label<Variance<SelectionInspectorField>>;
 
-export type Field<F extends { type: string } = SelectionInspectorField | SelectionInspectorFieldRow> =
+/** Map from a type which contains a list of fields at each leaf to a type which has only a single
+  * field at each leaf. */
+type OptionsToSingle<F extends SelectionInspectorFieldOptions | SelectionInspectorFieldRow | SelectionInspectorLabelledField> =
+  F extends SelectionInspectorFieldOptions ? SelectionInspectorField :
+  (F extends SelectionInspectorFieldRow ? FieldRow :
+    (F extends SelectionInspectorLabelledField ? FieldLabel : F))
+
+export type Field<F extends { type: string } = SelectionInspectorField | FieldRow> =
   | Variance<F>
   | FieldRow
   | FieldLabel;
@@ -142,7 +158,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
   fields: Array<Field> = [];
   recomputeFields() {
-    const fields = new Map<string, Array<SelectionInspectorField | SelectionInspectorFieldRow>>();
+    const fields = new Map<string, Array<SelectionInspectorFieldOptions | SelectionInspectorFieldRow>>();
     const fieldKeyOrder: Array<string> = [];
 
     // Step 1: Generate list of fields
@@ -211,7 +227,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
   private aggregateRows(
     rows: Array<SelectionInspectorFieldRow>
-  ): Row<Variance<SelectionInspectorField | SelectionInspectorLabelledField>> {
+  ): Row<Variance<SelectionInspectorField | FieldLabel>> {
     // console.log('AGGR ROWS', rows);
     if (rows.length === 0) {
       return { type: 'row' as const, key: 'no op', fields: [] };
@@ -231,8 +247,8 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         .map((row) => new Set(row.fields.map((f) => f.key)))
         .reduce((a, b) => a.intersection(b))
     );
-    const output = {
-      type: 'row' as const,
+    return {
+      type: 'row',
       key: rows[0].key,
       fields: fieldCommonKeys.map((key) => {
         const fieldsForKeyAcrossRows = [];
@@ -245,18 +261,12 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           }
         }
         // console.log('FIELDS FOR KEYS ACROSS ROWS:', key, fieldsForKeyAcrossRows);
-        return this.aggregateFieldValue(fieldsForKeyAcrossRows) as Variance<SelectionInspectorField | SelectionInspectorLabelledField>;
+        return this.aggregateFieldValue(fieldsForKeyAcrossRows) as Variance<SelectionInspectorField | FieldLabel>;
       }),
     };
-    return output;
   }
 
-  private aggregateLabels(entries: Array<SelectionInspectorLabelledField>): {
-    type: 'label';
-    key: string;
-    label: string;
-    fields: Array<Variance<SelectionInspectorField>>;
-  } {
+  private aggregateLabels(entries: Array<SelectionInspectorLabelledField>): FieldLabel {
     // console.log('AGGR LABELS', entries);
     if (entries.length === 0) {
       return { type: 'label' as const, key: 'no op', label: '', fields: [] };
@@ -277,8 +287,8 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         .map((row) => new Set(row.fields.map((f) => f.key)))
         .reduce((a, b) => a.intersection(b))
     );
-    const output = {
-      type: 'label' as const,
+    return {
+      type: 'label',
       key: entries[0].key,
       label: entries[0].label,
       fields: fieldCommonKeys.map((key) => {
@@ -295,12 +305,33 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         return this.aggregateFieldValue(fieldsForKeyAcrossLabels) as Variance<SelectionInspectorField>;
       }),
     };
-    return output;
   }
 
-  private aggregateFieldValue<F extends SelectionInspectorField | SelectionInspectorFieldRow | SelectionInspectorLabelledField>(
+  private collapseFieldOptions<F extends SelectionInspectorFieldOptions>(
+    fieldOptions: F,
+    newValue?: Extract<F, { value: unknown }>["value"][0],
+  ): SelectionInspectorField {
+    switch (fieldOptions.type) {
+      case 'read-only':
+        return { type: 'read-only', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
+      case 'number':
+        return { type: 'number', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
+      case 'length':
+        return { type: 'length', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
+      case 'angle':
+        return { type: 'angle', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
+      case 'render-order':
+        return { type: 'render-order', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
+      case 'color':
+        return { type: 'color', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
+      case 'button':
+        return fieldOptions;
+    }
+  }
+
+  private aggregateFieldValue<F extends SelectionInspectorFieldOptions | SelectionInspectorFieldRow | SelectionInspectorLabelledField>(
     entries: Array<F>,
-  ): Field<F> {
+  ): Field<OptionsToSingle<F>> {
     // console.log('AGGR', entries);
     if (entries.length === 0) {
       return { type: 'heterogeneous' };
@@ -311,23 +342,22 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       if (entries[0].type === 'label') {
         return this.aggregateLabels([entries[0]]);
       }
-      return entries[0]; // homogeneous
+      return this.collapseFieldOptions(entries[0]) as Field<OptionsToSingle<F>>; // homogeneous
     }
     
-    const first = entries[0];
-    if (!entries.every((e) => e.type === first.type)) {
+    if (!entries.every((e) => e.type === entries[0].type)) {
       return { type: 'heterogeneous' };
     }
 
     // No 'value' key = use first entry
-    if (!('value' in first)) {
-      if (first.type === 'row') {
+    if (!('value' in entries[0])) {
+      if (entries[0].type === 'row') {
         return this.aggregateRows(entries as Array<SelectionInspectorFieldRow>);
       }
-      if (first.type === 'label') {
+      if (entries[0].type === 'label') {
         return this.aggregateLabels(entries as Array<SelectionInspectorLabelledField>);
       }
-      return entries[0]; // homogeneous
+      return this.collapseFieldOptions(entries[0]) as Field<OptionsToSingle<F>>; // homogeneous
     }
 
     const combined = entries.reduce((acc, e) => {
@@ -355,11 +385,14 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           e satisfies never;
           throw new Error(`Unknown e.type of ${(e as any).type}`);
       }
-    }, first.value);
+    }, entries[0].value);
 
     // console.log('COMBINED', combined);
     if (combined.length === 1) {
-      return combined[0] as unknown as F; // homogeneous
+      return this.collapseFieldOptions(
+        entries[0],
+        combined[0],
+      ) as Field<OptionsToSingle<F>>; // homogeneous
     } else {
       return { type: 'heterogeneous' };
     }

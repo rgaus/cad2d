@@ -79,6 +79,7 @@ import FloatingPanel from './FloatingPanel';
 import LabeledRow from './LabeledRow';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from './ShapePreview';
+import AngleInput from './AngleInput';
 import { FieldLabel, FieldRow, SelectionInspectorField } from '@/lib/selection/SelectionInspectorManager';
 
 type SelectionInspectorProps = {
@@ -2052,15 +2053,27 @@ const FrameInspector: React.FunctionComponent<{
   );
 };
 
-const FieldLeafRenderer: React.FunctionComponent<{ field: SelectionInspectorField }> = ({ field }) => {
+const FieldLeafRenderer: React.FunctionComponent<{ geometryStore: GeometryStore, field: SelectionInspectorField }> = ({ geometryStore, field }) => {
   switch (field.type) {
     case 'number':
+      return (
+        <Input type="number" value={field.value} />
+      );
     case 'length':
+      return (
+        <LengthInput value={field.value} onChange={() => {}} />
+      );
     case 'render-order':
+      return (
+        <RenderOrderInput value={field.value} onChange={() => {}} geometryStore={geometryStore} />
+      );
     case 'angle':
+      return (
+        <AngleInput value={field.value} onChange={() => {}} />
+      );
     case 'color':
       return (
-        <Input type="number" />
+        <ColorInput value={field.value} onChange={() => {}} />
       );
     case 'read-only':
       return (
@@ -2073,7 +2086,7 @@ const FieldLeafRenderer: React.FunctionComponent<{ field: SelectionInspectorFiel
   }
 };
 
-const FieldLabelRenderer: React.FunctionComponent<{ label: string; fields: FieldLabel['fields'] }> = ({ label, fields }) => {
+const FieldLabelRenderer: React.FunctionComponent<{ label: string; fields: FieldLabel['fields']; geometryStore: GeometryStore }> = ({ label, fields, geometryStore }) => {
   return (
     <div className="flex gap-2">
       <span>{label}</span>
@@ -2081,23 +2094,23 @@ const FieldLabelRenderer: React.FunctionComponent<{ label: string; fields: Field
         if (field.type === 'heterogeneous') {
           return <span key={index}>&mdash;</span>;
         } else {
-          return <FieldLeafRenderer key={field.key} field={field} />;
+          return <FieldLeafRenderer key={field.key} field={field} geometryStore={geometryStore} />;
         }
       })}
     </div>
   );
 };
 
-const FieldRowRenderer: React.FunctionComponent<{ fields: FieldRow['fields'] }> = ({ fields }) => {
+const FieldRowRenderer: React.FunctionComponent<{ fields: FieldRow['fields']; geometryStore: GeometryStore }> = ({ fields, geometryStore }) => {
   return (
     <div className="flex gap-2">
       {fields.map((field, index) => {
         if (field.type === 'label') {
-          return <FieldLabelRenderer key={field.key} label={field.label} fields={field.fields} />;
+          return <FieldLabelRenderer key={field.key} label={field.label} fields={field.fields} geometryStore={geometryStore} />;
         } else if (field.type === 'heterogeneous') {
           return <span key={index}>&mdash;</span>;
         } else {
-          return <FieldLeafRenderer key={field.key} field={field} />;
+          return <FieldLeafRenderer key={field.key} field={field} geometryStore={geometryStore} />;
         }
       })}
     </div>
@@ -2348,13 +2361,13 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
 
           {fields.map((field, index) => {
             if (field.type === 'row') {
-              return <FieldRowRenderer key={field.key} fields={field.fields} />;
+              return <FieldRowRenderer key={field.key} fields={field.fields} geometryStore={geometryStore} />;
             } else if (field.type === 'label') {
-              return <FieldLabelRenderer key={field.key} label={field.label} fields={field.fields} />;
+              return <FieldLabelRenderer key={field.key} label={field.label} fields={field.fields} geometryStore={geometryStore} />;
             } else if (field.type === 'heterogeneous') {
               return <span key={index}>&mdash;</span>;
             } else {
-              return <FieldLeafRenderer key={field.key} field={field} />;
+              return <FieldLeafRenderer key={field.key} field={field} geometryStore={geometryStore} />;
             }
           })}
 
