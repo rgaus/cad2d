@@ -35,7 +35,7 @@ function icon(icon: React.ReactNode): SelectionInspectorIcon {
 export type SelectionInspectorField =
   | { type: 'read-only'; key: string, value: string }
   | { type: 'number'; key: string; value: number }
-  | { type: 'length'; key: string; value: Length }
+  | { type: 'length'; key: string; value: Length; readOnlyUnit: boolean }
   | { type: 'angle'; key: string; value: Angle }
   | { type: 'render-order'; value: number, key: string }
   | { type: 'color'; key: string; value: number | null }
@@ -44,7 +44,7 @@ export type SelectionInspectorField =
 export type SelectionInspectorFieldOptions =
   | { type: 'read-only'; key: string, value: Array<string> }
   | { type: 'number'; key: string; value: Array<number> }
-  | { type: 'length'; key: string; value: Array<Length> }
+  | { type: 'length'; key: string; value: Array<Length>; readOnlyUnit: boolean }
   | { type: 'angle'; key: string; value: Array<Angle> }
   | { type: 'render-order'; value: Array<number>, key: string }
   | { type: 'color'; key: string; value: Array<number | null> }
@@ -58,8 +58,8 @@ function number(key: string, value: number): SelectionInspectorFieldOptions {
   return { type: 'number', key, value: [value] };
 }
 
-function length(key: string, value: Length): SelectionInspectorFieldOptions {
-  return { type: 'length', key, value: [value] };
+function length(key: string, value: Length, options?: { readOnlyUnit?: boolean }): SelectionInspectorFieldOptions {
+  return { type: 'length', key, value: [value], readOnlyUnit: options?.readOnlyUnit ?? false };
 }
 
 function angle(key: string, value: Angle): SelectionInspectorFieldOptions {
@@ -93,7 +93,7 @@ function row(
   return { type: 'row', key, fields };
 }
 
-type Variance<T extends { type: string }> = { type: 'heterogeneous' } | T;
+type Variance<T extends { type: string }> = { type: 'heterogeneous'; key: string } | T;
 
 type Row<T> = { type: 'row'; key: string; fields: Array<T> };
 
@@ -218,7 +218,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
     console.log('FIELDS:', fieldKeyOrder.map((key) => fields.get(key)!));
 
-    const processed = fieldKeyOrder.map((key) => this.aggregateFieldValue(fields.get(key)!));
+    const processed = fieldKeyOrder.map((key) => this.aggregateFieldValue(fields.get(key)!, key));
     console.log('PROCESSED:', processed);
 
     this.fields = processed;
@@ -238,7 +238,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       return {
         type: 'row' as const,
         key: rows[0].key,
-        fields: rows[0].fields.map(() => ({ type: 'heterogeneous' })),
+        fields: rows[0].fields.map((f) => ({ type: 'heterogeneous', key: f.key })),
       };
     }
 
@@ -257,11 +257,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           if (match) {
             fieldsForKeyAcrossRows.push(match);
           } else {
-            return { type: 'heterogeneous' as const };
+            return { type: 'heterogeneous', key };
           }
         }
         // console.log('FIELDS FOR KEYS ACROSS ROWS:', key, fieldsForKeyAcrossRows);
-        return this.aggregateFieldValue(fieldsForKeyAcrossRows) as Variance<SelectionInspectorField | FieldLabel>;
+        return this.aggregateFieldValue(fieldsForKeyAcrossRows, key) as Variance<SelectionInspectorField | FieldLabel>;
       }),
     };
   }
@@ -278,7 +278,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         type: 'label' as const,
         key: entries[0].key,
         label: entries[0].label,
-        fields: entries[0].fields.map(() => ({ type: 'heterogeneous' })),
+        fields: entries[0].fields.map((f) => ({ type: 'heterogeneous', key: f.key })),
       };
     }
 
@@ -298,15 +298,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           if (match) {
             fieldsForKeyAcrossLabels.push(match);
           } else {
-            return { type: 'heterogeneous' as const };
+            return { type: 'heterogeneous', key };
           }
         }
         // console.log('FIELDS FOR KEYS ACROSS LABELS:', key, fieldsForKeyAcrossLabels);
-        return this.aggregateFieldValue(fieldsForKeyAcrossLabels) as Variance<SelectionInspectorField>;
+        return this.aggregateFieldValue(fieldsForKeyAcrossLabels, key) as Variance<SelectionInspectorField>;
       }),
     };
   }
 
+  /** Takes an "options" type, and collapses it into a single value version. Uses either the first
+   * entry in the options type as the new value, or if specified, {@link newValue}. */
   private collapseFieldOptions<F extends SelectionInspectorFieldOptions>(
     fieldOptions: F,
     newValue?: Extract<F, { value: unknown }>["value"][0],
@@ -317,7 +319,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       case 'number':
         return { type: 'number', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
       case 'length':
-        return { type: 'length', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
+        return { type: 'length', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0], readOnlyUnit: fieldOptions.readOnlyUnit };
       case 'angle':
         return { type: 'angle', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
       case 'render-order':
@@ -331,10 +333,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
   private aggregateFieldValue<F extends SelectionInspectorFieldOptions | SelectionInspectorFieldRow | SelectionInspectorLabelledField>(
     entries: Array<F>,
+    key: string,
   ): Field<OptionsToSingle<F>> {
     // console.log('AGGR', entries);
     if (entries.length === 0) {
-      return { type: 'heterogeneous' };
+      return { type: 'heterogeneous', key };
     } else if (entries.length === 1) {
       if (entries[0].type === 'row') {
         return this.aggregateRows([entries[0]]);
@@ -346,7 +349,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     }
     
     if (!entries.every((e) => e.type === entries[0].type)) {
-      return { type: 'heterogeneous' };
+      return { type: 'heterogeneous', key };
     }
 
     // No 'value' key = use first entry
@@ -394,7 +397,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         combined[0],
       ) as Field<OptionsToSingle<F>>; // homogeneous
     } else {
-      return { type: 'heterogeneous' };
+      return { type: 'heterogeneous', key };
     }
   }
 
@@ -412,26 +415,26 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           case 'rectangle':
             return [
               row('position', [
-                labelled('x', 'X:', length('x', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.x))),
-                labelled('y', 'Y:', length('y', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.y))),
+                labelled('x', 'X:', length('x', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.x), { readOnlyUnit: true })),
+                labelled('y', 'Y:', length('y', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.y), { readOnlyUnit: true })),
               ]),
               row('dimensions', [
-                labelled('width', 'W:', length('width', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.lowerRight.x - geometryData.upperLeft.x))),
+                labelled('width', 'W:', length('width', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.lowerRight.x - geometryData.upperLeft.x), { readOnlyUnit: true })),
                 button('link', icon(<LinkIcon size={14} />)),
-                labelled('height', 'H:', length('height', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.lowerRight.y - geometryData.upperLeft.y))),
+                labelled('height', 'H:', length('height', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.lowerRight.y - geometryData.upperLeft.y), { readOnlyUnit: true })),
               ]),
               button('convert-to-polygon', 'To polygon...'),
             ];
           case 'ellipse':
             return [
               row('position', [
-                labelled('x', 'X:', length('x', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.x))),
-                labelled('y', 'Y:', length('y', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.y))),
+                labelled('x', 'X:', length('x', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.x), { readOnlyUnit: true })),
+                labelled('y', 'Y:', length('y', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.y), { readOnlyUnit: true })),
               ]),
               row('radius', [
-                labelled('rx', 'RX:', length('rx', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.radiusX))),
+                labelled('rx', 'RX:', length('rx', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.radiusX), { readOnlyUnit: true })),
                 button('link', icon(<LinkIcon size={14} />)),
-                labelled('ry', 'RY:', length('ry', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.radiusY))),
+                labelled('ry', 'RY:', length('ry', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.radiusY), { readOnlyUnit: true })),
               ]),
               button('convert-to-polygon', 'To polygon...'),
             ];

@@ -2061,7 +2061,7 @@ const FieldLeafRenderer: React.FunctionComponent<{ geometryStore: GeometryStore,
       );
     case 'length':
       return (
-        <LengthInput value={field.value} onChange={() => {}} />
+        <LengthInput value={field.value} onChange={() => {}} readOnlyUnit={field.readOnlyUnit} />
       );
     case 'render-order':
       return (
@@ -2090,9 +2090,11 @@ const FieldLabelRenderer: React.FunctionComponent<{ label: string; fields: Field
   return (
     <div className="flex gap-2">
       <span>{label}</span>
-      {fields.map((field, index) => {
+      {fields.map((field) => {
         if (field.type === 'heterogeneous') {
-          return <span key={index}>&mdash;</span>;
+          return (
+            <Input key={field.key} type="text" placeholder="Many values" disabled />
+          );
         } else {
           return <FieldLeafRenderer key={field.key} field={field} geometryStore={geometryStore} />;
         }
@@ -2104,11 +2106,13 @@ const FieldLabelRenderer: React.FunctionComponent<{ label: string; fields: Field
 const FieldRowRenderer: React.FunctionComponent<{ fields: FieldRow['fields']; geometryStore: GeometryStore }> = ({ fields, geometryStore }) => {
   return (
     <div className="flex gap-2">
-      {fields.map((field, index) => {
+      {fields.map((field) => {
         if (field.type === 'label') {
           return <FieldLabelRenderer key={field.key} label={field.label} fields={field.fields} geometryStore={geometryStore} />;
         } else if (field.type === 'heterogeneous') {
-          return <span key={index}>&mdash;</span>;
+          return (
+            <Input key={field.key} type="text" placeholder="Many values" disabled />
+          );
         } else {
           return <FieldLeafRenderer key={field.key} field={field} geometryStore={geometryStore} />;
         }
@@ -2359,13 +2363,15 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
 
           <br />
 
-          {fields.map((field, index) => {
+          {fields.map((field) => {
             if (field.type === 'row') {
               return <FieldRowRenderer key={field.key} fields={field.fields} geometryStore={geometryStore} />;
             } else if (field.type === 'label') {
               return <FieldLabelRenderer key={field.key} label={field.label} fields={field.fields} geometryStore={geometryStore} />;
             } else if (field.type === 'heterogeneous') {
-              return <span key={index}>&mdash;</span>;
+              return (
+                <Input key={field.key} type="text" placeholder="Many values" disabled />
+              );
             } else {
               return <FieldLeafRenderer key={field.key} field={field} geometryStore={geometryStore} />;
             }
