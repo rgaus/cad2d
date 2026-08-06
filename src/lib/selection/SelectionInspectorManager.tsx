@@ -464,15 +464,19 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   private computeFieldsForComponent(
     entity: Entity,
     Component: NonNullable<ReturnType<typeof getComponentByKey>>,
-  ) {
+  ): Array<SelectionInspectorFieldOptions | SelectionInspectorFieldRow> {
     switch (Component.key) {
       case GeometryComponent.key: {
         if (!Entity.hasComponent(entity, GeometryComponent)) {
           return [];
         }
         const geometryData = GeometryComponent.get<GeometryData>(entity);
+        const hasLinkDimensions = Entity.hasComponent(entity, LinkDimensionsComponent);
         switch (geometryData.type) {
-          case 'rectangle':
+          case 'rectangle': {
+            const linkButton = hasLinkDimensions
+              ? [button('link', icon(<LinkIcon size={14} />))]
+              : [];
             return [
               row('position', [
                 labelled(
@@ -482,11 +486,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'x',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.x),
                     { readOnlyUnit: true },
-                    {
-                      onChange: (newValue) => {
-                        console.log('VALUE', newValue);
-                      },
-                    }
                   ),
                 ),
                 labelled(
@@ -500,25 +499,76 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                 ),
               ]),
               row('dimensions', [
-                labelled('width', 'W:', length('width', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.lowerRight.x - geometryData.upperLeft.x), { readOnlyUnit: true })),
-                button('link', icon(<LinkIcon size={14} />)),
-                labelled('height', 'H:', length('height', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.lowerRight.y - geometryData.upperLeft.y), { readOnlyUnit: true })),
+                labelled(
+                  'width',
+                  'W:',
+                  length(
+                    'width',
+                    Length.fromSheetUnits(
+                      this.sheetDefaultUnit,
+                      geometryData.lowerRight.x - geometryData.upperLeft.x,
+                    ),
+                    { readOnlyUnit: true },
+                  ),
+                ),
+                ...linkButton,
+                labelled(
+                  'height',
+                  'H:',
+                  length(
+                    'height',
+                    Length.fromSheetUnits(
+                      this.sheetDefaultUnit,
+                      geometryData.lowerRight.y - geometryData.upperLeft.y,
+                    ),
+                    { readOnlyUnit: true },
+                  ),
+                ),
               ]),
               button('convert-to-polygon', 'To polygon...'),
             ];
-          case 'ellipse':
+          }
+          case 'ellipse': {
+            const linkButton = hasLinkDimensions
+              ? [button('link', icon(<LinkIcon size={14} />))]
+              : [];
             return [
               row('position', [
-                labelled('x', 'X:', length('x', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.x), { readOnlyUnit: true })),
-                labelled('y', 'Y:', length('y', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.y), { readOnlyUnit: true })),
+                labelled(
+                  'x',
+                  'X:',
+                  length('x', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.x), {
+                    readOnlyUnit: true,
+                  }),
+                ),
+                labelled(
+                  'y',
+                  'Y:',
+                  length('y', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.y), {
+                    readOnlyUnit: true,
+                  }),
+                ),
               ]),
               row('radius', [
-                labelled('rx', 'RX:', length('rx', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.radiusX), { readOnlyUnit: true })),
-                button('link', icon(<LinkIcon size={14} />)),
-                labelled('ry', 'RY:', length('ry', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.radiusY), { readOnlyUnit: true })),
+                labelled(
+                  'rx',
+                  'RX:',
+                  length('rx', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.radiusX), {
+                    readOnlyUnit: true,
+                  }),
+                ),
+                ...linkButton,
+                labelled(
+                  'ry',
+                  'RY:',
+                  length('ry', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.radiusY), {
+                    readOnlyUnit: true,
+                  }),
+                ),
               ]),
               button('convert-to-polygon', 'To polygon...'),
             ];
+          }
           case 'polygon':
             // TODO: add this
             return [];
@@ -526,7 +576,238 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
             geometryData satisfies never;
             return [];
         }
-      };
+      }
+      case FillColorComponent.key: {
+        if (!Entity.hasComponent(entity, FillColorComponent)) {
+          return [];
+        }
+        const fillColor = FillColorComponent.get(entity);
+        return [row('fillColor', [labelled('fillColor', 'Fill:', color('fillColor', fillColor))])];
+      }
+      case RenderOrderComponent.key: {
+        if (!Entity.hasComponent(entity, RenderOrderComponent)) {
+          return [];
+        }
+        const renderOrderValue = RenderOrderComponent.get(entity);
+        return [
+          row('renderOrder', [labelled('renderOrder', 'Render order:', renderOrder('renderOrder', renderOrderValue))]),
+        ];
+      }
+      case FrameComponent.key: {
+        if (!Entity.hasComponent(entity, FrameComponent)) {
+          return [];
+        }
+        const frameData = FrameComponent.get(entity);
+        return [
+          row('position', [
+            labelled(
+              'x',
+              'X:',
+              length('x', Length.fromSheetUnits(this.sheetDefaultUnit, frameData.upperLeft.x), {
+                readOnlyUnit: true,
+              }),
+            ),
+            labelled(
+              'y',
+              'Y:',
+              length('y', Length.fromSheetUnits(this.sheetDefaultUnit, frameData.upperLeft.y), {
+                readOnlyUnit: true,
+              }),
+            ),
+          ]),
+          row('dimensions', [
+            labelled(
+              'w',
+              'W:',
+              length(
+                'w',
+                Length.fromSheetUnits(
+                  this.sheetDefaultUnit,
+                  frameData.lowerRight.x - frameData.upperLeft.x,
+                ),
+                { readOnlyUnit: true },
+              ),
+            ),
+            labelled(
+              'h',
+              'H:',
+              length(
+                'h',
+                Length.fromSheetUnits(
+                  this.sheetDefaultUnit,
+                  frameData.lowerRight.y - frameData.upperLeft.y,
+                ),
+                { readOnlyUnit: true },
+              ),
+            ),
+          ]),
+        ];
+      }
+      case DatumComponent.key: {
+        if (!Entity.hasComponent(entity, DatumComponent)) {
+          return [];
+        }
+        const datumData = DatumComponent.get(entity);
+        return [
+          row('position', [
+            labelled(
+              'x',
+              'X:',
+              length('x', Length.fromSheetUnits(this.sheetDefaultUnit, datumData.x), {
+                readOnlyUnit: true,
+              }),
+            ),
+            labelled(
+              'y',
+              'Y:',
+              length('y', Length.fromSheetUnits(this.sheetDefaultUnit, datumData.y), {
+                readOnlyUnit: true,
+              }),
+            ),
+          ]),
+        ];
+      }
+      case FilterComponent.key: {
+        if (!Entity.hasComponent(entity, FilterComponent)) {
+          return [];
+        }
+        const filterData = FilterComponent.get(entity);
+        switch (filterData.type) {
+          case 'mirror':
+            return [
+              row('point-a', [
+                labelled(
+                  'ax',
+                  'AX:',
+                  length('ax', Length.fromSheetUnits(this.sheetDefaultUnit, filterData.pointA.x), {
+                    readOnlyUnit: true,
+                  }),
+                ),
+                labelled(
+                  'ay',
+                  'AY:',
+                  length('ay', Length.fromSheetUnits(this.sheetDefaultUnit, filterData.pointA.y), {
+                    readOnlyUnit: true,
+                  }),
+                ),
+              ]),
+              row('point-b', [
+                labelled(
+                  'bx',
+                  'BX:',
+                  length('bx', Length.fromSheetUnits(this.sheetDefaultUnit, filterData.pointB.x), {
+                    readOnlyUnit: true,
+                  }),
+                ),
+                labelled(
+                  'by',
+                  'BY:',
+                  length('by', Length.fromSheetUnits(this.sheetDefaultUnit, filterData.pointB.y), {
+                    readOnlyUnit: true,
+                  }),
+                ),
+              ]),
+            ];
+          case 'fillet':
+          case 'chamfer': {
+            if (filterData.geometryType === 'polygon') {
+              return [
+                row('offset', [
+                  labelled(
+                    'offset',
+                    'Offset:',
+                    length('offset', filterData.offset, { readOnlyUnit: true }),
+                  ),
+                ]),
+                row('points', [
+                  labelled('a', 'A:', number('pointAIndex', filterData.pointAIndex)),
+                  labelled('c', 'C:', number('pointCenterIndex', filterData.pointCenterIndex)),
+                  labelled('b', 'B:', number('pointBIndex', filterData.pointBIndex)),
+                ]),
+              ];
+            } else {
+              // geometryType === 'rectangle' -- use readOnly for keypoints since toggle groups
+              // would need a new field type.
+              return [
+                row('offset', [labelled(
+                  'offset',
+                  'Offset:',
+                  length('offset', filterData.offset, { readOnlyUnit: true }),
+                )]),
+                row('keypoints', [
+                  labelled('a', 'A:', readOnly('pointAKeyPoint', filterData.pointAKeyPoint)),
+                  labelled(
+                    'c',
+                    'C:',
+                    readOnly('pointCenterKeyPoint', filterData.pointCenterKeyPoint),
+                  ),
+                  labelled('b', 'B:', readOnly('pointBKeyPoint', filterData.pointBKeyPoint)),
+                ]),
+              ];
+            }
+          }
+          case 'pattern': {
+            switch (filterData.mode) {
+              case 'grid':
+                return [
+                  row('repeats', [labelled('repeats', 'Repeats:', [
+                    number('xRepeats', filterData.xRepeats),
+                    number('yRepeats', filterData.yRepeats),
+                  ])]),
+                ];
+              case 'radial':
+                return [
+                  row('position', [
+                    labelled(
+                      'x',
+                      'X:',
+                      length(
+                        'x',
+                        Length.fromSheetUnits(this.sheetDefaultUnit, filterData.center.x),
+                        { readOnlyUnit: true },
+                      ),
+                    ),
+                    labelled(
+                      'y',
+                      'Y:',
+                      length(
+                        'y',
+                        Length.fromSheetUnits(this.sheetDefaultUnit, filterData.center.y),
+                        { readOnlyUnit: true },
+                      ),
+                    ),
+                  ]),
+                  row('repeats', [labelled('repeats', 'Repeats:', number('repeats', filterData.repeats.count))]),
+                  row('radius', [labelled(
+                    'radius',
+                    'Radius:',
+                    length(
+                      'radius',
+                      Length.fromSheetUnits(this.sheetDefaultUnit, filterData.radius),
+                      { readOnlyUnit: true },
+                    ),
+                  )]),
+                ];
+              default:
+                return [];
+            }
+          }
+          default:
+            filterData satisfies never;
+            return [];
+        }
+      }
+      case ConstraintComponent.key: {
+        // ConstraintComponent requires ConstraintEndpointField which is a rich custom widget
+        // (toggle groups, EntityInput, etc.) that needs a new field type and FieldLeafRenderer
+        // support. This will be addressed in a follow-up.
+        return [];
+      }
+      case LinkDimensionsComponent.key: {
+        // LinkDimensionsComponent is consumed within GeometryComponent to conditionally show the
+        // link button. It does not render its own standalone fields.
+        return [];
+      }
       default:
         return [];
     }
