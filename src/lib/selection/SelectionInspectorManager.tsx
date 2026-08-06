@@ -93,7 +93,7 @@ function row(
   return { type: 'row', key, fields };
 }
 
-type Variance<T extends { type: string }> = { type: 'heterogeneous'; key: string } | T;
+type Variance<T extends { type: string }> = { type: 'heterogeneous'; key: string; fieldType?: SelectionInspectorFieldRow['fields'][0]['type'] } | T;
 
 type Row<T> = { type: 'row'; key: string; fields: Array<T> };
 
@@ -253,7 +253,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       return {
         type: 'row' as const,
         key: rows[0].key,
-        fields: rows[0].fields.map((f) => ({ type: 'heterogeneous', key: f.key })),
+        fields: rows[0].fields.map((f) => ({ type: 'heterogeneous', key: f.key, fieldType: f.type })),
       };
     }
 
@@ -272,7 +272,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           if (match) {
             fieldsForKeyAcrossRows.push(match);
           } else {
-            return { type: 'heterogeneous', key };
+            return { type: 'heterogeneous', key, fieldType: row.fields[0]?.type };
           }
         }
         // console.log('FIELDS FOR KEYS ACROSS ROWS:', key, fieldsForKeyAcrossRows);
@@ -293,7 +293,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         type: 'label' as const,
         key: entries[0].key,
         label: entries[0].label,
-        fields: entries[0].fields.map((f) => ({ type: 'heterogeneous', key: f.key })),
+        fields: entries[0].fields.map((f) => ({ type: 'heterogeneous', key: f.key, fieldType: f.type })),
       };
     }
 
@@ -313,7 +313,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           if (match) {
             fieldsForKeyAcrossLabels.push(match);
           } else {
-            return { type: 'heterogeneous', key };
+            return { type: 'heterogeneous', key, fieldType: label.fields[0]?.type };
           }
         }
         // console.log('FIELDS FOR KEYS ACROSS LABELS:', key, fieldsForKeyAcrossLabels);
@@ -412,7 +412,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         combined[0],
       ) as Field<OptionsToSingle<F>>; // homogeneous
     } else {
-      return { type: 'heterogeneous', key };
+      return { type: 'heterogeneous', key, fieldType: entries[0]?.type };
     }
   }
 
