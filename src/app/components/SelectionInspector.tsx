@@ -100,7 +100,7 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
       type="button"
       onClick={onToggle}
       className={cn(
-        'w-6 h-6 flex items-center justify-center rounded-[4px] transition-colors border',
+        'w-6 h-6 grow-0 shrink-0 flex items-center justify-center rounded-[4px] transition-colors border',
         {
           'bg-[var(--red-3)] text-[var(--red-10)] border-[var(--red-7)]': linked,
           'bg-[var(--slate-3)] text-[var(--slate-11)] border-transparent hover:bg-[var(--slate-5)]':
@@ -2057,14 +2057,17 @@ const FrameInspector: React.FunctionComponent<{
   );
 };
 
-const FieldLeafRenderer: React.FunctionComponent<{ geometryStore: GeometryStore, field: SelectionInspectorField }> = ({ geometryStore, field }) => {
+const FieldLeafRenderer: React.FunctionComponent<{
+  geometryStore: GeometryStore;
+  field: SelectionInspectorField;
+}> = ({ geometryStore, field }) => {
   switch (field.type) {
     case 'number':
       return (
         <Input
           type="number"
           value={field.value}
-          onChange={e => field.handlers.onChange?.(e.currentTarget.value)}
+          onChange={(e) => field.handlers.onChange?.(e.currentTarget.value)}
           onFocus={field.handlers.onFocus}
           onBlur={field.handlers.onBlur}
         />
@@ -2109,49 +2112,66 @@ const FieldLeafRenderer: React.FunctionComponent<{ geometryStore: GeometryStore,
         />
       );
     case 'read-only':
+      return <span>{field.value[0]}</span>;
+    case 'link-dimensions-button':
       return (
-        <span>{field.value[0]}</span>
+        <LinkButton
+          linked={field.value}
+          onToggle={field.handlers.onClick ?? (() => {})}
+        />
       );
     case 'button':
       return (
-        <Button
+        <button
+          type="button"
           onClick={field.handlers.onClick}
           onFocus={field.handlers.onFocus}
           onBlur={field.handlers.onBlur}
+          className="px-3 py-1.5 bg-[var(--slate-5)] text-[var(--slate-12)] text-sm rounded-[4px] border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
+          style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
         >
           {typeof field.label === 'string' ? field.label : field.label.icon}
-        </Button>
+        </button>
       );
   }
 };
 
-const FieldLabelRenderer: React.FunctionComponent<{ label: string; fields: FieldLabel['fields']; geometryStore: GeometryStore }> = ({ label, fields, geometryStore }) => {
+const FieldLabelRenderer: React.FunctionComponent<{
+  label: string;
+  fields: FieldLabel['fields'];
+  geometryStore: GeometryStore;
+}> = ({ label, fields, geometryStore }) => {
   return (
-    <div className="flex gap-2">
-      <span>{label}</span>
+    <LabeledRow label={label}>
       {fields.map((field) => {
         if (field.type === 'heterogeneous') {
-          return (
-            <Input key={field.key} type="text" placeholder="Many values" disabled />
-          );
+          return <Input key={field.key} type="text" placeholder="Many values" disabled />;
         } else {
           return <FieldLeafRenderer key={field.key} field={field} geometryStore={geometryStore} />;
         }
       })}
-    </div>
+    </LabeledRow>
   );
 };
 
-const FieldRowRenderer: React.FunctionComponent<{ fields: FieldRow['fields']; geometryStore: GeometryStore }> = ({ fields, geometryStore }) => {
+const FieldRowRenderer: React.FunctionComponent<{
+  fields: FieldRow['fields'];
+  geometryStore: GeometryStore;
+}> = ({ fields, geometryStore }) => {
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 items-center">
       {fields.map((field) => {
         if (field.type === 'label') {
-          return <FieldLabelRenderer key={field.key} label={field.label} fields={field.fields} geometryStore={geometryStore} />;
-        } else if (field.type === 'heterogeneous') {
           return (
-            <Input key={field.key} type="text" placeholder="Many values" disabled />
+            <FieldLabelRenderer
+              key={field.key}
+              label={field.label}
+              fields={field.fields}
+              geometryStore={geometryStore}
+            />
           );
+        } else if (field.type === 'heterogeneous') {
+          return <Input key={field.key} type="text" placeholder="Many values" disabled />;
         } else {
           return <FieldLeafRenderer key={field.key} field={field} geometryStore={geometryStore} />;
         }
@@ -2402,15 +2422,28 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
 
           {fields.map((field) => {
             if (field.type === 'row') {
-              return <FieldRowRenderer key={field.key} fields={field.fields} geometryStore={geometryStore} />;
-            } else if (field.type === 'label') {
-              return <FieldLabelRenderer key={field.key} label={field.label} fields={field.fields} geometryStore={geometryStore} />;
-            } else if (field.type === 'heterogeneous') {
               return (
-                <Input key={field.key} type="text" placeholder="Many values" disabled />
+                <FieldRowRenderer
+                  key={field.key}
+                  fields={field.fields}
+                  geometryStore={geometryStore}
+                />
               );
+            } else if (field.type === 'label') {
+              return (
+                <FieldLabelRenderer
+                  key={field.key}
+                  label={field.label}
+                  fields={field.fields}
+                  geometryStore={geometryStore}
+                />
+              );
+            } else if (field.type === 'heterogeneous') {
+              return <Input key={field.key} type="text" placeholder="Many values" disabled />;
             } else {
-              return <FieldLeafRenderer key={field.key} field={field} geometryStore={geometryStore} />;
+              return (
+                <FieldLeafRenderer key={field.key} field={field} geometryStore={geometryStore} />
+              );
             }
           })}
 
