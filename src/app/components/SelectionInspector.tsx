@@ -2057,23 +2057,52 @@ const FieldLeafRenderer: React.FunctionComponent<{ geometryStore: GeometryStore,
   switch (field.type) {
     case 'number':
       return (
-        <Input type="number" value={field.value} />
+        <Input
+          type="number"
+          value={field.value}
+          onChange={e => field.handlers.onChange?.(e.currentTarget.value)}
+          onFocus={field.handlers.onFocus}
+          onBlur={field.handlers.onBlur}
+        />
       );
     case 'length':
       return (
-        <LengthInput value={field.value} onChange={() => {}} readOnlyUnit={field.readOnlyUnit} />
+        <LengthInput
+          value={field.value}
+          readOnlyUnit={field.readOnlyUnit}
+          onChange={field.handlers.onChange ?? (() => {})}
+          onFocus={field.handlers.onFocus}
+          onBlur={field.handlers.onBlur}
+        />
       );
     case 'render-order':
       return (
-        <RenderOrderInput value={field.value} onChange={() => {}} geometryStore={geometryStore} />
+        <RenderOrderInput
+          // FIXME: add geometryId?
+          value={field.value}
+          geometryStore={geometryStore}
+          onChange={field.handlers.onChange ?? (() => {})}
+          onFocus={field.handlers.onFocus}
+          onBlur={field.handlers.onBlur}
+        />
       );
     case 'angle':
       return (
-        <AngleInput value={field.value} onChange={() => {}} />
+        <AngleInput
+          value={field.value}
+          onChange={field.handlers.onChange ?? (() => {})}
+          onFocus={field.handlers.onFocus}
+          onBlur={field.handlers.onBlur}
+        />
       );
     case 'color':
       return (
-        <ColorInput value={field.value} onChange={() => {}} />
+        <ColorInput
+          value={field.value}
+          onChange={field.handlers.onChange ?? (() => {})}
+          onFocus={field.handlers.onFocus}
+          onBlur={field.handlers.onBlur}
+        />
       );
     case 'read-only':
       return (
@@ -2081,7 +2110,13 @@ const FieldLeafRenderer: React.FunctionComponent<{ geometryStore: GeometryStore,
       );
     case 'button':
       return (
-        <Button>{typeof field.label === 'string' ? field.label : field.label.icon}</Button>
+        <Button
+          onClick={field.handlers.onClick}
+          onFocus={field.handlers.onFocus}
+          onBlur={field.handlers.onBlur}
+        >
+          {typeof field.label === 'string' ? field.label : field.label.icon}
+        </Button>
       );
   }
 };

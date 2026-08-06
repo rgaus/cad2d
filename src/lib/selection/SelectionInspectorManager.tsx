@@ -32,50 +32,57 @@ function icon(icon: React.ReactNode): SelectionInspectorIcon {
   return { type: 'icon', icon };
 }
 
+type FieldHandlers<Value> = {
+  onClick?: () => void;
+  onChange?: (newValue: Value) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
+};
+
 export type SelectionInspectorField =
-  | { type: 'read-only'; key: string, value: string }
-  | { type: 'number'; key: string; value: number }
-  | { type: 'length'; key: string; value: Length; readOnlyUnit: boolean }
-  | { type: 'angle'; key: string; value: Angle }
-  | { type: 'render-order'; value: number, key: string }
-  | { type: 'color'; key: string; value: number | null }
-  | { type: 'button'; label: string | SelectionInspectorIcon, key: string };
+  | { type: 'read-only'; key: string; value: string; handlers: FieldHandlers<string> }
+  | { type: 'number'; key: string; value: string; handlers: FieldHandlers<string> }
+  | { type: 'length'; key: string; value: Length; readOnlyUnit: boolean; handlers: FieldHandlers<Length> }
+  | { type: 'angle'; key: string; value: Angle; handlers: FieldHandlers<Angle> }
+  | { type: 'render-order'; value: number, key: string; handlers: FieldHandlers<number> }
+  | { type: 'color'; key: string; value: number | null; handlers: FieldHandlers<number | null> }
+  | { type: 'button'; label: string | SelectionInspectorIcon, key: string; handlers: FieldHandlers<void> };
 
 export type SelectionInspectorFieldOptions =
-  | { type: 'read-only'; key: string, value: Array<string> }
-  | { type: 'number'; key: string; value: Array<number> }
-  | { type: 'length'; key: string; value: Array<Length>; readOnlyUnit: boolean }
-  | { type: 'angle'; key: string; value: Array<Angle> }
-  | { type: 'render-order'; value: Array<number>, key: string }
-  | { type: 'color'; key: string; value: Array<number | null> }
-  | { type: 'button'; label: string | SelectionInspectorIcon, key: string };
+  | { type: 'read-only'; key: string, value: Array<string>; handlers: Array<FieldHandlers<string>>; }
+  | { type: 'number'; key: string; value: Array<string>; handlers: Array<FieldHandlers<string>>; }
+  | { type: 'length'; key: string; value: Array<Length>; readOnlyUnit: boolean; handlers: Array<FieldHandlers<Length>>; }
+  | { type: 'angle'; key: string; value: Array<Angle>; handlers: Array<FieldHandlers<Angle>>; }
+  | { type: 'render-order'; value: Array<number>, key: string; handlers: Array<FieldHandlers<number>>; }
+  | { type: 'color'; key: string; value: Array<number | null>; handlers: Array<FieldHandlers<number | null>>; }
+  | { type: 'button'; label: string | SelectionInspectorIcon, key: string; handlers: Array<FieldHandlers<void>>; };
 
-function readOnly(key: string, text: string ): SelectionInspectorFieldOptions {
-  return { type: 'read-only', key, value: [text] };
+function readOnly(key: string, text: string, handlers?: FieldHandlers<string>): SelectionInspectorFieldOptions {
+  return { type: 'read-only', key, value: [text], handlers: [handlers ?? {}] };
 }
 
-function number(key: string, value: number): SelectionInspectorFieldOptions {
-  return { type: 'number', key, value: [value] };
+function number(key: string, value: number, handlers?: FieldHandlers<string>): SelectionInspectorFieldOptions {
+  return { type: 'number', key, value: [`${value}`], handlers: [handlers ?? {}] };
 }
 
-function length(key: string, value: Length, options?: { readOnlyUnit?: boolean }): SelectionInspectorFieldOptions {
-  return { type: 'length', key, value: [value], readOnlyUnit: options?.readOnlyUnit ?? false };
+function length(key: string, value: Length, options?: { readOnlyUnit?: boolean }, handlers?: FieldHandlers<Length>): SelectionInspectorFieldOptions {
+  return { type: 'length', key, value: [value], readOnlyUnit: options?.readOnlyUnit ?? false, handlers: [handlers ?? {}] };
 }
 
-function angle(key: string, value: Angle): SelectionInspectorFieldOptions {
-  return { type: 'angle', key, value: [value] }
+function angle(key: string, value: Angle, handlers?: FieldHandlers<Angle>): SelectionInspectorFieldOptions {
+  return { type: 'angle', key, value: [value], handlers: [handlers ?? {}] };
 }
 
-function renderOrder(key: string, renderOrder: number): SelectionInspectorFieldOptions {
-  return { type: 'render-order', key, value: [renderOrder] };
+function renderOrder(key: string, renderOrder: number, handlers?: FieldHandlers<number>): SelectionInspectorFieldOptions {
+  return { type: 'render-order', key, value: [renderOrder], handlers: [handlers ?? {}] };
 }
 
-function color(key: string, color: number | null): SelectionInspectorFieldOptions {
-  return { type: 'color', key, value: [color] };
+function color(key: string, color: number | null, handlers?: FieldHandlers<number | null>): SelectionInspectorFieldOptions {
+  return { type: 'color', key, value: [color], handlers: [handlers ?? {}] };
 }
 
-function button(key: string, label: string | SelectionInspectorIcon): SelectionInspectorFieldOptions {
-  return { type: 'button', key, label }
+function button(key: string, label: string | SelectionInspectorIcon, handlers?: FieldHandlers<void>): SelectionInspectorFieldOptions {
+  return { type: 'button', key, label, handlers: [handlers ?? {}] };
 }
 
 export type SelectionInspectorLabelledField = Label<SelectionInspectorFieldOptions>;
@@ -327,22 +334,59 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   private collapseFieldOptions<F extends SelectionInspectorFieldOptions>(
     fieldOptions: F,
     newValue?: Extract<F, { value: unknown }>["value"][0],
+    newHandlers?: Extract<F, { value: unknown }>["handlers"][0],
   ): SelectionInspectorField {
     switch (fieldOptions.type) {
       case 'read-only':
-        return { type: 'read-only', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
+        return {
+          type: 'read-only',
+          key: fieldOptions.key,
+          value: (newValue as any) ?? fieldOptions.value[0],
+          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+        };
       case 'number':
-        return { type: 'number', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
+        return {
+          type: 'number',
+          key: fieldOptions.key,
+          value: (newValue as any) ?? fieldOptions.value[0],
+          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+        };
       case 'length':
-        return { type: 'length', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0], readOnlyUnit: fieldOptions.readOnlyUnit };
+        return {
+          type: 'length',
+          key: fieldOptions.key,
+          value: (newValue as any) ?? fieldOptions.value[0],
+          readOnlyUnit: fieldOptions.readOnlyUnit,
+          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+        };
       case 'angle':
-        return { type: 'angle', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
+        return {
+          type: 'angle',
+          key: fieldOptions.key,
+          value: (newValue as any) ?? fieldOptions.value[0],
+          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+        };
       case 'render-order':
-        return { type: 'render-order', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
+        return {
+          type: 'render-order',
+          key: fieldOptions.key,
+          value: (newValue as any) ?? fieldOptions.value[0],
+          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+        };
       case 'color':
-        return { type: 'color', key: fieldOptions.key, value: (newValue as any) ?? fieldOptions.value[0] };
+        return {
+          type: 'color',
+          key: fieldOptions.key,
+          value: (newValue as any) ?? fieldOptions.value[0],
+          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+        };
       case 'button':
-        return fieldOptions;
+        return {
+          type: 'button',
+          key: fieldOptions.key,
+          label: fieldOptions.label,
+          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+        };
     }
   }
 
@@ -383,6 +427,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         case 'read-only':
           return (acc as typeof e.value).filter((value) => e.value.includes(value));
         case 'render-order':
+          return (acc as typeof e.value).filter((value) => e.value.includes(value));
         case 'number':
           return (acc as typeof e.value).filter((value) => e.value.includes(value));
         case 'length':
@@ -430,8 +475,29 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           case 'rectangle':
             return [
               row('position', [
-                labelled('x', 'X:', length('x', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.x), { readOnlyUnit: true })),
-                labelled('y', 'Y:', length('y', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.y), { readOnlyUnit: true })),
+                labelled(
+                  'x',
+                  'X:',
+                  length(
+                    'x',
+                    Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.x),
+                    { readOnlyUnit: true },
+                    {
+                      onChange: (newValue) => {
+                        console.log('VALUE', newValue);
+                      },
+                    }
+                  ),
+                ),
+                labelled(
+                  'y',
+                  'Y:',
+                  length(
+                    'y',
+                    Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.y),
+                    { readOnlyUnit: true },
+                  ),
+                ),
               ]),
               row('dimensions', [
                 labelled('width', 'W:', length('width', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.lowerRight.x - geometryData.upperLeft.x), { readOnlyUnit: true })),
