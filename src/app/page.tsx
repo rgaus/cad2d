@@ -21,7 +21,8 @@ export default function Home() {
   );
 
   const [actionManager] = useState(
-    () => new ActionsManager(sheet, sheet.geometryStore, sheet.selectionManager, sheet.historyManager),
+    () =>
+      new ActionsManager(sheet, sheet.geometryStore, sheet.selectionManager, sheet.historyManager),
   );
 
   // Wire up ToolManager with ActionsManager (for select-all action)

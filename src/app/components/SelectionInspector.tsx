@@ -55,12 +55,18 @@ import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
 import { BoundingBox } from '@/lib/math';
+import {
+  FieldLabel,
+  FieldRow,
+  SelectionInspectorField,
+} from '@/lib/selection/SelectionInspectorManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { Length, type UnitType } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
 import { SheetPosition } from '@/lib/viewport/types';
 import type { Rect } from '@/lib/viewport/types';
+import AngleInput from './AngleInput';
 import ColorInput from './ColorInput';
 import {
   ColinearConstraintInspector,
@@ -79,8 +85,6 @@ import FloatingPanel from './FloatingPanel';
 import LabeledRow from './LabeledRow';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from './ShapePreview';
-import AngleInput from './AngleInput';
-import { FieldLabel, FieldRow, SelectionInspectorField } from '@/lib/selection/SelectionInspectorManager';
 
 type SelectionInspectorProps = {
   sheet: Sheet;
@@ -2375,8 +2379,6 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
     },
     [geometryStore, selectedIds],
   );
-
-
 
   const [fields, setFields] = useState(sheet.selectionInspectorManager.fields);
   useEffect(() => {

@@ -3,8 +3,8 @@ import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
 import { Length, type UnitType } from '@/lib/units/length';
-import { SelectionManager } from '../tools/SelectionManager';
 import { SelectionInspectorManager } from '../selection/SelectionInspectorManager';
+import { SelectionManager } from '../tools/SelectionManager';
 
 /** Conversion factor: default sheet units to pixels. */
 export const SHEET_UNITS_TO_PIXELS = 64;
@@ -128,7 +128,11 @@ export class Sheet extends EventEmitter<SheetEvents> {
     this.historyManager = historyManager;
 
     this.selectionManager = new SelectionManager();
-    this.selectionInspectorManager = new SelectionInspectorManager(this, this.selectionManager, this.geometryStore);
+    this.selectionInspectorManager = new SelectionInspectorManager(
+      this,
+      this.selectionManager,
+      this.geometryStore,
+    );
   }
 
   private static makeSheetPresetConstructor(key: SheetSizePresetKey): () => Sheet {

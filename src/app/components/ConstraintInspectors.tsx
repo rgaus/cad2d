@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useEntities } from '@/hooks/useEntities';
 import { Entity, type Id } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { ConstraintComponent } from '@/lib/entity/components/ConstraintComponent';
@@ -22,7 +23,6 @@ import { Length, type UnitType } from '@/lib/units/length';
 import ConstraintEndpointField from './ConstraintEndpointField';
 import LabeledRow from './LabeledRow';
 import LengthInput from './LengthInput';
-import { useEntities } from '@/hooks/useEntities';
 
 type ConstraintInspectorProps = {
   constraintId: Id;

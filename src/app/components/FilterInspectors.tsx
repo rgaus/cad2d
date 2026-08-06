@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useEntities } from '@/hooks/useEntities';
 import { Entity, type Id } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
@@ -15,7 +16,6 @@ import { Length, type UnitType } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import LabeledRow from './LabeledRow';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
-import { useEntities } from '@/hooks/useEntities';
 
 const RECTANGLE_KEYPOINTS = [
   'upperLeft',

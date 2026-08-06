@@ -70,11 +70,11 @@ export function createLengthFromMagnitudeAndUnit(magnitude: number, unit: UnitTy
 }
 
 const LENGTH_UNIT_SUFFIXES = {
-  'in': ['in', 'inch', 'inches', '"'],
-  'ft': ['f', 'ft', 'foot', 'feet', "'"],
-  'mm': ['mm', 'millimeter', 'millimeters'],
-  'cm': ['c', 'cm', 'centimeter', 'centimeters'],
-  'm': ['me', 'met', 'mete', 'meter', 'meters'],
+  in: ['in', 'inch', 'inches', '"'],
+  ft: ['f', 'ft', 'foot', 'feet', "'"],
+  mm: ['mm', 'millimeter', 'millimeters'],
+  cm: ['c', 'cm', 'centimeter', 'centimeters'],
+  m: ['me', 'met', 'mete', 'meter', 'meters'],
 };
 
 export type ParsedSuffixOutput<U> = {
@@ -92,8 +92,7 @@ const feetInchesSpecialCase = (trimmed: string) => {
     return null;
   }
 
-  const inches =
-    parseFloat(feetInchesMatch[1] /* feet */) * 12 + parseFloat(feetInchesMatch[2]);
+  const inches = parseFloat(feetInchesMatch[1] /* feet */) * 12 + parseFloat(feetInchesMatch[2]);
   if (!Number.isNaN(inches)) {
     return { valid: true, magnitude: inches, unit: 'in' as const };
   }
@@ -142,11 +141,8 @@ export function parseSuffix<Unit extends string>(
   return { valid: true, magnitude, unit: null };
 }
 
-const parseLengthSuffix = (text: string) => parseSuffix<UnitType>(
-  text,
-  LENGTH_UNIT_SUFFIXES,
-  [feetInchesSpecialCase],
-);
+const parseLengthSuffix = (text: string) =>
+  parseSuffix<UnitType>(text, LENGTH_UNIT_SUFFIXES, [feetInchesSpecialCase]);
 
 type LengthInputProps = {
   value: Length | null;

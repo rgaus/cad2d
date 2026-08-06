@@ -11,11 +11,11 @@ import {
 } from '@/components/ui/select';
 import { PLATFORM_ALT_KEY_STRING } from '@/lib/detection';
 import { round } from '@/lib/math';
+import { Angle, AngleType, DegreesAngle, RadiansAngle } from '@/lib/units/angle';
+import { cn } from '@/lib/utils';
 import { HoverTooltip } from './HoverTooltip';
 import { KeyboardShortcut } from './KeyboardShortcut';
-import { Angle, AngleType, DegreesAngle, RadiansAngle } from '@/lib/units/angle';
 import { parseSuffix } from './LengthInput';
-import { cn } from '@/lib/utils';
 
 export const UNIT_OPTIONS: Array<{ value: AngleType; label: string }> = [
   { value: 'degrees', label: 'deg' },
@@ -23,8 +23,15 @@ export const UNIT_OPTIONS: Array<{ value: AngleType; label: string }> = [
 ];
 
 const ANGLE_UNIT_SUFFIXES = {
-  'degrees': ['d', 'deg', 'degs', 'degree', 'degrees', String.fromCharCode(176) /* unicode degree symbol */],
-  'radians': ['rad', 'rads', 'radian', 'radians'],
+  degrees: [
+    'd',
+    'deg',
+    'degs',
+    'degree',
+    'degrees',
+    String.fromCharCode(176) /* unicode degree symbol */,
+  ],
+  radians: ['rad', 'rads', 'radian', 'radians'],
 };
 
 const parseAngleSuffix = (text: string) => parseSuffix<AngleType>(text, ANGLE_UNIT_SUFFIXES);
@@ -65,90 +72,97 @@ const AngleSpinner: React.FunctionComponent<{
   const [workingAngle, setWorkingAngle] = useState(angle);
   useEffect(() => setWorkingAngle(angle), [angle]);
 
-  const onMouseDown = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    setDragging(true);
-    setShiftHeld(e.shiftKey);
-
-    let value = 0;
-    const onMouseMove = (e: MouseEvent) => {
-      value += e.movementY;
-
-      const unit = getUnitFromAngle(angle);
-      let scaleFactor, maxValue, snapInterval: number | null;
-      switch (unit) {
-        case 'degrees':
-          scaleFactor = 1;
-          maxValue = 360;
-          snapInterval = !e.shiftKey ? 45 : null;
-          break;
-        case 'radians':
-          scaleFactor = 20;
-          maxValue = 2 * Math.PI;
-          snapInterval = !e.shiftKey ? (Math.PI / 4) : null;
-          break;
-      }
-
-      // Convert pixel value to angle, adjust to be within range, and apply snap
-      let current = value / scaleFactor;
-      while (current < 0) {
-        current += maxValue;
-      }
-      while (current > maxValue) {
-        current -= maxValue;
-      }
-      if (typeof snapInterval === 'number') {
-        current = Math.round(current / snapInterval) * snapInterval;
-      }
-
-      // Emit to parent context
-      const currentAngle = Angle.fromSheetUnits(unit, current);
-      setWorkingAngle(currentAngle);
-      onScrubAngle(currentAngle);
-    };
-
-    window.addEventListener('mousemove', onMouseMove);
-
-    const onKeyDownUp = (e: KeyboardEvent) => {
+  const onMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      setDragging(true);
       setShiftHeld(e.shiftKey);
-    };
-    window.addEventListener('keydown', onKeyDownUp);
-    window.addEventListener('keyup', onKeyDownUp);
 
-    const onMouseUp = () => {
-      setDragging(false);
-      onBlur();
+      let value = 0;
+      const onMouseMove = (e: MouseEvent) => {
+        value += e.movementY;
 
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-      window.removeEventListener('keydown', onKeyDownUp);
-      window.removeEventListener('keyup', onKeyDownUp);
-    };
+        const unit = getUnitFromAngle(angle);
+        let scaleFactor, maxValue, snapInterval: number | null;
+        switch (unit) {
+          case 'degrees':
+            scaleFactor = 1;
+            maxValue = 360;
+            snapInterval = !e.shiftKey ? 45 : null;
+            break;
+          case 'radians':
+            scaleFactor = 20;
+            maxValue = 2 * Math.PI;
+            snapInterval = !e.shiftKey ? Math.PI / 4 : null;
+            break;
+        }
 
-    window.addEventListener('mouseup', onMouseUp);
-  }, [angle]);
+        // Convert pixel value to angle, adjust to be within range, and apply snap
+        let current = value / scaleFactor;
+        while (current < 0) {
+          current += maxValue;
+        }
+        while (current > maxValue) {
+          current -= maxValue;
+        }
+        if (typeof snapInterval === 'number') {
+          current = Math.round(current / snapInterval) * snapInterval;
+        }
+
+        // Emit to parent context
+        const currentAngle = Angle.fromSheetUnits(unit, current);
+        setWorkingAngle(currentAngle);
+        onScrubAngle(currentAngle);
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+
+      const onKeyDownUp = (e: KeyboardEvent) => {
+        setShiftHeld(e.shiftKey);
+      };
+      window.addEventListener('keydown', onKeyDownUp);
+      window.addEventListener('keyup', onKeyDownUp);
+
+      const onMouseUp = () => {
+        setDragging(false);
+        onBlur();
+
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+        window.removeEventListener('keydown', onKeyDownUp);
+        window.removeEventListener('keyup', onKeyDownUp);
+      };
+
+      window.addEventListener('mouseup', onMouseUp);
+    },
+    [angle],
+  );
 
   return (
     <div className="flex justify-center items-center w-8 h-8">
       {/* Backdrop to apply `cursor: ns-resize;` while dragging. */}
-      {dragging ? (
-        <div className="fixed inset-0 cursor-ns-resize" />
-      ) : null}
+      {dragging ? <div className="fixed inset-0 cursor-ns-resize" /> : null}
 
       <button
-        className={cn("relative bg-[var(--slate-4)] border border-[var(--slate-5)] rounded-full w-6 h-6 cursor-ns-resize", {
-          "border-[var(--slate-8)]": hover,
-          "border-[var(--slate-10)]": dragging,
-        })}
+        className={cn(
+          'relative bg-[var(--slate-4)] border border-[var(--slate-5)] rounded-full w-6 h-6 cursor-ns-resize',
+          {
+            'border-[var(--slate-8)]': hover,
+            'border-[var(--slate-10)]': dragging,
+          },
+        )}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         onMouseDown={onMouseDown}
       >
         <div
-          className={cn("absolute top-1/2 left-1/2 w-1/2 h-[1px] bg-[var(--slate-8)] rotate-90", {
-            "h-[2px]": hover || dragging,
-            "bg-[var(--slate-12)]": dragging,
+          className={cn('absolute top-1/2 left-1/2 w-1/2 h-[1px] bg-[var(--slate-8)] rotate-90', {
+            'h-[2px]': hover || dragging,
+            'bg-[var(--slate-12)]': dragging,
           })}
-          style={{ transformOrigin: 'center left', rotate: `${workingAngle.toDegrees().magnitude - 90}deg` }}
+          style={{
+            transformOrigin: 'center left',
+            rotate: `${workingAngle.toDegrees().magnitude - 90}deg`,
+          }}
         />
       </button>
 
@@ -156,7 +170,9 @@ const AngleSpinner: React.FunctionComponent<{
         <div className="absolute -bottom-7 left-0 z-30">
           <HoverTooltip>
             <div className="flex items-center gap-2">
-              <KeyboardShortcut disabled={shiftHeld} label="No snap">shift</KeyboardShortcut>
+              <KeyboardShortcut disabled={shiftHeld} label="No snap">
+                shift
+              </KeyboardShortcut>
             </div>
           </HoverTooltip>
         </div>
@@ -349,7 +365,10 @@ export default forwardRef<AngleInputHandle, AngleInputProps>(function LengthInpu
           <span>{UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label}</span>
         </div>
       ) : (
-        <Select value={selectedUnit} onValueChange={(value) => handleUnitChange(value as AngleType)}>
+        <Select
+          value={selectedUnit}
+          onValueChange={(value) => handleUnitChange(value as AngleType)}
+        >
           <SelectTrigger className="w-18">
             <SelectValue />
           </SelectTrigger>

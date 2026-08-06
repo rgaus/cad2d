@@ -1,13 +1,21 @@
-import { EventEmitter } from "eventemitter3";
-import { SelectionManager } from "../tools/SelectionManager";
-import { ConstraintComponent, DatumComponent, Entity, FillColorComponent, FrameComponent, GeometryComponent, LinkDimensionsComponent, RenderOrderComponent } from "../entity";
-import { GeometryStore } from "../entity/GeometryStore";
-import { FilterComponent } from "../entity/components/FilterComponent";
-import { GeometryData } from "../entity/geometry";
-import { LinkIcon } from "lucide-react";
-import { Angle } from "../units/angle";
-import { Length } from "../units/length";
-import { Sheet } from "../sheet/Sheet";
+import { EventEmitter } from 'eventemitter3';
+import {
+  ConstraintComponent,
+  DatumComponent,
+  Entity,
+  FillColorComponent,
+  FrameComponent,
+  GeometryComponent,
+  LinkDimensionsComponent,
+  RenderOrderComponent,
+} from '../entity';
+import { GeometryStore } from '../entity/GeometryStore';
+import { FilterComponent } from '../entity/components/FilterComponent';
+import { GeometryData } from '../entity/geometry';
+import { Sheet } from '../sheet/Sheet';
+import { SelectionManager } from '../tools/SelectionManager';
+import { Angle } from '../units/angle';
+import { Length } from '../units/length';
 
 function getComponentByKey(key: string) {
   for (const component of [
@@ -42,65 +50,160 @@ type FieldHandlers<Value> = {
 export type SelectionInspectorField =
   | { type: 'read-only'; key: string; value: string; handlers: FieldHandlers<string> }
   | { type: 'number'; key: string; value: string; handlers: FieldHandlers<string> }
-  | { type: 'length'; key: string; value: Length; readOnlyUnit: boolean; handlers: FieldHandlers<Length> }
+  | {
+      type: 'length';
+      key: string;
+      value: Length;
+      readOnlyUnit: boolean;
+      handlers: FieldHandlers<Length>;
+    }
   | { type: 'angle'; key: string; value: Angle; handlers: FieldHandlers<Angle> }
-  | { type: 'render-order'; value: number, key: string; handlers: FieldHandlers<number> }
+  | { type: 'render-order'; value: number; key: string; handlers: FieldHandlers<number> }
   | { type: 'color'; key: string; value: number | null; handlers: FieldHandlers<number | null> }
-  | { type: 'button'; label: string | SelectionInspectorIcon, key: string; handlers: FieldHandlers<void> };
+  | {
+      type: 'link-dimensions-button';
+      key: string;
+      value: boolean;
+      handlers: FieldHandlers<void>;
+    }
+  | {
+      type: 'button';
+      label: string | SelectionInspectorIcon;
+      key: string;
+      handlers: FieldHandlers<void>;
+    };
 
 export type SelectionInspectorFieldOptions =
-  | { type: 'read-only'; key: string, value: Array<string>; handlers: Array<FieldHandlers<string>>; }
-  | { type: 'number'; key: string; value: Array<string>; handlers: Array<FieldHandlers<string>>; }
-  | { type: 'length'; key: string; value: Array<Length>; readOnlyUnit: boolean; handlers: Array<FieldHandlers<Length>>; }
-  | { type: 'angle'; key: string; value: Array<Angle>; handlers: Array<FieldHandlers<Angle>>; }
-  | { type: 'render-order'; value: Array<number>, key: string; handlers: Array<FieldHandlers<number>>; }
-  | { type: 'color'; key: string; value: Array<number | null>; handlers: Array<FieldHandlers<number | null>>; }
-  | { type: 'button'; label: string | SelectionInspectorIcon, key: string; handlers: Array<FieldHandlers<void>>; };
+  | { type: 'read-only'; key: string; value: Array<string>; handlers: Array<FieldHandlers<string>> }
+  | { type: 'number'; key: string; value: Array<string>; handlers: Array<FieldHandlers<string>> }
+  | {
+      type: 'length';
+      key: string;
+      value: Array<Length>;
+      readOnlyUnit: boolean;
+      handlers: Array<FieldHandlers<Length>>;
+    }
+  | { type: 'angle'; key: string; value: Array<Angle>; handlers: Array<FieldHandlers<Angle>> }
+  | {
+      type: 'render-order';
+      value: Array<number>;
+      key: string;
+      handlers: Array<FieldHandlers<number>>;
+    }
+  | {
+      type: 'color';
+      key: string;
+      value: Array<number | null>;
+      handlers: Array<FieldHandlers<number | null>>;
+    }
+  | {
+      type: 'link-dimensions-button';
+      key: string;
+      value: Array<boolean>;
+      handlers: Array<FieldHandlers<void>>;
+    }
+  | {
+      type: 'button';
+      label: string | SelectionInspectorIcon;
+      key: string;
+      handlers: Array<FieldHandlers<void>>;
+    };
 
-function readOnly(key: string, text: string, handlers?: FieldHandlers<string>): SelectionInspectorFieldOptions {
+function readOnly(
+  key: string,
+  text: string,
+  handlers?: FieldHandlers<string>,
+): SelectionInspectorFieldOptions {
   return { type: 'read-only', key, value: [text], handlers: [handlers ?? {}] };
 }
 
-function number(key: string, value: number, handlers?: FieldHandlers<string>): SelectionInspectorFieldOptions {
+function number(
+  key: string,
+  value: number,
+  handlers?: FieldHandlers<string>,
+): SelectionInspectorFieldOptions {
   return { type: 'number', key, value: [`${value}`], handlers: [handlers ?? {}] };
 }
 
-function length(key: string, value: Length, options?: { readOnlyUnit?: boolean }, handlers?: FieldHandlers<Length>): SelectionInspectorFieldOptions {
-  return { type: 'length', key, value: [value], readOnlyUnit: options?.readOnlyUnit ?? false, handlers: [handlers ?? {}] };
+function length(
+  key: string,
+  value: Length,
+  options?: { readOnlyUnit?: boolean },
+  handlers?: FieldHandlers<Length>,
+): SelectionInspectorFieldOptions {
+  return {
+    type: 'length',
+    key,
+    value: [value],
+    readOnlyUnit: options?.readOnlyUnit ?? false,
+    handlers: [handlers ?? {}],
+  };
 }
 
-function angle(key: string, value: Angle, handlers?: FieldHandlers<Angle>): SelectionInspectorFieldOptions {
+function angle(
+  key: string,
+  value: Angle,
+  handlers?: FieldHandlers<Angle>,
+): SelectionInspectorFieldOptions {
   return { type: 'angle', key, value: [value], handlers: [handlers ?? {}] };
 }
 
-function renderOrder(key: string, renderOrder: number, handlers?: FieldHandlers<number>): SelectionInspectorFieldOptions {
+function renderOrder(
+  key: string,
+  renderOrder: number,
+  handlers?: FieldHandlers<number>,
+): SelectionInspectorFieldOptions {
   return { type: 'render-order', key, value: [renderOrder], handlers: [handlers ?? {}] };
 }
 
-function color(key: string, color: number | null, handlers?: FieldHandlers<number | null>): SelectionInspectorFieldOptions {
+function color(
+  key: string,
+  color: number | null,
+  handlers?: FieldHandlers<number | null>,
+): SelectionInspectorFieldOptions {
   return { type: 'color', key, value: [color], handlers: [handlers ?? {}] };
 }
 
-function button(key: string, label: string | SelectionInspectorIcon, handlers?: FieldHandlers<void>): SelectionInspectorFieldOptions {
+function linkDimensionsButton(key: string, value: boolean, handlers?: FieldHandlers<void>): SelectionInspectorFieldOptions {
+  return { type: 'link-dimensions-button', key, value: [value], handlers: [handlers ?? {}] };
+}
+
+function button(
+  key: string,
+  label: string | SelectionInspectorIcon,
+  handlers?: FieldHandlers<void>,
+): SelectionInspectorFieldOptions {
   return { type: 'button', key, label, handlers: [handlers ?? {}] };
 }
 
 export type SelectionInspectorLabelledField = Label<SelectionInspectorFieldOptions>;
 
-function labelled(key: string, label: string, fields: SelectionInspectorFieldOptions | Array<SelectionInspectorFieldOptions>): SelectionInspectorLabelledField {
+function labelled(
+  key: string,
+  label: string,
+  fields: SelectionInspectorFieldOptions | Array<SelectionInspectorFieldOptions>,
+): SelectionInspectorLabelledField {
   return { type: 'label', key, label, fields: Array.isArray(fields) ? fields : [fields] };
 }
 
-export type SelectionInspectorFieldRow = Row<SelectionInspectorLabelledField | SelectionInspectorFieldOptions>;
+export type SelectionInspectorFieldRow = Row<
+  SelectionInspectorLabelledField | SelectionInspectorFieldOptions
+>;
 
 function row(
   key: string,
-  fields: Array<SelectionInspectorLabelledField | SelectionInspectorFieldOptions>
+  fields: Array<SelectionInspectorLabelledField | SelectionInspectorFieldOptions>,
 ): SelectionInspectorFieldRow {
   return { type: 'row', key, fields };
 }
 
-type Variance<T extends { type: string }> = { type: 'heterogeneous'; key: string; fieldType?: SelectionInspectorFieldRow['fields'][0]['type'] } | T;
+type Variance<T extends { type: string }> =
+  | {
+      type: 'heterogeneous';
+      key: string;
+      fieldType?: SelectionInspectorFieldRow['fields'][0]['type'];
+    }
+  | T;
 
 type Row<T> = { type: 'row'; key: string; fields: Array<T> };
 
@@ -110,11 +213,19 @@ export type FieldRow = Row<Variance<FieldLabel | SelectionInspectorField>>;
 export type FieldLabel = Label<Variance<SelectionInspectorField>>;
 
 /** Map from a type which contains a list of fields at each leaf to a type which has only a single
-  * field at each leaf. */
-type OptionsToSingle<F extends SelectionInspectorFieldOptions | SelectionInspectorFieldRow | SelectionInspectorLabelledField> =
-  F extends SelectionInspectorFieldOptions ? SelectionInspectorField :
-  (F extends SelectionInspectorFieldRow ? FieldRow :
-    (F extends SelectionInspectorLabelledField ? FieldLabel : F))
+ * field at each leaf. */
+type OptionsToSingle<
+  F extends
+    | SelectionInspectorFieldOptions
+    | SelectionInspectorFieldRow
+    | SelectionInspectorLabelledField,
+> = F extends SelectionInspectorFieldOptions
+  ? SelectionInspectorField
+  : F extends SelectionInspectorFieldRow
+    ? FieldRow
+    : F extends SelectionInspectorLabelledField
+      ? FieldLabel
+      : F;
 
 export type Field<F extends { type: string } = SelectionInspectorField | FieldRow> =
   | Variance<F>
@@ -141,7 +252,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     this.sheetDefaultUnit = sheet.defaultUnit;
 
     this.selectionManager.on('selectionChange', this.handleSelectionChange);
-    this.sheet.on('defaultUnitChange', this.handleDefaultUnitChange)
+    this.sheet.on('defaultUnitChange', this.handleDefaultUnitChange);
   }
 
   destructor() {
@@ -154,7 +265,10 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   private selectedIds: Array<Entity['id']> = [];
 
   handleSelectionChange = (ids: Array<Entity['id']>) => {
-    if (this.selectedIds.length === ids.length && this.selectedIds.every((selectedId) => ids.includes(selectedId))) {
+    if (
+      this.selectedIds.length === ids.length &&
+      this.selectedIds.every((selectedId) => ids.includes(selectedId))
+    ) {
       // No change, so bail early
       return;
     }
@@ -169,7 +283,10 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
   fields: Array<Field> = [];
   recomputeFields() {
-    const fields = new Map<string, Array<SelectionInspectorFieldOptions | SelectionInspectorFieldRow>>();
+    const fields = new Map<
+      string,
+      Array<SelectionInspectorFieldOptions | SelectionInspectorFieldRow>
+    >();
     const fieldFrequencies = new Map<string, number>();
     const fieldKeyOrder: Array<string> = [];
 
@@ -208,7 +325,9 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           // Example: "link" button, heterogeneous structured rows with identical keys, etc
           if (!('value' in field)) {
             if (field.type !== existingForKey[0].type) {
-              console.warn(`Field key=${field.key} type=${field.type} cannot be merged with existing key of type=${existingForKey[0].type}, skipping...`);
+              console.warn(
+                `Field key=${field.key} type=${field.type} cannot be merged with existing key of type=${existingForKey[0].type}, skipping...`,
+              );
               continue;
             }
             fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
@@ -216,11 +335,15 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           }
 
           // Otherwise, merge fields together
-          const match = existingForKey.find((existing) => existing.type === field.type && existing.key === field.key);
+          const match = existingForKey.find(
+            (existing) => existing.type === field.type && existing.key === field.key,
+          );
           // console.log('MATCH', match);
           if (match) {
             if (!('value' in match)) {
-              console.warn(`Field key=${field.key} type=${field.type} cannot be merged into existing matching field type=${match.type}, no "value" attribute found, skipping...`);
+              console.warn(
+                `Field key=${field.key} type=${field.type} cannot be merged into existing matching field type=${match.type}, no "value" attribute found, skipping...`,
+              );
               continue;
             }
             fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
@@ -233,7 +356,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     // Step 2: Determine which fields all contain a single homogeneous value, or many heterogeneous
     // TODO
 
-    console.log('FIELDS:', fieldFrequencies, fieldKeyOrder.map((key) => fields.get(key)!));
+    console.log(
+      'FIELDS:',
+      fieldFrequencies,
+      fieldKeyOrder.map((key) => fields.get(key)!),
+    );
 
     const processed = fieldKeyOrder.flatMap((key) => {
       if (fieldFrequencies.get(key) !== this.selectedIds.length) {
@@ -248,7 +375,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   }
 
   private aggregateRows(
-    rows: Array<SelectionInspectorFieldRow>
+    rows: Array<SelectionInspectorFieldRow>,
   ): Row<Variance<SelectionInspectorField | FieldLabel>> {
     // console.log('AGGR ROWS', rows);
     if (rows.length === 0) {
@@ -260,14 +387,16 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       return {
         type: 'row' as const,
         key: rows[0].key,
-        fields: rows[0].fields.map((f) => ({ type: 'heterogeneous', key: f.key, fieldType: f.type })),
+        fields: rows[0].fields.map((f) => ({
+          type: 'heterogeneous',
+          key: f.key,
+          fieldType: f.type,
+        })),
       };
     }
 
     const fieldCommonKeys = Array.from(
-      rows
-        .map((row) => new Set(row.fields.map((f) => f.key)))
-        .reduce((a, b) => a.intersection(b))
+      rows.map((row) => new Set(row.fields.map((f) => f.key))).reduce((a, b) => a.intersection(b)),
     );
     return {
       type: 'row',
@@ -283,7 +412,9 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           }
         }
         // console.log('FIELDS FOR KEYS ACROSS ROWS:', key, fieldsForKeyAcrossRows);
-        return this.aggregateFieldValue(fieldsForKeyAcrossRows, key) as Variance<SelectionInspectorField | FieldLabel>;
+        return this.aggregateFieldValue(fieldsForKeyAcrossRows, key) as Variance<
+          SelectionInspectorField | FieldLabel
+        >;
       }),
     };
   }
@@ -300,14 +431,18 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         type: 'label' as const,
         key: entries[0].key,
         label: entries[0].label,
-        fields: entries[0].fields.map((f) => ({ type: 'heterogeneous', key: f.key, fieldType: f.type })),
+        fields: entries[0].fields.map((f) => ({
+          type: 'heterogeneous',
+          key: f.key,
+          fieldType: f.type,
+        })),
       };
     }
 
     const fieldCommonKeys = Array.from(
       entries
         .map((row) => new Set(row.fields.map((f) => f.key)))
-        .reduce((a, b) => a.intersection(b))
+        .reduce((a, b) => a.intersection(b)),
     );
     return {
       type: 'label',
@@ -324,7 +459,10 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           }
         }
         // console.log('FIELDS FOR KEYS ACROSS LABELS:', key, fieldsForKeyAcrossLabels);
-        return this.aggregateFieldValue(fieldsForKeyAcrossLabels, key) as Variance<SelectionInspectorField>;
+        return this.aggregateFieldValue(
+          fieldsForKeyAcrossLabels,
+          key,
+        ) as Variance<SelectionInspectorField>;
       }),
     };
   }
@@ -333,8 +471,8 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
    * entry in the options type as the new value, or if specified, {@link newValue}. */
   private collapseFieldOptions<F extends SelectionInspectorFieldOptions>(
     fieldOptions: F,
-    newValue?: Extract<F, { value: unknown }>["value"][0],
-    newHandlers?: Extract<F, { value: unknown }>["handlers"][0],
+    newValue?: Extract<F, { value: unknown }>['value'][0],
+    newHandlers?: Extract<F, { value: unknown }>['handlers'][0],
   ): SelectionInspectorField {
     switch (fieldOptions.type) {
       case 'read-only':
@@ -380,6 +518,13 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           value: (newValue as any) ?? fieldOptions.value[0],
           handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
         };
+      case 'link-dimensions-button':
+        return {
+          type: 'link-dimensions-button',
+          key: fieldOptions.key,
+          value: (newValue as any) ?? fieldOptions.value[0],
+          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+        };
       case 'button':
         return {
           type: 'button',
@@ -390,10 +535,12 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     }
   }
 
-  private aggregateFieldValue<F extends SelectionInspectorFieldOptions | SelectionInspectorFieldRow | SelectionInspectorLabelledField>(
-    entries: Array<F>,
-    key: string,
-  ): Field<OptionsToSingle<F>> {
+  private aggregateFieldValue<
+    F extends
+      | SelectionInspectorFieldOptions
+      | SelectionInspectorFieldRow
+      | SelectionInspectorLabelledField,
+  >(entries: Array<F>, key: string): Field<OptionsToSingle<F>> {
     // console.log('AGGR', entries);
     if (entries.length === 0) {
       return { type: 'heterogeneous', key };
@@ -406,7 +553,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       }
       return this.collapseFieldOptions(entries[0]) as Field<OptionsToSingle<F>>; // homogeneous
     }
-    
+
     if (!entries.every((e) => e.type === entries[0].type)) {
       return { type: 'heterogeneous', key };
     }
@@ -432,14 +579,19 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           return (acc as typeof e.value).filter((value) => e.value.includes(value));
         case 'length':
           return (acc as typeof e.value).flatMap((value) => {
-            return e.value.filter((eValue) => eValue.type === value.type && eValue.magnitude === value.magnitude)
+            return e.value.filter(
+              (eValue) => eValue.type === value.type && eValue.magnitude === value.magnitude,
+            );
           });
         case 'angle':
           return (acc as typeof e.value).flatMap((value) => {
-            return e.value.filter((eValue) => eValue.type === value.type && eValue.magnitude === value.magnitude)
+            return e.value.filter(
+              (eValue) => eValue.type === value.type && eValue.magnitude === value.magnitude,
+            );
           });
         case 'color':
           return (acc as typeof e.value).filter((value) => e.value.includes(value));
+        case 'link-dimensions-button':
         case 'button':
         case 'row':
         case 'label':
@@ -452,10 +604,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
     // console.log('COMBINED', combined);
     if (combined.length === 1) {
-      return this.collapseFieldOptions(
-        entries[0],
-        combined[0],
-      ) as Field<OptionsToSingle<F>>; // homogeneous
+      return this.collapseFieldOptions(entries[0], combined[0]) as Field<OptionsToSingle<F>>; // homogeneous
     } else {
       return { type: 'heterogeneous', key, fieldType: entries[0]?.type };
     }
@@ -471,12 +620,9 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           return [];
         }
         const geometryData = GeometryComponent.get<GeometryData>(entity);
-        const hasLinkDimensions = Entity.hasComponent(entity, LinkDimensionsComponent);
+        const isLinked = Entity.hasComponent(entity, LinkDimensionsComponent) && LinkDimensionsComponent.get(entity);
         switch (geometryData.type) {
           case 'rectangle': {
-            const linkButton = hasLinkDimensions
-              ? [button('link', icon(<LinkIcon size={14} />))]
-              : [];
             return [
               row('position', [
                 labelled(
@@ -511,7 +657,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     { readOnlyUnit: true },
                   ),
                 ),
-                ...linkButton,
+                linkDimensionsButton('link', isLinked),
                 labelled(
                   'height',
                   'H:',
@@ -529,9 +675,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
             ];
           }
           case 'ellipse': {
-            const linkButton = hasLinkDimensions
-              ? [button('link', icon(<LinkIcon size={14} />))]
-              : [];
             return [
               row('position', [
                 labelled(
@@ -557,7 +700,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     readOnlyUnit: true,
                   }),
                 ),
-                ...linkButton,
+                linkDimensionsButton('link', isLinked),
                 labelled(
                   'ry',
                   'RY:',
