@@ -147,6 +147,10 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   private selectedIds: Array<Entity['id']> = [];
 
   handleSelectionChange = (ids: Array<Entity['id']>) => {
+    if (this.selectedIds.length === ids.length && this.selectedIds.every((selectedId) => ids.includes(selectedId))) {
+      // No change, so bail early
+      return;
+    }
     this.selectedIds = ids;
     this.recomputeFields();
   };
