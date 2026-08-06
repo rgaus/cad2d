@@ -159,6 +159,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   fields: Array<Field> = [];
   recomputeFields() {
     const fields = new Map<string, Array<SelectionInspectorFieldOptions | SelectionInspectorFieldRow>>();
+    const fieldFrequencies = new Map<string, number>();
     const fieldKeyOrder: Array<string> = [];
 
     // Step 1: Generate list of fields
@@ -177,6 +178,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           // Base case: add first entry if there's nothing stored under that key yet.
           if (existingForKey.length === 0) {
             fieldKeyOrder.push(field.key);
+            fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
             fields.set(field.key, [field]);
             continue;
           }
@@ -184,6 +186,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           // Rows should be pushed twice
           if (field.type === 'row') {
             existingForKey.push(field);
+            fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
             fields.set(field.key, existingForKey);
             continue;
           }
@@ -195,7 +198,9 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           if (!('value' in field)) {
             if (field.type !== existingForKey[0].type) {
               console.warn(`Field key=${field.key} type=${field.type} cannot be merged with existing key of type=${existingForKey[0].type}, skipping...`);
+              continue;
             }
+            fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
             continue;
           }
 
@@ -207,6 +212,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
               console.warn(`Field key=${field.key} type=${field.type} cannot be merged into existing matching field type=${match.type}, no "value" attribute found, skipping...`);
               continue;
             }
+            fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
             match.value = [...match.value, ...(field.value as any)];
           }
         }
@@ -216,9 +222,14 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     // Step 2: Determine which fields all contain a single homogeneous value, or many heterogeneous
     // TODO
 
-    console.log('FIELDS:', fieldKeyOrder.map((key) => fields.get(key)!));
+    console.log('FIELDS:', fieldFrequencies, fieldKeyOrder.map((key) => fields.get(key)!));
 
-    const processed = fieldKeyOrder.map((key) => this.aggregateFieldValue(fields.get(key)!, key));
+    const processed = fieldKeyOrder.flatMap((key) => {
+      if (fieldFrequencies.get(key) !== this.selectedIds.length) {
+        return [];
+      }
+      return [this.aggregateFieldValue(fields.get(key)!, key)];
+    });
     console.log('PROCESSED:', processed);
 
     this.fields = processed;
@@ -401,7 +412,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     }
   }
 
-  computeFieldsForComponent(
+  private computeFieldsForComponent(
     entity: Entity,
     Component: NonNullable<ReturnType<typeof getComponentByKey>>,
   ) {
