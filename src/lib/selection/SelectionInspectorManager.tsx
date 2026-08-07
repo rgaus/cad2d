@@ -16,6 +16,8 @@ import { Sheet } from '../sheet/Sheet';
 import { SelectionManager } from '../tools/SelectionManager';
 import { Angle } from '../units/angle';
 import { Length } from '../units/length';
+import { SheetPosition } from '../viewport/types';
+import { HistoryManager } from '../history/HistoryManager';
 
 function getComponentByKey(key: string) {
   for (const component of [
@@ -232,22 +234,35 @@ export type Field<F extends { type: string } = SelectionInspectorField | FieldRo
   | FieldRow
   | FieldLabel;
 
+export type WorkingFieldData = Map<
+  string /* key */,
+  | { type: 'number'; value: string }
+  | { type: 'length'; value: Length; }
+  | { type: 'angle'; value: Angle }
+  | { type: 'render-order'; value: number }
+  | { type: 'color'; value: number | null }
+  | { type: 'link-dimensions-button'; value: boolean; }
+>;
+
 type SelectionInspectorManagerEvents = {
   fieldsChange: (fields: Array<Field>) => void;
+  workingFieldDataChange: (fieldData: WorkingFieldData) => void;
 };
 
 export class SelectionInspectorManager extends EventEmitter<SelectionInspectorManagerEvents> {
   private sheet: Sheet;
   private selectionManager: SelectionManager;
   private geometryStore: GeometryStore;
+  private historyManager: HistoryManager;
 
   private sheetDefaultUnit: Sheet['defaultUnit'];
 
-  constructor(sheet: Sheet, selectionManager: SelectionManager, geometryStore: GeometryStore) {
+  constructor(sheet: Sheet, selectionManager: SelectionManager, geometryStore: GeometryStore, historyManager: HistoryManager) {
     super();
     this.sheet = sheet;
     this.selectionManager = selectionManager;
     this.geometryStore = geometryStore;
+    this.historyManager = historyManager;
 
     this.sheetDefaultUnit = sheet.defaultUnit;
 
@@ -280,6 +295,8 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     this.sheetDefaultUnit = defaultUnit;
     this.recomputeFields();
   };
+
+  private workingFieldData: WorkingFieldData = new Map();
 
   fields: Array<Field> = [];
   recomputeFields() {
@@ -369,6 +386,10 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       return [this.aggregateFieldValue(fields.get(key)!, key)];
     });
     console.log('PROCESSED:', processed);
+
+    // Erase any fields whicha re currently being filled out
+    this.workingFieldData.clear();
+    this.emit('workingFieldDataChange', new Map());
 
     this.fields = processed;
     this.emit('fieldsChange', processed);
@@ -472,22 +493,38 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   private collapseFieldOptions<F extends SelectionInspectorFieldOptions>(
     fieldOptions: F,
     newValue?: Extract<F, { value: unknown }>['value'][0],
-    newHandlers?: Extract<F, { value: unknown }>['handlers'][0],
   ): SelectionInspectorField {
+    const combineHandlers = <T extends unknown>(handlers: Array<FieldHandlers<T>>): FieldHandlers<T> => {
+      const keys = new Set(handlers.flatMap((h) => Object.keys(h)));
+      return Object.fromEntries(Array.from(keys).map((key) => {
+        return [key as keyof FieldHandlers<T>, (t: T) => {
+          this.historyManager.applyTransaction('selection-inspector-field', () => {
+            console.log('HANDLERS', handlers);
+            for (const handler of handlers) {
+              const fn = handler[key as keyof FieldHandlers<T>];
+              if (fn) {
+                fn(t);
+              }
+            }
+          }, { collapseIfSingle: true });
+        }];
+      }));
+    };
+
     switch (fieldOptions.type) {
       case 'read-only':
         return {
           type: 'read-only',
           key: fieldOptions.key,
           value: (newValue as any) ?? fieldOptions.value[0],
-          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+          handlers: combineHandlers(fieldOptions.handlers),
         };
       case 'number':
         return {
           type: 'number',
           key: fieldOptions.key,
           value: (newValue as any) ?? fieldOptions.value[0],
-          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+          handlers: combineHandlers(fieldOptions.handlers),
         };
       case 'length':
         return {
@@ -495,42 +532,42 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           key: fieldOptions.key,
           value: (newValue as any) ?? fieldOptions.value[0],
           readOnlyUnit: fieldOptions.readOnlyUnit,
-          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+          handlers: combineHandlers(fieldOptions.handlers),
         };
       case 'angle':
         return {
           type: 'angle',
           key: fieldOptions.key,
           value: (newValue as any) ?? fieldOptions.value[0],
-          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+          handlers: combineHandlers(fieldOptions.handlers),
         };
       case 'render-order':
         return {
           type: 'render-order',
           key: fieldOptions.key,
           value: (newValue as any) ?? fieldOptions.value[0],
-          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+          handlers: combineHandlers(fieldOptions.handlers),
         };
       case 'color':
         return {
           type: 'color',
           key: fieldOptions.key,
           value: (newValue as any) ?? fieldOptions.value[0],
-          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+          handlers: combineHandlers(fieldOptions.handlers),
         };
       case 'link-dimensions-button':
         return {
           type: 'link-dimensions-button',
           key: fieldOptions.key,
           value: (newValue as any) ?? fieldOptions.value[0],
-          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+          handlers: combineHandlers(fieldOptions.handlers),
         };
       case 'button':
         return {
           type: 'button',
           key: fieldOptions.key,
           label: fieldOptions.label,
-          handlers: (newHandlers as any) ?? fieldOptions.handlers[0],
+          handlers: combineHandlers(fieldOptions.handlers),
         };
     }
   }
@@ -632,6 +669,26 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'x',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.x),
                     { readOnlyUnit: true },
+                    {
+                      onChange: (value) => {
+                        this.workingFieldData.set('x', { type: 'length', value });
+                        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                      },
+                      onBlur: () => {
+                        const fieldData = this.workingFieldData.get('x');
+                        if (!fieldData || fieldData.type !== 'length') {
+                          return;
+                        }
+                        const newX = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                        const deltaX = newX - geometryData.upperLeft.x;
+
+                        const upperLeft = new SheetPosition(newX, geometryData.upperLeft.y);
+                        const lowerRight = new SheetPosition(geometryData.lowerRight.x + deltaX, geometryData.lowerRight.y);
+                        this.geometryStore.updateByIdWithComponent(entity.id, GeometryComponent, (old) =>
+                          GeometryComponent.update(old, { upperLeft, lowerRight }),
+                        );
+                      },
+                    }
                   ),
                 ),
                 labelled(
@@ -680,9 +737,30 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                 labelled(
                   'x',
                   'X:',
-                  length('x', Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.x), {
-                    readOnlyUnit: true,
-                  }),
+                  length(
+                    'x',
+                    Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.x),
+                    { readOnlyUnit: true },
+                    {
+                      onChange: (value) => {
+                        this.workingFieldData.set('x', { type: 'length', value });
+                        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                      },
+                      onBlur: () => {
+                        const fieldData = this.workingFieldData.get('x');
+                        if (!fieldData || fieldData.type !== 'length') {
+                          return;
+                        }
+
+                        const newCX = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                        this.geometryStore.updateByIdWithComponent(entity.id, GeometryComponent, (old) =>
+                          GeometryComponent.update(old, {
+                            center: new SheetPosition(newCX, GeometryComponent.get(old).center.y),
+                          }),
+                        );
+                      },
+                    },
+                  ),
                 ),
                 labelled(
                   'y',

@@ -132,6 +132,7 @@ export class Sheet extends EventEmitter<SheetEvents> {
       this,
       this.selectionManager,
       this.geometryStore,
+      this.historyManager,
     );
   }
 

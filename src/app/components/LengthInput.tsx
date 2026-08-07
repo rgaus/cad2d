@@ -228,7 +228,6 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   }, [onFocus]);
 
   const handleBlur = useCallback(() => {
-    onBlur?.();
     setInputFocused(false);
 
     const parsed = parseLengthSuffix(inputDefaultValue);
@@ -242,6 +241,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
     setSelectedUnit(outputUnit);
     const output = createLengthFromMagnitudeAndUnit(parsed.magnitude, outputUnit);
     onChange(output);
+    onBlur?.();
   }, [inputDefaultValue, selectedUnit, onChange, onBlur]);
 
   const handleKeyDown = useCallback(
