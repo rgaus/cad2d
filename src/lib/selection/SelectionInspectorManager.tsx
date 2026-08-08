@@ -365,6 +365,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
             }
             fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
             match.value = [...match.value, ...(field.value as any)];
+            match.handlers = [...match.handlers, ...(field.handlers as any)];
           }
         }
       }
@@ -490,10 +491,23 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
   /** Takes an "options" type, and collapses it into a single value version. Uses either the first
    * entry in the options type as the new value, or if specified, {@link newValue}. */
-  private collapseFieldOptions<F extends SelectionInspectorFieldOptions>(
-    fieldOptions: F,
+  private collapseFieldOptions<F extends SelectionInspectorFieldOptions | SelectionInspectorFieldRow | SelectionInspectorLabelledField>(
+    fieldOptions: Array<F>,
     newValue?: Extract<F, { value: unknown }>['value'][0],
   ): SelectionInspectorField {
+    const fieldOptionsFirst = fieldOptions[0];
+
+    const handlers = fieldOptions.map((fo) => {
+      switch (fo.type) {
+        case 'label':
+        case 'row':
+          throw new Error('Field Option type=label cannot be processed by SelectionInspectorManager.collapseFieldOptions');
+        default:
+          return fo.handlers;
+      }
+    }).flat();
+
+    // console.log('COMBINE', fieldOptions.handlers);
     const combineHandlers = <T extends unknown>(handlers: Array<FieldHandlers<T>>): FieldHandlers<T> => {
       const keys = new Set(handlers.flatMap((h) => Object.keys(h)));
       return Object.fromEntries(Array.from(keys).map((key) => {
@@ -511,63 +525,66 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       }));
     };
 
-    switch (fieldOptions.type) {
+    switch (fieldOptionsFirst.type) {
+      case 'label':
+      case 'row':
+        throw new Error('Field option type=label cannot be processed by SelectionInspectorManager.collapseFieldOptions');
       case 'read-only':
         return {
           type: 'read-only',
-          key: fieldOptions.key,
-          value: (newValue as any) ?? fieldOptions.value[0],
-          handlers: combineHandlers(fieldOptions.handlers),
+          key: fieldOptionsFirst.key,
+          value: (newValue as any) ?? fieldOptionsFirst.value[0],
+          handlers: combineHandlers(handlers as unknown as Array<FieldHandlers<string>>),
         };
       case 'number':
         return {
           type: 'number',
-          key: fieldOptions.key,
-          value: (newValue as any) ?? fieldOptions.value[0],
-          handlers: combineHandlers(fieldOptions.handlers),
+          key: fieldOptionsFirst.key,
+          value: (newValue as any) ?? fieldOptionsFirst.value[0],
+          handlers: combineHandlers(handlers as Array<FieldHandlers<string>>),
         };
       case 'length':
         return {
           type: 'length',
-          key: fieldOptions.key,
-          value: (newValue as any) ?? fieldOptions.value[0],
-          readOnlyUnit: fieldOptions.readOnlyUnit,
-          handlers: combineHandlers(fieldOptions.handlers),
+          key: fieldOptionsFirst.key,
+          value: (newValue as any) ?? fieldOptionsFirst.value[0],
+          readOnlyUnit: fieldOptionsFirst.readOnlyUnit,
+          handlers: combineHandlers(handlers as Array<FieldHandlers<Length>>),
         };
       case 'angle':
         return {
           type: 'angle',
-          key: fieldOptions.key,
-          value: (newValue as any) ?? fieldOptions.value[0],
-          handlers: combineHandlers(fieldOptions.handlers),
+          key: fieldOptionsFirst.key,
+          value: (newValue as any) ?? fieldOptionsFirst.value[0],
+          handlers: combineHandlers(handlers as Array<FieldHandlers<Angle>>),
         };
       case 'render-order':
         return {
           type: 'render-order',
-          key: fieldOptions.key,
-          value: (newValue as any) ?? fieldOptions.value[0],
-          handlers: combineHandlers(fieldOptions.handlers),
+          key: fieldOptionsFirst.key,
+          value: (newValue as any) ?? fieldOptionsFirst.value[0],
+          handlers: combineHandlers(handlers as Array<FieldHandlers<number>>),
         };
       case 'color':
         return {
           type: 'color',
-          key: fieldOptions.key,
-          value: (newValue as any) ?? fieldOptions.value[0],
-          handlers: combineHandlers(fieldOptions.handlers),
+          key: fieldOptionsFirst.key,
+          value: (newValue as any) ?? fieldOptionsFirst.value[0],
+          handlers: combineHandlers(handlers as Array<FieldHandlers<number | null>>),
         };
       case 'link-dimensions-button':
         return {
           type: 'link-dimensions-button',
-          key: fieldOptions.key,
-          value: (newValue as any) ?? fieldOptions.value[0],
-          handlers: combineHandlers(fieldOptions.handlers),
+          key: fieldOptionsFirst.key,
+          value: (newValue as any) ?? fieldOptionsFirst.value[0],
+          handlers: combineHandlers(handlers as Array<FieldHandlers<void>>),
         };
       case 'button':
         return {
           type: 'button',
-          key: fieldOptions.key,
-          label: fieldOptions.label,
-          handlers: combineHandlers(fieldOptions.handlers),
+          key: fieldOptionsFirst.key,
+          label: fieldOptionsFirst.label,
+          handlers: combineHandlers(handlers as Array<FieldHandlers<void>>),
         };
     }
   }
@@ -588,7 +605,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       if (entries[0].type === 'label') {
         return this.aggregateLabels([entries[0]]);
       }
-      return this.collapseFieldOptions(entries[0]) as Field<OptionsToSingle<F>>; // homogeneous
+      return this.collapseFieldOptions(entries) as Field<OptionsToSingle<F>>; // homogeneous
     }
 
     if (!entries.every((e) => e.type === entries[0].type)) {
@@ -603,7 +620,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       if (entries[0].type === 'label') {
         return this.aggregateLabels(entries as Array<SelectionInspectorLabelledField>);
       }
-      return this.collapseFieldOptions(entries[0]) as Field<OptionsToSingle<F>>; // homogeneous
+      return this.collapseFieldOptions(entries) as Field<OptionsToSingle<F>>; // homogeneous
     }
 
     const combined = entries.reduce((acc, e) => {
@@ -641,7 +658,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
     // console.log('COMBINED', combined);
     if (combined.length === 1) {
-      return this.collapseFieldOptions(entries[0], combined[0]) as Field<OptionsToSingle<F>>; // homogeneous
+      return this.collapseFieldOptions(entries, combined[0]) as Field<OptionsToSingle<F>>; // homogeneous
     } else {
       return { type: 'heterogeneous', key, fieldType: entries[0]?.type };
     }
