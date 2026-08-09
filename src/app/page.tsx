@@ -28,7 +28,8 @@ export default function Home() {
   // Wire up ToolManager with ActionsManager (for select-all action)
   useEffect(() => {
     actionManager.setToolManager(toolManager);
-  }, [actionManager, toolManager]);
+    sheet.selectionInspectorManager.setActionsManager(actionManager);
+  }, [actionManager, toolManager, sheet.selectionInspectorManager]);
 
   // Wire up SerializationManager
   useState(() => {
