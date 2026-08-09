@@ -783,6 +783,23 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       const beforeData = { position: DatumComponent.get(before) };
       const afterData = { position: DatumComponent.get(after as Entity<DatumComponent>) };
       this.historyManager.push(UndoEntry.datumMove(before.id, beforeData, afterData));
+    } else if (Entity.hasComponent(before, FrameComponent)) {
+      const beforeFrame = FrameComponent.get(before);
+      const afterFrame = FrameComponent.get(after as Entity<FrameComponent>);
+      if (
+        beforeFrame.upperLeft !== afterFrame.upperLeft ||
+        beforeFrame.lowerRight !== afterFrame.lowerRight
+      ) {
+        this.historyManager.push(
+          UndoEntry.frameMove(
+            before.id,
+            beforeFrame.upperLeft,
+            beforeFrame.lowerRight,
+            afterFrame.upperLeft,
+            afterFrame.lowerRight,
+          ),
+        );
+      }
     }
 
     // Track fill component additions, removals, or modifications
