@@ -2070,56 +2070,88 @@ const FieldLeafRenderer: React.FunctionComponent<{
           onChange={(e) => field.handlers.onChange?.(e.currentTarget.value)}
           onFocus={field.handlers.onFocus}
           onBlur={field.handlers.onBlur}
+          onKeyDown={(e) => field.handlers.onKeyDown?.(e.key)}
         />
       );
     case 'length':
       return (
-        <LengthInput
-          value={field.value}
-          readOnlyUnit={field.readOnlyUnit}
-          onChange={field.handlers.onChange ?? (() => {})}
-          onFocus={field.handlers.onFocus}
-          onBlur={field.handlers.onBlur}
-        />
+        <span
+          onKeyDownCapture={(e) => {
+            if (e.key === 'Escape' && field.handlers.onKeyDown) {
+              e.stopPropagation();
+              field.handlers.onKeyDown(e.key);
+            }
+          }}
+        >
+          <LengthInput
+            value={field.value}
+            readOnlyUnit={field.readOnlyUnit}
+            onChange={field.handlers.onChange ?? (() => {})}
+            onFocus={field.handlers.onFocus}
+            onBlur={field.handlers.onBlur}
+          />
+        </span>
       );
     case 'render-order':
       return (
-        <RenderOrderInput
-          // FIXME: add geometryId?
-          value={field.value}
-          geometryStore={geometryStore}
-          onChange={field.handlers.onChange ?? (() => {})}
-          onFocus={field.handlers.onFocus}
-          onBlur={field.handlers.onBlur}
-        />
+        <span
+          onKeyDownCapture={(e) => {
+            if (e.key === 'Escape' && field.handlers.onKeyDown) {
+              e.stopPropagation();
+              field.handlers.onKeyDown(e.key);
+            }
+          }}
+        >
+          <RenderOrderInput
+            // FIXME: add geometryId?
+            value={field.value}
+            geometryStore={geometryStore}
+            onChange={field.handlers.onChange ?? (() => {})}
+            onFocus={field.handlers.onFocus}
+            onBlur={field.handlers.onBlur}
+          />
+        </span>
       );
     case 'angle':
       return (
-        <AngleInput
-          value={field.value}
-          onChange={field.handlers.onChange ?? (() => {})}
-          onFocus={field.handlers.onFocus}
-          onBlur={field.handlers.onBlur}
-        />
+        <span
+          onKeyDownCapture={(e) => {
+            if (e.key === 'Escape' && field.handlers.onKeyDown) {
+              e.stopPropagation();
+              field.handlers.onKeyDown(e.key);
+            }
+          }}
+        >
+          <AngleInput
+            value={field.value}
+            onChange={field.handlers.onChange ?? (() => {})}
+            onFocus={field.handlers.onFocus}
+            onBlur={field.handlers.onBlur}
+          />
+        </span>
       );
     case 'color':
       return (
-        <ColorInput
-          value={field.value}
-          onChange={field.handlers.onChange ?? (() => {})}
-          onFocus={field.handlers.onFocus}
-          onBlur={field.handlers.onBlur}
-        />
+        <span
+          onKeyDownCapture={(e) => {
+            if (e.key === 'Escape' && field.handlers.onKeyDown) {
+              e.stopPropagation();
+              field.handlers.onKeyDown(e.key);
+            }
+          }}
+        >
+          <ColorInput
+            value={field.value}
+            onChange={field.handlers.onChange ?? (() => {})}
+            onFocus={field.handlers.onFocus}
+            onBlur={field.handlers.onBlur}
+          />
+        </span>
       );
     case 'read-only':
       return <span>{field.value[0]}</span>;
     case 'link-dimensions-button':
-      return (
-        <LinkButton
-          linked={field.value}
-          onToggle={field.handlers.onClick ?? (() => {})}
-        />
-      );
+      return <LinkButton linked={field.value} onToggle={field.handlers.onClick ?? (() => {})} />;
     case 'button':
       return (
         <button
@@ -2127,6 +2159,7 @@ const FieldLeafRenderer: React.FunctionComponent<{
           onClick={field.handlers.onClick}
           onFocus={field.handlers.onFocus}
           onBlur={field.handlers.onBlur}
+          onKeyDown={(e) => field.handlers.onKeyDown?.(e.key)}
           className="px-3 py-1.5 bg-[var(--slate-5)] text-[var(--slate-12)] text-sm rounded-[4px] border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
           style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
         >

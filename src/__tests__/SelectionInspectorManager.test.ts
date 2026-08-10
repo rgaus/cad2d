@@ -88,7 +88,7 @@ describe('SelectionInspectorManager', () => {
       expect(convertBtn).toBeDefined();
     });
 
-    it('x field onChange stores workingFieldData and onBlur moves upperLeft', async () => {
+    it('x field onChange immediately commits and Escape restores original', async () => {
       const sim = sheet.selectionInspectorManager;
       const events = subscribeToEvents(sim, ['workingFieldDataChange'] as const);
 
@@ -98,6 +98,14 @@ describe('SelectionInspectorManager', () => {
         return;
       }
 
+      const origEntity = geometryStore.getByIdWithComponent(
+        sheet.selectionManager.getSelectedIds()[0],
+        GeometryComponent,
+      );
+      const origData = GeometryComponent.get(origEntity!);
+      const origX = origData.type === 'rectangle' ? origData.upperLeft.x : 0;
+
+      // First onChange — immediate commit via *Direct
       const newX = Length.centimeters(4);
       xField.handlers.onChange?.(newX);
 
@@ -105,26 +113,28 @@ describe('SelectionInspectorManager', () => {
       expect(wfd.get('x')).toEqual({ type: 'length', value: newX });
       expect(events.areThereBufferedEvents('workingFieldDataChange')).toBe(false);
 
-      xField.handlers.onBlur?.();
-
-      // Verify geometry updated
-      const entity = geometryStore.getByIdWithComponent(
+      const afterChange = geometryStore.getByIdWithComponent(
         sheet.selectionManager.getSelectedIds()[0],
         GeometryComponent,
       );
-      expect(entity).not.toBeNull();
-      const data = GeometryComponent.get(entity!);
-      expect(data.type).toBe('rectangle');
-      if (data.type !== 'rectangle') {
+      const afterData = GeometryComponent.get(afterChange!);
+      if (afterData.type !== 'rectangle') {
         return;
       }
-      expect(data.upperLeft.x).toBeCloseTo(4);
-      expect(data.upperLeft.y).toBeCloseTo(2);
+      expect(afterData.upperLeft.x).toBeCloseTo(4);
+      expect(afterData.upperLeft.y).toBeCloseTo(2);
 
-      // lowerRight should have shifted by delta
-      const deltaX = 4 - 1;
-      expect(data.lowerRight.x).toBeCloseTo(3 + deltaX);
-      expect(data.lowerRight.y).toBeCloseTo(5);
+      // Escape restores to original
+      xField.handlers.onKeyDown?.('Escape');
+      const restored = geometryStore.getByIdWithComponent(
+        sheet.selectionManager.getSelectedIds()[0],
+        GeometryComponent,
+      );
+      const restoredData = GeometryComponent.get(restored!);
+      if (restoredData.type !== 'rectangle') {
+        return;
+      }
+      expect(restoredData.upperLeft.x).toBeCloseTo(origX);
     });
 
     it('y field onBlur moves upperLeft vertically', () => {

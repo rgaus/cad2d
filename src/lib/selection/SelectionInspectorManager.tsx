@@ -7,6 +7,7 @@ import {
   FillColorComponent,
   FrameComponent,
   GeometryComponent,
+  type Id,
   LinkDimensionsComponent,
   RenderOrderComponent,
 } from '../entity';
@@ -50,6 +51,7 @@ type FieldHandlers<Value> = {
   onChange?: (newValue: Value) => void;
   onFocus?: () => void;
   onBlur?: () => void;
+  onKeyDown?: (key: string) => void;
 };
 
 export type SelectionInspectorField =
@@ -263,6 +265,8 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   private historyManager: HistoryManager;
   private actionsManager: ActionsManager | null = null;
 
+  private dragOriginals: Map<Id, Entity> = new Map();
+
   private sheetDefaultUnit: Sheet['defaultUnit'];
 
   constructor(
@@ -293,6 +297,81 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
   setActionsManager(actionsManager: ActionsManager) {
     this.actionsManager = actionsManager;
+  }
+
+  private captureDragOriginal(entityId: Id): void {
+    if (this.dragOriginals.has(entityId)) {
+      return;
+    }
+    const entity = this.geometryStore.getById(entityId);
+    if (entity) {
+      this.dragOriginals.set(entityId, entity);
+    }
+  }
+
+  private restoreDragOriginal(entityId: Id): void {
+    const original = this.dragOriginals.get(entityId);
+    if (!original) {
+      return;
+    }
+    this.geometryStore.updateByIdDirect(entityId, original);
+    this.dragOriginals.delete(entityId);
+  }
+
+  /**
+   * Produces standard drag-aware handlers for a length-type field.
+   *
+   * onChange captures the original entity, applies the change immediately via *Direct (no history).
+   * onBlur restores the original, re-applies via the regular API (with history), then cleans up.
+   * onKeyDown('Escape') restores the original and recomputes fields.
+   *
+   * @param computeUpdate — re-reads current state from the store and returns the update partial.
+   *   Must be side-effect-free (called twice: once for *Direct, once on blur restore+re-apply).
+   */
+  private makeLengthHandlers(
+    id: Id,
+    key: string,
+    component: any,
+    computeUpdate: (value: Length) => any,
+  ): FieldHandlers<Length> {
+    return {
+      onChange: (value) => {
+        this.captureDragOriginal(id);
+        this.workingFieldData.set(key, { type: 'length', value });
+        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+        const update = computeUpdate(value);
+        if (update) {
+          this.geometryStore.updateByIdWithComponentDirect(id, component, (old: Entity) =>
+            component.update(old, update),
+          );
+        }
+      },
+      onBlur: () => {
+        if (!this.dragOriginals.has(id)) {
+          return;
+        }
+        const fieldData = this.workingFieldData.get(key);
+        if (!fieldData || fieldData.type !== 'length') {
+          return;
+        }
+        this.geometryStore.updateByIdDirect(id, this.dragOriginals.get(id)!);
+        const update = computeUpdate(fieldData.value);
+        if (update) {
+          this.geometryStore.updateByIdWithComponent(id, component, (old: Entity) =>
+            component.update(old, update),
+          );
+        }
+        this.dragOriginals.delete(id);
+      },
+      onKeyDown: (k) => {
+        if (k === 'Escape' && this.dragOriginals.has(id)) {
+          this.restoreDragOriginal(id);
+          this.workingFieldData.clear();
+          this.emit('workingFieldDataChange', new Map());
+          this.recomputeFields();
+        }
+      },
+    };
   }
 
   private selectedIds: Array<Entity['id']> = [];
@@ -538,29 +617,67 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     const combineHandlers = <T extends unknown>(
       handlers: Array<FieldHandlers<T>>,
     ): FieldHandlers<T> => {
-      const keys = new Set(handlers.flatMap((h) => Object.keys(h)));
-      return Object.fromEntries(
-        Array.from(keys).map((key) => {
-          return [
-            key as keyof FieldHandlers<T>,
-            (t: T) => {
-              this.historyManager.applyTransaction(
-                'selection-inspector-field',
-                () => {
-                  console.log('HANDLERS', handlers);
-                  for (const handler of handlers) {
-                    const fn = handler[key as keyof FieldHandlers<T>];
-                    if (fn) {
-                      fn(t);
-                    }
-                  }
-                },
-                { collapseIfSingle: true },
-              );
+      const result: Record<string, (...args: Array<any>) => void> = {};
+
+      if (handlers.some((h) => h.onChange)) {
+        result.onChange = (t: T) => {
+          this.historyManager.applyTransaction(
+            'selection-inspector-field',
+            () => {
+              for (const handler of handlers) {
+                handler.onChange?.(t);
+              }
             },
-          ];
-        }),
-      );
+            { collapseIfSingle: true },
+          );
+        };
+      }
+
+      if (handlers.some((h) => h.onBlur)) {
+        result.onBlur = () => {
+          this.historyManager.applyTransaction(
+            'selection-inspector-field',
+            () => {
+              for (const handler of handlers) {
+                handler.onBlur?.();
+              }
+            },
+            { collapseIfSingle: true },
+          );
+        };
+      }
+
+      if (handlers.some((h) => h.onClick)) {
+        result.onClick = () => {
+          this.historyManager.applyTransaction(
+            'selection-inspector-field',
+            () => {
+              for (const handler of handlers) {
+                handler.onClick?.();
+              }
+            },
+            { collapseIfSingle: true },
+          );
+        };
+      }
+
+      if (handlers.some((h) => h.onFocus)) {
+        result.onFocus = () => {
+          for (const handler of handlers) {
+            handler.onFocus?.();
+          }
+        };
+      }
+
+      if (handlers.some((h) => h.onKeyDown)) {
+        result.onKeyDown = (key: string) => {
+          for (const handler of handlers) {
+            handler.onKeyDown?.(key);
+          }
+        };
+      }
+
+      return result as FieldHandlers<T>;
     };
 
     switch (fieldOptionsFirst.type) {
@@ -729,39 +846,27 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'x',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.x),
                     { readOnlyUnit: true },
-                    {
-                      onChange: (value) => {
-                        this.workingFieldData.set('x', { type: 'length', value });
-                        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                      },
-                      onBlur: () => {
-                        const fieldData = this.workingFieldData.get('x');
-                        if (!fieldData || fieldData.type !== 'length') {
-                          return;
-                        }
-                        const current = this.geometryStore.getByIdWithComponent(
-                          id,
-                          GeometryComponent,
-                        );
-                        if (!current) {
-                          return;
-                        }
-                        const currentGeom = GeometryComponent.get<GeometryData>(current);
-                        if (currentGeom.type !== 'rectangle') {
-                          return;
-                        }
-                        const newX = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                        const deltaX = newX - currentGeom.upperLeft.x;
-                        const upperLeft = new SheetPosition(newX, currentGeom.upperLeft.y);
-                        const lowerRight = new SheetPosition(
-                          currentGeom.lowerRight.x + deltaX,
-                          currentGeom.lowerRight.y,
-                        );
-                        this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) =>
-                          GeometryComponent.update(old, { upperLeft, lowerRight }),
-                        );
-                      },
-                    },
+                    this.makeLengthHandlers(id, 'x', GeometryComponent, (value) => {
+                      const current = this.geometryStore.getByIdWithComponent(
+                        id,
+                        GeometryComponent,
+                      );
+                      if (!current) {
+                        return undefined;
+                      }
+                      const currentGeom = GeometryComponent.get<GeometryData>(current);
+                      if (currentGeom.type !== 'rectangle') {
+                        return undefined;
+                      }
+                      const newX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                      const deltaX = newX - currentGeom.upperLeft.x;
+                      const upperLeft = new SheetPosition(newX, currentGeom.upperLeft.y);
+                      const lowerRight = new SheetPosition(
+                        currentGeom.lowerRight.x + deltaX,
+                        currentGeom.lowerRight.y,
+                      );
+                      return { upperLeft, lowerRight };
+                    }),
                   ),
                 ),
                 labelled(
@@ -771,39 +876,27 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'y',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.y),
                     { readOnlyUnit: true },
-                    {
-                      onChange: (value) => {
-                        this.workingFieldData.set('y', { type: 'length', value });
-                        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                      },
-                      onBlur: () => {
-                        const fieldData = this.workingFieldData.get('y');
-                        if (!fieldData || fieldData.type !== 'length') {
-                          return;
-                        }
-                        const current = this.geometryStore.getByIdWithComponent(
-                          id,
-                          GeometryComponent,
-                        );
-                        if (!current) {
-                          return;
-                        }
-                        const currentGeom = GeometryComponent.get<GeometryData>(current);
-                        if (currentGeom.type !== 'rectangle') {
-                          return;
-                        }
-                        const newY = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                        const deltaY = newY - currentGeom.upperLeft.y;
-                        const upperLeft = new SheetPosition(currentGeom.upperLeft.x, newY);
-                        const lowerRight = new SheetPosition(
-                          currentGeom.lowerRight.x,
-                          currentGeom.lowerRight.y + deltaY,
-                        );
-                        this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) =>
-                          GeometryComponent.update(old, { upperLeft, lowerRight }),
-                        );
-                      },
-                    },
+                    this.makeLengthHandlers(id, 'y', GeometryComponent, (value) => {
+                      const current = this.geometryStore.getByIdWithComponent(
+                        id,
+                        GeometryComponent,
+                      );
+                      if (!current) {
+                        return undefined;
+                      }
+                      const currentGeom = GeometryComponent.get<GeometryData>(current);
+                      if (currentGeom.type !== 'rectangle') {
+                        return undefined;
+                      }
+                      const newY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                      const deltaY = newY - currentGeom.upperLeft.y;
+                      const upperLeft = new SheetPosition(currentGeom.upperLeft.x, newY);
+                      const lowerRight = new SheetPosition(
+                        currentGeom.lowerRight.x,
+                        currentGeom.lowerRight.y + deltaY,
+                      );
+                      return { upperLeft, lowerRight };
+                    }),
                   ),
                 ),
               ]),
@@ -818,40 +911,29 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                       geometryData.lowerRight.x - geometryData.upperLeft.x,
                     ),
                     { readOnlyUnit: true },
-                    {
-                      onChange: (value) => {
-                        this.workingFieldData.set('width', { type: 'length', value });
-                        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                      },
-                      onBlur: () => {
-                        const fieldData = this.workingFieldData.get('width');
-                        if (!fieldData || fieldData.type !== 'length') {
-                          return;
-                        }
-                        const current = this.geometryStore.getByIdWithComponent(
-                          id,
-                          GeometryComponent,
-                        );
-                        if (!current) {
-                          return;
-                        }
-                        const currentGeom = GeometryComponent.get<GeometryData>(current);
-                        if (currentGeom.type !== 'rectangle') {
-                          return;
-                        }
-                        const isLinkedNow =
-                          Entity.hasComponent(current, LinkDimensionsComponent) &&
-                          LinkDimensionsComponent.get(current);
-                        const w = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                        const newLowerRight = new SheetPosition(
+                    this.makeLengthHandlers(id, 'width', GeometryComponent, (value) => {
+                      const current = this.geometryStore.getByIdWithComponent(
+                        id,
+                        GeometryComponent,
+                      );
+                      if (!current) {
+                        return undefined;
+                      }
+                      const currentGeom = GeometryComponent.get<GeometryData>(current);
+                      if (currentGeom.type !== 'rectangle') {
+                        return undefined;
+                      }
+                      const isLinkedNow =
+                        Entity.hasComponent(current, LinkDimensionsComponent) &&
+                        LinkDimensionsComponent.get(current);
+                      const w = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                      return {
+                        lowerRight: new SheetPosition(
                           currentGeom.upperLeft.x + w,
                           isLinkedNow ? currentGeom.upperLeft.y + w : currentGeom.lowerRight.y,
-                        );
-                        this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) =>
-                          GeometryComponent.update(old, { lowerRight: newLowerRight }),
-                        );
-                      },
-                    },
+                        ),
+                      };
+                    }),
                   ),
                 ),
                 linkDimensionsButton('link', isLinked, {
@@ -869,40 +951,29 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                       geometryData.lowerRight.y - geometryData.upperLeft.y,
                     ),
                     { readOnlyUnit: true },
-                    {
-                      onChange: (value) => {
-                        this.workingFieldData.set('height', { type: 'length', value });
-                        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                      },
-                      onBlur: () => {
-                        const fieldData = this.workingFieldData.get('height');
-                        if (!fieldData || fieldData.type !== 'length') {
-                          return;
-                        }
-                        const current = this.geometryStore.getByIdWithComponent(
-                          id,
-                          GeometryComponent,
-                        );
-                        if (!current) {
-                          return;
-                        }
-                        const currentGeom = GeometryComponent.get<GeometryData>(current);
-                        if (currentGeom.type !== 'rectangle') {
-                          return;
-                        }
-                        const isLinkedNow =
-                          Entity.hasComponent(current, LinkDimensionsComponent) &&
-                          LinkDimensionsComponent.get(current);
-                        const h = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                        const newLowerRight = new SheetPosition(
+                    this.makeLengthHandlers(id, 'height', GeometryComponent, (value) => {
+                      const current = this.geometryStore.getByIdWithComponent(
+                        id,
+                        GeometryComponent,
+                      );
+                      if (!current) {
+                        return undefined;
+                      }
+                      const currentGeom = GeometryComponent.get<GeometryData>(current);
+                      if (currentGeom.type !== 'rectangle') {
+                        return undefined;
+                      }
+                      const isLinkedNow =
+                        Entity.hasComponent(current, LinkDimensionsComponent) &&
+                        LinkDimensionsComponent.get(current);
+                      const h = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                      return {
+                        lowerRight: new SheetPosition(
                           isLinkedNow ? currentGeom.upperLeft.x + h : currentGeom.lowerRight.x,
                           currentGeom.upperLeft.y + h,
-                        );
-                        this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) =>
-                          GeometryComponent.update(old, { lowerRight: newLowerRight }),
-                        );
-                      },
-                    },
+                        ),
+                      };
+                    }),
                   ),
                 ),
               ]),
@@ -924,35 +995,21 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'x',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.x),
                     { readOnlyUnit: true },
-                    {
-                      onChange: (value) => {
-                        this.workingFieldData.set('x', { type: 'length', value });
-                        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                      },
-                      onBlur: () => {
-                        const fieldData = this.workingFieldData.get('x');
-                        if (!fieldData || fieldData.type !== 'length') {
-                          return;
-                        }
-                        const current = this.geometryStore.getByIdWithComponent(
-                          id,
-                          GeometryComponent,
-                        );
-                        if (!current) {
-                          return;
-                        }
-                        const currentGeom = GeometryComponent.get<GeometryData>(current);
-                        if (currentGeom.type !== 'ellipse') {
-                          return;
-                        }
-                        const newCX = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                        this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) =>
-                          GeometryComponent.update(old, {
-                            center: new SheetPosition(newCX, currentGeom.center.y),
-                          }),
-                        );
-                      },
-                    },
+                    this.makeLengthHandlers(id, 'x', GeometryComponent, (value) => {
+                      const current = this.geometryStore.getByIdWithComponent(
+                        id,
+                        GeometryComponent,
+                      );
+                      if (!current) {
+                        return undefined;
+                      }
+                      const currentGeom = GeometryComponent.get<GeometryData>(current);
+                      if (currentGeom.type !== 'ellipse') {
+                        return undefined;
+                      }
+                      const newCX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                      return { center: new SheetPosition(newCX, currentGeom.center.y) };
+                    }),
                   ),
                 ),
                 labelled(
@@ -961,38 +1018,22 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   length(
                     'y',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.y),
-                    {
-                      readOnlyUnit: true,
-                    },
-                    {
-                      onChange: (value) => {
-                        this.workingFieldData.set('y', { type: 'length', value });
-                        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                      },
-                      onBlur: () => {
-                        const fieldData = this.workingFieldData.get('y');
-                        if (!fieldData || fieldData.type !== 'length') {
-                          return;
-                        }
-                        const current = this.geometryStore.getByIdWithComponent(
-                          id,
-                          GeometryComponent,
-                        );
-                        if (!current) {
-                          return;
-                        }
-                        const currentGeom = GeometryComponent.get<GeometryData>(current);
-                        if (currentGeom.type !== 'ellipse') {
-                          return;
-                        }
-                        const newCY = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                        this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) =>
-                          GeometryComponent.update(old, {
-                            center: new SheetPosition(currentGeom.center.x, newCY),
-                          }),
-                        );
-                      },
-                    },
+                    { readOnlyUnit: true },
+                    this.makeLengthHandlers(id, 'y', GeometryComponent, (value) => {
+                      const current = this.geometryStore.getByIdWithComponent(
+                        id,
+                        GeometryComponent,
+                      );
+                      if (!current) {
+                        return undefined;
+                      }
+                      const currentGeom = GeometryComponent.get<GeometryData>(current);
+                      if (currentGeom.type !== 'ellipse') {
+                        return undefined;
+                      }
+                      const newCY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                      return { center: new SheetPosition(currentGeom.center.x, newCY) };
+                    }),
                   ),
                 ),
               ]),
@@ -1003,42 +1044,28 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   length(
                     'rx',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.radiusX),
-                    {
-                      readOnlyUnit: true,
-                    },
-                    {
-                      onChange: (value) => {
-                        this.workingFieldData.set('rx', { type: 'length', value });
-                        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                      },
-                      onBlur: () => {
-                        const fieldData = this.workingFieldData.get('rx');
-                        if (!fieldData || fieldData.type !== 'length') {
-                          return;
-                        }
-                        const current = this.geometryStore.getByIdWithComponent(
-                          id,
-                          GeometryComponent,
-                        );
-                        if (!current) {
-                          return;
-                        }
-                        const currentGeom = GeometryComponent.get<GeometryData>(current);
-                        if (currentGeom.type !== 'ellipse') {
-                          return;
-                        }
-                        const isLinkedNow =
-                          Entity.hasComponent(current, LinkDimensionsComponent) &&
-                          LinkDimensionsComponent.get(current);
-                        const rx = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                        this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) =>
-                          GeometryComponent.update(old, {
-                            radiusX: rx,
-                            radiusY: isLinkedNow ? rx : currentGeom.radiusY,
-                          }),
-                        );
-                      },
-                    },
+                    { readOnlyUnit: true },
+                    this.makeLengthHandlers(id, 'rx', GeometryComponent, (value) => {
+                      const current = this.geometryStore.getByIdWithComponent(
+                        id,
+                        GeometryComponent,
+                      );
+                      if (!current) {
+                        return undefined;
+                      }
+                      const currentGeom = GeometryComponent.get<GeometryData>(current);
+                      if (currentGeom.type !== 'ellipse') {
+                        return undefined;
+                      }
+                      const isLinkedNow =
+                        Entity.hasComponent(current, LinkDimensionsComponent) &&
+                        LinkDimensionsComponent.get(current);
+                      const rx = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                      return {
+                        radiusX: rx,
+                        radiusY: isLinkedNow ? rx : currentGeom.radiusY,
+                      };
+                    }),
                   ),
                 ),
                 linkDimensionsButton('link', isLinked, {
@@ -1052,42 +1079,28 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   length(
                     'ry',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.radiusY),
-                    {
-                      readOnlyUnit: true,
-                    },
-                    {
-                      onChange: (value) => {
-                        this.workingFieldData.set('ry', { type: 'length', value });
-                        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                      },
-                      onBlur: () => {
-                        const fieldData = this.workingFieldData.get('ry');
-                        if (!fieldData || fieldData.type !== 'length') {
-                          return;
-                        }
-                        const current = this.geometryStore.getByIdWithComponent(
-                          id,
-                          GeometryComponent,
-                        );
-                        if (!current) {
-                          return;
-                        }
-                        const currentGeom = GeometryComponent.get<GeometryData>(current);
-                        if (currentGeom.type !== 'ellipse') {
-                          return;
-                        }
-                        const isLinkedNow =
-                          Entity.hasComponent(current, LinkDimensionsComponent) &&
-                          LinkDimensionsComponent.get(current);
-                        const ry = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                        this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) =>
-                          GeometryComponent.update(old, {
-                            radiusX: isLinkedNow ? ry : currentGeom.radiusX,
-                            radiusY: ry,
-                          }),
-                        );
-                      },
-                    },
+                    { readOnlyUnit: true },
+                    this.makeLengthHandlers(id, 'ry', GeometryComponent, (value) => {
+                      const current = this.geometryStore.getByIdWithComponent(
+                        id,
+                        GeometryComponent,
+                      );
+                      if (!current) {
+                        return undefined;
+                      }
+                      const currentGeom = GeometryComponent.get<GeometryData>(current);
+                      if (currentGeom.type !== 'ellipse') {
+                        return undefined;
+                      }
+                      const isLinkedNow =
+                        Entity.hasComponent(current, LinkDimensionsComponent) &&
+                        LinkDimensionsComponent.get(current);
+                      const ry = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                      return {
+                        radiusX: isLinkedNow ? ry : currentGeom.radiusX,
+                        radiusY: ry,
+                      };
+                    }),
                   ),
                 ),
               ]),
@@ -1119,15 +1132,32 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
               'Fill:',
               color('fillColor', fillColor, {
                 onChange: (value) => {
+                  this.captureDragOriginal(id);
                   this.workingFieldData.set('fillColor', { type: 'color', value });
                   this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                  this.geometryStore.updateByIdWithComponentDirect(id, FillColorComponent, (old) =>
+                    FillColorComponent.update(old, value),
+                  );
                 },
                 onBlur: () => {
+                  if (!this.dragOriginals.has(id)) {
+                    return;
+                  }
                   const fieldData = this.workingFieldData.get('fillColor');
                   if (!fieldData || fieldData.type !== 'color') {
                     return;
                   }
+                  this.geometryStore.updateByIdDirect(id, this.dragOriginals.get(id)!);
                   this.geometryStore.setFillColor(id, fieldData.value);
+                  this.dragOriginals.delete(id);
+                },
+                onKeyDown: (k) => {
+                  if (k === 'Escape' && this.dragOriginals.has(id)) {
+                    this.restoreDragOriginal(id);
+                    this.workingFieldData.clear();
+                    this.emit('workingFieldDataChange', new Map());
+                    this.recomputeFields();
+                  }
                 },
               }),
             ),
@@ -1147,15 +1177,34 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
               'Render order:',
               renderOrder('renderOrder', renderOrderValue, {
                 onChange: (value) => {
+                  this.captureDragOriginal(id);
                   this.workingFieldData.set('renderOrder', { type: 'render-order', value });
                   this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                  this.geometryStore.updateByIdWithComponentDirect(
+                    id,
+                    RenderOrderComponent,
+                    (old) => RenderOrderComponent.update(old, value),
+                  );
                 },
                 onBlur: () => {
+                  if (!this.dragOriginals.has(id)) {
+                    return;
+                  }
                   const fieldData = this.workingFieldData.get('renderOrder');
                   if (!fieldData || fieldData.type !== 'render-order') {
                     return;
                   }
+                  this.geometryStore.updateByIdDirect(id, this.dragOriginals.get(id)!);
                   this.geometryStore.setRenderOrder(id, fieldData.value);
+                  this.dragOriginals.delete(id);
+                },
+                onKeyDown: (k) => {
+                  if (k === 'Escape' && this.dragOriginals.has(id)) {
+                    this.restoreDragOriginal(id);
+                    this.workingFieldData.clear();
+                    this.emit('workingFieldDataChange', new Map());
+                    this.recomputeFields();
+                  }
                 },
               }),
             ),
@@ -1176,40 +1225,23 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
               length(
                 'x',
                 Length.fromSheetUnits(this.sheetDefaultUnit, frameData.upperLeft.x),
-                {
-                  readOnlyUnit: true,
-                },
-                {
-                  onChange: (value) => {
-                    this.workingFieldData.set('x', { type: 'length', value });
-                    this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                  },
-                  onBlur: () => {
-                    const fieldData = this.workingFieldData.get('x');
-                    if (!fieldData || fieldData.type !== 'length') {
-                      return;
-                    }
-                    const current = this.geometryStore.getById(id);
-                    if (!current || !Entity.hasComponent(current, FrameComponent)) {
-                      return;
-                    }
-                    const currentFrame = FrameComponent.get(current);
-                    const newX = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                    const deltaX = newX - currentFrame.upperLeft.x;
-                    this.geometryStore.updateById(id, (g) => {
-                      if (!Entity.hasComponent(g, FrameComponent)) {
-                        return g;
-                      }
-                      return FrameComponent.update(g, {
-                        upperLeft: new SheetPosition(newX, currentFrame.upperLeft.y),
-                        lowerRight: new SheetPosition(
-                          currentFrame.lowerRight.x + deltaX,
-                          currentFrame.lowerRight.y,
-                        ),
-                      });
-                    });
-                  },
-                },
+                { readOnlyUnit: true },
+                this.makeLengthHandlers(id, 'x', FrameComponent, (value) => {
+                  const current = this.geometryStore.getById(id);
+                  if (!current || !Entity.hasComponent(current, FrameComponent)) {
+                    return undefined;
+                  }
+                  const currentFrame = FrameComponent.get(current);
+                  const newX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                  const deltaX = newX - currentFrame.upperLeft.x;
+                  return {
+                    upperLeft: new SheetPosition(newX, currentFrame.upperLeft.y),
+                    lowerRight: new SheetPosition(
+                      currentFrame.lowerRight.x + deltaX,
+                      currentFrame.lowerRight.y,
+                    ),
+                  };
+                }),
               ),
             ),
             labelled(
@@ -1218,40 +1250,23 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
               length(
                 'y',
                 Length.fromSheetUnits(this.sheetDefaultUnit, frameData.upperLeft.y),
-                {
-                  readOnlyUnit: true,
-                },
-                {
-                  onChange: (value) => {
-                    this.workingFieldData.set('y', { type: 'length', value });
-                    this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                  },
-                  onBlur: () => {
-                    const fieldData = this.workingFieldData.get('y');
-                    if (!fieldData || fieldData.type !== 'length') {
-                      return;
-                    }
-                    const current = this.geometryStore.getById(id);
-                    if (!current || !Entity.hasComponent(current, FrameComponent)) {
-                      return;
-                    }
-                    const currentFrame = FrameComponent.get(current);
-                    const newY = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                    const deltaY = newY - currentFrame.upperLeft.y;
-                    this.geometryStore.updateById(id, (g) => {
-                      if (!Entity.hasComponent(g, FrameComponent)) {
-                        return g;
-                      }
-                      return FrameComponent.update(g, {
-                        upperLeft: new SheetPosition(currentFrame.upperLeft.x, newY),
-                        lowerRight: new SheetPosition(
-                          currentFrame.lowerRight.x,
-                          currentFrame.lowerRight.y + deltaY,
-                        ),
-                      });
-                    });
-                  },
-                },
+                { readOnlyUnit: true },
+                this.makeLengthHandlers(id, 'y', FrameComponent, (value) => {
+                  const current = this.geometryStore.getById(id);
+                  if (!current || !Entity.hasComponent(current, FrameComponent)) {
+                    return undefined;
+                  }
+                  const currentFrame = FrameComponent.get(current);
+                  const newY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                  const deltaY = newY - currentFrame.upperLeft.y;
+                  return {
+                    upperLeft: new SheetPosition(currentFrame.upperLeft.x, newY),
+                    lowerRight: new SheetPosition(
+                      currentFrame.lowerRight.x,
+                      currentFrame.lowerRight.y + deltaY,
+                    ),
+                  };
+                }),
               ),
             ),
           ]),
@@ -1266,35 +1281,20 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   frameData.lowerRight.x - frameData.upperLeft.x,
                 ),
                 { readOnlyUnit: true },
-                {
-                  onChange: (value) => {
-                    this.workingFieldData.set('w', { type: 'length', value });
-                    this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                  },
-                  onBlur: () => {
-                    const fieldData = this.workingFieldData.get('w');
-                    if (!fieldData || fieldData.type !== 'length') {
-                      return;
-                    }
-                    const current = this.geometryStore.getById(id);
-                    if (!current || !Entity.hasComponent(current, FrameComponent)) {
-                      return;
-                    }
-                    const currentFrame = FrameComponent.get(current);
-                    const w = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                    this.geometryStore.updateById(id, (g) => {
-                      if (!Entity.hasComponent(g, FrameComponent)) {
-                        return g;
-                      }
-                      return FrameComponent.update(g, {
-                        lowerRight: new SheetPosition(
-                          currentFrame.upperLeft.x + w,
-                          currentFrame.lowerRight.y,
-                        ),
-                      });
-                    });
-                  },
-                },
+                this.makeLengthHandlers(id, 'w', FrameComponent, (value) => {
+                  const current = this.geometryStore.getById(id);
+                  if (!current || !Entity.hasComponent(current, FrameComponent)) {
+                    return undefined;
+                  }
+                  const currentFrame = FrameComponent.get(current);
+                  const w = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                  return {
+                    lowerRight: new SheetPosition(
+                      currentFrame.upperLeft.x + w,
+                      currentFrame.lowerRight.y,
+                    ),
+                  };
+                }),
               ),
             ),
             labelled(
@@ -1307,35 +1307,20 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   frameData.lowerRight.y - frameData.upperLeft.y,
                 ),
                 { readOnlyUnit: true },
-                {
-                  onChange: (value) => {
-                    this.workingFieldData.set('h', { type: 'length', value });
-                    this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                  },
-                  onBlur: () => {
-                    const fieldData = this.workingFieldData.get('h');
-                    if (!fieldData || fieldData.type !== 'length') {
-                      return;
-                    }
-                    const current = this.geometryStore.getById(id);
-                    if (!current || !Entity.hasComponent(current, FrameComponent)) {
-                      return;
-                    }
-                    const currentFrame = FrameComponent.get(current);
-                    const h = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                    this.geometryStore.updateById(id, (g) => {
-                      if (!Entity.hasComponent(g, FrameComponent)) {
-                        return g;
-                      }
-                      return FrameComponent.update(g, {
-                        lowerRight: new SheetPosition(
-                          currentFrame.lowerRight.x,
-                          currentFrame.upperLeft.y + h,
-                        ),
-                      });
-                    });
-                  },
-                },
+                this.makeLengthHandlers(id, 'h', FrameComponent, (value) => {
+                  const current = this.geometryStore.getById(id);
+                  if (!current || !Entity.hasComponent(current, FrameComponent)) {
+                    return undefined;
+                  }
+                  const currentFrame = FrameComponent.get(current);
+                  const h = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                  return {
+                    lowerRight: new SheetPosition(
+                      currentFrame.lowerRight.x,
+                      currentFrame.upperLeft.y + h,
+                    ),
+                  };
+                }),
               ),
             ),
           ]),
@@ -1355,33 +1340,16 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
               length(
                 'x',
                 Length.fromSheetUnits(this.sheetDefaultUnit, datumData.x),
-                {
-                  readOnlyUnit: true,
-                },
-                {
-                  onChange: (value) => {
-                    this.workingFieldData.set('x', { type: 'length', value });
-                    this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                  },
-                  onBlur: () => {
-                    const fieldData = this.workingFieldData.get('x');
-                    if (!fieldData || fieldData.type !== 'length') {
-                      return;
-                    }
-                    const current = this.geometryStore.getByIdWithComponent(id, DatumComponent);
-                    if (!current) {
-                      return;
-                    }
-                    const currentDatum = DatumComponent.get(current);
-                    const newX = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                    this.geometryStore.updateById(id, (g) => {
-                      if (!Entity.hasComponent(g, DatumComponent)) {
-                        return g;
-                      }
-                      return DatumComponent.update(g, new SheetPosition(newX, currentDatum.y));
-                    });
-                  },
-                },
+                { readOnlyUnit: true },
+                this.makeLengthHandlers(id, 'x', DatumComponent, (value) => {
+                  const current = this.geometryStore.getByIdWithComponent(id, DatumComponent);
+                  if (!current) {
+                    return undefined;
+                  }
+                  const currentDatum = DatumComponent.get(current);
+                  const newX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                  return new SheetPosition(newX, currentDatum.y);
+                }),
               ),
             ),
             labelled(
@@ -1390,33 +1358,16 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
               length(
                 'y',
                 Length.fromSheetUnits(this.sheetDefaultUnit, datumData.y),
-                {
-                  readOnlyUnit: true,
-                },
-                {
-                  onChange: (value) => {
-                    this.workingFieldData.set('y', { type: 'length', value });
-                    this.emit('workingFieldDataChange', new Map(this.workingFieldData));
-                  },
-                  onBlur: () => {
-                    const fieldData = this.workingFieldData.get('y');
-                    if (!fieldData || fieldData.type !== 'length') {
-                      return;
-                    }
-                    const current = this.geometryStore.getByIdWithComponent(id, DatumComponent);
-                    if (!current) {
-                      return;
-                    }
-                    const currentDatum = DatumComponent.get(current);
-                    const newY = fieldData.value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                    this.geometryStore.updateById(id, (g) => {
-                      if (!Entity.hasComponent(g, DatumComponent)) {
-                        return g;
-                      }
-                      return DatumComponent.update(g, new SheetPosition(currentDatum.x, newY));
-                    });
-                  },
-                },
+                { readOnlyUnit: true },
+                this.makeLengthHandlers(id, 'y', DatumComponent, (value) => {
+                  const current = this.geometryStore.getByIdWithComponent(id, DatumComponent);
+                  if (!current) {
+                    return undefined;
+                  }
+                  const currentDatum = DatumComponent.get(current);
+                  const newY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                  return new SheetPosition(currentDatum.x, newY);
+                }),
               ),
             ),
           ]),
@@ -1443,8 +1394,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     },
                     {
                       onChange: (value) => {
+                        this.captureDragOriginal(filterId);
                         this.workingFieldData.set('ax', { type: 'length', value });
                         this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                      },
+                      onKeyDown: (k) => {
+                        if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                          this.restoreDragOriginal(filterId);
+                          this.workingFieldData.clear();
+                          this.emit('workingFieldDataChange', new Map());
+                          this.recomputeFields();
+                        }
                       },
                       onBlur: () => {
                         const fieldData = this.workingFieldData.get('ax');
@@ -1488,8 +1448,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     },
                     {
                       onChange: (value) => {
+                        this.captureDragOriginal(filterId);
                         this.workingFieldData.set('ay', { type: 'length', value });
                         this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                      },
+                      onKeyDown: (k) => {
+                        if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                          this.restoreDragOriginal(filterId);
+                          this.workingFieldData.clear();
+                          this.emit('workingFieldDataChange', new Map());
+                          this.recomputeFields();
+                        }
                       },
                       onBlur: () => {
                         const fieldData = this.workingFieldData.get('ay');
@@ -1535,8 +1504,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     },
                     {
                       onChange: (value) => {
+                        this.captureDragOriginal(filterId);
                         this.workingFieldData.set('bx', { type: 'length', value });
                         this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                      },
+                      onKeyDown: (k) => {
+                        if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                          this.restoreDragOriginal(filterId);
+                          this.workingFieldData.clear();
+                          this.emit('workingFieldDataChange', new Map());
+                          this.recomputeFields();
+                        }
                       },
                       onBlur: () => {
                         const fieldData = this.workingFieldData.get('bx');
@@ -1580,8 +1558,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     },
                     {
                       onChange: (value) => {
+                        this.captureDragOriginal(filterId);
                         this.workingFieldData.set('by', { type: 'length', value });
                         this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                      },
+                      onKeyDown: (k) => {
+                        if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                          this.restoreDragOriginal(filterId);
+                          this.workingFieldData.clear();
+                          this.emit('workingFieldDataChange', new Map());
+                          this.recomputeFields();
+                        }
                       },
                       onBlur: () => {
                         const fieldData = this.workingFieldData.get('by');
@@ -1632,8 +1619,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                       { readOnlyUnit: true },
                       {
                         onChange: (value) => {
+                          this.captureDragOriginal(filterId);
                           this.workingFieldData.set('offset', { type: 'length', value });
                           this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                        },
+                        onKeyDown: (k) => {
+                          if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                            this.restoreDragOriginal(filterId);
+                            this.workingFieldData.clear();
+                            this.emit('workingFieldDataChange', new Map());
+                            this.recomputeFields();
+                          }
                         },
                         onBlur: () => {
                           const fieldData = this.workingFieldData.get('offset');
@@ -1669,8 +1665,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'A:',
                     number('pointAIndex', filterData.pointAIndex, {
                       onChange: (value) => {
+                        this.captureDragOriginal(filterId);
                         this.workingFieldData.set('pointAIndex', { type: 'number', value });
                         this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                      },
+                      onKeyDown: (k) => {
+                        if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                          this.restoreDragOriginal(filterId);
+                          this.workingFieldData.clear();
+                          this.emit('workingFieldDataChange', new Map());
+                          this.recomputeFields();
+                        }
                       },
                       onBlur: () => {
                         const fieldData = this.workingFieldData.get('pointAIndex');
@@ -1695,8 +1700,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'C:',
                     number('pointCenterIndex', filterData.pointCenterIndex, {
                       onChange: (value) => {
+                        this.captureDragOriginal(filterId);
                         this.workingFieldData.set('pointCenterIndex', { type: 'number', value });
                         this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                      },
+                      onKeyDown: (k) => {
+                        if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                          this.restoreDragOriginal(filterId);
+                          this.workingFieldData.clear();
+                          this.emit('workingFieldDataChange', new Map());
+                          this.recomputeFields();
+                        }
                       },
                       onBlur: () => {
                         const fieldData = this.workingFieldData.get('pointCenterIndex');
@@ -1723,8 +1737,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'B:',
                     number('pointBIndex', filterData.pointBIndex, {
                       onChange: (value) => {
+                        this.captureDragOriginal(filterId);
                         this.workingFieldData.set('pointBIndex', { type: 'number', value });
                         this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                      },
+                      onKeyDown: (k) => {
+                        if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                          this.restoreDragOriginal(filterId);
+                          this.workingFieldData.clear();
+                          this.emit('workingFieldDataChange', new Map());
+                          this.recomputeFields();
+                        }
                       },
                       onBlur: () => {
                         const fieldData = this.workingFieldData.get('pointBIndex');
@@ -1760,8 +1783,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                       { readOnlyUnit: true },
                       {
                         onChange: (value) => {
+                          this.captureDragOriginal(filterId);
                           this.workingFieldData.set('offset', { type: 'length', value });
                           this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                        },
+                        onKeyDown: (k) => {
+                          if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                            this.restoreDragOriginal(filterId);
+                            this.workingFieldData.clear();
+                            this.emit('workingFieldDataChange', new Map());
+                            this.recomputeFields();
+                          }
                         },
                         onBlur: () => {
                           const fieldData = this.workingFieldData.get('offset');
@@ -1812,8 +1844,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     labelled('repeats', 'Repeats:', [
                       number('xRepeats', filterData.xRepeats, {
                         onChange: (value) => {
+                          this.captureDragOriginal(filterId);
                           this.workingFieldData.set('xRepeats', { type: 'number', value });
                           this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                        },
+                        onKeyDown: (k) => {
+                          if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                            this.restoreDragOriginal(filterId);
+                            this.workingFieldData.clear();
+                            this.emit('workingFieldDataChange', new Map());
+                            this.recomputeFields();
+                          }
                         },
                         onBlur: () => {
                           const fieldData = this.workingFieldData.get('xRepeats');
@@ -1833,8 +1874,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                       }),
                       number('yRepeats', filterData.yRepeats, {
                         onChange: (value) => {
+                          this.captureDragOriginal(filterId);
                           this.workingFieldData.set('yRepeats', { type: 'number', value });
                           this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                        },
+                        onKeyDown: (k) => {
+                          if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                            this.restoreDragOriginal(filterId);
+                            this.workingFieldData.clear();
+                            this.emit('workingFieldDataChange', new Map());
+                            this.recomputeFields();
+                          }
                         },
                         onBlur: () => {
                           const fieldData = this.workingFieldData.get('yRepeats');
@@ -1867,8 +1917,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         { readOnlyUnit: true },
                         {
                           onChange: (value) => {
+                            this.captureDragOriginal(filterId);
                             this.workingFieldData.set('x', { type: 'length', value });
                             this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                          },
+                          onKeyDown: (k) => {
+                            if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                              this.restoreDragOriginal(filterId);
+                              this.workingFieldData.clear();
+                              this.emit('workingFieldDataChange', new Map());
+                              this.recomputeFields();
+                            }
                           },
                           onBlur: () => {
                             const fieldData = this.workingFieldData.get('x');
@@ -1913,8 +1972,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         { readOnlyUnit: true },
                         {
                           onChange: (value) => {
+                            this.captureDragOriginal(filterId);
                             this.workingFieldData.set('y', { type: 'length', value });
                             this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                          },
+                          onKeyDown: (k) => {
+                            if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                              this.restoreDragOriginal(filterId);
+                              this.workingFieldData.clear();
+                              this.emit('workingFieldDataChange', new Map());
+                              this.recomputeFields();
+                            }
                           },
                           onBlur: () => {
                             const fieldData = this.workingFieldData.get('y');
@@ -1957,8 +2025,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                       'Repeats:',
                       number('repeats', filterData.repeats.count, {
                         onChange: (value) => {
+                          this.captureDragOriginal(filterId);
                           this.workingFieldData.set('repeats', { type: 'number', value });
                           this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                        },
+                        onKeyDown: (k) => {
+                          if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                            this.restoreDragOriginal(filterId);
+                            this.workingFieldData.clear();
+                            this.emit('workingFieldDataChange', new Map());
+                            this.recomputeFields();
+                          }
                         },
                         onBlur: () => {
                           const fieldData = this.workingFieldData.get('repeats');
@@ -1991,8 +2068,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         { readOnlyUnit: true },
                         {
                           onChange: (value) => {
+                            this.captureDragOriginal(filterId);
                             this.workingFieldData.set('radius', { type: 'length', value });
                             this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                          },
+                          onKeyDown: (k) => {
+                            if (k === 'Escape' && this.dragOriginals.has(filterId)) {
+                              this.restoreDragOriginal(filterId);
+                              this.workingFieldData.clear();
+                              this.emit('workingFieldDataChange', new Map());
+                              this.recomputeFields();
+                            }
                           },
                           onBlur: () => {
                             const fieldData = this.workingFieldData.get('radius');
