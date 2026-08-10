@@ -56,9 +56,11 @@ import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
 import { BoundingBox } from '@/lib/math';
 import {
+  type Field,
   FieldLabel,
   FieldRow,
   SelectionInspectorField,
+  type WorkingFieldData,
 } from '@/lib/selection/SelectionInspectorManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
@@ -2213,6 +2215,34 @@ const FieldRowRenderer: React.FunctionComponent<{
   );
 };
 
+/**
+ * Patches the field tree in-place with values from {@link WorkingFieldData}.
+ * Walks rows, labels, and leaf fields recursively. For each leaf field,
+ * if the workingFieldData Map has a matching key AND type, the field's value
+ * is replaced with the working value. Otherwise the field passes through.
+ */
+function applyWorkingFieldData(fields: Array<Field>, wfd: WorkingFieldData): Array<Field> {
+  return fields.map((field) => {
+    if (field.type === 'heterogeneous') {
+      return field;
+    }
+
+    if (field.type === 'row' || field.type === 'label') {
+      return {
+        ...field,
+        fields: applyWorkingFieldData(field.fields as Array<Field>, wfd),
+      } as any as typeof field;
+    }
+
+    const wdEntry = wfd.get(field.key);
+    if (wdEntry && wdEntry.type === field.type) {
+      return { ...field, value: wdEntry.value as any } as typeof field;
+    }
+
+    return field;
+  });
+}
+
 const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
   sheet,
   geometryStore,
@@ -2438,6 +2468,16 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
     sheet.selectionInspectorManager.on('fieldsChange', setFields);
     return () => {
       sheet.selectionInspectorManager.off('fieldsChange', setFields);
+    };
+  }, [sheet.selectionInspectorManager]);
+
+  useEffect(() => {
+    const handler = (wfd: WorkingFieldData) => {
+      setFields((prev) => applyWorkingFieldData(prev, wfd));
+    };
+    sheet.selectionInspectorManager.on('workingFieldDataChange', handler);
+    return () => {
+      sheet.selectionInspectorManager.off('workingFieldDataChange', handler);
     };
   }, [sheet.selectionInspectorManager]);
 
