@@ -622,13 +622,13 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       if (handlers.some((h) => h.onChange)) {
         result.onChange = (t: T) => {
           this.historyManager.applyTransaction(
-            'selection-inspector-field',
+            'selection-inspector-change',
             () => {
               for (const handler of handlers) {
                 handler.onChange?.(t);
               }
             },
-            { collapseIfSingle: true },
+            { collapseIfSingle: true, omitIfEmpty: true },
           );
         };
       }
@@ -636,13 +636,13 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       if (handlers.some((h) => h.onBlur)) {
         result.onBlur = () => {
           this.historyManager.applyTransaction(
-            'selection-inspector-field',
+            'selection-inspector-blur',
             () => {
               for (const handler of handlers) {
                 handler.onBlur?.();
               }
             },
-            { collapseIfSingle: true },
+            { collapseIfSingle: true, omitIfEmpty: true },
           );
         };
       }
@@ -650,13 +650,13 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       if (handlers.some((h) => h.onClick)) {
         result.onClick = () => {
           this.historyManager.applyTransaction(
-            'selection-inspector-field',
+            'selection-inspector-click',
             () => {
               for (const handler of handlers) {
                 handler.onClick?.();
               }
             },
-            { collapseIfSingle: true },
+            { collapseIfSingle: true, omitIfEmpty: true },
           );
         };
       }
