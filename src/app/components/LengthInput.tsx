@@ -141,7 +141,7 @@ export function parseSuffix<Unit extends string>(
   return { valid: true, magnitude, unit: null };
 }
 
-const parseLengthSuffix = (text: string) =>
+export const parseLengthSuffix = (text: string) =>
   parseSuffix<UnitType>(text, LENGTH_UNIT_SUFFIXES, [feetInchesSpecialCase]);
 
 type LengthInputProps = {
