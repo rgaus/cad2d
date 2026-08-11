@@ -285,9 +285,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
     this.selectionManager.on('selectionChange', this.handleSelectionChange);
     this.sheet.on('defaultUnitChange', this.handleDefaultUnitChange);
+    this.geometryStore.on('geometryUpdated', this.handleGeometryUpdate);
   }
 
   destructor() {
+    this.geometryStore.off('geometryUpdated', this.handleGeometryUpdate);
     this.sheet.off('defaultUnitChange', this.handleDefaultUnitChange);
     this.selectionManager.off('selectionChange', this.handleSelectionChange);
     this.actionsManager = null;
@@ -390,6 +392,16 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
   handleDefaultUnitChange = (defaultUnit: Sheet['defaultUnit']) => {
     this.sheetDefaultUnit = defaultUnit;
+    this.recomputeFields();
+  };
+
+  handleGeometryUpdate = (entity: Entity) => {
+    if (!this.selectedIds.includes(entity.id)) {
+      return;
+    }
+    if (this.dragOriginals.has(entity.id)) {
+      return;
+    }
     this.recomputeFields();
   };
 
