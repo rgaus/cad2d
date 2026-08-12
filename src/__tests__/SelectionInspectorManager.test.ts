@@ -748,6 +748,69 @@ describe('SelectionInspectorManager', () => {
     });
   });
 
+  describe('mixed geometry (same x+y)', () => {
+    it('x then y field change moves polygon, rectangle, and ellipse together', () => {
+      const poly = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(5, 5), makePoint(10, 5), makePoint(10, 10), makePoint(5, 10)], {
+          closed: true,
+        }),
+      );
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(5, 20), new SheetPosition(10, 25)),
+      );
+      const ellipse = geometryStore.addOrdered(
+        ID_PREFIXES.ellipse,
+        Ellipse.create(new SheetPosition(5, 40), { radiusX: 3, radiusY: 4 }),
+      );
+      sheet.selectionManager.select(poly.id);
+      sheet.selectionManager.select(rect.id);
+      sheet.selectionManager.select(ellipse.id);
+
+      const xField = getLeafFromRowLabel(sheet.selectionInspectorManager.fields, 'position', 'x');
+      const yField = getLeafFromRowLabel(sheet.selectionInspectorManager.fields, 'position', 'y');
+      if (xField.type !== 'length' || yField.type !== 'length') {
+        return;
+      }
+
+      // Change both x + y values
+      xField.handlers.onChange?.(Length.centimeters(12));
+      xField.handlers.onBlur?.();
+      yField.handlers.onChange?.(Length.centimeters(30));
+      yField.handlers.onBlur?.();
+
+      const polyEntity = geometryStore.getByIdWithComponent(poly.id, GeometryComponent);
+      if (!polyEntity || !GeometryComponent.isPolygon(polyEntity)) {
+        return;
+      }
+      const polyBounds = BoundingBox.fromPoints(
+        GeometryComponent.get(polyEntity).points.map((s) => s.point),
+      );
+      expect(polyBounds.position.x).toBeCloseTo(12);
+      expect(polyBounds.position.y).toBeCloseTo(30);
+      expect(polyBounds.width).toBeCloseTo(5);
+
+      const rectEntity = geometryStore.getByIdWithComponent(rect.id, GeometryComponent);
+      const rectData = GeometryComponent.get(rectEntity!);
+      if (rectData.type !== 'rectangle') {
+        return;
+      }
+      expect(rectData.upperLeft.x).toBeCloseTo(12);
+      expect(rectData.upperLeft.y).toBeCloseTo(30);
+      expect(rectData.lowerRight.x).toBeCloseTo(17);
+      expect(rectData.lowerRight.y).toBeCloseTo(35);
+
+      const ellEntity = geometryStore.getByIdWithComponent(ellipse.id, GeometryComponent);
+      const ellData = GeometryComponent.get(ellEntity!);
+      if (ellData.type !== 'ellipse') {
+        return;
+      }
+      expect(ellData.center.x).toBeCloseTo(12);
+      expect(ellData.center.y).toBeCloseTo(30);
+    });
+  });
+
   describe('fill color', () => {
     it('onBlur sets fill color', () => {
       const rect = geometryStore.addOrdered(
