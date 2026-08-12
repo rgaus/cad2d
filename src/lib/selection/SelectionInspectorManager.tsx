@@ -866,11 +866,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         GeometryComponent,
                       );
                       if (!current) {
-                        return undefined;
+                        return null;
                       }
                       const currentGeom = GeometryComponent.get<GeometryData>(current);
                       if (currentGeom.type !== 'rectangle') {
-                        return undefined;
+                        return null;
                       }
                       const newX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
                       const deltaX = newX - currentGeom.upperLeft.x;
@@ -896,11 +896,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         GeometryComponent,
                       );
                       if (!current) {
-                        return undefined;
+                        return null;
                       }
                       const currentGeom = GeometryComponent.get<GeometryData>(current);
                       if (currentGeom.type !== 'rectangle') {
-                        return undefined;
+                        return null;
                       }
                       const newY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
                       const deltaY = newY - currentGeom.upperLeft.y;
@@ -931,11 +931,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         GeometryComponent,
                       );
                       if (!current) {
-                        return undefined;
+                        return null;
                       }
                       const currentGeom = GeometryComponent.get<GeometryData>(current);
                       if (currentGeom.type !== 'rectangle') {
-                        return undefined;
+                        return null;
                       }
                       const isLinkedNow =
                         Entity.hasComponent(current, LinkDimensionsComponent) &&
@@ -971,11 +971,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         GeometryComponent,
                       );
                       if (!current) {
-                        return undefined;
+                        return null;
                       }
                       const currentGeom = GeometryComponent.get<GeometryData>(current);
                       if (currentGeom.type !== 'rectangle') {
-                        return undefined;
+                        return null;
                       }
                       const isLinkedNow =
                         Entity.hasComponent(current, LinkDimensionsComponent) &&
@@ -1015,11 +1015,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         GeometryComponent,
                       );
                       if (!current) {
-                        return undefined;
+                        return null;
                       }
                       const currentGeom = GeometryComponent.get<GeometryData>(current);
                       if (currentGeom.type !== 'ellipse') {
-                        return undefined;
+                        return null;
                       }
                       const newCX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
                       return { center: new SheetPosition(newCX, currentGeom.center.y) };
@@ -1039,11 +1039,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         GeometryComponent,
                       );
                       if (!current) {
-                        return undefined;
+                        return null;
                       }
                       const currentGeom = GeometryComponent.get<GeometryData>(current);
                       if (currentGeom.type !== 'ellipse') {
-                        return undefined;
+                        return null;
                       }
                       const newCY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
                       return { center: new SheetPosition(currentGeom.center.x, newCY) };
@@ -1065,11 +1065,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         GeometryComponent,
                       );
                       if (!current) {
-                        return undefined;
+                        return null;
                       }
                       const currentGeom = GeometryComponent.get<GeometryData>(current);
                       if (currentGeom.type !== 'ellipse') {
-                        return undefined;
+                        return null;
                       }
                       const isLinkedNow =
                         Entity.hasComponent(current, LinkDimensionsComponent) &&
@@ -1100,11 +1100,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         GeometryComponent,
                       );
                       if (!current) {
-                        return undefined;
+                        return null;
                       }
                       const currentGeom = GeometryComponent.get<GeometryData>(current);
                       if (currentGeom.type !== 'ellipse') {
-                        return undefined;
+                        return null;
                       }
                       const isLinkedNow =
                         Entity.hasComponent(current, LinkDimensionsComponent) &&
@@ -1143,7 +1143,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         GeometryComponent,
                       );
                       if (!current || !GeometryComponent.isPolygon(current)) {
-                        return undefined;
+                        return null;
                       }
                       const currentGeom = GeometryComponent.get(current);
                       const newX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
@@ -1152,7 +1152,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                       );
                       const deltaX = newX - currentBounds.position.x;
                       if (deltaX === 0) {
-                        return undefined;
+                        return null;
                       }
                       const translated = PolygonData.translate(
                         current,
@@ -1175,7 +1175,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         GeometryComponent,
                       );
                       if (!current || !GeometryComponent.isPolygon(current)) {
-                        return undefined;
+                        return null;
                       }
                       const currentGeom = GeometryComponent.get(current);
                       const newY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
@@ -1184,7 +1184,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                       );
                       const deltaY = newY - currentBounds.position.y;
                       if (deltaY === 0) {
-                        return undefined;
+                        return null;
                       }
                       const translated = PolygonData.translate(
                         current,
@@ -1209,7 +1209,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         GeometryComponent,
                       );
                       if (!current || !GeometryComponent.isPolygon(current)) {
-                        return undefined;
+                        return null;
                       }
                       const currentGeom = GeometryComponent.get(current);
                       const w = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
@@ -1217,7 +1217,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         currentGeom.points.map((s) => s.point),
                       );
                       if (w === currentBounds.width) {
-                        return undefined;
+                        return null;
                       }
                       const newBounds = {
                         position: currentBounds.position,
@@ -1247,7 +1247,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         GeometryComponent,
                       );
                       if (!current || !GeometryComponent.isPolygon(current)) {
-                        return undefined;
+                        return null;
                       }
                       const currentGeom = GeometryComponent.get(current);
                       const h = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
@@ -1255,7 +1255,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                         currentGeom.points.map((s) => s.point),
                       );
                       if (h === currentBounds.height) {
-                        return undefined;
+                        return null;
                       }
                       const newBounds = {
                         position: currentBounds.position,
@@ -1390,7 +1390,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                 this.makeLengthHandlers(id, 'x', FrameComponent, (value) => {
                   const current = this.geometryStore.getById(id);
                   if (!current || !Entity.hasComponent(current, FrameComponent)) {
-                    return undefined;
+                    return null;
                   }
                   const currentFrame = FrameComponent.get(current);
                   const newX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
@@ -1415,7 +1415,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                 this.makeLengthHandlers(id, 'y', FrameComponent, (value) => {
                   const current = this.geometryStore.getById(id);
                   if (!current || !Entity.hasComponent(current, FrameComponent)) {
-                    return undefined;
+                    return null;
                   }
                   const currentFrame = FrameComponent.get(current);
                   const newY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
@@ -1445,7 +1445,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                 this.makeLengthHandlers(id, 'w', FrameComponent, (value) => {
                   const current = this.geometryStore.getById(id);
                   if (!current || !Entity.hasComponent(current, FrameComponent)) {
-                    return undefined;
+                    return null;
                   }
                   const currentFrame = FrameComponent.get(current);
                   const w = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
@@ -1471,7 +1471,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                 this.makeLengthHandlers(id, 'h', FrameComponent, (value) => {
                   const current = this.geometryStore.getById(id);
                   if (!current || !Entity.hasComponent(current, FrameComponent)) {
-                    return undefined;
+                    return null;
                   }
                   const currentFrame = FrameComponent.get(current);
                   const h = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
@@ -1505,7 +1505,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                 this.makeLengthHandlers(id, 'x', DatumComponent, (value) => {
                   const current = this.geometryStore.getByIdWithComponent(id, DatumComponent);
                   if (!current) {
-                    return undefined;
+                    return null;
                   }
                   const currentDatum = DatumComponent.get(current);
                   const newX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
@@ -1523,7 +1523,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                 this.makeLengthHandlers(id, 'y', DatumComponent, (value) => {
                   const current = this.geometryStore.getByIdWithComponent(id, DatumComponent);
                   if (!current) {
-                    return undefined;
+                    return null;
                   }
                   const currentDatum = DatumComponent.get(current);
                   const newY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
