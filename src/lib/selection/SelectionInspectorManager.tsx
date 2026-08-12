@@ -2300,6 +2300,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         return [];
       }
       default:
+        Component satisfies never;
         return [];
     }
   }
