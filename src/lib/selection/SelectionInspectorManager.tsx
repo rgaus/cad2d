@@ -25,6 +25,23 @@ import { Angle } from '../units/angle';
 import { Length } from '../units/length';
 import { SheetPosition } from '../viewport/types';
 
+/** The order of components in the {@link SelectionInspectorManager}. If a component isn't in this
+  * list, it will be rendered at the bottom. */
+function getComponentKeyOrdering(key: string): number {
+  return [
+    GeometryComponent.key,
+    ConstraintComponent.key,
+    DatumComponent.key,
+    FilterComponent.key,
+    FrameComponent.key,
+    LinkDimensionsComponent.key,
+
+    // Fill color + render order at the bottom
+    FillColorComponent.key,
+    RenderOrderComponent.key,
+  ].indexOf(key as any);
+}
+
 function getComponentByKey(key: string) {
   for (const component of [
     GeometryComponent,
@@ -420,7 +437,9 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
     // Step 1: Generate list of fields
     for (const entity of this.geometryStore.getByIds(this.selectedIds)) {
-      const componentKeys = Object.keys(entity.components);
+      const componentKeys = Object.keys(entity.components).sort((a, b) => {
+        return getComponentKeyOrdering(a) - getComponentKeyOrdering(b);
+      });
       for (const key of componentKeys) {
         const Component = getComponentByKey(key);
         if (!Component) {
