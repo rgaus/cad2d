@@ -17,6 +17,7 @@ import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { BoundingBox } from '@/lib/math';
 import {
   type Field,
   type FieldLabel,
@@ -582,6 +583,168 @@ describe('SelectionInspectorManager', () => {
       const datumData = DatumComponent.get(current as unknown as Entity<DatumComponent>);
       expect(datumData.y).toBeCloseTo(40);
       expect(datumData.x).toBeCloseTo(10);
+    });
+  });
+
+  describe('polygon (single)', () => {
+    beforeEach(() => {
+      const poly = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
+          closed: true,
+        }),
+      );
+      sheet.selectionManager.select(poly.id);
+    });
+
+    function getBounds() {
+      const ids = sheet.selectionManager.getSelectedIds();
+      const entity = geometryStore.getByIdWithComponent(ids[0], GeometryComponent);
+      if (!entity || !GeometryComponent.isPolygon(entity)) {
+        throw new Error('expected a polygon');
+      }
+      const data = GeometryComponent.get(entity);
+      return BoundingBox.fromPoints(data.points.map((s) => s.point));
+    }
+
+    it('has position and dimensions rows with no link or convert buttons', () => {
+      const fields = sheet.selectionInspectorManager.fields;
+      expect(fields.some((f) => f.type === 'row' && f.key === 'position')).toBe(true);
+      expect(fields.some((f) => f.type === 'row' && f.key === 'dimensions')).toBe(true);
+      expect(fields.some((f) => f.type === 'button' && f.key === 'convert-to-polygon')).toBe(false);
+      expect(fields.some((f) => f.type === 'link-dimensions-button')).toBe(false);
+    });
+
+    it('x field onBlur translates polygon horizontally', () => {
+      const sim = sheet.selectionInspectorManager;
+      const xField = getLeafFromRowLabel(sim.fields, 'position', 'x');
+      if (xField.type !== 'length') {
+        return;
+      }
+
+      xField.handlers.onChange?.(Length.centimeters(5));
+      xField.handlers.onBlur?.();
+
+      const bounds = getBounds();
+      expect(bounds.position.x).toBeCloseTo(5);
+      expect(bounds.position.y).toBeCloseTo(0);
+      expect(bounds.width).toBeCloseTo(10);
+      expect(bounds.height).toBeCloseTo(10);
+    });
+
+    it('y field onBlur translates polygon vertically', () => {
+      const sim = sheet.selectionInspectorManager;
+      const yField = getLeafFromRowLabel(sim.fields, 'position', 'y');
+      if (yField.type !== 'length') {
+        return;
+      }
+
+      yField.handlers.onChange?.(Length.centimeters(7));
+      yField.handlers.onBlur?.();
+
+      const bounds = getBounds();
+      expect(bounds.position.y).toBeCloseTo(7);
+      expect(bounds.position.x).toBeCloseTo(0);
+      expect(bounds.width).toBeCloseTo(10);
+    });
+
+    it('width field onBlur resizes (anchors upper-left)', () => {
+      const sim = sheet.selectionInspectorManager;
+      const wField = getLeafFromRowLabel(sim.fields, 'dimensions', 'width');
+      if (wField.type !== 'length') {
+        return;
+      }
+
+      wField.handlers.onChange?.(Length.centimeters(20));
+      wField.handlers.onBlur?.();
+
+      const bounds = getBounds();
+      expect(bounds.position.x).toBeCloseTo(0);
+      expect(bounds.position.y).toBeCloseTo(0);
+      expect(bounds.width).toBeCloseTo(20);
+      expect(bounds.height).toBeCloseTo(10);
+    });
+
+    it('height field onBlur resizes (anchors upper-left)', () => {
+      const sim = sheet.selectionInspectorManager;
+      const hField = getLeafFromRowLabel(sim.fields, 'dimensions', 'height');
+      if (hField.type !== 'length') {
+        return;
+      }
+
+      hField.handlers.onChange?.(Length.centimeters(15));
+      hField.handlers.onBlur?.();
+
+      const bounds = getBounds();
+      expect(bounds.position.x).toBeCloseTo(0);
+      expect(bounds.position.y).toBeCloseTo(0);
+      expect(bounds.width).toBeCloseTo(10);
+      expect(bounds.height).toBeCloseTo(15);
+    });
+  });
+
+  describe('polygon (multiple)', () => {
+    it('x/y/w/h changes apply to all polygons with the same bounding box', () => {
+      const poly1 = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
+          closed: true,
+        }),
+      );
+      const poly2 = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
+          closed: true,
+        }),
+      );
+      sheet.selectionManager.select(poly1.id);
+      sheet.selectionManager.select(poly2.id);
+
+      const sim = sheet.selectionInspectorManager;
+      const boundsOf = (id: string) => {
+        const entity = geometryStore.getByIdWithComponent(id, GeometryComponent);
+        if (!entity || !GeometryComponent.isPolygon(entity)) {
+          throw new Error('expected a polygon');
+        }
+        const data = GeometryComponent.get(entity);
+        return BoundingBox.fromPoints(data.points.map((s) => s.point));
+      };
+
+      const xField = getLeafFromRowLabel(sim.fields, 'position', 'x');
+      if (xField.type !== 'length') {
+        return;
+      }
+      xField.handlers.onChange?.(Length.centimeters(5));
+      xField.handlers.onBlur?.();
+      expect(boundsOf(poly1.id).position.x).toBeCloseTo(5);
+      expect(boundsOf(poly2.id).position.x).toBeCloseTo(5);
+
+      const yField = getLeafFromRowLabel(sim.fields, 'position', 'y');
+      if (yField.type !== 'length') {
+        return;
+      }
+      yField.handlers.onChange?.(Length.centimeters(7));
+      yField.handlers.onBlur?.();
+      expect(boundsOf(poly1.id).position.y).toBeCloseTo(7);
+      expect(boundsOf(poly2.id).position.y).toBeCloseTo(7);
+
+      const wField = getLeafFromRowLabel(sim.fields, 'dimensions', 'width');
+      if (wField.type !== 'length') {
+        return;
+      }
+      wField.handlers.onChange?.(Length.centimeters(20));
+      wField.handlers.onBlur?.();
+      expect(boundsOf(poly1.id).width).toBeCloseTo(20);
+      expect(boundsOf(poly2.id).width).toBeCloseTo(20);
+
+      const hField = getLeafFromRowLabel(sim.fields, 'dimensions', 'height');
+      if (hField.type !== 'length') {
+        return;
+      }
+      hField.handlers.onChange?.(Length.centimeters(15));
+      hField.handlers.onBlur?.();
+      expect(boundsOf(poly1.id).height).toBeCloseTo(15);
+      expect(boundsOf(poly2.id).height).toBeCloseTo(15);
     });
   });
 

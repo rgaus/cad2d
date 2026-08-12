@@ -15,8 +15,10 @@ import { GeometryStore } from '../entity/GeometryStore';
 import { FilterComponent } from '../entity/components/FilterComponent';
 import { FilterData } from '../entity/filters';
 import { GeometryData } from '../entity/geometry';
+import { PolygonData } from '../entity/geometry/polygon';
 import { HistoryManager } from '../history/HistoryManager';
 import { UndoEntry } from '../history/types';
+import { BoundingBox } from '../math';
 import { Sheet } from '../sheet/Sheet';
 import { SelectionManager } from '../tools/SelectionManager';
 import { Angle } from '../units/angle';
@@ -1123,9 +1125,156 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
               }),
             ];
           }
-          case 'polygon':
-            // TODO: add this
-            return [];
+          case 'polygon': {
+            const id = entity.id;
+            const bounds = BoundingBox.fromPoints(geometryData.points.map((s) => s.point));
+            return [
+              row('position', [
+                labelled(
+                  'x',
+                  'X:',
+                  length(
+                    'x',
+                    Length.fromSheetUnits(this.sheetDefaultUnit, bounds.position.x),
+                    { readOnlyUnit: true },
+                    this.makeLengthHandlers(id, 'x', GeometryComponent, (value) => {
+                      const current = this.geometryStore.getByIdWithComponent(
+                        id,
+                        GeometryComponent,
+                      );
+                      if (!current || !GeometryComponent.isPolygon(current)) {
+                        return undefined;
+                      }
+                      const currentGeom = GeometryComponent.get(current);
+                      const newX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                      const currentBounds = BoundingBox.fromPoints(
+                        currentGeom.points.map((s) => s.point),
+                      );
+                      const deltaX = newX - currentBounds.position.x;
+                      if (deltaX === 0) {
+                        return undefined;
+                      }
+                      const translated = PolygonData.translate(
+                        current,
+                        (p) => new SheetPosition(p.x + deltaX, p.y),
+                      );
+                      return { points: GeometryComponent.get(translated).points };
+                    }),
+                  ),
+                ),
+                labelled(
+                  'y',
+                  'Y:',
+                  length(
+                    'y',
+                    Length.fromSheetUnits(this.sheetDefaultUnit, bounds.position.y),
+                    { readOnlyUnit: true },
+                    this.makeLengthHandlers(id, 'y', GeometryComponent, (value) => {
+                      const current = this.geometryStore.getByIdWithComponent(
+                        id,
+                        GeometryComponent,
+                      );
+                      if (!current || !GeometryComponent.isPolygon(current)) {
+                        return undefined;
+                      }
+                      const currentGeom = GeometryComponent.get(current);
+                      const newY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                      const currentBounds = BoundingBox.fromPoints(
+                        currentGeom.points.map((s) => s.point),
+                      );
+                      const deltaY = newY - currentBounds.position.y;
+                      if (deltaY === 0) {
+                        return undefined;
+                      }
+                      const translated = PolygonData.translate(
+                        current,
+                        (p) => new SheetPosition(p.x, p.y + deltaY),
+                      );
+                      return { points: GeometryComponent.get(translated).points };
+                    }),
+                  ),
+                ),
+              ]),
+              row('dimensions', [
+                labelled(
+                  'width',
+                  'W:',
+                  length(
+                    'width',
+                    Length.fromSheetUnits(this.sheetDefaultUnit, bounds.width),
+                    { readOnlyUnit: true },
+                    this.makeLengthHandlers(id, 'width', GeometryComponent, (value) => {
+                      const current = this.geometryStore.getByIdWithComponent(
+                        id,
+                        GeometryComponent,
+                      );
+                      if (!current || !GeometryComponent.isPolygon(current)) {
+                        return undefined;
+                      }
+                      const currentGeom = GeometryComponent.get(current);
+                      const w = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                      const currentBounds = BoundingBox.fromPoints(
+                        currentGeom.points.map((s) => s.point),
+                      );
+                      if (w === currentBounds.width) {
+                        return undefined;
+                      }
+                      const newBounds = {
+                        position: currentBounds.position,
+                        width: w,
+                        height: currentBounds.height,
+                      };
+                      return {
+                        points: BoundingBox.interpolatePoints(
+                          currentGeom.points,
+                          currentBounds,
+                          newBounds,
+                        ),
+                      };
+                    }),
+                  ),
+                ),
+                labelled(
+                  'height',
+                  'H:',
+                  length(
+                    'height',
+                    Length.fromSheetUnits(this.sheetDefaultUnit, bounds.height),
+                    { readOnlyUnit: true },
+                    this.makeLengthHandlers(id, 'height', GeometryComponent, (value) => {
+                      const current = this.geometryStore.getByIdWithComponent(
+                        id,
+                        GeometryComponent,
+                      );
+                      if (!current || !GeometryComponent.isPolygon(current)) {
+                        return undefined;
+                      }
+                      const currentGeom = GeometryComponent.get(current);
+                      const h = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                      const currentBounds = BoundingBox.fromPoints(
+                        currentGeom.points.map((s) => s.point),
+                      );
+                      if (h === currentBounds.height) {
+                        return undefined;
+                      }
+                      const newBounds = {
+                        position: currentBounds.position,
+                        width: currentBounds.width,
+                        height: h,
+                      };
+                      return {
+                        points: BoundingBox.interpolatePoints(
+                          currentGeom.points,
+                          currentBounds,
+                          newBounds,
+                        ),
+                      };
+                    }),
+                  ),
+                ),
+              ]),
+            ];
+          }
           default:
             geometryData satisfies never;
             return [];
