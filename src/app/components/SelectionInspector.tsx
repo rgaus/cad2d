@@ -2168,6 +2168,13 @@ const FieldLeafRenderer: React.FunctionComponent<{
           {typeof field.label === 'string' ? field.label : field.label.icon}
         </button>
       );
+    case 'polygon-points':
+      return (
+        <span>TODO</span>
+      );
+    default:
+      field satisfies never;
+      return null;
   }
 };
 

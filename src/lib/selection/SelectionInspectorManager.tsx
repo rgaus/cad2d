@@ -15,7 +15,7 @@ import { GeometryStore } from '../entity/GeometryStore';
 import { FilterComponent } from '../entity/components/FilterComponent';
 import { FilterData } from '../entity/filters';
 import { GeometryData } from '../entity/geometry';
-import { PolygonData } from '../entity/geometry/polygon';
+import { PolygonData, PolygonSegment } from '../entity/geometry/polygon';
 import { HistoryManager } from '../history/HistoryManager';
 import { UndoEntry } from '../history/types';
 import { BoundingBox } from '../math';
@@ -73,6 +73,10 @@ type FieldHandlers<Value> = {
   onKeyDown?: (key: string) => void;
 };
 
+type PolygonPointsHandlers = FieldHandlers<
+  | { type: 'point-row', index: number }
+>;
+
 export type SelectionInspectorField =
   | { type: 'read-only'; key: string; value: string; handlers: FieldHandlers<string> }
   | { type: 'number'; key: string; value: string; handlers: FieldHandlers<string> }
@@ -97,6 +101,12 @@ export type SelectionInspectorField =
       label: string | SelectionInspectorIcon;
       key: string;
       handlers: FieldHandlers<void>;
+    }
+  | {
+      type: 'polygon-points';
+      key: string;
+      value: PolygonData;
+      handlers: PolygonPointsHandlers;
     };
 
 export type SelectionInspectorFieldOptions =
@@ -133,6 +143,12 @@ export type SelectionInspectorFieldOptions =
       label: string | SelectionInspectorIcon;
       key: string;
       handlers: Array<FieldHandlers<void>>;
+    }
+  | {
+      type: 'polygon-points';
+      key: string;
+      value: Array<PolygonData>;
+      handlers: Array<PolygonPointsHandlers>;
     };
 
 function readOnly(
@@ -204,6 +220,14 @@ function button(
   handlers?: FieldHandlers<void>,
 ): SelectionInspectorFieldOptions {
   return { type: 'button', key, label, handlers: [handlers ?? {}] };
+}
+
+function polygonPoints(
+  key: string,
+  value: PolygonData,
+  handlers?: PolygonPointsHandlers,
+): SelectionInspectorFieldOptions {
+  return { type: 'polygon-points', key, value: [value], handlers: [handlers ?? {}] };
 }
 
 export type SelectionInspectorLabelledField = Label<SelectionInspectorFieldOptions>;
@@ -459,7 +483,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           }
 
           // Rows should be pushed twice
-          if (field.type === 'row') {
+          if (field.type === 'row' || field.type === 'polygon-points') {
             existingForKey.push(field);
             fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
             fields.set(field.key, existingForKey);
@@ -776,6 +800,16 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           label: fieldOptionsFirst.label,
           handlers: combineHandlers(handlers as Array<FieldHandlers<void>>),
         };
+      case 'polygon-points':
+        return {
+          type: 'polygon-points',
+          key: fieldOptionsFirst.key,
+          value: (newValue as any) ?? fieldOptionsFirst.value[0],
+          handlers: combineHandlers(handlers as Array<PolygonPointsHandlers>),
+        };
+      default:
+        fieldOptionsFirst satisfies never;
+        throw new Error(`SelectionInspectorManager.collapseFieldOptions: Unknown field options type=${(fieldOptionsFirst as any).type}`);
     }
   }
 
@@ -802,6 +836,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       return { type: 'heterogeneous', key };
     }
 
+    console.log('>>>', entries[0]);
     // No 'value' key = use first entry
     if (!('value' in entries[0])) {
       if (entries[0].type === 'row') {
@@ -835,6 +870,9 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           });
         case 'color':
           return (acc as typeof e.value).filter((value) => e.value.includes(value));
+        case 'polygon-points':
+          // Polygon points will not merge together with other polygon points
+          return [];
         case 'link-dimensions-button':
         case 'button':
         case 'row':
@@ -846,7 +884,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       }
     }, entries[0].value);
 
-    // console.log('COMBINED', combined);
+    console.log('COMBINED', combined);
     if (combined.length === 1) {
       return this.collapseFieldOptions(entries, combined[0]) as Field<OptionsToSingle<F>>; // homogeneous
     } else {
@@ -1292,6 +1330,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   ),
                 ),
               ]),
+              polygonPoints('points', geometryData, {
+                onChange: (a) => {
+                  console.log('POLYGON POINTS', a);
+                },
+              }),
             ];
           }
           default:
