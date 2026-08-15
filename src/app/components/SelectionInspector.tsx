@@ -1,23 +1,8 @@
 'use client';
 
 import debounce from 'lodash.debounce';
-import {
-  Link2Icon,
-  Link2OffIcon,
-  ListChevronsUpDownIcon,
-  PlusIcon,
-  Trash2Icon,
-} from 'lucide-react';
-import {
-  Fragment,
-  createRef,
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { Link2Icon, Link2OffIcon, ListChevronsUpDownIcon } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import RenderOrderInput from '@/components/RenderOrderInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +15,6 @@ import {
   GeometryComponent,
   type Id,
   LinkDimensionsComponent,
-  type PolygonSegment,
   RenderOrderComponent,
 } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
@@ -86,6 +70,10 @@ import {
 import FloatingPanel from './FloatingPanel';
 import LabeledRow from './LabeledRow';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
+import PolygonPointsInspector, {
+  POINT_ROW_HEIGHT_PX_BY_TYPE,
+  type PointRowRefs,
+} from './PolygonPointsInspector';
 import ShapePreview, { ShapePreviewEditingDimension, ShapePreviewHighlight } from './ShapePreview';
 
 type SelectionInspectorProps = {
@@ -696,257 +684,6 @@ const EllipseInspector: React.FunctionComponent<{
   );
 };
 
-const SplitPointIndicator: React.FunctionComponent<{
-  dragging: boolean;
-  onMouseDown?: () => void;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
-}> = ({ dragging, onMouseDown, onMouseEnter, onMouseLeave }) => {
-  const [hover, setHover] = useState(false);
-  return (
-    <div className="w-full h-0 shrink-1 relative overflow-visible">
-      <div
-        className={cn(
-          'w-4 h-4 bg-[var(--slate-8)] border border-2 border-[var(--slate-6)] absolute -top-[10px] left-1 rounded-full z-30 cursor-grab',
-          {
-            'bg-[var(--teal-10)] border-[var(--teal-11)]': hover || dragging,
-          },
-        )}
-        onMouseDown={onMouseDown}
-        onMouseEnter={() => {
-          setHover(true);
-          onMouseEnter?.();
-        }}
-        onMouseLeave={() => {
-          setHover(false);
-          onMouseLeave?.();
-        }}
-      />
-      <div
-        className={cn('h-[2px] bg-[var(--slate-6)] absolute -my-0.75', {
-          'bg-[var(--teal-11)]': hover || dragging,
-        })}
-        style={{ marginLeft: 12, width: 'calc(100% - 24px)' }}
-      />
-    </div>
-  );
-};
-
-/** The height of each PointRow depending on polygon type. Used for computing
- * {@link SplitPointIndicator} position. */
-const POINT_ROW_HEIGHT_PX_BY_TYPE: { [key in PolygonSegment['type']]: number } = {
-  'arc-cubic': 114,
-  'arc-quadratic': 78,
-  point: 42,
-};
-
-type PointRowRefs = {
-  x: React.RefObject<LengthInputHandle | null>;
-  y: React.RefObject<LengthInputHandle | null>;
-};
-
-type PointRowProps = {
-  segment: PolygonSegment;
-  index: number;
-  sheetUnitPlaces: Sheet['unitPlaces'];
-  sheetDefaultUnit: UnitType;
-  onXChange: (index: number, len: Length) => void;
-  onYChange: (index: number, len: Length) => void;
-  onControlPointChange: (
-    index: number,
-    pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB',
-    axis: 'x' | 'y',
-    len: Length,
-  ) => void;
-  onDelete: (index: number) => void;
-  onInsert: (index: number) => void;
-  isHovered?: boolean;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
-  refs?: PointRowRefs;
-};
-
-const PointRow = memo<PointRowProps>(
-  ({
-    segment,
-    index,
-    sheetUnitPlaces,
-    sheetDefaultUnit,
-    onXChange,
-    onYChange,
-    onControlPointChange,
-    onDelete,
-    onInsert,
-    isHovered = false,
-    onMouseEnter,
-    onMouseLeave,
-    refs,
-  }) => {
-    const isPoint = segment.type === 'point';
-    const isQuadratic = segment.type === 'arc-quadratic';
-
-    const iconColor = isPoint ? '#888' : isQuadratic ? '#3498db' : '#e74c3c';
-    const iconLabel = isPoint ? 'P' : isQuadratic ? 'Q' : 'C';
-
-    return (
-      <div
-        className="flex items-center gap-1 grow-0 shrink-0 mx-3 px-2 py-1 mb-1 bg-[var(--slate-2)] rounded-[4px] border border-[var(--slate-4)]"
-        style={{
-          backgroundColor: isHovered ? 'var(--slate-1)' : 'var(--slate-2)',
-          height: POINT_ROW_HEIGHT_PX_BY_TYPE[segment.type],
-        }}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-      >
-        <span
-          className="w-4 h-4 flex items-center justify-center text-[10px] font-bold rounded-[4px] select-none"
-          style={{ color: iconColor, fontFamily: 'var(--font-roboto-mono), monospace' }}
-        >
-          {iconLabel}
-        </span>
-        <div className="flex-1 px-1">
-          {segment.type === 'point' ? (
-            <div className="flex gap-4">
-              <div className="w-24">
-                <LengthInput
-                  ref={refs?.x}
-                  value={Length.fromSheetUnits(sheetDefaultUnit, segment.point.x)}
-                  onChange={(len) => onXChange(index, len)}
-                  roundPlaces={sheetUnitPlaces}
-                  readOnlyUnit
-                />
-              </div>
-              <div className="w-24">
-                <LengthInput
-                  ref={refs?.y}
-                  value={Length.fromSheetUnits(sheetDefaultUnit, segment.point.y)}
-                  onChange={(len) => onYChange(index, len)}
-                  roundPlaces={sheetUnitPlaces}
-                  readOnlyUnit
-                />
-              </div>
-            </div>
-          ) : null}
-          {segment.type === 'arc-cubic' || segment.type === 'arc-quadratic' ? (
-            <div className="flex flex-col gap-1">
-              <div className="flex gap-1">
-                <div className="w-24">
-                  <LengthInput
-                    ref={refs?.x}
-                    value={Length.fromSheetUnits(sheetDefaultUnit, segment.point.x)}
-                    onChange={(len) => onXChange(index, len)}
-                    roundPlaces={sheetUnitPlaces}
-                    readOnlyUnit
-                  />
-                </div>
-                <div className="w-24">
-                  <LengthInput
-                    ref={refs?.y}
-                    value={Length.fromSheetUnits(sheetDefaultUnit, segment.point.y)}
-                    onChange={(len) => onYChange(index, len)}
-                    roundPlaces={sheetUnitPlaces}
-                    readOnlyUnit
-                  />
-                </div>
-              </div>
-              {segment.type === 'arc-quadratic' ? (
-                <div className="flex gap-1">
-                  <div className="w-24">
-                    <LengthInput
-                      value={Length.fromSheetUnits(sheetDefaultUnit, segment.controlPoint.x)}
-                      onChange={(len) => {
-                        onControlPointChange(index, 'controlPoint', 'x', len);
-                      }}
-                      roundPlaces={sheetUnitPlaces}
-                      readOnlyUnit
-                    />
-                  </div>
-                  <div className="w-24">
-                    <LengthInput
-                      value={Length.fromSheetUnits(sheetDefaultUnit, segment.controlPoint.y)}
-                      onChange={(len) => {
-                        onControlPointChange(index, 'controlPoint', 'y', len);
-                      }}
-                      roundPlaces={sheetUnitPlaces}
-                      readOnlyUnit
-                    />
-                  </div>
-                </div>
-              ) : null}
-              {segment.type === 'arc-cubic' ? (
-                <>
-                  <div className="flex gap-1">
-                    <div className="w-24">
-                      <LengthInput
-                        value={Length.fromSheetUnits(sheetDefaultUnit, segment.controlPointA.x)}
-                        onChange={(len) => {
-                          onControlPointChange(index, 'controlPointA', 'x', len);
-                        }}
-                        roundPlaces={sheetUnitPlaces}
-                        readOnlyUnit
-                      />
-                    </div>
-                    <div className="w-24">
-                      <LengthInput
-                        value={Length.fromSheetUnits(sheetDefaultUnit, segment.controlPointA.y)}
-                        onChange={(len) => {
-                          onControlPointChange(index, 'controlPointA', 'y', len);
-                        }}
-                        roundPlaces={sheetUnitPlaces}
-                        readOnlyUnit
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <div className="w-24">
-                      <LengthInput
-                        value={Length.fromSheetUnits(sheetDefaultUnit, segment.controlPointB.x)}
-                        onChange={(len) => {
-                          onControlPointChange(index, 'controlPointB', 'x', len);
-                        }}
-                        roundPlaces={sheetUnitPlaces}
-                        readOnlyUnit
-                      />
-                    </div>
-                    <div className="w-24">
-                      <LengthInput
-                        value={Length.fromSheetUnits(sheetDefaultUnit, segment.controlPointB.y)}
-                        onChange={(len) => {
-                          onControlPointChange(index, 'controlPointB', 'y', len);
-                        }}
-                        roundPlaces={sheetUnitPlaces}
-                        readOnlyUnit
-                      />
-                    </div>
-                  </div>
-                </>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          onClick={() => onInsert(index)}
-          className="w-5 h-5 flex items-center justify-center text-[var(--slate-8)] hover:text-[var(--slate-12)] transition-colors"
-          title="Insert point"
-        >
-          <PlusIcon size={12} />
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(index)}
-          className="w-5 h-5 flex items-center justify-center text-[var(--slate-8)] hover:text-red-400 transition-colors"
-          title="Delete point"
-        >
-          <Trash2Icon size={12} />
-        </button>
-      </div>
-    );
-  },
-);
-
-PointRow.displayName = 'PointRow';
-
 /** Color which should be used in the shape preview to indicate the polygon open segment. */
 const POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR = 'var(--teal-10)';
 
@@ -1407,7 +1144,6 @@ const PolygonInspector: React.FunctionComponent<{
   }
 
   const polygonData = GeometryComponent.get(polygon);
-  const displayedPoints = polygonData.closed ? polygonData.points.slice(0, -1) : polygonData.points;
 
   return (
     <div className={cn('flex flex-col gap-3', { 'select-none': openAtIndexDragging })}>
@@ -1475,75 +1211,40 @@ const PolygonInspector: React.FunctionComponent<{
         ) : null}
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span
-            className="text-[var(--slate-12)] text-sm font-medium"
-            style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
-          >
-            Points:
-          </span>
-          <span className="text-xs text-[var(--slate-8)] font-mono">
-            {polygonData.points.length}
-          </span>
-        </div>
-        <div className="flex flex-col max-h-40 -mx-3 overflow-y-auto">
-          {displayedPoints.map((segment, index) => {
-            let refs = pointInputRefs.current.get(index);
-            if (!refs) {
-              refs = { x: createRef<LengthInputHandle>(), y: createRef<LengthInputHandle>() };
-              pointInputRefs.current.set(index, refs);
-            }
-            const pointRefs = refs;
-            return (
-              <Fragment key={index}>
-                <PointRow
-                  segment={segment}
-                  index={index}
-                  sheetUnitPlaces={sheetUnitPlaces}
-                  sheetDefaultUnit={sheetDefaultUnit}
-                  onXChange={handlePointXChange}
-                  onYChange={handlePointYChange}
-                  onControlPointChange={handleControlPointChange}
-                  onDelete={handleDeletePoint}
-                  onInsert={handleInsertPoint}
-                  isHovered={
-                    shapePreviewHighlight?.type === 'point' && shapePreviewHighlight.index === index
-                  }
-                  onMouseEnter={() => {
-                    if (openAtIndexDragging) {
-                      return;
-                    }
-                    setShapePreviewHighlight({ type: 'point', index });
-                  }}
-                  onMouseLeave={() => {
-                    if (openAtIndexDragging) {
-                      return;
-                    }
-                    setShapePreviewHighlight(null);
-                  }}
-                  refs={pointRefs}
-                />
-
-                {polygonData.closed && polygonData.openAtIndex === index ? (
-                  <SplitPointIndicator
-                    dragging={openAtIndexDragging}
-                    onMouseEnter={() =>
-                      setShapePreviewHighlight({
-                        type: 'segment',
-                        index: polygonData.openAtIndex,
-                        color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
-                      })
-                    }
-                    onMouseLeave={() => setShapePreviewHighlight(null)}
-                    onMouseDown={handleOpenAtIndexDragStart}
-                  />
-                ) : null}
-              </Fragment>
-            );
-          })}
-        </div>
-      </div>
+      <PolygonPointsInspector
+        data={polygonData}
+        sheetUnitPlaces={sheetUnitPlaces}
+        sheetDefaultUnit={sheetDefaultUnit}
+        pointInputRefs={pointInputRefs.current}
+        highlight={shapePreviewHighlight}
+        openAtIndexDragging={openAtIndexDragging}
+        onPointXChange={handlePointXChange}
+        onPointYChange={handlePointYChange}
+        onControlPointChange={handleControlPointChange}
+        onDeletePoint={handleDeletePoint}
+        onInsertPoint={handleInsertPoint}
+        onPointMouseEnter={(index) => {
+          if (openAtIndexDragging) {
+            return;
+          }
+          setShapePreviewHighlight({ type: 'point', index });
+        }}
+        onPointMouseLeave={() => {
+          if (openAtIndexDragging) {
+            return;
+          }
+          setShapePreviewHighlight(null);
+        }}
+        onOpenAtIndexMouseEnter={() =>
+          setShapePreviewHighlight({
+            type: 'segment',
+            index: polygonData.openAtIndex,
+            color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+          })
+        }
+        onOpenAtIndexMouseLeave={() => setShapePreviewHighlight(null)}
+        onOpenAtIndexMouseDown={handleOpenAtIndexDragStart}
+      />
       {isPolygonFilledDueToFilter ? (
         <div className="flex items-center justify-center px-3 h-9 bg-[var(--slate-4)] border-[var(--slate-6)] border-1">
           <span className="text-xs font-medium select-none text-[var(--slate-9)]">
@@ -2062,7 +1763,9 @@ const FrameInspector: React.FunctionComponent<{
 const FieldLeafRenderer: React.FunctionComponent<{
   geometryStore: GeometryStore;
   field: SelectionInspectorField;
-}> = ({ geometryStore, field }) => {
+  sheetDefaultUnit: Sheet['defaultUnit'];
+  sheetUnitPlaces: Sheet['unitPlaces'];
+}> = ({ geometryStore, field, sheetDefaultUnit, sheetUnitPlaces }) => {
   switch (field.type) {
     case 'number':
       return (
@@ -2170,7 +1873,43 @@ const FieldLeafRenderer: React.FunctionComponent<{
       );
     case 'polygon-points':
       return (
-        <span>TODO</span>
+        <>
+          <PolygonPointsInspector
+            data={field.value}
+            sheetUnitPlaces={sheetUnitPlaces}
+            sheetDefaultUnit={sheetDefaultUnit}
+            onPointXChange={field.handlers.onPointXChange}
+            onPointYChange={field.handlers.onPointYChange}
+            onControlPointChange={field.handlers.onControlPointChange}
+            onDeletePoint={field.handlers.onDeletePoint}
+            onInsertPoint={field.handlers.onInsertPoint}
+            onPointMouseEnter={field.handlers.onPointMouseEnter}
+            onPointMouseLeave={field.handlers.onPointMouseLeave}
+            onOpenAtIndexMouseEnter={field.handlers.onOpenAtIndexMouseEnter}
+            onOpenAtIndexMouseLeave={field.handlers.onOpenAtIndexMouseLeave}
+            onOpenAtIndexMouseDown={field.handlers.onOpenAtIndexMouseDown}
+          />
+          {field.isPolygonFilledDueToFilter ? (
+            <div className="flex items-center justify-center px-3 h-9 bg-[var(--slate-4)] border-[var(--slate-6)] border-1">
+              <span className="text-xs font-medium select-none text-[var(--slate-9)]">
+                Auto closed by filter
+              </span>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={field.isPolygonFilledDueToFilter}
+              onClick={field.handlers.onCloseOpen}
+              className={cn('w-full border border-2 border-transparent', {
+                'hover:border-[var(--teal-5)]': field.value.closed,
+              })}
+              style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+            >
+              {field.value.closed ? 'Open polygon' : 'Close polygon'}
+            </Button>
+          )}
+        </>
       );
     default:
       field satisfies never;
@@ -2182,14 +1921,24 @@ const FieldLabelRenderer: React.FunctionComponent<{
   label: string;
   fields: FieldLabel['fields'];
   geometryStore: GeometryStore;
-}> = ({ label, fields, geometryStore }) => {
+  sheetDefaultUnit: Sheet['defaultUnit'];
+  sheetUnitPlaces: Sheet['unitPlaces'];
+}> = ({ label, fields, geometryStore, sheetDefaultUnit, sheetUnitPlaces }) => {
   return (
     <LabeledRow label={label}>
       {fields.map((field) => {
         if (field.type === 'heterogeneous') {
           return <Input key={field.key} type="text" placeholder="Many values" disabled />;
         } else {
-          return <FieldLeafRenderer key={field.key} field={field} geometryStore={geometryStore} />;
+          return (
+            <FieldLeafRenderer
+              key={field.key}
+              field={field}
+              geometryStore={geometryStore}
+              sheetDefaultUnit={sheetDefaultUnit}
+              sheetUnitPlaces={sheetUnitPlaces}
+            />
+          );
         }
       })}
     </LabeledRow>
@@ -2199,7 +1948,9 @@ const FieldLabelRenderer: React.FunctionComponent<{
 const FieldRowRenderer: React.FunctionComponent<{
   fields: FieldRow['fields'];
   geometryStore: GeometryStore;
-}> = ({ fields, geometryStore }) => {
+  sheetDefaultUnit: Sheet['defaultUnit'];
+  sheetUnitPlaces: Sheet['unitPlaces'];
+}> = ({ fields, geometryStore, sheetDefaultUnit, sheetUnitPlaces }) => {
   return (
     <div className="flex gap-2 items-center">
       {fields.map((field) => {
@@ -2210,12 +1961,22 @@ const FieldRowRenderer: React.FunctionComponent<{
               label={field.label}
               fields={field.fields}
               geometryStore={geometryStore}
+              sheetDefaultUnit={sheetDefaultUnit}
+              sheetUnitPlaces={sheetUnitPlaces}
             />
           );
         } else if (field.type === 'heterogeneous') {
           return <Input key={field.key} type="text" placeholder="Many values" disabled />;
         } else {
-          return <FieldLeafRenderer key={field.key} field={field} geometryStore={geometryStore} />;
+          return (
+            <FieldLeafRenderer
+              key={field.key}
+              field={field}
+              geometryStore={geometryStore}
+              sheetDefaultUnit={sheetDefaultUnit}
+              sheetUnitPlaces={sheetUnitPlaces}
+            />
+          );
         }
       })}
     </div>
@@ -2269,12 +2030,14 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
 
   const selectedGeometries = useGeometriesById(geometryStore, selectedIds);
 
-  const sheetDefaultUnit = sheet.defaultUnit;
+  const [sheetDefaultUnit, setSheetDefaultUnit] = useState(sheet.defaultUnit);
   const [sheetUnitPlaces, setSheetUnitPlaces] = useState(sheet.unitPlaces);
   useEffect(() => {
+    sheet.on('defaultUnitChange', setSheetDefaultUnit);
     sheet.on('unitPlacesChanged', setSheetUnitPlaces);
     return () => {
       sheet.off('unitPlacesChanged', setSheetUnitPlaces);
+      sheet.off('defaultUnitChange', setSheetDefaultUnit);
     };
   }, [sheet]);
 
@@ -2495,7 +2258,7 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
   return (
     <div className="absolute right-4 bottom-4 z-30 w-[320px]">
       <FloatingPanel>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 overflow-y-auto max-h-[calc(100vh-64px)]">
           {/* <AngleInput value={Angle.degrees(0)} onChange={(ang) => console.log(ang)} /> */}
 
           <br />
@@ -2507,6 +2270,8 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
                   key={field.key}
                   fields={field.fields}
                   geometryStore={geometryStore}
+                  sheetDefaultUnit={sheetDefaultUnit}
+                  sheetUnitPlaces={sheetUnitPlaces}
                 />
               );
             } else if (field.type === 'label') {
@@ -2516,13 +2281,21 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
                   label={field.label}
                   fields={field.fields}
                   geometryStore={geometryStore}
+                  sheetDefaultUnit={sheetDefaultUnit}
+                  sheetUnitPlaces={sheetUnitPlaces}
                 />
               );
             } else if (field.type === 'heterogeneous') {
               return <Input key={field.key} type="text" placeholder="Many values" disabled />;
             } else {
               return (
-                <FieldLeafRenderer key={field.key} field={field} geometryStore={geometryStore} />
+                <FieldLeafRenderer
+                  key={field.key}
+                  field={field}
+                  geometryStore={geometryStore}
+                  sheetDefaultUnit={sheetDefaultUnit}
+                  sheetUnitPlaces={sheetUnitPlaces}
+                />
               );
             }
           })}

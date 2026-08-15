@@ -26,7 +26,7 @@ import { Length } from '../units/length';
 import { SheetPosition } from '../viewport/types';
 
 /** The order of components in the {@link SelectionInspectorManager}. If a component isn't in this
-  * list, it will be rendered at the bottom. */
+ * list, it will be rendered at the bottom. */
 function getComponentKeyOrdering(key: string): number {
   return [
     GeometryComponent.key,
@@ -73,9 +73,24 @@ type FieldHandlers<Value> = {
   onKeyDown?: (key: string) => void;
 };
 
-type PolygonPointsHandlers = FieldHandlers<
-  | { type: 'point-row', index: number }
->;
+type PolygonPointsHandlers = {
+  onPointXChange?: (index: number, len: Length) => void;
+  onPointYChange?: (index: number, len: Length) => void;
+  onControlPointChange?: (
+    index: number,
+    pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB',
+    axis: 'x' | 'y',
+    len: Length,
+  ) => void;
+  onDeletePoint?: (index: number) => void;
+  onInsertPoint?: (index: number) => void;
+  onPointMouseEnter?: (index: number) => void;
+  onPointMouseLeave?: (index: number) => void;
+  onOpenAtIndexMouseEnter?: () => void;
+  onOpenAtIndexMouseLeave?: () => void;
+  onOpenAtIndexMouseDown?: () => void;
+  onCloseOpen?: () => void;
+};
 
 export type SelectionInspectorField =
   | { type: 'read-only'; key: string; value: string; handlers: FieldHandlers<string> }
@@ -106,6 +121,7 @@ export type SelectionInspectorField =
       type: 'polygon-points';
       key: string;
       value: PolygonData;
+      isPolygonFilledDueToFilter: boolean;
       handlers: PolygonPointsHandlers;
     };
 
@@ -148,6 +164,7 @@ export type SelectionInspectorFieldOptions =
       type: 'polygon-points';
       key: string;
       value: Array<PolygonData>;
+      isPolygonFilledDueToFilter: boolean;
       handlers: Array<PolygonPointsHandlers>;
     };
 
@@ -225,9 +242,16 @@ function button(
 function polygonPoints(
   key: string,
   value: PolygonData,
+  isPolygonFilledDueToFilter: boolean,
   handlers?: PolygonPointsHandlers,
 ): SelectionInspectorFieldOptions {
-  return { type: 'polygon-points', key, value: [value], handlers: [handlers ?? {}] };
+  return {
+    type: 'polygon-points',
+    key,
+    value: [value],
+    isPolygonFilledDueToFilter,
+    handlers: [handlers ?? {}],
+  };
 }
 
 export type SelectionInspectorLabelledField = Label<SelectionInspectorFieldOptions>;
@@ -805,11 +829,16 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           type: 'polygon-points',
           key: fieldOptionsFirst.key,
           value: (newValue as any) ?? fieldOptionsFirst.value[0],
-          handlers: combineHandlers(handlers as Array<PolygonPointsHandlers>),
+          isPolygonFilledDueToFilter: fieldOptionsFirst.isPolygonFilledDueToFilter,
+          // NOTE: Do NOT try to combine polygon points handlers
+          // Rendering multiple polygons will fall back to type=heterogeneous
+          handlers: handlers[0] as PolygonPointsHandlers,
         };
       default:
         fieldOptionsFirst satisfies never;
-        throw new Error(`SelectionInspectorManager.collapseFieldOptions: Unknown field options type=${(fieldOptionsFirst as any).type}`);
+        throw new Error(
+          `SelectionInspectorManager.collapseFieldOptions: Unknown field options type=${(fieldOptionsFirst as any).type}`,
+        );
     }
   }
 
@@ -1185,6 +1214,8 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           case 'polygon': {
             const id = entity.id;
             const bounds = BoundingBox.fromPoints(geometryData.points.map((s) => s.point));
+            const isPolygonFilledDueToFilter =
+              !geometryData.closed && typeof FillColorComponent.getOptional(entity) !== 'undefined';
             return [
               row('position', [
                 labelled(
@@ -1330,9 +1361,95 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   ),
                 ),
               ]),
-              polygonPoints('points', geometryData, {
-                onChange: (a) => {
-                  console.log('POLYGON POINTS', a);
+              polygonPoints('points', geometryData, isPolygonFilledDueToFilter, {
+                onPointXChange: (index, len) => {
+                  const newX = len.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                  this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (prev) => {
+                    if (!GeometryComponent.isPolygon(prev)) {
+                      return prev;
+                    }
+                    const prevData = GeometryComponent.get(prev);
+                    const segments = prevData.points.map((s, i) => {
+                      // First point of closed polygons updates the first and last points
+                      if (
+                        prevData.closed &&
+                        index === 0 &&
+                        (i === 0 || i === prevData.points.length - 1)
+                      ) {
+                        return { ...s, point: new SheetPosition(newX, s.point.y) };
+                      }
+                      if (i === index) {
+                        return { ...s, point: new SheetPosition(newX, s.point.y) };
+                      }
+                      return s;
+                    });
+                    return GeometryComponent.update(prev, { points: segments });
+                  });
+                },
+                onPointYChange: (index, len) => {
+                  const newY = len.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                  this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (prev) => {
+                    if (!GeometryComponent.isPolygon(prev)) {
+                      return prev;
+                    }
+                    const prevData = GeometryComponent.get(prev);
+                    const segments = prevData.points.map((s, i) => {
+                      if (i !== index) {
+                        return s;
+                      }
+                      return { ...s, point: new SheetPosition(s.point.x, newY) };
+                    });
+                    return GeometryComponent.update(prev, { points: segments });
+                  });
+                },
+                onControlPointChange: (index, pointKey, axis, len) => {
+                  const current = this.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                  if (!current || !GeometryComponent.isPolygon(current)) {
+                    return;
+                  }
+                  const polygonData = GeometryComponent.get(current);
+                  const beforePoint = (polygonData.points[index] as any)[pointKey];
+                  const sheetVal = len.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                  const afterPoint =
+                    axis === 'x'
+                      ? new SheetPosition(sheetVal, beforePoint.y)
+                      : new SheetPosition(beforePoint.x, sheetVal);
+                  this.historyManager.apply(
+                    UndoEntry.polygonMoveControlPoint(id, index, pointKey, beforePoint, afterPoint),
+                  );
+                },
+                onDeletePoint: (index) => {
+                  this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) => {
+                    if (!GeometryComponent.isPolygon(old)) {
+                      return old;
+                    }
+                    const oldData = GeometryComponent.get(old);
+                    return GeometryComponent.update(old, {
+                      points: oldData.points.filter((_, i) => i !== index),
+                    });
+                  });
+                },
+                onInsertPoint: (index) => {
+                  const current = this.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                  if (!current || !GeometryComponent.isPolygon(current)) {
+                    return;
+                  }
+                  const polygonData = GeometryComponent.get(current);
+                  const seg = polygonData.points[index];
+                  const nextSeg = polygonData.points[index + 1];
+                  if (!seg || !nextSeg) {
+                    return;
+                  }
+                  const midX = (seg.point.x + nextSeg.point.x) / 2;
+                  const midY = (seg.point.y + nextSeg.point.y) / 2;
+                  this.geometryStore.addPointOnLineSegmentEdge(
+                    id,
+                    index,
+                    new SheetPosition(midX, midY),
+                  );
+                },
+                onCloseOpen: () => {
+                  this.actionsManager?.execute('open-close-polygon');
                 },
               }),
             ];
