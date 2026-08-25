@@ -12,12 +12,13 @@ const SelectValue = SelectPrimitive.Value;
 
 type SelectTriggerProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> & {
   fieldSize?: 'sm' | 'md';
+  caretVisible?: boolean;
 };
 
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   SelectTriggerProps
->(({ className, children, fieldSize = 'md', ...props }, ref) => (
+>(({ className, children, fieldSize = 'md', caretVisible = true, ...props }, ref) => (
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
@@ -34,17 +35,19 @@ const SelectTrigger = React.forwardRef<
     {...props}
   >
     {children}
-    <SelectPrimitive.Icon asChild>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        className="h-4 w-4 opacity-50"
-      >
-        <path d="M6 9l6 6 6-6" />
-      </svg>
-    </SelectPrimitive.Icon>
+    {caretVisible ? (
+      <SelectPrimitive.Icon asChild>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="h-4 w-4 opacity-50"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </SelectPrimitive.Icon>
+    ) : null}
   </SelectPrimitive.Trigger>
 ));
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;

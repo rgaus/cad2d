@@ -2,13 +2,20 @@
 
 import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { Fragment, createRef, memo, useRef, useState } from 'react';
-import type { PolygonSegment } from '@/lib/entity';
+import { type PolygonSegment } from '@/lib/entity';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { Length, type UnitType } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
-import type { ShapePreviewHighlight } from './ShapePreview';
+import { type ShapePreviewHighlight } from './ShapePreview';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const SplitPointIndicator: React.FunctionComponent<{
   dragging: boolean;
@@ -116,12 +123,23 @@ const PointRow = memo<PointRowProps>(
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
-        <span
-          className="w-4 h-4 flex items-center justify-center text-[10px] font-bold rounded-[4px] select-none"
-          style={{ color: iconColor, fontFamily: 'var(--font-roboto-mono), monospace' }}
-        >
-          {iconLabel}
-        </span>
+        <Select value={"point"} onValueChange={console.log}>
+          <SelectTrigger className="w-14 border-[var(--gray-2)] hover:border-[var(--gray-4)] p-0 w-8 flex justify-center" caretVisible={false}>
+            <SelectValue asChild>
+              <span
+                className="flex items-center justify-center text-[10px] font-bold rounded-[4px] select-none"
+                style={{ color: iconColor, fontFamily: 'var(--font-roboto-mono), monospace' }}
+              >
+                {iconLabel}
+              </span>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent className="text-sm">
+            <SelectItem value="point">Point</SelectItem>
+            <SelectItem value="quadratic">Quadratic</SelectItem>
+            <SelectItem value="cubic">Cubic</SelectItem>
+          </SelectContent>
+        </Select>
         <div className="flex-1 px-1">
           {segment.type === 'point' ? (
             <div className="flex gap-4">
