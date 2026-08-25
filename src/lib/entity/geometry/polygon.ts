@@ -520,29 +520,37 @@ export namespace PolygonSegment {
    * Converts a polygon segment to the requested type, preserving naturally-mapping control points
    * and defaulting any newly-introduced control points to the segment's `.point` value.
    */
-  export function changeType(
+  export function changePointType(
     segment: PolygonSegment,
+    previousSegment: PolygonSegment,
     type: PolygonSegment['type'],
   ): PolygonSegment {
     switch (type) {
       case 'point':
         return { type: 'point', point: segment.point };
       case 'arc-quadratic':
+        if (isQuadratic(segment)) {
+          return segment;
+        }
         return {
           type: 'arc-quadratic',
           point: segment.point,
-          controlPoint: isQuadratic(segment) ? segment.controlPoint : segment.point,
+          controlPoint: isCubic(segment) ? segment.controlPointA : Vector2.midpoint(segment.point, previousSegment.point),
         };
       case 'arc-cubic':
+        if (isCubic(segment)) {
+          return segment;
+        }
+
+        const center = Vector2.midpoint(segment.point, previousSegment.point);
+        const quarter = Vector2.midpoint(center, segment.point);
+        const threeQuarters = Vector2.midpoint(center, previousSegment.point);
+
         return {
           type: 'arc-cubic',
           point: segment.point,
-          controlPointA: isCubic(segment)
-            ? segment.controlPointA
-            : isQuadratic(segment)
-              ? segment.controlPoint
-              : segment.point,
-          controlPointB: isCubic(segment) ? segment.controlPointB : segment.point,
+          controlPointA: isQuadratic(segment) ? segment.controlPoint : threeQuarters,
+          controlPointB: quarter,
         };
       default:
         throw new Error(`PolygonSegment.changeType: unknown segment type ${type as any}`);

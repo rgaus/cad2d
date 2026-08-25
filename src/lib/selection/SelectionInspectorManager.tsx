@@ -1501,9 +1501,16 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     if (!current || current.type === type) {
                       return old;
                     }
-                    const points = oldData.points.map((seg, i) =>
-                      i === index ? PolygonSegment.changeType(seg, type) : seg,
-                    );
+                    const points = oldData.points.map((seg, i) => {
+                      if (i !== index) {
+                        return seg;
+                      }
+                      const previousSeg = i > 0 ? oldData.points[i - 1] : oldData.points.at(-1);
+                      if (!previousSeg) {
+                        return seg;
+                      }
+                      return PolygonSegment.changePointType(seg, previousSeg, type);
+                    });
                     return GeometryComponent.update(old, { points });
                   });
                 },

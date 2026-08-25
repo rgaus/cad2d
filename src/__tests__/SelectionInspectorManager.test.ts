@@ -786,7 +786,8 @@ describe('SelectionInspectorManager', () => {
       let seg = getSegment(1);
       expect(seg.type).toBe('arc-quadratic');
       if (seg.type === 'arc-quadratic') {
-        expect(seg.controlPoint.x).toBeCloseTo(10);
+        // controlPoint defaults to the midpoint between the point and the previous point
+        expect(seg.controlPoint.x).toBeCloseTo(5);
         expect(seg.controlPoint.y).toBeCloseTo(0);
       }
       expect(historyManager.getUndoStack().length).toBe(undoBefore + 1);
@@ -801,9 +802,11 @@ describe('SelectionInspectorManager', () => {
       seg = getSegment(1);
       expect(seg.type).toBe('arc-cubic');
       if (seg.type === 'arc-cubic') {
-        expect(seg.controlPointA.x).toBeCloseTo(10);
+        // controlPointA maps from the quadratic control point, controlPointB defaults to the
+        // quarter point between the point and the previous point
+        expect(seg.controlPointA.x).toBeCloseTo(5);
         expect(seg.controlPointA.y).toBeCloseTo(0);
-        expect(seg.controlPointB.x).toBeCloseTo(10);
+        expect(seg.controlPointB.x).toBeCloseTo(7.5);
         expect(seg.controlPointB.y).toBeCloseTo(0);
       }
 
