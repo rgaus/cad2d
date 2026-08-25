@@ -384,6 +384,29 @@ export namespace PolygonData {
     return new SheetPosition(Math.min(...xs), Math.min(...ys));
   }
 
+  /**
+   * Detects whether a polygon `points` update is a pure point-type change (segment types changed
+   * but no coordinate-only moves and no insert/delete). Returns the list of changed segment
+   * indexes, or null when the change is not a pure type change (fall back to polygon-move).
+   */
+  export function findTypeChangeIndexes(
+    before: Array<PolygonSegment>,
+    after: Array<PolygonSegment>,
+  ): Array<number> | null {
+    if (before.length !== after.length) {
+      return null;
+    }
+    const indexes: Array<number> = [];
+    for (let i = 0; i < before.length; i += 1) {
+      if (before[i].type !== after[i].type) {
+        indexes.push(i);
+      } else if (!PolygonSegment.equals(before[i], after[i])) {
+        return null;
+      }
+    }
+    return indexes;
+  }
+
   export function equals(a: Entity<GeometryComponent<PolygonData>>, b: Entity<GeometryComponent>) {
     const aData = GeometryComponent.get(a);
     const bData = GeometryComponent.get(b);
@@ -491,6 +514,39 @@ export namespace PolygonSegment {
     c: PointSegment | QuadraticBezierSegment | CubicBezierSegment,
   ): c is CubicBezierSegment {
     return 'controlPointA' in c && !('controlPoint' in c);
+  }
+
+  /**
+   * Converts a polygon segment to the requested type, preserving naturally-mapping control points
+   * and defaulting any newly-introduced control points to the segment's `.point` value.
+   */
+  export function changeType(
+    segment: PolygonSegment,
+    type: PolygonSegment['type'],
+  ): PolygonSegment {
+    switch (type) {
+      case 'point':
+        return { type: 'point', point: segment.point };
+      case 'arc-quadratic':
+        return {
+          type: 'arc-quadratic',
+          point: segment.point,
+          controlPoint: isQuadratic(segment) ? segment.controlPoint : segment.point,
+        };
+      case 'arc-cubic':
+        return {
+          type: 'arc-cubic',
+          point: segment.point,
+          controlPointA: isCubic(segment)
+            ? segment.controlPointA
+            : isQuadratic(segment)
+              ? segment.controlPoint
+              : segment.point,
+          controlPointB: isCubic(segment) ? segment.controlPointB : segment.point,
+        };
+      default:
+        throw new Error(`PolygonSegment.changeType: unknown segment type ${type as any}`);
+    }
   }
 
   export function equals(a: PolygonSegment, b: PolygonSegment): boolean {

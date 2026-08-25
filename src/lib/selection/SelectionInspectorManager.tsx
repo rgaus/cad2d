@@ -86,6 +86,7 @@ type PolygonPointsHandlers = {
   ) => void;
   onDeletePoint?: (index: number) => void;
   onInsertPoint?: (index: number) => void;
+  onPointTypeChange?: (index: number, type: PolygonSegment['type']) => void;
   onPointMouseEnter?: (index: number) => void;
   onPointMouseLeave?: (index: number) => void;
   onOpenAtIndexMouseEnter?: () => void;
@@ -1489,6 +1490,22 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     index,
                     new SheetPosition(midX, midY),
                   );
+                },
+                onPointTypeChange: (index, type) => {
+                  this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) => {
+                    if (!GeometryComponent.isPolygon(old)) {
+                      return old;
+                    }
+                    const oldData = GeometryComponent.get(old);
+                    const current = oldData.points[index];
+                    if (!current || current.type === type) {
+                      return old;
+                    }
+                    const points = oldData.points.map((seg, i) =>
+                      i === index ? PolygonSegment.changeType(seg, type) : seg,
+                    );
+                    return GeometryComponent.update(old, { points });
+                  });
                 },
                 onCloseOpen: () => {
                   this.actionsManager?.execute('open-close-polygon');

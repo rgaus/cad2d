@@ -2,13 +2,6 @@
 
 import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { Fragment, createRef, memo, useRef, useState } from 'react';
-import { type PolygonSegment } from '@/lib/entity';
-import { PolygonData } from '@/lib/entity/geometry/polygon';
-import { Sheet } from '@/lib/sheet/Sheet';
-import { Length, type UnitType } from '@/lib/units/length';
-import { cn } from '@/lib/utils';
-import LengthInput, { type LengthInputHandle } from './LengthInput';
-import { type ShapePreviewHighlight } from './ShapePreview';
 import {
   Select,
   SelectContent,
@@ -16,6 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { type PolygonSegment } from '@/lib/entity';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { Sheet } from '@/lib/sheet/Sheet';
+import { Length, type UnitType } from '@/lib/units/length';
+import { cn } from '@/lib/utils';
+import LengthInput, { type LengthInputHandle } from './LengthInput';
+import { type ShapePreviewHighlight } from './ShapePreview';
 
 const SplitPointIndicator: React.FunctionComponent<{
   dragging: boolean;
@@ -61,6 +61,20 @@ export const POINT_ROW_HEIGHT_PX_BY_TYPE: { [key in PolygonSegment['type']]: num
   point: 42,
 };
 
+/** Maps a segment type to the Select value shown in the PointRow type picker. */
+const SEGMENT_TYPE_TO_SELECT_VALUE: Record<PolygonSegment['type'], string> = {
+  point: 'point',
+  'arc-quadratic': 'quadratic',
+  'arc-cubic': 'cubic',
+};
+
+/** Maps a PointRow type-picker Select value back to a segment type. */
+const SELECT_VALUE_TO_SEGMENT_TYPE: Record<string, PolygonSegment['type']> = {
+  point: 'point',
+  quadratic: 'arc-quadratic',
+  cubic: 'arc-cubic',
+};
+
 export type PointRowRefs = {
   x: React.RefObject<LengthInputHandle | null>;
   y: React.RefObject<LengthInputHandle | null>;
@@ -83,6 +97,7 @@ type PointRowProps = {
   ) => void;
   onDelete: (index: number) => void;
   onInsert: (index: number) => void;
+  onTypeChange?: (index: number, type: PolygonSegment['type']) => void;
   isHovered?: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -102,6 +117,7 @@ const PointRow = memo<PointRowProps>(
     onControlPointChange,
     onDelete,
     onInsert,
+    onTypeChange,
     isHovered = false,
     onMouseEnter,
     onMouseLeave,
@@ -123,8 +139,14 @@ const PointRow = memo<PointRowProps>(
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
-        <Select value={"point"} onValueChange={console.log}>
-          <SelectTrigger className="w-14 border-[var(--gray-2)] hover:border-[var(--gray-4)] p-0 w-8 flex justify-center" caretVisible={false}>
+        <Select
+          value={SEGMENT_TYPE_TO_SELECT_VALUE[segment.type]}
+          onValueChange={(value) => onTypeChange?.(index, SELECT_VALUE_TO_SEGMENT_TYPE[value])}
+        >
+          <SelectTrigger
+            className="w-14 border-[var(--gray-2)] hover:border-[var(--gray-4)] p-0 w-8 flex justify-center"
+            caretVisible={false}
+          >
             <SelectValue asChild>
               <span
                 className="flex items-center justify-center text-[10px] font-bold rounded-[4px] select-none"
@@ -306,6 +328,7 @@ type PolygonPointsInspectorProps = {
   ) => void;
   onDeletePoint?: (index: number) => void;
   onInsertPoint?: (index: number) => void;
+  onPointTypeChange?: (index: number, type: PolygonSegment['type']) => void;
   onPointMouseEnter?: (index: number) => void;
   onPointMouseLeave?: (index: number) => void;
   onOpenAtIndexMouseEnter?: () => void;
@@ -327,6 +350,7 @@ export default function PolygonPointsInspector({
   onControlPointChange,
   onDeletePoint,
   onInsertPoint,
+  onPointTypeChange,
   onPointMouseEnter,
   onPointMouseLeave,
   onOpenAtIndexMouseEnter,
@@ -370,6 +394,7 @@ export default function PolygonPointsInspector({
                 onControlPointChange={onControlPointChange ?? (() => {})}
                 onDelete={onDeletePoint ?? (() => {})}
                 onInsert={onInsertPoint ?? (() => {})}
+                onTypeChange={onPointTypeChange}
                 isHovered={highlight?.type === 'point' && highlight.index === index}
                 onMouseEnter={onPointMouseEnter ? () => onPointMouseEnter(index) : undefined}
                 onMouseLeave={onPointMouseLeave ? () => onPointMouseLeave(index) : undefined}

@@ -700,6 +700,15 @@ describe('SelectionInspectorManager', () => {
       return field;
     }
 
+    function getSegment(index: number) {
+      const ids = sheet.selectionManager.getSelectedIds();
+      const entity = geometryStore.getByIdWithComponent(ids[0], GeometryComponent);
+      if (!entity || !GeometryComponent.isPolygon(entity)) {
+        throw new Error('expected a polygon');
+      }
+      return GeometryComponent.get(entity).points[index];
+    }
+
     it('point X onChange commits immediately without history and onBlur records history', () => {
       const sim = sheet.selectionInspectorManager;
       sheet.selectionManager.clearSelection();
@@ -756,6 +765,61 @@ describe('SelectionInspectorManager', () => {
 
       historyManager.undo();
       expect(getPoint(2).y).toBeCloseTo(10);
+    });
+
+    it('point type change converts between point/quadratic/cubic and is undoable/redoable', () => {
+      const sim = sheet.selectionInspectorManager;
+      sheet.selectionManager.clearSelection();
+      const poly = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
+          closed: false,
+        }),
+      );
+      sheet.selectionManager.select(poly.id);
+
+      const pointsField = getPolygonPointsField();
+
+      // point -> quadratic
+      const undoBefore = historyManager.getUndoStack().length;
+      pointsField.handlers.onPointTypeChange?.(1, 'arc-quadratic');
+      let seg = getSegment(1);
+      expect(seg.type).toBe('arc-quadratic');
+      if (seg.type === 'arc-quadratic') {
+        expect(seg.controlPoint.x).toBeCloseTo(10);
+        expect(seg.controlPoint.y).toBeCloseTo(0);
+      }
+      expect(historyManager.getUndoStack().length).toBe(undoBefore + 1);
+
+      historyManager.undo();
+      expect(getSegment(1).type).toBe('point');
+      historyManager.redo();
+      expect(getSegment(1).type).toBe('arc-quadratic');
+
+      // quadratic -> cubic
+      pointsField.handlers.onPointTypeChange?.(1, 'arc-cubic');
+      seg = getSegment(1);
+      expect(seg.type).toBe('arc-cubic');
+      if (seg.type === 'arc-cubic') {
+        expect(seg.controlPointA.x).toBeCloseTo(10);
+        expect(seg.controlPointA.y).toBeCloseTo(0);
+        expect(seg.controlPointB.x).toBeCloseTo(10);
+        expect(seg.controlPointB.y).toBeCloseTo(0);
+      }
+
+      historyManager.undo();
+      expect(getSegment(1).type).toBe('arc-quadratic');
+      historyManager.redo();
+      expect(getSegment(1).type).toBe('arc-cubic');
+
+      // cubic -> point
+      pointsField.handlers.onPointTypeChange?.(1, 'point');
+      expect(getSegment(1).type).toBe('point');
+
+      historyManager.undo();
+      expect(getSegment(1).type).toBe('arc-cubic');
+      historyManager.redo();
+      expect(getSegment(1).type).toBe('point');
     });
   });
 

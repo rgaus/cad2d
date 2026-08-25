@@ -1885,6 +1885,7 @@ const FieldLeafRenderer: React.FunctionComponent<{
             onControlPointChange={field.handlers.onControlPointChange}
             onDeletePoint={field.handlers.onDeletePoint}
             onInsertPoint={field.handlers.onInsertPoint}
+            onPointTypeChange={field.handlers.onPointTypeChange}
             onPointMouseEnter={field.handlers.onPointMouseEnter}
             onPointMouseLeave={field.handlers.onPointMouseLeave}
             onOpenAtIndexMouseEnter={field.handlers.onOpenAtIndexMouseEnter}
