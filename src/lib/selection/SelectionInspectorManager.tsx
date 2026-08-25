@@ -1492,6 +1492,10 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   );
                 },
                 onPointTypeChange: (index, type) => {
+                  if (index === 0) {
+                    // Point at index=0 must always stay a point
+                    return;
+                  }
                   this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) => {
                     if (!GeometryComponent.isPolygon(old)) {
                       return old;

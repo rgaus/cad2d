@@ -139,29 +139,42 @@ const PointRow = memo<PointRowProps>(
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
-        <Select
-          value={SEGMENT_TYPE_TO_SELECT_VALUE[segment.type]}
-          onValueChange={(value) => onTypeChange?.(index, SELECT_VALUE_TO_SEGMENT_TYPE[value])}
-        >
-          <SelectTrigger
-            className="w-14 border-[var(--gray-2)] hover:border-[var(--gray-4)] p-0 w-8 flex justify-center"
-            caretVisible={false}
+        {index === 0 ? (
+          // The point at index=0 is not editable, as it should always be type=point
+          <div className="w-14 w-8 flex justify-center">
+            <span
+              className="flex items-center justify-center text-[10px] font-bold select-none"
+              style={{ color: iconColor, fontFamily: 'var(--font-roboto-mono), monospace' }}
+            >
+              {iconLabel}
+            </span>
+          </div>
+        ) : (
+          <Select
+            value={SEGMENT_TYPE_TO_SELECT_VALUE[segment.type]}
+            onValueChange={(value) => onTypeChange?.(index, SELECT_VALUE_TO_SEGMENT_TYPE[value])}
+            disabled={index === 0}
           >
-            <SelectValue asChild>
-              <span
-                className="flex items-center justify-center text-[10px] font-bold rounded-[4px] select-none"
-                style={{ color: iconColor, fontFamily: 'var(--font-roboto-mono), monospace' }}
-              >
-                {iconLabel}
-              </span>
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent className="text-sm">
-            <SelectItem value="point">Point</SelectItem>
-            <SelectItem value="quadratic">Quadratic</SelectItem>
-            <SelectItem value="cubic">Cubic</SelectItem>
-          </SelectContent>
-        </Select>
+            <SelectTrigger
+              className="w-14 border-[var(--gray-2)] hover:border-[var(--gray-4)] p-0 w-8 flex justify-center"
+              caretVisible={false}
+            >
+              <SelectValue asChild>
+                <span
+                  className="flex items-center justify-center text-[10px] font-bold rounded-[4px] select-none"
+                  style={{ color: iconColor, fontFamily: 'var(--font-roboto-mono), monospace' }}
+                >
+                  {iconLabel}
+                </span>
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="text-sm">
+              <SelectItem value="point">Point</SelectItem>
+              <SelectItem value="quadratic">Quadratic</SelectItem>
+              <SelectItem value="cubic">Cubic</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
         <div className="flex-1 px-1">
           {segment.type === 'point' ? (
             <div className="flex gap-4">
