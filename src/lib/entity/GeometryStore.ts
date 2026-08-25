@@ -821,7 +821,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     ) {
       const beforeColor = FillColorComponent.get(before);
       const afterColor = FillColorComponent.get(after);
-      this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, afterColor));
+      if (beforeColor !== afterColor) {
+        this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, afterColor));
+      }
     }
   }
 
