@@ -681,6 +681,82 @@ describe('SelectionInspectorManager', () => {
       expect(bounds.width).toBeCloseTo(10);
       expect(bounds.height).toBeCloseTo(15);
     });
+
+    function getPoint(index: number) {
+      const ids = sheet.selectionManager.getSelectedIds();
+      const entity = geometryStore.getByIdWithComponent(ids[0], GeometryComponent);
+      if (!entity || !GeometryComponent.isPolygon(entity)) {
+        throw new Error('expected a polygon');
+      }
+      return GeometryComponent.get(entity).points[index].point;
+    }
+
+    function getPolygonPointsField() {
+      const field = sheet.selectionInspectorManager.fields.find((f) => f.type === 'polygon-points');
+      expect(field?.type).toBe('polygon-points');
+      if (field?.type !== 'polygon-points') {
+        throw new Error('expected a polygon-points field');
+      }
+      return field;
+    }
+
+    it('point X onChange commits immediately without history and onBlur records history', () => {
+      const sim = sheet.selectionInspectorManager;
+      sheet.selectionManager.clearSelection();
+      const poly = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
+          closed: false,
+        }),
+      );
+      sheet.selectionManager.select(poly.id);
+
+      const pointsField = getPolygonPointsField();
+      const undoLenBefore = historyManager.getUndoStack().length;
+
+      pointsField.handlers.onPointXChange?.(1, Length.centimeters(20));
+
+      // Committed immediately (no history)
+      expect(getPoint(1).x).toBeCloseTo(20);
+      expect(getPoint(1).y).toBeCloseTo(0);
+      expect(historyManager.getUndoStack().length).toBe(undoLenBefore);
+
+      // History recorded once on blur
+      pointsField.handlers.onPointXBlur?.(1);
+      expect(historyManager.getUndoStack().length).toBe(undoLenBefore + 1);
+
+      historyManager.undo();
+      expect(getPoint(1).x).toBeCloseTo(10);
+    });
+
+    it('point Y onChange commits immediately without history and onBlur records history', () => {
+      const sim = sheet.selectionInspectorManager;
+      sheet.selectionManager.clearSelection();
+      const poly = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
+          closed: false,
+        }),
+      );
+      sheet.selectionManager.select(poly.id);
+
+      const pointsField = getPolygonPointsField();
+      const undoLenBefore = historyManager.getUndoStack().length;
+
+      pointsField.handlers.onPointYChange?.(2, Length.centimeters(30));
+
+      // Committed immediately (no history)
+      expect(getPoint(2).y).toBeCloseTo(30);
+      expect(getPoint(2).x).toBeCloseTo(10);
+      expect(historyManager.getUndoStack().length).toBe(undoLenBefore);
+
+      // History recorded once on blur
+      pointsField.handlers.onPointYBlur?.(2);
+      expect(historyManager.getUndoStack().length).toBe(undoLenBefore + 1);
+
+      historyManager.undo();
+      expect(getPoint(2).y).toBeCloseTo(10);
+    });
   });
 
   describe('polygon (multiple)', () => {

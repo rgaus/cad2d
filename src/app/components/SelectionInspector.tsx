@@ -1880,6 +1880,8 @@ const FieldLeafRenderer: React.FunctionComponent<{
             sheetDefaultUnit={sheetDefaultUnit}
             onPointXChange={field.handlers.onPointXChange}
             onPointYChange={field.handlers.onPointYChange}
+            onPointXBlur={field.handlers.onPointXBlur}
+            onPointYBlur={field.handlers.onPointYBlur}
             onControlPointChange={field.handlers.onControlPointChange}
             onDeletePoint={field.handlers.onDeletePoint}
             onInsertPoint={field.handlers.onInsertPoint}

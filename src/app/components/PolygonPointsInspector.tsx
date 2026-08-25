@@ -66,6 +66,8 @@ type PointRowProps = {
   sheetDefaultUnit: UnitType;
   onXChange: (index: number, len: Length) => void;
   onYChange: (index: number, len: Length) => void;
+  onXBlur?: (index: number) => void;
+  onYBlur?: (index: number) => void;
   onControlPointChange: (
     index: number,
     pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB',
@@ -88,6 +90,8 @@ const PointRow = memo<PointRowProps>(
     sheetDefaultUnit,
     onXChange,
     onYChange,
+    onXBlur,
+    onYBlur,
     onControlPointChange,
     onDelete,
     onInsert,
@@ -126,6 +130,7 @@ const PointRow = memo<PointRowProps>(
                   ref={refs?.x}
                   value={Length.fromSheetUnits(sheetDefaultUnit, segment.point.x)}
                   onChange={(len) => onXChange(index, len)}
+                  onBlur={onXBlur ? () => onXBlur(index) : undefined}
                   roundPlaces={sheetUnitPlaces}
                   readOnlyUnit
                 />
@@ -135,6 +140,7 @@ const PointRow = memo<PointRowProps>(
                   ref={refs?.y}
                   value={Length.fromSheetUnits(sheetDefaultUnit, segment.point.y)}
                   onChange={(len) => onYChange(index, len)}
+                  onBlur={onYBlur ? () => onYBlur(index) : undefined}
                   roundPlaces={sheetUnitPlaces}
                   readOnlyUnit
                 />
@@ -149,6 +155,7 @@ const PointRow = memo<PointRowProps>(
                     ref={refs?.x}
                     value={Length.fromSheetUnits(sheetDefaultUnit, segment.point.x)}
                     onChange={(len) => onXChange(index, len)}
+                    onBlur={onXBlur ? () => onXBlur(index) : undefined}
                     roundPlaces={sheetUnitPlaces}
                     readOnlyUnit
                   />
@@ -158,6 +165,7 @@ const PointRow = memo<PointRowProps>(
                     ref={refs?.y}
                     value={Length.fromSheetUnits(sheetDefaultUnit, segment.point.y)}
                     onChange={(len) => onYChange(index, len)}
+                    onBlur={onYBlur ? () => onYBlur(index) : undefined}
                     roundPlaces={sheetUnitPlaces}
                     readOnlyUnit
                   />
@@ -270,6 +278,8 @@ type PolygonPointsInspectorProps = {
   openAtIndexDragging?: boolean;
   onPointXChange?: (index: number, len: Length) => void;
   onPointYChange?: (index: number, len: Length) => void;
+  onPointXBlur?: (index: number) => void;
+  onPointYBlur?: (index: number) => void;
   onControlPointChange?: (
     index: number,
     pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB',
@@ -294,6 +304,8 @@ export default function PolygonPointsInspector({
   openAtIndexDragging = false,
   onPointXChange,
   onPointYChange,
+  onPointXBlur,
+  onPointYBlur,
   onControlPointChange,
   onDeletePoint,
   onInsertPoint,
@@ -335,6 +347,8 @@ export default function PolygonPointsInspector({
                 sheetDefaultUnit={sheetDefaultUnit}
                 onXChange={onPointXChange ?? (() => {})}
                 onYChange={onPointYChange ?? (() => {})}
+                onXBlur={onPointXBlur}
+                onYBlur={onPointYBlur}
                 onControlPointChange={onControlPointChange ?? (() => {})}
                 onDelete={onDeletePoint ?? (() => {})}
                 onInsert={onInsertPoint ?? (() => {})}

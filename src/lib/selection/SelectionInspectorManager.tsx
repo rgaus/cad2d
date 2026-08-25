@@ -76,6 +76,8 @@ type FieldHandlers<Value> = {
 type PolygonPointsHandlers = {
   onPointXChange?: (index: number, len: Length) => void;
   onPointYChange?: (index: number, len: Length) => void;
+  onPointXBlur?: (index: number) => void;
+  onPointYBlur?: (index: number) => void;
   onControlPointChange?: (
     index: number,
     pointKey: 'controlPoint' | 'controlPointA' | 'controlPointB',
@@ -439,6 +441,80 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           this.emit('workingFieldDataChange', new Map());
           this.recomputeFields();
         }
+      },
+    };
+  }
+
+  /**
+   * Produces standard drag-aware handlers for a single polygon point X or Y coordinate.
+   *
+   * onChange captures the original entity, applies the point move immediately via *Direct (no
+   * history), and stores the pending value keyed by the point index and axis. onBlur restores the
+   * original, re-applies via the regular API (with history), then cleans up.
+   *
+   * @param id - The polygon entity id being edited.
+   * @param axis - Which coordinate ('x' or 'y') these handlers mutate.
+   */
+  private makePolygonPointLengthHandlers(
+    id: Id,
+    axis: 'x' | 'y',
+  ): { onChange: (index: number, value: Length) => void; onBlur: (index: number) => void } {
+    const workingKey = (index: number) => `point-${index}-${axis}`;
+
+    const computeUpdate = (index: number, value: Length): Partial<PolygonData> | null => {
+      const current = this.geometryStore.getByIdWithComponent(id, GeometryComponent);
+      if (!current || !GeometryComponent.isPolygon(current)) {
+        return null;
+      }
+      const prevData = GeometryComponent.get(current);
+      const magnitude = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+      const segments = prevData.points.map((s, i) => {
+        if (axis === 'x') {
+          // First point of closed polygons updates the first and last points
+          if (prevData.closed && index === 0 && (i === 0 || i === prevData.points.length - 1)) {
+            return { ...s, point: new SheetPosition(magnitude, s.point.y) };
+          }
+          if (i === index) {
+            return { ...s, point: new SheetPosition(magnitude, s.point.y) };
+          }
+          return s;
+        }
+        if (i !== index) {
+          return s;
+        }
+        return { ...s, point: new SheetPosition(s.point.x, magnitude) };
+      });
+      return { points: segments };
+    };
+
+    return {
+      onChange: (index, value) => {
+        this.captureDragOriginal(id);
+        this.workingFieldData.set(workingKey(index), { type: 'length', value });
+        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+        const update = computeUpdate(index, value);
+        if (update) {
+          this.geometryStore.updateByIdWithComponentDirect(id, GeometryComponent, (old) =>
+            GeometryComponent.update(old, update),
+          );
+        }
+      },
+      onBlur: (index) => {
+        if (!this.dragOriginals.has(id)) {
+          return;
+        }
+        const fieldData = this.workingFieldData.get(workingKey(index));
+        if (!fieldData || fieldData.type !== 'length') {
+          return;
+        }
+        this.geometryStore.updateByIdDirect(id, this.dragOriginals.get(id)!);
+        const update = computeUpdate(index, fieldData.value);
+        if (update) {
+          this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) =>
+            GeometryComponent.update(old, update),
+          );
+        }
+        this.dragOriginals.delete(id);
       },
     };
   }
@@ -1216,6 +1292,8 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
             const bounds = BoundingBox.fromPoints(geometryData.points.map((s) => s.point));
             const isPolygonFilledDueToFilter =
               !geometryData.closed && typeof FillColorComponent.getOptional(entity) !== 'undefined';
+            const pointXHandlers = this.makePolygonPointLengthHandlers(id, 'x');
+            const pointYHandlers = this.makePolygonPointLengthHandlers(id, 'y');
             return [
               row('position', [
                 labelled(
@@ -1362,46 +1440,10 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                 ),
               ]),
               polygonPoints('points', geometryData, isPolygonFilledDueToFilter, {
-                onPointXChange: (index, len) => {
-                  const newX = len.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                  this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (prev) => {
-                    if (!GeometryComponent.isPolygon(prev)) {
-                      return prev;
-                    }
-                    const prevData = GeometryComponent.get(prev);
-                    const segments = prevData.points.map((s, i) => {
-                      // First point of closed polygons updates the first and last points
-                      if (
-                        prevData.closed &&
-                        index === 0 &&
-                        (i === 0 || i === prevData.points.length - 1)
-                      ) {
-                        return { ...s, point: new SheetPosition(newX, s.point.y) };
-                      }
-                      if (i === index) {
-                        return { ...s, point: new SheetPosition(newX, s.point.y) };
-                      }
-                      return s;
-                    });
-                    return GeometryComponent.update(prev, { points: segments });
-                  });
-                },
-                onPointYChange: (index, len) => {
-                  const newY = len.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                  this.geometryStore.updateByIdWithComponent(id, GeometryComponent, (prev) => {
-                    if (!GeometryComponent.isPolygon(prev)) {
-                      return prev;
-                    }
-                    const prevData = GeometryComponent.get(prev);
-                    const segments = prevData.points.map((s, i) => {
-                      if (i !== index) {
-                        return s;
-                      }
-                      return { ...s, point: new SheetPosition(s.point.x, newY) };
-                    });
-                    return GeometryComponent.update(prev, { points: segments });
-                  });
-                },
+                onPointXChange: pointXHandlers.onChange,
+                onPointYChange: pointYHandlers.onChange,
+                onPointXBlur: pointXHandlers.onBlur,
+                onPointYBlur: pointYHandlers.onBlur,
                 onControlPointChange: (index, pointKey, axis, len) => {
                   const current = this.geometryStore.getByIdWithComponent(id, GeometryComponent);
                   if (!current || !GeometryComponent.isPolygon(current)) {
