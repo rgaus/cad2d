@@ -2270,8 +2270,8 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
 
   return (
     <div className="absolute right-4 bottom-4 z-30 w-[320px]">
-      <FloatingPanel>
-        <div className="flex flex-col gap-3 overflow-y-auto max-h-[calc(100vh-64px)]">
+      <FloatingPanel noXPadding>
+        <div className="flex flex-col gap-3 px-3 overflow-y-auto w-full max-h-[calc(100vh-64px)]">
           {/* <AngleInput value={Angle.degrees(0)} onChange={(ang) => console.log(ang)} /> */}
 
           <br />

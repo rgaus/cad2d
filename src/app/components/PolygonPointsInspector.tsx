@@ -370,7 +370,7 @@ export default function PolygonPointsInspector({
   const displayedPoints = data.closed ? data.points.slice(0, -1) : data.points;
 
   return (
-    <div>
+    <div className="flex flex-col">
       <div className="flex items-center justify-between mb-1">
         <span
           className="text-[var(--slate-12)] text-sm font-medium"
@@ -380,7 +380,7 @@ export default function PolygonPointsInspector({
         </span>
         <span className="text-xs text-[var(--slate-8)] font-mono">{data.points.length}</span>
       </div>
-      <div className="flex flex-col max-h-40 -mx-3 overflow-y-auto">
+        <div className="flex flex-col max-h-40 -mx-3 w-[calc(100%+12px+12px)] overflow-y-auto">
         {displayedPoints.map((segment, index) => {
           let refs = pointRefsMap.get(index);
           if (!refs) {
@@ -416,6 +416,11 @@ export default function PolygonPointsInspector({
                   onMouseLeave={onOpenAtIndexMouseLeave}
                   onMouseDown={onOpenAtIndexMouseDown}
                 />
+              ) : null}
+
+              {/* Render a fixed position backdrop while dragging is occurring. */}
+              {openAtIndexDragging ? (
+                <div className="fixed inset-0 z-40 cursor-grabbing" />
               ) : null}
             </Fragment>
           );

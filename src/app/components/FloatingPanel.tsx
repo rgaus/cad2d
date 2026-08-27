@@ -1,14 +1,16 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 type FloatingPanelProps = {
   title?: string;
   children: React.ReactNode;
+  noXPadding?: boolean;
   className?: string;
 };
 
-export default function FloatingPanel({ title, children, className = '' }: FloatingPanelProps) {
+export default function FloatingPanel({ title, children, noXPadding = false, className = '' }: FloatingPanelProps) {
   return (
     <Card
       className={className}
@@ -21,7 +23,7 @@ export default function FloatingPanel({ title, children, className = '' }: Float
           <CardTitle>{title}</CardTitle>
         </CardHeader>
       ) : null}
-      <CardContent>{children}</CardContent>
+      <CardContent className={cn({ "px-0": noXPadding })}>{children}</CardContent>
     </Card>
   );
 }
