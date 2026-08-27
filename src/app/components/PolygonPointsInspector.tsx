@@ -11,11 +11,14 @@ import {
 } from '@/components/ui/select';
 import { type PolygonSegment } from '@/lib/entity';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { POINT_ROW_HEIGHT_PX_BY_TYPE } from '@/lib/selection/polygon-point-row';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { Length, type UnitType } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
 import LengthInput, { type LengthInputHandle } from './LengthInput';
 import { type ShapePreviewHighlight } from './ShapePreview';
+
+export { POINT_ROW_HEIGHT_PX_BY_TYPE };
 
 const SplitPointIndicator: React.FunctionComponent<{
   dragging: boolean;
@@ -51,14 +54,6 @@ const SplitPointIndicator: React.FunctionComponent<{
       />
     </div>
   );
-};
-
-/** The height of each PointRow depending on polygon type. Used for computing
- * {@link SplitPointIndicator} position. */
-export const POINT_ROW_HEIGHT_PX_BY_TYPE: { [key in PolygonSegment['type']]: number } = {
-  'arc-cubic': 114,
-  'arc-quadratic': 78,
-  point: 42,
 };
 
 /** Maps a segment type to the Select value shown in the PointRow type picker. */

@@ -1765,7 +1765,8 @@ const FieldLeafRenderer: React.FunctionComponent<{
   field: SelectionInspectorField;
   sheetDefaultUnit: Sheet['defaultUnit'];
   sheetUnitPlaces: Sheet['unitPlaces'];
-}> = ({ geometryStore, field, sheetDefaultUnit, sheetUnitPlaces }) => {
+  openAtIndexDragging?: boolean;
+}> = ({ geometryStore, field, sheetDefaultUnit, sheetUnitPlaces, openAtIndexDragging = false }) => {
   switch (field.type) {
     case 'number':
       return (
@@ -1878,6 +1879,7 @@ const FieldLeafRenderer: React.FunctionComponent<{
             data={field.value}
             sheetUnitPlaces={sheetUnitPlaces}
             sheetDefaultUnit={sheetDefaultUnit}
+            openAtIndexDragging={openAtIndexDragging}
             onPointXChange={field.handlers.onPointXChange}
             onPointYChange={field.handlers.onPointYChange}
             onPointXBlur={field.handlers.onPointXBlur}
@@ -2244,6 +2246,14 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
     };
   }, [sheet.selectionInspectorManager]);
 
+  const [openAtIndexDragging, setOpenAtIndexDragging] = useState(false);
+  useEffect(() => {
+    sheet.selectionInspectorManager.on('openAtIndexDragChange', setOpenAtIndexDragging);
+    return () => {
+      sheet.selectionInspectorManager.off('openAtIndexDragChange', setOpenAtIndexDragging);
+    };
+  }, [sheet.selectionInspectorManager]);
+
   useEffect(() => {
     const handler = (wfd: WorkingFieldData) => {
       setFields((prev) => applyWorkingFieldData(prev, wfd));
@@ -2298,6 +2308,7 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
                   geometryStore={geometryStore}
                   sheetDefaultUnit={sheetDefaultUnit}
                   sheetUnitPlaces={sheetUnitPlaces}
+                  openAtIndexDragging={openAtIndexDragging}
                 />
               );
             }

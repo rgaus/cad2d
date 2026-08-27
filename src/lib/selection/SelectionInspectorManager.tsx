@@ -24,6 +24,7 @@ import { SelectionManager } from '../tools/SelectionManager';
 import { Angle } from '../units/angle';
 import { Length } from '../units/length';
 import { SheetPosition } from '../viewport/types';
+import { computeOpenAtIndex } from './polygon-point-row';
 
 /** The order of components in the {@link SelectionInspectorManager}. If a component isn't in this
  * list, it will be rendered at the bottom. */
@@ -326,6 +327,7 @@ export type WorkingFieldData = Map<
 type SelectionInspectorManagerEvents = {
   fieldsChange: (fields: Array<Field>) => void;
   workingFieldDataChange: (fieldData: WorkingFieldData) => void;
+  openAtIndexDragChange: (dragging: boolean) => void;
 };
 
 export class SelectionInspectorManager extends EventEmitter<SelectionInspectorManagerEvents> {
@@ -336,6 +338,8 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   private actionsManager: ActionsManager | null = null;
 
   private dragOriginals: Map<Id, Entity> = new Map();
+
+  private openAtIndexDragCleanup: (() => void) | null = null;
 
   private sheetDefaultUnit: Sheet['defaultUnit'];
 
@@ -359,6 +363,8 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   }
 
   destructor() {
+    this.openAtIndexDragCleanup?.();
+    this.openAtIndexDragCleanup = null;
     this.geometryStore.off('geometryUpdated', this.handleGeometryUpdate);
     this.sheet.off('defaultUnitChange', this.handleDefaultUnitChange);
     this.selectionManager.off('selectionChange', this.handleSelectionChange);
@@ -1517,6 +1523,53 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     });
                     return GeometryComponent.update(old, { points });
                   });
+                },
+                onOpenAtIndexMouseDown: () => {
+                  const current = this.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                  if (!current || !GeometryComponent.isPolygon(current)) {
+                    return;
+                  }
+                  const polygonData = GeometryComponent.get(current);
+                  const initialOpenAtIndex = polygonData.openAtIndex;
+                  const initialPoints = polygonData.points;
+                  let newOpenAtIndex = initialOpenAtIndex;
+                  let deltaYPx = 0;
+
+                  this.emit('openAtIndexDragChange', true);
+
+                  const onMouseMove = (e: MouseEvent) => {
+                    deltaYPx += e.movementY;
+                    newOpenAtIndex = computeOpenAtIndex(
+                      initialOpenAtIndex,
+                      initialPoints,
+                      deltaYPx,
+                    );
+                    this.geometryStore.updateByIdWithComponentDirect(id, GeometryComponent, (old) =>
+                      GeometryComponent.update(old, { openAtIndex: newOpenAtIndex }),
+                    );
+                  };
+
+                  const cleanup = () => {
+                    window.removeEventListener('mousemove', onMouseMove);
+                    window.removeEventListener('mouseup', onMouseUp);
+                    if (this.openAtIndexDragCleanup === cleanup) {
+                      this.openAtIndexDragCleanup = null;
+                    }
+                  };
+
+                  const onMouseUp = () => {
+                    this.emit('openAtIndexDragChange', false);
+                    if (newOpenAtIndex !== initialOpenAtIndex) {
+                      this.historyManager.push(
+                        UndoEntry.polygonOpenAtIndex(id, initialOpenAtIndex, newOpenAtIndex),
+                      );
+                    }
+                    cleanup();
+                  };
+
+                  this.openAtIndexDragCleanup = cleanup;
+                  window.addEventListener('mousemove', onMouseMove);
+                  window.addEventListener('mouseup', onMouseUp);
                 },
                 onCloseOpen: () => {
                   this.actionsManager?.execute('open-close-polygon');

@@ -24,6 +24,7 @@ import {
   type FieldRow,
 } from '@/lib/selection/SelectionInspectorManager';
 import { type WorkingFieldData } from '@/lib/selection/SelectionInspectorManager';
+import { POINT_ROW_HEIGHT_PX_BY_TYPE, computeOpenAtIndex } from '@/lib/selection/polygon-point-row';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { Length } from '@/lib/units/length';
@@ -824,6 +825,62 @@ describe('SelectionInspectorManager', () => {
       historyManager.redo();
       expect(getSegment(1).type).toBe('point');
     });
+
+    it('openAtIndex changes when dragging the split indicator and records a single history event', () => {
+      const sim = sheet.selectionInspectorManager;
+      sheet.selectionManager.clearSelection();
+      const poly = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
+          closed: true,
+          openAtIndex: 0,
+        }),
+      );
+      sheet.selectionManager.select(poly.id);
+
+      const pointsField = getPolygonPointsField();
+      const openAtIndexOf = () => {
+        const entity = geometryStore.getByIdWithComponent(poly.id, GeometryComponent);
+        if (!entity || !GeometryComponent.isPolygon(entity)) {
+          throw new Error('expected a polygon');
+        }
+        return GeometryComponent.get(entity).openAtIndex;
+      };
+
+      const undoBefore = historyManager.getUndoStack().length;
+
+      const addListener = jest.spyOn(window, 'addEventListener');
+      const removeListener = jest.spyOn(window, 'removeEventListener');
+
+      pointsField.handlers.onOpenAtIndexMouseDown?.();
+
+      const mousemoveHandler = addListener.mock.calls.find(
+        ([type]) => type === 'mousemove',
+      )?.[1] as ((e: MouseEvent) => void) | undefined;
+      const mouseupHandler = addListener.mock.calls.find(([type]) => type === 'mouseup')?.[1] as
+        | (() => void)
+        | undefined;
+      expect(mousemoveHandler).toBeDefined();
+      expect(mouseupHandler).toBeDefined();
+
+      // Dragging down 50px crosses the first 42px point row into index 1.
+      mousemoveHandler?.({ movementY: 50 } as MouseEvent);
+      expect(openAtIndexOf()).toBe(1);
+      // Live updates are committed directly (no history yet).
+      expect(historyManager.getUndoStack().length).toBe(undoBefore);
+
+      mouseupHandler?.();
+      expect(historyManager.getUndoStack().length).toBe(undoBefore + 1);
+      expect(historyManager.getUndoStack().at(-1)?.type).toBe('polygon-open-at-index');
+
+      historyManager.undo();
+      expect(openAtIndexOf()).toBe(0);
+      historyManager.redo();
+      expect(openAtIndexOf()).toBe(1);
+
+      addListener.mockRestore();
+      removeListener.mockRestore();
+    });
   });
 
   describe('polygon (multiple)', () => {
@@ -1456,6 +1513,46 @@ describe('SelectionInspectorManager', () => {
       const xField = xLabel.fields[0];
       expect(xField.type).toBe('heterogeneous');
     });
+  });
+});
+
+describe('computeOpenAtIndex', () => {
+  const points = [makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)];
+
+  it('stays put when there is no drag delta', () => {
+    expect(computeOpenAtIndex(1, points, 0)).toBe(1);
+  });
+
+  it('moves forward one point row when dragging down past a row midpoint', () => {
+    expect(computeOpenAtIndex(0, points, POINT_ROW_HEIGHT_PX_BY_TYPE.point + 1)).toBe(1);
+  });
+
+  it('moves backward one point row when dragging up past a row midpoint', () => {
+    expect(computeOpenAtIndex(2, points, -(POINT_ROW_HEIGHT_PX_BY_TYPE.point / 2) - 1)).toBe(1);
+  });
+
+  it('stays at the top when dragging up past the first row', () => {
+    expect(computeOpenAtIndex(0, points, -1000)).toBe(0);
+    expect(computeOpenAtIndex(1, points, -1000)).toBe(0);
+  });
+
+  it('accounts for taller arc rows', () => {
+    const mixed: Array<
+      PointSegment | { type: 'arc-quadratic'; point: SheetPosition; controlPoint: SheetPosition }
+    > = [
+      makePoint(0, 0),
+      {
+        type: 'arc-quadratic',
+        point: new SheetPosition(10, 0),
+        controlPoint: new SheetPosition(5, 0),
+      },
+      makePoint(10, 10),
+    ];
+    // A 30px drag crosses the 42px point-row midpoint (21px) but not the 78px quadratic
+    // midpoint (39px), so it stays on the quadratic row.
+    expect(computeOpenAtIndex(1, mixed, 30)).toBe(1);
+    // A 50px drag clears the quadratic midpoint and moves to the following point row.
+    expect(computeOpenAtIndex(1, mixed, 50)).toBe(2);
   });
 });
 
