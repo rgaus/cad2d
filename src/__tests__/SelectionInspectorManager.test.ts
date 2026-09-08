@@ -24,6 +24,7 @@ import {
   type FieldRow,
 } from '@/lib/selection/SelectionInspectorManager';
 import { type WorkingFieldData } from '@/lib/selection/SelectionInspectorManager';
+import { POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR } from '@/lib/selection/ShapePreviewManager';
 import { POINT_ROW_HEIGHT_PX_BY_TYPE, computeOpenAtIndex } from '@/lib/selection/polygon-point-row';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
@@ -1552,50 +1553,6 @@ describe('SelectionInspectorManager', () => {
       expect(preview.editingDimension).toBeNull();
     });
 
-    it('point hover sets and clears the highlight', () => {
-      const poly = geometryStore.addOrdered(
-        ID_PREFIXES.polygon,
-        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
-          closed: true,
-        }),
-      );
-      sheet.selectionManager.select(poly.id);
-
-      const sim = sheet.selectionInspectorManager;
-      const field = sim.fields.find((f) => f.type === 'polygon-points');
-      expect(field?.type).toBe('polygon-points');
-      if (field?.type !== 'polygon-points') {
-        return;
-      }
-
-      field.handlers.onPointMouseEnter?.(1);
-      expect(sim.shapePreview?.highlight).toEqual({ type: 'point', index: 1 });
-
-      field.handlers.onPointMouseLeave?.(1);
-      expect(sim.shapePreview?.highlight).toBeNull();
-    });
-
-    it('length field focus sets editingDimension and blur clears it', () => {
-      const rect = geometryStore.addOrdered(
-        ID_PREFIXES.rectangle,
-        Rectangle.create(new SheetPosition(1, 2), new SheetPosition(3, 5)),
-      );
-      sheet.selectionManager.select(rect.id);
-
-      const sim = sheet.selectionInspectorManager;
-      const widthField = getLeafFromRowLabel(sim.fields, 'dimensions', 'width');
-      expect(widthField.type).toBe('length');
-      if (widthField.type !== 'length') {
-        return;
-      }
-
-      widthField.handlers.onFocus?.();
-      expect(sim.shapePreview?.editingDimension).toBe('width');
-
-      widthField.handlers.onBlur?.();
-      expect(sim.shapePreview?.editingDimension).toBeNull();
-    });
-
     it('resets to null when selection changes away from a single shape', () => {
       const rect = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
@@ -1630,6 +1587,152 @@ describe('SelectionInspectorManager', () => {
       expect(second).not.toBeNull();
       expect(second).not.toBe(first);
       expect(second?.editingDimension).toBe('width');
+    });
+
+    describe('rectangle', () => {
+      beforeEach(() => {
+        const rect = geometryStore.addOrdered(
+          ID_PREFIXES.rectangle,
+          Rectangle.create(new SheetPosition(1, 2), new SheetPosition(3, 5)),
+        );
+        sheet.selectionManager.select(rect.id);
+      });
+
+      it.each([
+        ['position', 'x', 'origin'],
+        ['position', 'y', 'origin'],
+        ['dimensions', 'width', 'width'],
+        ['dimensions', 'height', 'height'],
+      ] as const)('%s %s sets editingDimension to %s', (rowKey, labelKey, expected) => {
+        const sim = sheet.selectionInspectorManager;
+        const field = getLeafFromRowLabel(sim.fields, rowKey, labelKey);
+        expect(field.type).toBe('length');
+        if (field.type !== 'length') {
+          return;
+        }
+
+        field.handlers.onFocus?.();
+        expect(sim.shapePreview?.editingDimension).toBe(expected);
+
+        field.handlers.onBlur?.();
+        expect(sim.shapePreview?.editingDimension).toBeNull();
+      });
+    });
+
+    describe('ellipse', () => {
+      beforeEach(() => {
+        const ellipse = geometryStore.addOrdered(
+          ID_PREFIXES.ellipse,
+          Ellipse.create(new SheetPosition(5, 6), { radiusX: 3, radiusY: 4 }),
+        );
+        sheet.selectionManager.select(ellipse.id);
+      });
+
+      it.each([
+        ['position', 'x', 'origin'],
+        ['position', 'y', 'origin'],
+        ['radius', 'rx', 'radiusX'],
+        ['radius', 'ry', 'radiusY'],
+      ] as const)('%s %s sets editingDimension to %s', (rowKey, labelKey, expected) => {
+        const sim = sheet.selectionInspectorManager;
+        const field = getLeafFromRowLabel(sim.fields, rowKey, labelKey);
+        expect(field.type).toBe('length');
+        if (field.type !== 'length') {
+          return;
+        }
+
+        field.handlers.onFocus?.();
+        expect(sim.shapePreview?.editingDimension).toBe(expected);
+
+        field.handlers.onBlur?.();
+        expect(sim.shapePreview?.editingDimension).toBeNull();
+      });
+    });
+
+    describe('polygon', () => {
+      beforeEach(() => {
+        const poly = geometryStore.addOrdered(
+          ID_PREFIXES.polygon,
+          Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
+            closed: true,
+          }),
+        );
+        sheet.selectionManager.select(poly.id);
+      });
+
+      it.each([
+        ['position', 'x', null],
+        ['position', 'y', null],
+        ['dimensions', 'width', 'width'],
+        ['dimensions', 'height', 'height'],
+      ] as const)('%s %s sets editingDimension to %s', (rowKey, labelKey, expected) => {
+        const sim = sheet.selectionInspectorManager;
+        const field = getLeafFromRowLabel(sim.fields, rowKey, labelKey);
+        expect(field.type).toBe('length');
+        if (field.type !== 'length') {
+          return;
+        }
+
+        field.handlers.onFocus?.();
+        expect(sim.shapePreview?.editingDimension).toBe(expected);
+
+        field.handlers.onBlur?.();
+        expect(sim.shapePreview?.editingDimension).toBeNull();
+      });
+
+      function getPointsField() {
+        const field = sheet.selectionInspectorManager.fields.find(
+          (f) => f.type === 'polygon-points',
+        );
+        expect(field?.type).toBe('polygon-points');
+        if (field?.type !== 'polygon-points') {
+          throw new Error('expected a polygon-points field');
+        }
+        return field;
+      }
+
+      it('hovering each point row highlights then clears on leave', () => {
+        const field = getPointsField();
+        const sim = sheet.selectionInspectorManager;
+
+        for (const index of [0, 1, 2, 3]) {
+          field.handlers.onPointMouseEnter?.(index);
+          expect(sim.shapePreview?.highlight).toEqual({ type: 'point', index });
+
+          field.handlers.onPointMouseLeave?.(index);
+          expect(sim.shapePreview?.highlight).toBeNull();
+        }
+      });
+
+      it('hovering the open segment line highlights then clears on leave', () => {
+        const field = getPointsField();
+        const sim = sheet.selectionInspectorManager;
+
+        field.handlers.onOpenAtIndexMouseEnter?.();
+        expect(sim.shapePreview?.highlight).toEqual({
+          type: 'segment',
+          index: 0,
+          color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+        });
+
+        field.handlers.onOpenAtIndexMouseLeave?.();
+        expect(sim.shapePreview?.highlight).toBeNull();
+      });
+
+      it('hovering the close/open button highlights the open segment then clears', () => {
+        const field = getPointsField();
+        const sim = sheet.selectionInspectorManager;
+
+        field.handlers.onCloseOpenMouseEnter?.();
+        expect(sim.shapePreview?.highlight).toEqual({
+          type: 'segment',
+          index: 0,
+          color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+        });
+
+        field.handlers.onCloseOpenMouseLeave?.();
+        expect(sim.shapePreview?.highlight).toBeNull();
+      });
     });
   });
 });
