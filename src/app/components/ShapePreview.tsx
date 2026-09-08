@@ -15,7 +15,7 @@ import { PatternFilter } from '@/lib/entity/filters/pattern';
 import {
   type ShapePreviewEditingDimension,
   type ShapePreviewHighlight,
-} from '@/lib/selection/shape-preview';
+} from '@/lib/selection/ShapePreviewManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 
 export { type ShapePreviewEditingDimension, type ShapePreviewHighlight };

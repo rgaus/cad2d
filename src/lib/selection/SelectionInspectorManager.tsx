@@ -13,7 +13,7 @@ import {
 } from '../entity';
 import { GeometryStore } from '../entity/GeometryStore';
 import { FilterComponent } from '../entity/components/FilterComponent';
-import { Filter, FilterData } from '../entity/filters';
+import { FilterData } from '../entity/filters';
 import { GeometryData } from '../entity/geometry';
 import { PolygonData, PolygonSegment } from '../entity/geometry/polygon';
 import { HistoryManager } from '../history/HistoryManager';
@@ -24,13 +24,14 @@ import { SelectionManager } from '../tools/SelectionManager';
 import { Angle } from '../units/angle';
 import { Length } from '../units/length';
 import { SheetPosition } from '../viewport/types';
-import { computeOpenAtIndex } from './polygon-point-row';
 import {
   POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
   type ShapePreviewEditingDimension,
   type ShapePreviewHighlight,
+  ShapePreviewManager,
   type ShapePreviewState,
-} from './shape-preview';
+} from './ShapePreviewManager';
+import { computeOpenAtIndex } from './polygon-point-row';
 
 /** The order of components in the {@link SelectionInspectorManager}. If a component isn't in this
  * list, it will be rendered at the bottom. */
@@ -346,6 +347,8 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   private historyManager: HistoryManager;
   private actionsManager: ActionsManager | null = null;
 
+  private shapePreviewManager: ShapePreviewManager;
+
   private dragOriginals: Map<Id, Entity> = new Map();
 
   private openAtIndexDragCleanup: (() => void) | null = null;
@@ -366,6 +369,9 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
     this.sheetDefaultUnit = sheet.defaultUnit;
 
+    this.shapePreviewManager = new ShapePreviewManager(geometryStore, sheet.defaultUnit);
+    this.shapePreviewManager.on('shapePreviewChange', this.handleShapePreviewChange);
+
     this.selectionManager.on('selectionChange', this.handleSelectionChange);
     this.sheet.on('defaultUnitChange', this.handleDefaultUnitChange);
     this.geometryStore.on('geometryUpdated', this.handleGeometryUpdate);
@@ -374,6 +380,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   destructor() {
     this.openAtIndexDragCleanup?.();
     this.openAtIndexDragCleanup = null;
+    this.shapePreviewManager.off('shapePreviewChange', this.handleShapePreviewChange);
     this.geometryStore.off('geometryUpdated', this.handleGeometryUpdate);
     this.sheet.off('defaultUnitChange', this.handleDefaultUnitChange);
     this.selectionManager.off('selectionChange', this.handleSelectionChange);
@@ -436,12 +443,12 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       },
       onFocus: () => {
         if (editingDimension) {
-          this.setShapePreviewEditingDimension(editingDimension);
+          this.shapePreviewManager.setEditingDimension(editingDimension);
         }
       },
       onBlur: () => {
         if (editingDimension) {
-          this.setShapePreviewEditingDimension(null);
+          this.shapePreviewManager.setEditingDimension(null);
         }
         if (!this.dragOriginals.has(id)) {
           return;
@@ -556,20 +563,20 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     }
     this.selectedIds = ids;
     this.recomputeFields();
-    this.resetShapePreview();
+    this.shapePreviewManager.setSelectedIds(ids);
   };
 
   handleDefaultUnitChange = (defaultUnit: Sheet['defaultUnit']) => {
     this.sheetDefaultUnit = defaultUnit;
     this.recomputeFields();
-    this.updateShapePreviewBase();
+    this.shapePreviewManager.setDefaultUnit(defaultUnit);
   };
 
   handleGeometryUpdate = (entity: Entity) => {
     if (this.selectedIds.includes(entity.id) && !this.dragOriginals.has(entity.id)) {
       this.recomputeFields();
     }
-    this.updateShapePreviewForEntity(entity);
+    this.shapePreviewManager.handleGeometryUpdate(entity);
   };
 
   private workingFieldData: WorkingFieldData = new Map();
@@ -581,88 +588,10 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   /** Whether the polygon open-at-index dividing line is currently being dragged. */
   private openAtIndexDragging = false;
 
-  /** Returns true if the entity is a renderable shape (polygon/rectangle/ellipse). */
-  private isRenderableShape(entity: Entity | null): entity is Entity<GeometryComponent> {
-    return entity !== null && Entity.hasComponent(entity, GeometryComponent);
-  }
-
-  /**
-   * Computes the shape preview base state (geometry, unit, and filters) for the current selection,
-   * or null when no single renderable shape is selected.
-   */
-  private computeShapePreviewBase(): ShapePreviewState {
-    if (this.selectedIds.length !== 1) {
-      return null;
-    }
-    const entity = this.geometryStore.getById(this.selectedIds[0]);
-    if (!this.isRenderableShape(entity)) {
-      return null;
-    }
-    return {
-      geometry: entity,
-      sheetDefaultUnit: this.sheetDefaultUnit,
-      filters: this.geometryStore.findFiltersByGeometryId(entity.id),
-      highlight: null,
-      editingDimension: null,
-    };
-  }
-
-  /** Emits a fresh shape preview state (always a new object reference when non-null). */
-  private setShapePreview(state: ShapePreviewState) {
+  private handleShapePreviewChange = (state: ShapePreviewState) => {
     this.shapePreview = state;
     this.emit('shapePreviewChange', state);
-  }
-
-  /** Recomputes the shape preview base, clearing transient highlight/editing state. */
-  private resetShapePreview() {
-    this.setShapePreview(this.computeShapePreviewBase());
-  }
-
-  /** Re-fetches the shape preview geometry/filters/unit, preserving transient highlight state. */
-  private updateShapePreviewBase() {
-    if (this.shapePreview === null) {
-      return;
-    }
-    const base = this.computeShapePreviewBase();
-    if (base === null) {
-      this.setShapePreview(null);
-      return;
-    }
-    this.setShapePreview({
-      ...base,
-      highlight: this.shapePreview.highlight,
-      editingDimension: this.shapePreview.editingDimension,
-    });
-  }
-
-  /** Updates the shape preview base when a relevant entity (preview geometry or its filters) changes. */
-  private updateShapePreviewForEntity(entity: Entity) {
-    if (this.shapePreview === null) {
-      return;
-    }
-    const isPreviewGeometry = this.shapePreview.geometry.id === entity.id;
-    const isFilterForPreview =
-      Entity.hasComponent(entity, FilterComponent) &&
-      FilterComponent.get(entity).geometryId === this.shapePreview.geometry.id;
-    if (!isPreviewGeometry && !isFilterForPreview) {
-      return;
-    }
-    this.updateShapePreviewBase();
-  }
-
-  private setShapePreviewHighlight(highlight: ShapePreviewHighlight | null) {
-    if (this.shapePreview === null) {
-      return;
-    }
-    this.setShapePreview({ ...this.shapePreview, highlight });
-  }
-
-  private setShapePreviewEditingDimension(dimension: ShapePreviewEditingDimension | null) {
-    if (this.shapePreview === null) {
-      return;
-    }
-    this.setShapePreview({ ...this.shapePreview, editingDimension: dimension });
-  }
+  };
 
   recomputeFields() {
     const fields = new Map<
@@ -1694,23 +1623,23 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   if (this.openAtIndexDragging) {
                     return;
                   }
-                  this.setShapePreviewHighlight({ type: 'point', index });
+                  this.shapePreviewManager.setHighlight({ type: 'point', index });
                 },
                 onPointMouseLeave: () => {
                   if (this.openAtIndexDragging) {
                     return;
                   }
-                  this.setShapePreviewHighlight(null);
+                  this.shapePreviewManager.setHighlight(null);
                 },
                 onOpenAtIndexMouseEnter: () => {
-                  this.setShapePreviewHighlight({
+                  this.shapePreviewManager.setHighlight({
                     type: 'segment',
                     index: geometryData.openAtIndex,
                     color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
                   });
                 },
                 onOpenAtIndexMouseLeave: () => {
-                  this.setShapePreviewHighlight(null);
+                  this.shapePreviewManager.setHighlight(null);
                 },
                 onOpenAtIndexMouseDown: () => {
                   const current = this.geometryStore.getByIdWithComponent(id, GeometryComponent);
@@ -1725,7 +1654,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
                   this.openAtIndexDragging = true;
                   this.emit('openAtIndexDragChange', true);
-                  this.setShapePreviewHighlight({
+                  this.shapePreviewManager.setHighlight({
                     type: 'segment',
                     index: newOpenAtIndex,
                     color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
@@ -1741,7 +1670,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     this.geometryStore.updateByIdWithComponentDirect(id, GeometryComponent, (old) =>
                       GeometryComponent.update(old, { openAtIndex: newOpenAtIndex }),
                     );
-                    this.setShapePreviewHighlight({
+                    this.shapePreviewManager.setHighlight({
                       type: 'segment',
                       index: newOpenAtIndex,
                       color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
@@ -1759,7 +1688,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
                   const onMouseUp = () => {
                     this.emit('openAtIndexDragChange', false);
-                    this.setShapePreviewHighlight(null);
+                    this.shapePreviewManager.setHighlight(null);
                     if (newOpenAtIndex !== initialOpenAtIndex) {
                       this.historyManager.push(
                         UndoEntry.polygonOpenAtIndex(id, initialOpenAtIndex, newOpenAtIndex),
@@ -1781,7 +1710,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   }
                   this.openAtIndexDragging = true;
                   this.emit('openAtIndexDragChange', true);
-                  this.setShapePreviewHighlight({
+                  this.shapePreviewManager.setHighlight({
                     type: 'segment',
                     index: geometryData.openAtIndex,
                     color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
@@ -1793,7 +1722,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   }
                   this.openAtIndexDragging = false;
                   this.emit('openAtIndexDragChange', false);
-                  this.setShapePreviewHighlight(null);
+                  this.shapePreviewManager.setHighlight(null);
                 },
               }),
             ];
