@@ -615,7 +615,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           continue;
         }
         const computed = this.computeFieldsForComponent(entity, Component);
-        // console.log('INITIAL:', computed, fields);
         for (const field of computed) {
           const existingForKey = fields.get(field.key) ?? [];
 
@@ -654,7 +653,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           const match = existingForKey.find(
             (existing) => existing.type === field.type && existing.key === field.key,
           );
-          // console.log('MATCH', match);
           if (match) {
             if (!('value' in match)) {
               console.warn(
@@ -673,19 +671,12 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     // Step 2: Determine which fields all contain a single homogeneous value, or many heterogeneous
     // TODO
 
-    console.log(
-      'FIELDS:',
-      fieldFrequencies,
-      fieldKeyOrder.map((key) => fields.get(key)!),
-    );
-
     const processed = fieldKeyOrder.flatMap((key) => {
       if (fieldFrequencies.get(key) !== this.selectedIds.length) {
         return [];
       }
       return [this.aggregateFieldValue(fields.get(key)!, key)];
     });
-    console.log('PROCESSED:', processed);
 
     // Erase any fields whicha re currently being filled out
     this.workingFieldData.clear();
@@ -698,7 +689,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   private aggregateRows(
     rows: Array<SelectionInspectorFieldRow>,
   ): Row<Variance<SelectionInspectorField | FieldLabel>> {
-    // console.log('AGGR ROWS', rows);
     if (rows.length === 0) {
       return { type: 'row' as const, key: 'no op', fields: [] };
     }
@@ -732,7 +722,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
             return { type: 'heterogeneous', key, fieldType: row.fields[0]?.type };
           }
         }
-        // console.log('FIELDS FOR KEYS ACROSS ROWS:', key, fieldsForKeyAcrossRows);
         return this.aggregateFieldValue(fieldsForKeyAcrossRows, key) as Variance<
           SelectionInspectorField | FieldLabel
         >;
@@ -741,7 +730,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   }
 
   private aggregateLabels(entries: Array<SelectionInspectorLabelledField>): FieldLabel {
-    // console.log('AGGR LABELS', entries);
     if (entries.length === 0) {
       return { type: 'label' as const, key: 'no op', label: '', fields: [] };
     }
@@ -779,7 +767,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
             return { type: 'heterogeneous', key, fieldType: label.fields[0]?.type };
           }
         }
-        // console.log('FIELDS FOR KEYS ACROSS LABELS:', key, fieldsForKeyAcrossLabels);
         return this.aggregateFieldValue(
           fieldsForKeyAcrossLabels,
           key,
@@ -815,7 +802,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       })
       .flat();
 
-    // console.log('COMBINE', fieldOptions.handlers);
     const combineHandlers = <T extends unknown>(
       handlers: Array<FieldHandlers<T>>,
     ): FieldHandlers<T> => {
@@ -969,7 +955,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       | SelectionInspectorFieldRow
       | SelectionInspectorLabelledField,
   >(entries: Array<F>, key: string): Field<OptionsToSingle<F>> {
-    // console.log('AGGR', entries);
     if (entries.length === 0) {
       return { type: 'heterogeneous', key };
     } else if (entries.length === 1) {
@@ -986,7 +971,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       return { type: 'heterogeneous', key };
     }
 
-    console.log('>>>', entries[0]);
     // No 'value' key = use first entry
     if (!('value' in entries[0])) {
       if (entries[0].type === 'row') {
@@ -1034,7 +1018,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       }
     }, entries[0].value);
 
-    console.log('COMBINED', combined);
     if (combined.length === 1) {
       return this.collapseFieldOptions(entries, combined[0]) as Field<OptionsToSingle<F>>; // homogeneous
     } else {
