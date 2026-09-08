@@ -12,7 +12,13 @@ import {
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { Filter } from '@/lib/entity/filters';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
+import {
+  type ShapePreviewEditingDimension,
+  type ShapePreviewHighlight,
+} from '@/lib/selection/shape-preview';
 import { Sheet } from '@/lib/sheet/Sheet';
+
+export { type ShapePreviewEditingDimension, type ShapePreviewHighlight };
 
 /**
  * Builds an SVG path string from a list of polygon segments.
@@ -67,21 +73,8 @@ function buildPolygonPath(
   return parts.join(' ');
 }
 
-export type ShapePreviewEditingDimension =
-  | 'x'
-  | 'y'
-  | 'width'
-  | 'height'
-  | 'origin'
-  | 'radiusX'
-  | 'radiusY';
-
 const selectedVertexSizeInPx = 6;
 const vertexSizeInPx = 4;
-
-export type ShapePreviewHighlight =
-  | { type: 'point'; index: number; color?: string }
-  | { type: 'segment'; index: number; color?: string };
 
 type ShapePreviewProps = {
   geometry: Entity<GeometryComponent>;

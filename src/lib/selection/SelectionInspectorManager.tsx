@@ -13,7 +13,7 @@ import {
 } from '../entity';
 import { GeometryStore } from '../entity/GeometryStore';
 import { FilterComponent } from '../entity/components/FilterComponent';
-import { FilterData } from '../entity/filters';
+import { Filter, FilterData } from '../entity/filters';
 import { GeometryData } from '../entity/geometry';
 import { PolygonData, PolygonSegment } from '../entity/geometry/polygon';
 import { HistoryManager } from '../history/HistoryManager';
@@ -25,6 +25,12 @@ import { Angle } from '../units/angle';
 import { Length } from '../units/length';
 import { SheetPosition } from '../viewport/types';
 import { computeOpenAtIndex } from './polygon-point-row';
+import {
+  POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+  type ShapePreviewEditingDimension,
+  type ShapePreviewHighlight,
+  type ShapePreviewState,
+} from './shape-preview';
 
 /** The order of components in the {@link SelectionInspectorManager}. If a component isn't in this
  * list, it will be rendered at the bottom. */
@@ -94,6 +100,8 @@ type PolygonPointsHandlers = {
   onOpenAtIndexMouseLeave?: () => void;
   onOpenAtIndexMouseDown?: () => void;
   onCloseOpen?: () => void;
+  onCloseOpenMouseEnter?: () => void;
+  onCloseOpenMouseLeave?: () => void;
 };
 
 export type SelectionInspectorField =
@@ -328,6 +336,7 @@ type SelectionInspectorManagerEvents = {
   fieldsChange: (fields: Array<Field>) => void;
   workingFieldDataChange: (fieldData: WorkingFieldData) => void;
   openAtIndexDragChange: (dragging: boolean) => void;
+  shapePreviewChange: (state: ShapePreviewState) => void;
 };
 
 export class SelectionInspectorManager extends EventEmitter<SelectionInspectorManagerEvents> {
@@ -411,6 +420,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     key: string,
     component: any,
     computeUpdate: (value: Length) => any,
+    editingDimension?: ShapePreviewEditingDimension,
   ): FieldHandlers<Length> {
     return {
       onChange: (value) => {
@@ -424,7 +434,15 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           );
         }
       },
+      onFocus: () => {
+        if (editingDimension) {
+          this.setShapePreviewEditingDimension(editingDimension);
+        }
+      },
       onBlur: () => {
+        if (editingDimension) {
+          this.setShapePreviewEditingDimension(null);
+        }
         if (!this.dragOriginals.has(id)) {
           return;
         }
@@ -538,26 +556,114 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     }
     this.selectedIds = ids;
     this.recomputeFields();
+    this.resetShapePreview();
   };
 
   handleDefaultUnitChange = (defaultUnit: Sheet['defaultUnit']) => {
     this.sheetDefaultUnit = defaultUnit;
     this.recomputeFields();
+    this.updateShapePreviewBase();
   };
 
   handleGeometryUpdate = (entity: Entity) => {
-    if (!this.selectedIds.includes(entity.id)) {
-      return;
+    if (this.selectedIds.includes(entity.id) && !this.dragOriginals.has(entity.id)) {
+      this.recomputeFields();
     }
-    if (this.dragOriginals.has(entity.id)) {
-      return;
-    }
-    this.recomputeFields();
+    this.updateShapePreviewForEntity(entity);
   };
 
   private workingFieldData: WorkingFieldData = new Map();
 
   fields: Array<Field> = [];
+
+  shapePreview: ShapePreviewState = null;
+
+  /** Whether the polygon open-at-index dividing line is currently being dragged. */
+  private openAtIndexDragging = false;
+
+  /** Returns true if the entity is a renderable shape (polygon/rectangle/ellipse). */
+  private isRenderableShape(entity: Entity | null): entity is Entity<GeometryComponent> {
+    return entity !== null && Entity.hasComponent(entity, GeometryComponent);
+  }
+
+  /**
+   * Computes the shape preview base state (geometry, unit, and filters) for the current selection,
+   * or null when no single renderable shape is selected.
+   */
+  private computeShapePreviewBase(): ShapePreviewState {
+    if (this.selectedIds.length !== 1) {
+      return null;
+    }
+    const entity = this.geometryStore.getById(this.selectedIds[0]);
+    if (!this.isRenderableShape(entity)) {
+      return null;
+    }
+    return {
+      geometry: entity,
+      sheetDefaultUnit: this.sheetDefaultUnit,
+      filters: this.geometryStore.findFiltersByGeometryId(entity.id),
+      highlight: null,
+      editingDimension: null,
+    };
+  }
+
+  /** Emits a fresh shape preview state (always a new object reference when non-null). */
+  private setShapePreview(state: ShapePreviewState) {
+    this.shapePreview = state;
+    this.emit('shapePreviewChange', state);
+  }
+
+  /** Recomputes the shape preview base, clearing transient highlight/editing state. */
+  private resetShapePreview() {
+    this.setShapePreview(this.computeShapePreviewBase());
+  }
+
+  /** Re-fetches the shape preview geometry/filters/unit, preserving transient highlight state. */
+  private updateShapePreviewBase() {
+    if (this.shapePreview === null) {
+      return;
+    }
+    const base = this.computeShapePreviewBase();
+    if (base === null) {
+      this.setShapePreview(null);
+      return;
+    }
+    this.setShapePreview({
+      ...base,
+      highlight: this.shapePreview.highlight,
+      editingDimension: this.shapePreview.editingDimension,
+    });
+  }
+
+  /** Updates the shape preview base when a relevant entity (preview geometry or its filters) changes. */
+  private updateShapePreviewForEntity(entity: Entity) {
+    if (this.shapePreview === null) {
+      return;
+    }
+    const isPreviewGeometry = this.shapePreview.geometry.id === entity.id;
+    const isFilterForPreview =
+      Entity.hasComponent(entity, FilterComponent) &&
+      FilterComponent.get(entity).geometryId === this.shapePreview.geometry.id;
+    if (!isPreviewGeometry && !isFilterForPreview) {
+      return;
+    }
+    this.updateShapePreviewBase();
+  }
+
+  private setShapePreviewHighlight(highlight: ShapePreviewHighlight | null) {
+    if (this.shapePreview === null) {
+      return;
+    }
+    this.setShapePreview({ ...this.shapePreview, highlight });
+  }
+
+  private setShapePreviewEditingDimension(dimension: ShapePreviewEditingDimension | null) {
+    if (this.shapePreview === null) {
+      return;
+    }
+    this.setShapePreview({ ...this.shapePreview, editingDimension: dimension });
+  }
+
   recomputeFields() {
     const fields = new Map<
       string,
@@ -1029,27 +1135,33 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'x',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.x),
                     { readOnlyUnit: true },
-                    this.makeLengthHandlers(id, 'x', GeometryComponent, (value) => {
-                      const current = this.geometryStore.getByIdWithComponent(
-                        id,
-                        GeometryComponent,
-                      );
-                      if (!current) {
-                        return null;
-                      }
-                      const currentGeom = GeometryComponent.get<GeometryData>(current);
-                      if (currentGeom.type !== 'rectangle') {
-                        return null;
-                      }
-                      const newX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                      const deltaX = newX - currentGeom.upperLeft.x;
-                      const upperLeft = new SheetPosition(newX, currentGeom.upperLeft.y);
-                      const lowerRight = new SheetPosition(
-                        currentGeom.lowerRight.x + deltaX,
-                        currentGeom.lowerRight.y,
-                      );
-                      return { upperLeft, lowerRight };
-                    }),
+                    this.makeLengthHandlers(
+                      id,
+                      'x',
+                      GeometryComponent,
+                      (value) => {
+                        const current = this.geometryStore.getByIdWithComponent(
+                          id,
+                          GeometryComponent,
+                        );
+                        if (!current) {
+                          return null;
+                        }
+                        const currentGeom = GeometryComponent.get<GeometryData>(current);
+                        if (currentGeom.type !== 'rectangle') {
+                          return null;
+                        }
+                        const newX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                        const deltaX = newX - currentGeom.upperLeft.x;
+                        const upperLeft = new SheetPosition(newX, currentGeom.upperLeft.y);
+                        const lowerRight = new SheetPosition(
+                          currentGeom.lowerRight.x + deltaX,
+                          currentGeom.lowerRight.y,
+                        );
+                        return { upperLeft, lowerRight };
+                      },
+                      'origin',
+                    ),
                   ),
                 ),
                 labelled(
@@ -1059,27 +1171,33 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'y',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.upperLeft.y),
                     { readOnlyUnit: true },
-                    this.makeLengthHandlers(id, 'y', GeometryComponent, (value) => {
-                      const current = this.geometryStore.getByIdWithComponent(
-                        id,
-                        GeometryComponent,
-                      );
-                      if (!current) {
-                        return null;
-                      }
-                      const currentGeom = GeometryComponent.get<GeometryData>(current);
-                      if (currentGeom.type !== 'rectangle') {
-                        return null;
-                      }
-                      const newY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                      const deltaY = newY - currentGeom.upperLeft.y;
-                      const upperLeft = new SheetPosition(currentGeom.upperLeft.x, newY);
-                      const lowerRight = new SheetPosition(
-                        currentGeom.lowerRight.x,
-                        currentGeom.lowerRight.y + deltaY,
-                      );
-                      return { upperLeft, lowerRight };
-                    }),
+                    this.makeLengthHandlers(
+                      id,
+                      'y',
+                      GeometryComponent,
+                      (value) => {
+                        const current = this.geometryStore.getByIdWithComponent(
+                          id,
+                          GeometryComponent,
+                        );
+                        if (!current) {
+                          return null;
+                        }
+                        const currentGeom = GeometryComponent.get<GeometryData>(current);
+                        if (currentGeom.type !== 'rectangle') {
+                          return null;
+                        }
+                        const newY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                        const deltaY = newY - currentGeom.upperLeft.y;
+                        const upperLeft = new SheetPosition(currentGeom.upperLeft.x, newY);
+                        const lowerRight = new SheetPosition(
+                          currentGeom.lowerRight.x,
+                          currentGeom.lowerRight.y + deltaY,
+                        );
+                        return { upperLeft, lowerRight };
+                      },
+                      'origin',
+                    ),
                   ),
                 ),
               ]),
@@ -1094,29 +1212,35 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                       geometryData.lowerRight.x - geometryData.upperLeft.x,
                     ),
                     { readOnlyUnit: true },
-                    this.makeLengthHandlers(id, 'width', GeometryComponent, (value) => {
-                      const current = this.geometryStore.getByIdWithComponent(
-                        id,
-                        GeometryComponent,
-                      );
-                      if (!current) {
-                        return null;
-                      }
-                      const currentGeom = GeometryComponent.get<GeometryData>(current);
-                      if (currentGeom.type !== 'rectangle') {
-                        return null;
-                      }
-                      const isLinkedNow =
-                        Entity.hasComponent(current, LinkDimensionsComponent) &&
-                        LinkDimensionsComponent.get(current);
-                      const w = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                      return {
-                        lowerRight: new SheetPosition(
-                          currentGeom.upperLeft.x + w,
-                          isLinkedNow ? currentGeom.upperLeft.y + w : currentGeom.lowerRight.y,
-                        ),
-                      };
-                    }),
+                    this.makeLengthHandlers(
+                      id,
+                      'width',
+                      GeometryComponent,
+                      (value) => {
+                        const current = this.geometryStore.getByIdWithComponent(
+                          id,
+                          GeometryComponent,
+                        );
+                        if (!current) {
+                          return null;
+                        }
+                        const currentGeom = GeometryComponent.get<GeometryData>(current);
+                        if (currentGeom.type !== 'rectangle') {
+                          return null;
+                        }
+                        const isLinkedNow =
+                          Entity.hasComponent(current, LinkDimensionsComponent) &&
+                          LinkDimensionsComponent.get(current);
+                        const w = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                        return {
+                          lowerRight: new SheetPosition(
+                            currentGeom.upperLeft.x + w,
+                            isLinkedNow ? currentGeom.upperLeft.y + w : currentGeom.lowerRight.y,
+                          ),
+                        };
+                      },
+                      'width',
+                    ),
                   ),
                 ),
                 linkDimensionsButton('link', isLinked, {
@@ -1134,29 +1258,35 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                       geometryData.lowerRight.y - geometryData.upperLeft.y,
                     ),
                     { readOnlyUnit: true },
-                    this.makeLengthHandlers(id, 'height', GeometryComponent, (value) => {
-                      const current = this.geometryStore.getByIdWithComponent(
-                        id,
-                        GeometryComponent,
-                      );
-                      if (!current) {
-                        return null;
-                      }
-                      const currentGeom = GeometryComponent.get<GeometryData>(current);
-                      if (currentGeom.type !== 'rectangle') {
-                        return null;
-                      }
-                      const isLinkedNow =
-                        Entity.hasComponent(current, LinkDimensionsComponent) &&
-                        LinkDimensionsComponent.get(current);
-                      const h = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                      return {
-                        lowerRight: new SheetPosition(
-                          isLinkedNow ? currentGeom.upperLeft.x + h : currentGeom.lowerRight.x,
-                          currentGeom.upperLeft.y + h,
-                        ),
-                      };
-                    }),
+                    this.makeLengthHandlers(
+                      id,
+                      'height',
+                      GeometryComponent,
+                      (value) => {
+                        const current = this.geometryStore.getByIdWithComponent(
+                          id,
+                          GeometryComponent,
+                        );
+                        if (!current) {
+                          return null;
+                        }
+                        const currentGeom = GeometryComponent.get<GeometryData>(current);
+                        if (currentGeom.type !== 'rectangle') {
+                          return null;
+                        }
+                        const isLinkedNow =
+                          Entity.hasComponent(current, LinkDimensionsComponent) &&
+                          LinkDimensionsComponent.get(current);
+                        const h = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                        return {
+                          lowerRight: new SheetPosition(
+                            isLinkedNow ? currentGeom.upperLeft.x + h : currentGeom.lowerRight.x,
+                            currentGeom.upperLeft.y + h,
+                          ),
+                        };
+                      },
+                      'height',
+                    ),
                   ),
                 ),
               ]),
@@ -1178,21 +1308,27 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'x',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.x),
                     { readOnlyUnit: true },
-                    this.makeLengthHandlers(id, 'x', GeometryComponent, (value) => {
-                      const current = this.geometryStore.getByIdWithComponent(
-                        id,
-                        GeometryComponent,
-                      );
-                      if (!current) {
-                        return null;
-                      }
-                      const currentGeom = GeometryComponent.get<GeometryData>(current);
-                      if (currentGeom.type !== 'ellipse') {
-                        return null;
-                      }
-                      const newCX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                      return { center: new SheetPosition(newCX, currentGeom.center.y) };
-                    }),
+                    this.makeLengthHandlers(
+                      id,
+                      'x',
+                      GeometryComponent,
+                      (value) => {
+                        const current = this.geometryStore.getByIdWithComponent(
+                          id,
+                          GeometryComponent,
+                        );
+                        if (!current) {
+                          return null;
+                        }
+                        const currentGeom = GeometryComponent.get<GeometryData>(current);
+                        if (currentGeom.type !== 'ellipse') {
+                          return null;
+                        }
+                        const newCX = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                        return { center: new SheetPosition(newCX, currentGeom.center.y) };
+                      },
+                      'origin',
+                    ),
                   ),
                 ),
                 labelled(
@@ -1202,21 +1338,27 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'y',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.center.y),
                     { readOnlyUnit: true },
-                    this.makeLengthHandlers(id, 'y', GeometryComponent, (value) => {
-                      const current = this.geometryStore.getByIdWithComponent(
-                        id,
-                        GeometryComponent,
-                      );
-                      if (!current) {
-                        return null;
-                      }
-                      const currentGeom = GeometryComponent.get<GeometryData>(current);
-                      if (currentGeom.type !== 'ellipse') {
-                        return null;
-                      }
-                      const newCY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                      return { center: new SheetPosition(currentGeom.center.x, newCY) };
-                    }),
+                    this.makeLengthHandlers(
+                      id,
+                      'y',
+                      GeometryComponent,
+                      (value) => {
+                        const current = this.geometryStore.getByIdWithComponent(
+                          id,
+                          GeometryComponent,
+                        );
+                        if (!current) {
+                          return null;
+                        }
+                        const currentGeom = GeometryComponent.get<GeometryData>(current);
+                        if (currentGeom.type !== 'ellipse') {
+                          return null;
+                        }
+                        const newCY = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                        return { center: new SheetPosition(currentGeom.center.x, newCY) };
+                      },
+                      'origin',
+                    ),
                   ),
                 ),
               ]),
@@ -1228,27 +1370,33 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'rx',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.radiusX),
                     { readOnlyUnit: true },
-                    this.makeLengthHandlers(id, 'rx', GeometryComponent, (value) => {
-                      const current = this.geometryStore.getByIdWithComponent(
-                        id,
-                        GeometryComponent,
-                      );
-                      if (!current) {
-                        return null;
-                      }
-                      const currentGeom = GeometryComponent.get<GeometryData>(current);
-                      if (currentGeom.type !== 'ellipse') {
-                        return null;
-                      }
-                      const isLinkedNow =
-                        Entity.hasComponent(current, LinkDimensionsComponent) &&
-                        LinkDimensionsComponent.get(current);
-                      const rx = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                      return {
-                        radiusX: rx,
-                        radiusY: isLinkedNow ? rx : currentGeom.radiusY,
-                      };
-                    }),
+                    this.makeLengthHandlers(
+                      id,
+                      'rx',
+                      GeometryComponent,
+                      (value) => {
+                        const current = this.geometryStore.getByIdWithComponent(
+                          id,
+                          GeometryComponent,
+                        );
+                        if (!current) {
+                          return null;
+                        }
+                        const currentGeom = GeometryComponent.get<GeometryData>(current);
+                        if (currentGeom.type !== 'ellipse') {
+                          return null;
+                        }
+                        const isLinkedNow =
+                          Entity.hasComponent(current, LinkDimensionsComponent) &&
+                          LinkDimensionsComponent.get(current);
+                        const rx = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                        return {
+                          radiusX: rx,
+                          radiusY: isLinkedNow ? rx : currentGeom.radiusY,
+                        };
+                      },
+                      'radiusX',
+                    ),
                   ),
                 ),
                 linkDimensionsButton('link', isLinked, {
@@ -1263,27 +1411,33 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'ry',
                     Length.fromSheetUnits(this.sheetDefaultUnit, geometryData.radiusY),
                     { readOnlyUnit: true },
-                    this.makeLengthHandlers(id, 'ry', GeometryComponent, (value) => {
-                      const current = this.geometryStore.getByIdWithComponent(
-                        id,
-                        GeometryComponent,
-                      );
-                      if (!current) {
-                        return null;
-                      }
-                      const currentGeom = GeometryComponent.get<GeometryData>(current);
-                      if (currentGeom.type !== 'ellipse') {
-                        return null;
-                      }
-                      const isLinkedNow =
-                        Entity.hasComponent(current, LinkDimensionsComponent) &&
-                        LinkDimensionsComponent.get(current);
-                      const ry = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                      return {
-                        radiusX: isLinkedNow ? ry : currentGeom.radiusX,
-                        radiusY: ry,
-                      };
-                    }),
+                    this.makeLengthHandlers(
+                      id,
+                      'ry',
+                      GeometryComponent,
+                      (value) => {
+                        const current = this.geometryStore.getByIdWithComponent(
+                          id,
+                          GeometryComponent,
+                        );
+                        if (!current) {
+                          return null;
+                        }
+                        const currentGeom = GeometryComponent.get<GeometryData>(current);
+                        if (currentGeom.type !== 'ellipse') {
+                          return null;
+                        }
+                        const isLinkedNow =
+                          Entity.hasComponent(current, LinkDimensionsComponent) &&
+                          LinkDimensionsComponent.get(current);
+                        const ry = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                        return {
+                          radiusX: isLinkedNow ? ry : currentGeom.radiusX,
+                          radiusY: ry,
+                        };
+                      },
+                      'radiusY',
+                    ),
                   ),
                 ),
               ]),
@@ -1376,35 +1530,41 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'width',
                     Length.fromSheetUnits(this.sheetDefaultUnit, bounds.width),
                     { readOnlyUnit: true },
-                    this.makeLengthHandlers(id, 'width', GeometryComponent, (value) => {
-                      const current = this.geometryStore.getByIdWithComponent(
-                        id,
-                        GeometryComponent,
-                      );
-                      if (!current || !GeometryComponent.isPolygon(current)) {
-                        return null;
-                      }
-                      const currentGeom = GeometryComponent.get(current);
-                      const w = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                      const currentBounds = BoundingBox.fromPoints(
-                        currentGeom.points.map((s) => s.point),
-                      );
-                      if (w === currentBounds.width) {
-                        return null;
-                      }
-                      const newBounds = {
-                        position: currentBounds.position,
-                        width: w,
-                        height: currentBounds.height,
-                      };
-                      return {
-                        points: BoundingBox.interpolatePoints(
-                          currentGeom.points,
-                          currentBounds,
-                          newBounds,
-                        ),
-                      };
-                    }),
+                    this.makeLengthHandlers(
+                      id,
+                      'width',
+                      GeometryComponent,
+                      (value) => {
+                        const current = this.geometryStore.getByIdWithComponent(
+                          id,
+                          GeometryComponent,
+                        );
+                        if (!current || !GeometryComponent.isPolygon(current)) {
+                          return null;
+                        }
+                        const currentGeom = GeometryComponent.get(current);
+                        const w = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                        const currentBounds = BoundingBox.fromPoints(
+                          currentGeom.points.map((s) => s.point),
+                        );
+                        if (w === currentBounds.width) {
+                          return null;
+                        }
+                        const newBounds = {
+                          position: currentBounds.position,
+                          width: w,
+                          height: currentBounds.height,
+                        };
+                        return {
+                          points: BoundingBox.interpolatePoints(
+                            currentGeom.points,
+                            currentBounds,
+                            newBounds,
+                          ),
+                        };
+                      },
+                      'width',
+                    ),
                   ),
                 ),
                 labelled(
@@ -1414,35 +1574,41 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     'height',
                     Length.fromSheetUnits(this.sheetDefaultUnit, bounds.height),
                     { readOnlyUnit: true },
-                    this.makeLengthHandlers(id, 'height', GeometryComponent, (value) => {
-                      const current = this.geometryStore.getByIdWithComponent(
-                        id,
-                        GeometryComponent,
-                      );
-                      if (!current || !GeometryComponent.isPolygon(current)) {
-                        return null;
-                      }
-                      const currentGeom = GeometryComponent.get(current);
-                      const h = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
-                      const currentBounds = BoundingBox.fromPoints(
-                        currentGeom.points.map((s) => s.point),
-                      );
-                      if (h === currentBounds.height) {
-                        return null;
-                      }
-                      const newBounds = {
-                        position: currentBounds.position,
-                        width: currentBounds.width,
-                        height: h,
-                      };
-                      return {
-                        points: BoundingBox.interpolatePoints(
-                          currentGeom.points,
-                          currentBounds,
-                          newBounds,
-                        ),
-                      };
-                    }),
+                    this.makeLengthHandlers(
+                      id,
+                      'height',
+                      GeometryComponent,
+                      (value) => {
+                        const current = this.geometryStore.getByIdWithComponent(
+                          id,
+                          GeometryComponent,
+                        );
+                        if (!current || !GeometryComponent.isPolygon(current)) {
+                          return null;
+                        }
+                        const currentGeom = GeometryComponent.get(current);
+                        const h = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
+                        const currentBounds = BoundingBox.fromPoints(
+                          currentGeom.points.map((s) => s.point),
+                        );
+                        if (h === currentBounds.height) {
+                          return null;
+                        }
+                        const newBounds = {
+                          position: currentBounds.position,
+                          width: currentBounds.width,
+                          height: h,
+                        };
+                        return {
+                          points: BoundingBox.interpolatePoints(
+                            currentGeom.points,
+                            currentBounds,
+                            newBounds,
+                          ),
+                        };
+                      },
+                      'height',
+                    ),
                   ),
                 ),
               ]),
@@ -1524,6 +1690,28 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     return GeometryComponent.update(old, { points });
                   });
                 },
+                onPointMouseEnter: (index) => {
+                  if (this.openAtIndexDragging) {
+                    return;
+                  }
+                  this.setShapePreviewHighlight({ type: 'point', index });
+                },
+                onPointMouseLeave: () => {
+                  if (this.openAtIndexDragging) {
+                    return;
+                  }
+                  this.setShapePreviewHighlight(null);
+                },
+                onOpenAtIndexMouseEnter: () => {
+                  this.setShapePreviewHighlight({
+                    type: 'segment',
+                    index: geometryData.openAtIndex,
+                    color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+                  });
+                },
+                onOpenAtIndexMouseLeave: () => {
+                  this.setShapePreviewHighlight(null);
+                },
                 onOpenAtIndexMouseDown: () => {
                   const current = this.geometryStore.getByIdWithComponent(id, GeometryComponent);
                   if (!current || !GeometryComponent.isPolygon(current)) {
@@ -1535,7 +1723,13 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   let newOpenAtIndex = initialOpenAtIndex;
                   let deltaYPx = 0;
 
+                  this.openAtIndexDragging = true;
                   this.emit('openAtIndexDragChange', true);
+                  this.setShapePreviewHighlight({
+                    type: 'segment',
+                    index: newOpenAtIndex,
+                    color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+                  });
 
                   const onMouseMove = (e: MouseEvent) => {
                     deltaYPx += e.movementY;
@@ -1547,11 +1741,17 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     this.geometryStore.updateByIdWithComponentDirect(id, GeometryComponent, (old) =>
                       GeometryComponent.update(old, { openAtIndex: newOpenAtIndex }),
                     );
+                    this.setShapePreviewHighlight({
+                      type: 'segment',
+                      index: newOpenAtIndex,
+                      color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+                    });
                   };
 
                   const cleanup = () => {
                     window.removeEventListener('mousemove', onMouseMove);
                     window.removeEventListener('mouseup', onMouseUp);
+                    this.openAtIndexDragging = false;
                     if (this.openAtIndexDragCleanup === cleanup) {
                       this.openAtIndexDragCleanup = null;
                     }
@@ -1559,6 +1759,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
                   const onMouseUp = () => {
                     this.emit('openAtIndexDragChange', false);
+                    this.setShapePreviewHighlight(null);
                     if (newOpenAtIndex !== initialOpenAtIndex) {
                       this.historyManager.push(
                         UndoEntry.polygonOpenAtIndex(id, initialOpenAtIndex, newOpenAtIndex),
@@ -1573,6 +1774,26 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                 },
                 onCloseOpen: () => {
                   this.actionsManager?.execute('open-close-polygon');
+                },
+                onCloseOpenMouseEnter: () => {
+                  if (!geometryData.closed) {
+                    return;
+                  }
+                  this.openAtIndexDragging = true;
+                  this.emit('openAtIndexDragChange', true);
+                  this.setShapePreviewHighlight({
+                    type: 'segment',
+                    index: geometryData.openAtIndex,
+                    color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+                  });
+                },
+                onCloseOpenMouseLeave: () => {
+                  if (!geometryData.closed) {
+                    return;
+                  }
+                  this.openAtIndexDragging = false;
+                  this.emit('openAtIndexDragChange', false);
+                  this.setShapePreviewHighlight(null);
                 },
               }),
             ];
