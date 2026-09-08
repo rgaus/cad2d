@@ -1514,6 +1514,124 @@ describe('SelectionInspectorManager', () => {
       expect(xField.type).toBe('heterogeneous');
     });
   });
+
+  describe('shapePreview', () => {
+    it('is null when no shape is selected', () => {
+      expect(sheet.selectionInspectorManager.shapePreview).toBeNull();
+    });
+
+    it('is null when multiple shapes are selected', () => {
+      const r1 = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const r2 = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(20, 20), new SheetPosition(30, 30)),
+      );
+      sheet.selectionManager.select(r1.id);
+      sheet.selectionManager.select(r2.id);
+      expect(sheet.selectionInspectorManager.shapePreview).toBeNull();
+    });
+
+    it('is non-null with geometry and filters when exactly one shape is selected', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(1, 2), new SheetPosition(3, 5)),
+      );
+      sheet.selectionManager.select(rect.id);
+
+      const preview = sheet.selectionInspectorManager.shapePreview;
+      expect(preview).not.toBeNull();
+      if (!preview) {
+        return;
+      }
+      expect(preview.geometry.id).toBe(rect.id);
+      expect(preview.filters).toEqual([]);
+      expect(preview.highlight).toBeNull();
+      expect(preview.editingDimension).toBeNull();
+    });
+
+    it('point hover sets and clears the highlight', () => {
+      const poly = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
+          closed: true,
+        }),
+      );
+      sheet.selectionManager.select(poly.id);
+
+      const sim = sheet.selectionInspectorManager;
+      const field = sim.fields.find((f) => f.type === 'polygon-points');
+      expect(field?.type).toBe('polygon-points');
+      if (field?.type !== 'polygon-points') {
+        return;
+      }
+
+      field.handlers.onPointMouseEnter?.(1);
+      expect(sim.shapePreview?.highlight).toEqual({ type: 'point', index: 1 });
+
+      field.handlers.onPointMouseLeave?.(1);
+      expect(sim.shapePreview?.highlight).toBeNull();
+    });
+
+    it('length field focus sets editingDimension and blur clears it', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(1, 2), new SheetPosition(3, 5)),
+      );
+      sheet.selectionManager.select(rect.id);
+
+      const sim = sheet.selectionInspectorManager;
+      const widthField = getLeafFromRowLabel(sim.fields, 'dimensions', 'width');
+      expect(widthField.type).toBe('length');
+      if (widthField.type !== 'length') {
+        return;
+      }
+
+      widthField.handlers.onFocus?.();
+      expect(sim.shapePreview?.editingDimension).toBe('width');
+
+      widthField.handlers.onBlur?.();
+      expect(sim.shapePreview?.editingDimension).toBeNull();
+    });
+
+    it('resets to null when selection changes away from a single shape', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(1, 2), new SheetPosition(3, 5)),
+      );
+      sheet.selectionManager.select(rect.id);
+      expect(sheet.selectionInspectorManager.shapePreview).not.toBeNull();
+
+      sheet.selectionManager.clearSelection();
+      expect(sheet.selectionInspectorManager.shapePreview).toBeNull();
+    });
+
+    it('emits a new object reference on each change', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(1, 2), new SheetPosition(3, 5)),
+      );
+      sheet.selectionManager.select(rect.id);
+
+      const sim = sheet.selectionInspectorManager;
+      const first = sim.shapePreview;
+      expect(first).not.toBeNull();
+
+      const widthField = getLeafFromRowLabel(sim.fields, 'dimensions', 'width');
+      expect(widthField.type).toBe('length');
+      if (widthField.type !== 'length') {
+        return;
+      }
+      widthField.handlers.onFocus?.();
+
+      const second = sim.shapePreview;
+      expect(second).not.toBeNull();
+      expect(second).not.toBe(first);
+      expect(second?.editingDimension).toBe('width');
+    });
+  });
 });
 
 describe('computeOpenAtIndex', () => {
