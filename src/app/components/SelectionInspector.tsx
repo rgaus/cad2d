@@ -43,6 +43,7 @@ import {
   type Field,
   FieldLabel,
   FieldRow,
+  OpenAtIndexState,
   SelectionInspectorField,
   type WorkingFieldData,
 } from '@/lib/selection/SelectionInspectorManager';
@@ -1217,7 +1218,7 @@ const PolygonInspector: React.FunctionComponent<{
         sheetDefaultUnit={sheetDefaultUnit}
         pointInputRefs={pointInputRefs.current}
         highlight={shapePreviewHighlight}
-        openAtIndexDragging={openAtIndexDragging}
+        openAtIndexState={openAtIndexDragging}
         onPointXChange={handlePointXChange}
         onPointYChange={handlePointYChange}
         onControlPointChange={handleControlPointChange}
@@ -1765,8 +1766,8 @@ const FieldLeafRenderer: React.FunctionComponent<{
   field: SelectionInspectorField;
   sheetDefaultUnit: Sheet['defaultUnit'];
   sheetUnitPlaces: Sheet['unitPlaces'];
-  openAtIndexDragging?: boolean;
-}> = ({ geometryStore, field, sheetDefaultUnit, sheetUnitPlaces, openAtIndexDragging = false }) => {
+  openAtIndexState?: OpenAtIndexState;
+}> = ({ geometryStore, field, sheetDefaultUnit, sheetUnitPlaces, openAtIndexState = 'idle' }) => {
   switch (field.type) {
     case 'number':
       return (
@@ -1879,7 +1880,7 @@ const FieldLeafRenderer: React.FunctionComponent<{
             data={field.value}
             sheetUnitPlaces={sheetUnitPlaces}
             sheetDefaultUnit={sheetDefaultUnit}
-            openAtIndexDragging={openAtIndexDragging}
+            openAtIndexState={openAtIndexState}
             onPointXChange={field.handlers.onPointXChange}
             onPointYChange={field.handlers.onPointYChange}
             onPointXBlur={field.handlers.onPointXBlur}
@@ -2248,11 +2249,11 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
     };
   }, [sheet.selectionInspectorManager]);
 
-  const [openAtIndexDragging, setOpenAtIndexDragging] = useState(false);
+  const [openAtIndexState, setOpenAtIndexState] = useState<OpenAtIndexState>('idle');
   useEffect(() => {
-    sheet.selectionInspectorManager.on('openAtIndexDragChange', setOpenAtIndexDragging);
+    sheet.selectionInspectorManager.on('openAtIndexStateChange', setOpenAtIndexState);
     return () => {
-      sheet.selectionInspectorManager.off('openAtIndexDragChange', setOpenAtIndexDragging);
+      sheet.selectionInspectorManager.off('openAtIndexStateChange', setOpenAtIndexState);
     };
   }, [sheet.selectionInspectorManager]);
 
@@ -2332,7 +2333,7 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
                   geometryStore={geometryStore}
                   sheetDefaultUnit={sheetDefaultUnit}
                   sheetUnitPlaces={sheetUnitPlaces}
-                  openAtIndexDragging={openAtIndexDragging}
+                  openAtIndexState={openAtIndexState}
                 />
               );
             }

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select';
 import { type PolygonSegment } from '@/lib/entity';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { OpenAtIndexState } from '@/lib/selection/SelectionInspectorManager';
 import { POINT_ROW_HEIGHT_PX_BY_TYPE } from '@/lib/selection/polygon-point-row';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { Length, type UnitType } from '@/lib/units/length';
@@ -21,11 +22,11 @@ import { type ShapePreviewHighlight } from './ShapePreview';
 export { POINT_ROW_HEIGHT_PX_BY_TYPE };
 
 const SplitPointIndicator: React.FunctionComponent<{
-  dragging: boolean;
+  highlighted: boolean;
   onMouseDown?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
-}> = ({ dragging, onMouseDown, onMouseEnter, onMouseLeave }) => {
+}> = ({ highlighted, onMouseDown, onMouseEnter, onMouseLeave }) => {
   const [hover, setHover] = useState(false);
   return (
     <div className="w-full h-0 shrink-1 relative overflow-visible">
@@ -33,7 +34,7 @@ const SplitPointIndicator: React.FunctionComponent<{
         className={cn(
           'w-4 h-4 bg-[var(--slate-8)] border border-2 border-[var(--slate-6)] absolute -top-[10px] left-1 rounded-full z-30 cursor-grab',
           {
-            'bg-[var(--teal-10)] border-[var(--teal-11)]': hover || dragging,
+            'bg-[var(--teal-10)] border-[var(--teal-11)]': hover || highlighted,
           },
         )}
         onMouseDown={onMouseDown}
@@ -48,7 +49,7 @@ const SplitPointIndicator: React.FunctionComponent<{
       />
       <div
         className={cn('h-[2px] bg-[var(--slate-6)] absolute -my-0.75', {
-          'bg-[var(--teal-11)]': hover || dragging,
+          'bg-[var(--teal-11)]': hover || highlighted,
         })}
         style={{ marginLeft: 12, width: 'calc(100% - 24px)' }}
       />
@@ -323,7 +324,7 @@ type PolygonPointsInspectorProps = {
   sheetDefaultUnit: UnitType;
   pointInputRefs?: Map<number, PointRowRefs>;
   highlight?: ShapePreviewHighlight | null;
-  openAtIndexDragging?: boolean;
+  openAtIndexState?: OpenAtIndexState;
   onPointXChange?: (index: number, len: Length) => void;
   onPointYChange?: (index: number, len: Length) => void;
   onPointXBlur?: (index: number) => void;
@@ -350,7 +351,7 @@ export default function PolygonPointsInspector({
   sheetDefaultUnit,
   pointInputRefs,
   highlight,
-  openAtIndexDragging = false,
+  openAtIndexState = 'idle',
   onPointXChange,
   onPointYChange,
   onPointXBlur,
@@ -380,7 +381,7 @@ export default function PolygonPointsInspector({
         </span>
         <span className="text-xs text-[var(--slate-8)] font-mono">{data.points.length}</span>
       </div>
-        <div className="flex flex-col max-h-40 -mx-3 w-[calc(100%+12px+12px)] overflow-y-auto">
+      <div className="flex flex-col max-h-40 -mx-3 w-[calc(100%+12px+12px)] overflow-y-auto">
         {displayedPoints.map((segment, index) => {
           let refs = pointRefsMap.get(index);
           if (!refs) {
@@ -411,7 +412,7 @@ export default function PolygonPointsInspector({
 
               {data.closed && data.openAtIndex === index ? (
                 <SplitPointIndicator
-                  dragging={openAtIndexDragging}
+                  highlighted={openAtIndexState !== 'idle'}
                   onMouseEnter={onOpenAtIndexMouseEnter}
                   onMouseLeave={onOpenAtIndexMouseLeave}
                   onMouseDown={onOpenAtIndexMouseDown}
@@ -419,7 +420,7 @@ export default function PolygonPointsInspector({
               ) : null}
 
               {/* Render a fixed position backdrop while dragging is occurring. */}
-              {openAtIndexDragging ? (
+              {openAtIndexState === 'dragging' ? (
                 <div className="fixed inset-0 z-40 cursor-grabbing" />
               ) : null}
             </Fragment>

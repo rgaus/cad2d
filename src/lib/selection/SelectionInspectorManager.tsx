@@ -27,7 +27,6 @@ import { SheetPosition } from '../viewport/types';
 import {
   POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
   type ShapePreviewEditingDimension,
-  type ShapePreviewHighlight,
   ShapePreviewManager,
   type ShapePreviewState,
 } from './ShapePreviewManager';
@@ -333,10 +332,17 @@ export type WorkingFieldData = Map<
   | { type: 'link-dimensions-button'; value: boolean }
 >;
 
+/** The current state of the "open at index" line which can be dragged to set a polygon's open/close
+ * index. */
+export type OpenAtIndexState =
+  | 'idle' // Not dragging
+  | 'dragging'
+  | 'highlighted';
+
 type SelectionInspectorManagerEvents = {
   fieldsChange: (fields: Array<Field>) => void;
   workingFieldDataChange: (fieldData: WorkingFieldData) => void;
-  openAtIndexDragChange: (dragging: boolean) => void;
+  openAtIndexStateChange: (dragging: OpenAtIndexState) => void;
   shapePreviewChange: (state: ShapePreviewState) => void;
 };
 
@@ -584,9 +590,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   fields: Array<Field> = [];
 
   shapePreview: ShapePreviewState = null;
-
-  /** Whether the polygon open-at-index dividing line is currently being dragged. */
-  private openAtIndexDragging = false;
 
   private handleShapePreviewChange = (state: ShapePreviewState) => {
     this.shapePreview = state;
@@ -1620,15 +1623,9 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   });
                 },
                 onPointMouseEnter: (index) => {
-                  if (this.openAtIndexDragging) {
-                    return;
-                  }
                   this.shapePreviewManager.setHighlight({ type: 'point', index });
                 },
                 onPointMouseLeave: () => {
-                  if (this.openAtIndexDragging) {
-                    return;
-                  }
                   this.shapePreviewManager.setHighlight(null);
                 },
                 onOpenAtIndexMouseEnter: () => {
@@ -1652,8 +1649,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   let newOpenAtIndex = initialOpenAtIndex;
                   let deltaYPx = 0;
 
-                  this.openAtIndexDragging = true;
-                  this.emit('openAtIndexDragChange', true);
+                  this.emit('openAtIndexStateChange', 'dragging');
                   this.shapePreviewManager.setHighlight({
                     type: 'segment',
                     index: newOpenAtIndex,
@@ -1680,14 +1676,13 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   const cleanup = () => {
                     window.removeEventListener('mousemove', onMouseMove);
                     window.removeEventListener('mouseup', onMouseUp);
-                    this.openAtIndexDragging = false;
                     if (this.openAtIndexDragCleanup === cleanup) {
                       this.openAtIndexDragCleanup = null;
                     }
                   };
 
                   const onMouseUp = () => {
-                    this.emit('openAtIndexDragChange', false);
+                    this.emit('openAtIndexStateChange', 'idle');
                     this.shapePreviewManager.setHighlight(null);
                     if (newOpenAtIndex !== initialOpenAtIndex) {
                       this.historyManager.push(
@@ -1708,8 +1703,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   if (!geometryData.closed) {
                     return;
                   }
-                  this.openAtIndexDragging = true;
-                  this.emit('openAtIndexDragChange', true);
+
+                  // When hovering the open / close button, highlight the line, but don't actually
+                  // mark it as being dragged.
+                  this.emit('openAtIndexStateChange', 'highlighted');
+
                   this.shapePreviewManager.setHighlight({
                     type: 'segment',
                     index: geometryData.openAtIndex,
@@ -1720,8 +1718,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   if (!geometryData.closed) {
                     return;
                   }
-                  this.openAtIndexDragging = false;
-                  this.emit('openAtIndexDragChange', false);
+                  this.emit('openAtIndexStateChange', 'idle');
                   this.shapePreviewManager.setHighlight(null);
                 },
               }),
