@@ -1906,6 +1906,8 @@ const FieldLeafRenderer: React.FunctionComponent<{
               variant="secondary"
               disabled={field.isPolygonFilledDueToFilter}
               onClick={field.handlers.onCloseOpen}
+              onMouseEnter={field.handlers.onCloseOpenMouseEnter}
+              onMouseLeave={field.handlers.onCloseOpenMouseLeave}
               className={cn('w-full border border-2 border-transparent', {
                 'hover:border-[var(--teal-5)]': field.value.closed,
               })}
@@ -2254,6 +2256,14 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
     };
   }, [sheet.selectionInspectorManager]);
 
+  const [shapePreview, setShapePreview] = useState(sheet.selectionInspectorManager.shapePreview);
+  useEffect(() => {
+    sheet.selectionInspectorManager.on('shapePreviewChange', setShapePreview);
+    return () => {
+      sheet.selectionInspectorManager.off('shapePreviewChange', setShapePreview);
+    };
+  }, [sheet.selectionInspectorManager]);
+
   useEffect(() => {
     const handler = (wfd: WorkingFieldData) => {
       setFields((prev) => applyWorkingFieldData(prev, wfd));
@@ -2275,6 +2285,20 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
           {/* <AngleInput value={Angle.degrees(0)} onChange={(ang) => console.log(ang)} /> */}
 
           <br />
+
+          {shapePreview ? (
+            <div className="flex flex-row justify-center w-full py-2">
+              <div className="w-20 shrink-0 aspect-square overflow-hidden">
+                <ShapePreview
+                  geometry={shapePreview.geometry}
+                  sheetDefaultUnit={shapePreview.sheetDefaultUnit}
+                  filters={shapePreview.filters}
+                  highlight={shapePreview.highlight}
+                  editingDimension={shapePreview.editingDimension}
+                />
+              </div>
+            </div>
+          ) : null}
 
           {fields.map((field) => {
             if (field.type === 'row') {
