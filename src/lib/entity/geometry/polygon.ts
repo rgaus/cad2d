@@ -535,7 +535,9 @@ export namespace PolygonSegment {
         return {
           type: 'arc-quadratic',
           point: segment.point,
-          controlPoint: isCubic(segment) ? segment.controlPointA : Vector2.midpoint(segment.point, previousSegment.point),
+          controlPoint: isCubic(segment)
+            ? segment.controlPointA
+            : Vector2.midpoint(segment.point, previousSegment.point),
         };
       case 'arc-cubic':
         if (isCubic(segment)) {

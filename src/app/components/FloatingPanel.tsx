@@ -10,7 +10,12 @@ type FloatingPanelProps = {
   className?: string;
 };
 
-export default function FloatingPanel({ title, children, noXPadding = false, className = '' }: FloatingPanelProps) {
+export default function FloatingPanel({
+  title,
+  children,
+  noXPadding = false,
+  className = '',
+}: FloatingPanelProps) {
   return (
     <Card
       className={className}
@@ -23,7 +28,7 @@ export default function FloatingPanel({ title, children, noXPadding = false, cla
           <CardTitle>{title}</CardTitle>
         </CardHeader>
       ) : null}
-      <CardContent className={cn({ "px-0": noXPadding })}>{children}</CardContent>
+      <CardContent className={cn({ 'px-0': noXPadding })}>{children}</CardContent>
     </Card>
   );
 }
