@@ -680,7 +680,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
     // Erase any fields whicha re currently being filled out
     this.workingFieldData.clear();
-    this.emit('workingFieldDataChange', new Map());
 
     this.fields = processed;
     this.emit('fieldsChange', processed);
