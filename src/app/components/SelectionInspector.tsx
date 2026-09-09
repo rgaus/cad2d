@@ -1,39 +1,12 @@
 'use client';
 
 import { Link2Icon, Link2OffIcon } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import RenderOrderInput from '@/components/RenderOrderInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useGeometriesById } from '@/hooks/useGeometryById';
-import { ActionsManager } from '@/lib/actions/ActionsManager';
-import {
-  Entity,
-  FillColorComponent,
-  FrameComponent,
-  GeometryComponent,
-  type Id,
-  RenderOrderComponent,
-} from '@/lib/entity';
+import { type Id } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
-import { ConstraintComponent } from '@/lib/entity/components/ConstraintComponent';
-import { FilterComponent } from '@/lib/entity/components/FilterComponent';
-import {
-  ColinearConstraintData,
-  HorizontalConstraintData,
-  LinearConstraintData,
-  ParallelConstraintData,
-  PerpendicularConstraintData,
-  VerticalConstraintData,
-} from '@/lib/entity/constraints';
-import { ChamferFilterData } from '@/lib/entity/filters/chamfer';
-import { FilletFilterData } from '@/lib/entity/filters/fillet';
-import { MirrorFilterData } from '@/lib/entity/filters/mirror';
-import { PatternGridFilterData, PatternRadialFilterData } from '@/lib/entity/filters/pattern';
-import { EllipseData } from '@/lib/entity/geometry/ellipse';
-import { PolygonData } from '@/lib/entity/geometry/polygon';
-import { RectangleData } from '@/lib/entity/geometry/rectangle';
-import { HistoryManager } from '@/lib/history/HistoryManager';
 import {
   type Field,
   FieldLabel,
@@ -57,8 +30,6 @@ type SelectionInspectorProps = {
   sheet: Sheet;
   geometryStore: GeometryStore;
   selectionManager: SelectionManager;
-  historyManager: HistoryManager;
-  actionsManager: ActionsManager;
 };
 
 function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => void }) {
@@ -343,8 +314,6 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
   sheet,
   geometryStore,
   selectionManager,
-  historyManager,
-  actionsManager,
 }) => {
   const [selectedIds, setSelectedIds] = useState<Array<Id>>(() =>
     selectionManager.getSelectedIds(),
@@ -356,8 +325,6 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
     };
   }, [selectionManager]);
 
-  const selectedGeometries = useGeometriesById(geometryStore, selectedIds);
-
   const [sheetDefaultUnit, setSheetDefaultUnit] = useState(sheet.defaultUnit);
   const [sheetUnitPlaces, setSheetUnitPlaces] = useState(sheet.unitPlaces);
   useEffect(() => {
@@ -368,198 +335,6 @@ const SelectionInspector: React.FunctionComponent<SelectionInspectorProps> = ({
       sheet.off('defaultUnitChange', setSheetDefaultUnit);
     };
   }, [sheet]);
-
-  const [
-    singleRectangle,
-    singleEllipse,
-    singlePolygon,
-    singlePatternGrid,
-    singlePatternRadial,
-    singleMirror,
-    singleFillet,
-    singleChamfer,
-    singleFrame,
-    singleLinear,
-    singlePerpendicular,
-    singleParallel,
-    singleHorizontal,
-    singleVertical,
-    singleColinear,
-  ] = useMemo(() => {
-    const rectangles = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<GeometryComponent<RectangleData>> =>
-        Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isRectangle(g),
-    );
-    const ellipses = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<GeometryComponent<EllipseData>> =>
-        Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isEllipse(g),
-    );
-    const polygons = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<GeometryComponent<PolygonData>> =>
-        Entity.hasComponent(g, GeometryComponent) && GeometryComponent.isPolygon(g),
-    );
-    const patternGridFilters = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<FilterComponent<PatternGridFilterData>> => {
-        if (!Entity.hasComponent(g, FilterComponent)) {
-          return false;
-        }
-        const data = FilterComponent.get(g);
-        return data.type === 'pattern' && data.mode === 'grid';
-      },
-    );
-    const patternRadialFilters = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<FilterComponent<PatternRadialFilterData>> => {
-        if (!Entity.hasComponent(g, FilterComponent)) {
-          return false;
-        }
-        const data = FilterComponent.get(g);
-        return data.type === 'pattern' && data.mode === 'radial';
-      },
-    );
-    const mirrorFilters = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<FilterComponent<MirrorFilterData>> => {
-        if (!Entity.hasComponent(g, FilterComponent)) {
-          return false;
-        }
-        return FilterComponent.get(g).type === 'mirror';
-      },
-    );
-    const filletFilters = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<FilterComponent<FilletFilterData>> => {
-        if (!Entity.hasComponent(g, FilterComponent)) {
-          return false;
-        }
-        return FilterComponent.get(g).type === 'fillet';
-      },
-    );
-    const chamferFilters = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<FilterComponent<ChamferFilterData>> => {
-        if (!Entity.hasComponent(g, FilterComponent)) {
-          return false;
-        }
-        return FilterComponent.get(g).type === 'chamfer';
-      },
-    );
-    const frames = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<FrameComponent> => {
-        return Entity.hasComponent(g, FrameComponent);
-      },
-    );
-    const linearConstraints = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<ConstraintComponent<LinearConstraintData>> =>
-        Entity.hasComponent(g, ConstraintComponent) && ConstraintComponent.get(g).type === 'linear',
-    );
-    const perpendicularConstraints = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<ConstraintComponent<PerpendicularConstraintData>> =>
-        Entity.hasComponent(g, ConstraintComponent) &&
-        ConstraintComponent.get(g).type === 'perpendicular',
-    );
-    const parallelConstraints = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<ConstraintComponent<ParallelConstraintData>> =>
-        Entity.hasComponent(g, ConstraintComponent) &&
-        ConstraintComponent.get(g).type === 'parallel',
-    );
-    const horizontalConstraints = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<ConstraintComponent<HorizontalConstraintData>> =>
-        Entity.hasComponent(g, ConstraintComponent) &&
-        ConstraintComponent.get(g).type === 'horizontal',
-    );
-    const verticalConstraints = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<ConstraintComponent<VerticalConstraintData>> =>
-        Entity.hasComponent(g, ConstraintComponent) &&
-        ConstraintComponent.get(g).type === 'vertical',
-    );
-    const colinearConstraints = Array.from(selectedGeometries.values()).filter(
-      (g): g is Entity<ConstraintComponent<ColinearConstraintData>> =>
-        Entity.hasComponent(g, ConstraintComponent) &&
-        ConstraintComponent.get(g).type === 'colinear',
-    );
-
-    const singleRectangle = rectangles.length === 1 ? rectangles[0] : null;
-    const singleEllipse = ellipses.length === 1 ? ellipses[0] : null;
-    const singlePolygon = polygons.length === 1 ? polygons[0] : null;
-    const singlePatternGrid = patternGridFilters.length === 1 ? patternGridFilters[0] : null;
-    const singlePatternRadial = patternRadialFilters.length === 1 ? patternRadialFilters[0] : null;
-    const singleMirror = mirrorFilters.length === 1 ? mirrorFilters[0] : null;
-    const singleFillet = filletFilters.length === 1 ? filletFilters[0] : null;
-    const singleChamfer = chamferFilters.length === 1 ? chamferFilters[0] : null;
-    const singleFrame = frames.length === 1 ? frames[0] : null;
-    const singleLinear = linearConstraints.length === 1 ? linearConstraints[0] : null;
-    const singlePerpendicular =
-      perpendicularConstraints.length === 1 ? perpendicularConstraints[0] : null;
-    const singleParallel = parallelConstraints.length === 1 ? parallelConstraints[0] : null;
-    const singleHorizontal = horizontalConstraints.length === 1 ? horizontalConstraints[0] : null;
-    const singleVertical = verticalConstraints.length === 1 ? verticalConstraints[0] : null;
-    const singleColinear = colinearConstraints.length === 1 ? colinearConstraints[0] : null;
-    return [
-      singleRectangle,
-      singleEllipse,
-      singlePolygon,
-      singlePatternGrid,
-      singlePatternRadial,
-      singleMirror,
-      singleFillet,
-      singleChamfer,
-      singleFrame,
-      singleLinear,
-      singlePerpendicular,
-      singleParallel,
-      singleHorizontal,
-      singleVertical,
-      singleColinear,
-    ];
-  }, [selectedGeometries]);
-
-  // "non-homogenous" means the value is set differently across all selected geometries
-  // "not-all" means that some selected geometries do NOT have that component
-  const getCombinedComponentValue = useCallback(
-    <V = unknown,>(Component: {
-      key: string;
-      get: (geometry: Entity<any>) => V;
-    }): { type: 'value'; value: V } | { type: 'not-all' } | { type: 'non-homogenous' } => {
-      let firstValue: V | undefined;
-      for (const geometry of selectedGeometries.values()) {
-        if (!Entity.hasComponent(geometry, Component)) {
-          return { type: 'not-all' };
-        }
-
-        const value = Component.get(geometry);
-        if (typeof firstValue === 'undefined') {
-          firstValue = value;
-          continue;
-        } else if (firstValue !== value) {
-          return { type: 'non-homogenous' };
-        }
-      }
-
-      return typeof firstValue !== 'undefined'
-        ? { type: 'value', value: firstValue }
-        : { type: 'not-all' };
-    },
-    [selectedGeometries],
-  );
-
-  const fillColor = getCombinedComponentValue(FillColorComponent);
-  const handleFillChange = useCallback(
-    (color: number | null) => {
-      // FIXME: wrap in history transaction?
-      for (const id of selectedIds) {
-        geometryStore.setFillColor(id, color);
-      }
-    },
-    [geometryStore, selectedIds],
-  );
-
-  const renderOrder = getCombinedComponentValue(RenderOrderComponent);
-  const handleRenderOrderChange = useCallback(
-    (renderOrder: number) => {
-      // FIXME: wrap in history transaction?
-      for (const id of selectedIds) {
-        geometryStore.setRenderOrder(id, renderOrder);
-      }
-    },
-    [geometryStore, selectedIds],
-  );
 
   const [fields, setFields] = useState(sheet.selectionInspectorManager.fields);
   useEffect(() => {

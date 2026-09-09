@@ -57,8 +57,6 @@ export default function Home() {
         sheet={sheet}
         geometryStore={sheet.geometryStore}
         selectionManager={sheet.selectionManager}
-        historyManager={sheet.historyManager}
-        actionsManager={actionManager}
       />
     </div>
   );
