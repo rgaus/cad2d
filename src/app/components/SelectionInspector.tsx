@@ -87,6 +87,7 @@ const FieldLeafRenderer: React.FunctionComponent<{
             onChange={field.handlers.onChange ?? (() => {})}
             onFocus={field.handlers.onFocus}
             onBlur={field.handlers.onBlur}
+            roundPlaces={sheetUnitPlaces}
           />
         </span>
       );
