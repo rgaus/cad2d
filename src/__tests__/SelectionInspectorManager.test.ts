@@ -1106,6 +1106,51 @@ describe('SelectionInspectorManager', () => {
     });
   });
 
+  describe('active edit on selection change', () => {
+    it('drops the edit and records no history when selection changes mid-edit', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(1, 2), new SheetPosition(3, 5)),
+      );
+      const other = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(10, 10), new SheetPosition(20, 20)),
+      );
+      sheet.selectionManager.select(rect.id);
+
+      const sim = sheet.selectionInspectorManager;
+      const xField = getLeafFromRowLabel(sim.fields, 'position', 'x');
+      expect(xField.type).toBe('length');
+      if (xField.type !== 'length') {
+        return;
+      }
+
+      const undoBefore = historyManager.getUndoStack().length;
+
+      // Begin an edit: Direct-apply moves the rectangle x to 4 without history.
+      xField.handlers.onChange?.(Length.centimeters(4));
+
+      const changedEntity = geometryStore.getByIdWithComponent(rect.id, GeometryComponent);
+      const changedData = GeometryComponent.get(changedEntity!);
+      if (changedData.type !== 'rectangle') {
+        return;
+      }
+      expect(changedData.upperLeft.x).toBeCloseTo(4);
+
+      // Change selection mid-edit.
+      sheet.selectionManager.select(other.id);
+
+      // The edit is dropped (rectangle restored) and no history entry was recorded.
+      const restoredEntity = geometryStore.getByIdWithComponent(rect.id, GeometryComponent);
+      const restoredData = GeometryComponent.get(restoredEntity!);
+      if (restoredData.type !== 'rectangle') {
+        return;
+      }
+      expect(restoredData.upperLeft.x).toBeCloseTo(1);
+      expect(historyManager.getUndoStack().length).toBe(undoBefore);
+    });
+  });
+
   describe('mirror filter', () => {
     beforeEach(() => {
       const rect = geometryStore.addOrdered(

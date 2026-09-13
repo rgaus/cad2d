@@ -432,6 +432,16 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     this.dragOriginals.delete(entityId);
   }
 
+  /** Drops every in-progress edit, restoring each entity to its captured original without recording
+   * any history. Used when the selection changes mid-edit. */
+  private discardActiveEdits(): void {
+    for (const entityId of [...this.dragOriginals.keys()]) {
+      this.restoreDragOriginal(entityId);
+    }
+    this.workingFieldData.clear();
+    this.emit('workingFieldDataChange', new Map());
+  }
+
   /**
    * Produces standard drag-aware handlers for a length-type field.
    *
@@ -581,6 +591,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       // No change, so bail early
       return;
     }
+    this.discardActiveEdits();
     this.selectedIds = ids;
     this.recomputeFields();
     this.shapePreviewManager.setSelectedIds(ids);
