@@ -1,14 +1,22 @@
 import {
+  ColinearConstraint,
+  ConstraintComponent,
+  ConstraintEndpoint,
   Datum,
   DatumComponent,
   Ellipse,
   type Entity,
   FillColorComponent,
   GeometryComponent,
+  HorizontalConstraint,
+  LinearConstraint,
+  ParallelConstraint,
+  PerpendicularConstraint,
   type PointSegment,
   Polygon,
   Rectangle,
   RenderOrderComponent,
+  VerticalConstraint,
 } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
@@ -1343,7 +1351,21 @@ describe('SelectionInspectorManager', () => {
   });
 
   describe('fillet filter (rectangle)', () => {
-    it('has offset row and readOnly keypoints', () => {
+    function getKeypointChoicesField(fields: Array<Field>, labelKey: string) {
+      const kpRow = fields.find((f) => f.type === 'row' && f.key === 'keypoints');
+      expect(kpRow).toBeDefined();
+      if (!kpRow || kpRow.type !== 'row') {
+        throw new Error('keypoints row not found');
+      }
+      const label = kpRow.fields.find((f) => f.type === 'label' && f.key === labelKey);
+      expect(label).toBeDefined();
+      if (!label || label.type !== 'label') {
+        throw new Error(`label "${labelKey}" not found in keypoints row`);
+      }
+      return label.fields[0];
+    }
+
+    it('has offset row and choice toggle groups for keypoints', () => {
       const rect = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
@@ -1361,8 +1383,6 @@ describe('SelectionInspectorManager', () => {
       sheet.selectionManager.select(fillet.id);
 
       const fields = sheet.selectionInspectorManager.fields;
-      const kpRow = fields.find((f) => f.type === 'row' && f.key === 'keypoints');
-      expect(kpRow).toBeDefined();
 
       // offset field is editable
       const offsetField = getLeafFromRowLabel(fields, 'offset', 'offset');
@@ -1378,6 +1398,47 @@ describe('SelectionInspectorManager', () => {
           expect(filterData.offset.magnitude).toBeCloseTo(3);
         }
       }
+
+      // keypoints are choice toggle groups, not read-only
+      const aField = getKeypointChoicesField(fields, 'a');
+      expect(aField.type).toBe('choices');
+      if (aField.type === 'choices') {
+        expect(aField.value).toBe('upperLeft');
+      }
+    });
+
+    it('keypoint choices onChange updates the filter keypoint', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const fillet = geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnRectangle(
+          rect.id,
+          'upperLeft',
+          'upperRight',
+          'lowerRight',
+          Length.centimeters(5),
+        ),
+      );
+      sheet.selectionManager.select(fillet.id);
+
+      const aField = getKeypointChoicesField(sheet.selectionInspectorManager.fields, 'a');
+      expect(aField.type).toBe('choices');
+      if (aField.type !== 'choices') {
+        return;
+      }
+
+      aField.handlers.onChange?.('lowerLeft');
+
+      const ids = sheet.selectionManager.getSelectedIds();
+      const entity = geometryStore.getById(ids[0]);
+      const filterData = FilterComponent.get(entity as unknown as Entity<FilterComponent>);
+      if (filterData.type !== 'fillet' || filterData.geometryType !== 'rectangle') {
+        return;
+      }
+      expect(filterData.pointAKeyPoint).toBe('lowerLeft');
     });
   });
 
@@ -1545,6 +1606,289 @@ describe('SelectionInspectorManager', () => {
       }
       // radius in pattern radial is a plain number, not Length
       expect(typeof filterData.radius).toBe('number');
+    });
+  });
+
+  describe('linear constraint (single)', () => {
+    let constraintId: string;
+
+    beforeEach(() => {
+      const poly = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
+          closed: false,
+        }),
+      );
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(poly.id, 0),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 1),
+          Length.millimeters(50),
+        ),
+      );
+      constraintId = constraint.id;
+      sheet.selectionManager.select(constraint.id);
+    });
+
+    it('has A and B constraint-endpoint fields plus length, label offset, and axis', () => {
+      const fields = sheet.selectionInspectorManager.fields;
+
+      const endpointFields = fields.filter((f) => f.type === 'constraint-endpoint');
+      expect(endpointFields).toHaveLength(2);
+      if (endpointFields[0]?.type === 'constraint-endpoint') {
+        expect(endpointFields[0].label).toBe('A');
+      }
+      if (endpointFields[1]?.type === 'constraint-endpoint') {
+        expect(endpointFields[1].label).toBe('B');
+      }
+
+      const lengthField = getLeafFromRowLabel(fields, 'constrainedLength', 'constrainedLength');
+      expect(lengthField.type).toBe('length');
+
+      const offsetField = getLeafFromRowLabel(
+        fields,
+        'connectorLineOffsetPx',
+        'connectorLineOffsetPx',
+      );
+      expect(offsetField.type).toBe('number');
+
+      const axisField = getLeafFromRowLabel(fields, 'axis', 'axis');
+      expect(axisField.type).toBe('choices');
+      if (axisField.type === 'choices') {
+        expect(axisField.value).toBe('full');
+      }
+    });
+
+    it('constrainedLength onBlur records a linear-constraint-change-length history entry', () => {
+      const sim = sheet.selectionInspectorManager;
+      const lengthField = getLeafFromRowLabel(sim.fields, 'constrainedLength', 'constrainedLength');
+      expect(lengthField.type).toBe('length');
+      if (lengthField.type !== 'length') {
+        return;
+      }
+
+      const undoBefore = historyManager.getUndoStack().length;
+
+      lengthField.handlers.onChange?.(Length.centimeters(7));
+      lengthField.handlers.onBlur?.();
+
+      const current = geometryStore.getByIdWithComponent(constraintId, ConstraintComponent);
+      expect(current).not.toBeNull();
+      const data = ConstraintComponent.get(current!);
+      if (data.type !== 'linear') {
+        return;
+      }
+      expect(data.constrainedLength.magnitude).toBeCloseTo(7);
+      expect(data.constrainedLength.type).toBe(Length.centimeters(7).type);
+
+      expect(historyManager.getUndoStack().length).toBe(undoBefore + 1);
+
+      historyManager.undo();
+      const undone = geometryStore.getByIdWithComponent(constraintId, ConstraintComponent);
+      const undoneData = ConstraintComponent.get(undone!);
+      if (undoneData.type !== 'linear') {
+        return;
+      }
+      expect(undoneData.constrainedLength.magnitude).toBeCloseTo(50);
+      expect(undoneData.constrainedLength.type).toBe(Length.millimeters(50).type);
+    });
+
+    it('endpoint onChange moves the endpoint and is undoable', () => {
+      const sim = sheet.selectionInspectorManager;
+      const endpointFields = sim.fields.filter((f) => f.type === 'constraint-endpoint');
+      const bField = endpointFields[1];
+      expect(bField?.type).toBe('constraint-endpoint');
+      if (bField?.type !== 'constraint-endpoint') {
+        return;
+      }
+
+      const before = geometryStore.getByIdWithComponent(constraintId, ConstraintComponent);
+      const beforeData = ConstraintComponent.get(before!);
+      if (beforeData.type !== 'linear') {
+        return;
+      }
+      const beforeB = beforeData.pointB;
+
+      bField.handlers.onChange?.(ConstraintEndpoint.point(new SheetPosition(20, 30)));
+
+      const after = geometryStore.getByIdWithComponent(constraintId, ConstraintComponent);
+      const afterData = ConstraintComponent.get(after!);
+      if (afterData.type !== 'linear') {
+        return;
+      }
+      expect(afterData.pointB.type).toBe('point');
+
+      historyManager.undo();
+      const restored = geometryStore.getByIdWithComponent(constraintId, ConstraintComponent);
+      const restoredData = ConstraintComponent.get(restored!);
+      if (restoredData.type !== 'linear') {
+        return;
+      }
+      expect(restoredData.pointB).toEqual(beforeB);
+    });
+
+    it('axis onChange records a linear-constraint-change-axis history entry', () => {
+      const sim = sheet.selectionInspectorManager;
+      const axisField = getLeafFromRowLabel(sim.fields, 'axis', 'axis');
+      expect(axisField.type).toBe('choices');
+      if (axisField.type !== 'choices') {
+        return;
+      }
+
+      const undoBefore = historyManager.getUndoStack().length;
+
+      axisField.handlers.onChange?.('x');
+
+      const current = geometryStore.getByIdWithComponent(constraintId, ConstraintComponent);
+      const data = ConstraintComponent.get(current!);
+      if (data.type !== 'linear') {
+        return;
+      }
+      expect(data.axis).toBe('x');
+
+      expect(historyManager.getUndoStack().length).toBe(undoBefore + 1);
+
+      historyManager.undo();
+      const undone = geometryStore.getByIdWithComponent(constraintId, ConstraintComponent);
+      const undoneData = ConstraintComponent.get(undone!);
+      if (undoneData.type !== 'linear') {
+        return;
+      }
+      expect(undoneData.axis).toBeNull();
+    });
+  });
+
+  describe('other constraint types', () => {
+    function makePolygon() {
+      return geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10), makePoint(0, 10)], {
+          closed: true,
+        }),
+      );
+    }
+
+    function getEndpointLabels() {
+      const fields = sheet.selectionInspectorManager.fields;
+      return fields
+        .filter((f) => f.type === 'constraint-endpoint')
+        .map((f) => (f.type === 'constraint-endpoint' ? f.label : ''));
+    }
+
+    it('perpendicular exposes A / Center / B endpoints', () => {
+      const poly = makePolygon();
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
+        PerpendicularConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(poly.id, 0),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 1),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 2),
+        ),
+      );
+      sheet.selectionManager.select(constraint.id);
+      expect(getEndpointLabels()).toEqual(['A', 'Center', 'B']);
+    });
+
+    it('parallel exposes A / B / C / D endpoints', () => {
+      const poly = makePolygon();
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
+        ParallelConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(poly.id, 0),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 1),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 2),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 3),
+        ),
+      );
+      sheet.selectionManager.select(constraint.id);
+      expect(getEndpointLabels()).toEqual(['A', 'B', 'C', 'D']);
+    });
+
+    it('horizontal exposes A / B endpoints', () => {
+      const poly = makePolygon();
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
+        HorizontalConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(poly.id, 0),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 1),
+        ),
+      );
+      sheet.selectionManager.select(constraint.id);
+      expect(getEndpointLabels()).toEqual(['A', 'B']);
+    });
+
+    it('vertical exposes A / B endpoints', () => {
+      const poly = makePolygon();
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
+        VerticalConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(poly.id, 0),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 1),
+        ),
+      );
+      sheet.selectionManager.select(constraint.id);
+      expect(getEndpointLabels()).toEqual(['A', 'B']);
+    });
+
+    it('colinear exposes Target / A / B endpoints', () => {
+      const poly = makePolygon();
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
+        ColinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(poly.id, 0),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 1),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 2),
+        ),
+      );
+      sheet.selectionManager.select(constraint.id);
+      expect(getEndpointLabels()).toEqual(['Target', 'A', 'B']);
+    });
+
+    it('perpendicular endpoint move is undoable', () => {
+      const poly = makePolygon();
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
+        PerpendicularConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(poly.id, 0),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 1),
+          ConstraintEndpoint.lockedToPolygon(poly.id, 2),
+        ),
+      );
+      sheet.selectionManager.select(constraint.id);
+
+      const fields = sheet.selectionInspectorManager.fields;
+      const centerField = fields.find(
+        (f) => f.type === 'constraint-endpoint' && f.label === 'Center',
+      );
+      expect(centerField?.type).toBe('constraint-endpoint');
+      if (centerField?.type !== 'constraint-endpoint') {
+        return;
+      }
+
+      const before = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent);
+      const beforeData = ConstraintComponent.get(before!);
+      if (beforeData.type !== 'perpendicular') {
+        return;
+      }
+      const beforeCenter = beforeData.pointCenter;
+
+      centerField.handlers.onChange?.(ConstraintEndpoint.point(new SheetPosition(50, 60)));
+
+      const after = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent);
+      const afterData = ConstraintComponent.get(after!);
+      if (afterData.type !== 'perpendicular') {
+        return;
+      }
+      expect(afterData.pointCenter.type).toBe('point');
+
+      historyManager.undo();
+      const restored = geometryStore.getByIdWithComponent(constraint.id, ConstraintComponent);
+      const restoredData = ConstraintComponent.get(restored!);
+      if (restoredData.type !== 'perpendicular') {
+        return;
+      }
+      expect(restoredData.pointCenter).toEqual(beforeCenter);
     });
   });
 

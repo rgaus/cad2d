@@ -2,6 +2,7 @@ import { EventEmitter } from 'eventemitter3';
 import { ActionsManager } from '../actions/ActionsManager';
 import {
   ConstraintComponent,
+  type ConstraintData,
   type ConstraintEndpoint,
   DatumComponent,
   Entity,
@@ -503,6 +504,15 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   private finishFilterEdit(filterId: Id): void {
     this.dragOriginals.delete(filterId);
     this.recomputeFields();
+  }
+
+  /** Reads the current constraint data for `id`, or null if it no longer exists. */
+  private getCurrentConstraint(id: Id): ConstraintData | null {
+    const entity = this.geometryStore.getByIdWithComponent(id, ConstraintComponent);
+    if (!entity) {
+      return null;
+    }
+    return ConstraintComponent.get(entity);
   }
 
   /**
@@ -2866,7 +2876,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         if (!Entity.hasComponent(entity, ConstraintComponent)) {
           return [];
         }
-        const constraintData = ConstraintComponent.get(entity);
+        const constraintData = ConstraintComponent.get<ConstraintData>(entity);
         const id = entity.id;
         switch (constraintData.type) {
           case 'linear': {
@@ -3037,7 +3047,162 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
               ]),
             ];
           }
+          case 'perpendicular': {
+            const moveEndpoints = (
+              key: 'pointA' | 'pointCenter' | 'pointB',
+              next: ConstraintEndpoint,
+            ) => {
+              const c = this.getCurrentConstraint(id);
+              if (!c || c.type !== 'perpendicular') {
+                return;
+              }
+              this.historyManager.apply(
+                UndoEntry.perpendicularConstraintMoveEndpoints(
+                  id,
+                  c.pointA,
+                  c.pointCenter,
+                  c.pointB,
+                  key === 'pointA' ? next : c.pointA,
+                  key === 'pointCenter' ? next : c.pointCenter,
+                  key === 'pointB' ? next : c.pointB,
+                ),
+              );
+            };
+            return [
+              constraintEndpoint('pointA', 'A', constraintData.pointA, {
+                onChange: (next) => moveEndpoints('pointA', next),
+              }),
+              constraintEndpoint('pointCenter', 'Center', constraintData.pointCenter, {
+                onChange: (next) => moveEndpoints('pointCenter', next),
+              }),
+              constraintEndpoint('pointB', 'B', constraintData.pointB, {
+                onChange: (next) => moveEndpoints('pointB', next),
+              }),
+            ];
+          }
+          case 'parallel': {
+            const moveEndpoints = (
+              key: 'pointA' | 'pointB' | 'pointC' | 'pointD',
+              next: ConstraintEndpoint,
+            ) => {
+              const c = this.getCurrentConstraint(id);
+              if (!c || c.type !== 'parallel') {
+                return;
+              }
+              this.historyManager.apply(
+                UndoEntry.parallelConstraintMoveEndpoints(
+                  id,
+                  c.pointA,
+                  c.pointB,
+                  c.pointC,
+                  c.pointD,
+                  key === 'pointA' ? next : c.pointA,
+                  key === 'pointB' ? next : c.pointB,
+                  key === 'pointC' ? next : c.pointC,
+                  key === 'pointD' ? next : c.pointD,
+                ),
+              );
+            };
+            return [
+              constraintEndpoint('pointA', 'A', constraintData.pointA, {
+                onChange: (next) => moveEndpoints('pointA', next),
+              }),
+              constraintEndpoint('pointB', 'B', constraintData.pointB, {
+                onChange: (next) => moveEndpoints('pointB', next),
+              }),
+              constraintEndpoint('pointC', 'C', constraintData.pointC, {
+                onChange: (next) => moveEndpoints('pointC', next),
+              }),
+              constraintEndpoint('pointD', 'D', constraintData.pointD, {
+                onChange: (next) => moveEndpoints('pointD', next),
+              }),
+            ];
+          }
+          case 'horizontal': {
+            const moveEndpoints = (key: 'pointA' | 'pointB', next: ConstraintEndpoint) => {
+              const c = this.getCurrentConstraint(id);
+              if (!c || c.type !== 'horizontal') {
+                return;
+              }
+              this.historyManager.apply(
+                UndoEntry.horizontalConstraintMoveEndpoints(
+                  id,
+                  c.pointA,
+                  c.pointB,
+                  key === 'pointA' ? next : c.pointA,
+                  key === 'pointB' ? next : c.pointB,
+                ),
+              );
+            };
+            return [
+              constraintEndpoint('pointA', 'A', constraintData.pointA, {
+                onChange: (next) => moveEndpoints('pointA', next),
+              }),
+              constraintEndpoint('pointB', 'B', constraintData.pointB, {
+                onChange: (next) => moveEndpoints('pointB', next),
+              }),
+            ];
+          }
+          case 'vertical': {
+            const moveEndpoints = (key: 'pointA' | 'pointB', next: ConstraintEndpoint) => {
+              const c = this.getCurrentConstraint(id);
+              if (!c || c.type !== 'vertical') {
+                return;
+              }
+              this.historyManager.apply(
+                UndoEntry.verticalConstraintMoveEndpoints(
+                  id,
+                  c.pointA,
+                  c.pointB,
+                  key === 'pointA' ? next : c.pointA,
+                  key === 'pointB' ? next : c.pointB,
+                ),
+              );
+            };
+            return [
+              constraintEndpoint('pointA', 'A', constraintData.pointA, {
+                onChange: (next) => moveEndpoints('pointA', next),
+              }),
+              constraintEndpoint('pointB', 'B', constraintData.pointB, {
+                onChange: (next) => moveEndpoints('pointB', next),
+              }),
+            ];
+          }
+          case 'colinear': {
+            const moveEndpoints = (
+              key: 'pointTarget' | 'pointA' | 'pointB',
+              next: ConstraintEndpoint,
+            ) => {
+              const c = this.getCurrentConstraint(id);
+              if (!c || c.type !== 'colinear') {
+                return;
+              }
+              this.historyManager.apply(
+                UndoEntry.colinearConstraintMoveEndpoints(
+                  id,
+                  c.pointTarget,
+                  c.pointA,
+                  c.pointB,
+                  key === 'pointTarget' ? next : c.pointTarget,
+                  key === 'pointA' ? next : c.pointA,
+                  key === 'pointB' ? next : c.pointB,
+                ),
+              );
+            };
+            return [
+              constraintEndpoint('pointTarget', 'Target', constraintData.pointTarget, {
+                onChange: (next) => moveEndpoints('pointTarget', next),
+              }),
+              constraintEndpoint('pointA', 'A', constraintData.pointA, {
+                onChange: (next) => moveEndpoints('pointA', next),
+              }),
+              constraintEndpoint('pointB', 'B', constraintData.pointB, {
+                onChange: (next) => moveEndpoints('pointB', next),
+              }),
+            ];
+          }
           default:
+            constraintData satisfies never;
             return [];
         }
       }
