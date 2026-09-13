@@ -294,6 +294,33 @@ describe('SelectionInspectorManager', () => {
       expect(data.lowerRight.y).toBeCloseTo(2 + 8);
       expect(data.lowerRight.x).toBeCloseTo(1 + 8);
     });
+
+    it('width field commit refreshes the linked height field display', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(1, 2), new SheetPosition(3, 5), {
+          linkDimensions: true,
+        }),
+      );
+      sheet.selectionManager.select(rect.id);
+
+      const sim = sheet.selectionInspectorManager;
+      const wField = getLeafFromRowLabel(sim.fields, 'dimensions', 'width');
+      if (wField.type !== 'length') {
+        return;
+      }
+
+      wField.handlers.onChange?.(Length.centimeters(10));
+      wField.handlers.onBlur?.();
+
+      // The height field should now show the linked value (10) rather than the stale original (3).
+      const hField = getLeafFromRowLabel(sim.fields, 'dimensions', 'height');
+      expect(hField.type).toBe('length');
+      if (hField.type !== 'length') {
+        return;
+      }
+      expect(hField.value.toSheetUnits(sheet.defaultUnit).magnitude).toBeCloseTo(10);
+    });
   });
 
   describe('ellipse (single)', () => {

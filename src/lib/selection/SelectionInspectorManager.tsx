@@ -502,6 +502,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           );
         }
         this.dragOriginals.delete(id);
+        this.recomputeFields();
       },
       onKeyDown: (k) => {
         if (k === 'Escape' && this.dragOriginals.has(id)) {
@@ -584,6 +585,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           );
         }
         this.dragOriginals.delete(id);
+        this.recomputeFields();
       },
     };
   }
