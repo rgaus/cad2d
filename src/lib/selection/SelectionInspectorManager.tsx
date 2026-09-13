@@ -1671,7 +1671,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   }
                   const polygonData = GeometryComponent.get(current);
                   const initialOpenAtIndex = polygonData.openAtIndex;
-                  const initialPoints = polygonData.points;
+                  // Only drag across the displayed rows: closed polygons hide their duplicated
+                  // closing point.
+                  const initialPoints = polygonData.closed
+                    ? polygonData.points.slice(0, -1)
+                    : polygonData.points;
                   let newOpenAtIndex = initialOpenAtIndex;
                   let deltaYPx = 0;
 

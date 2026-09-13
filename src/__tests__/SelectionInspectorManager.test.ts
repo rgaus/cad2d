@@ -1889,6 +1889,11 @@ describe('computeOpenAtIndex', () => {
     expect(computeOpenAtIndex(1, points, -1000)).toBe(0);
   });
 
+  it('stays at the bottom when dragging down past the last row', () => {
+    expect(computeOpenAtIndex(0, points, 1000)).toBe(3);
+    expect(computeOpenAtIndex(1, points, 1000)).toBe(3);
+  });
+
   it('accounts for taller arc rows', () => {
     const mixed: Array<
       PointSegment | { type: 'arc-quadratic'; point: SheetPosition; controlPoint: SheetPosition }

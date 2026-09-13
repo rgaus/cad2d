@@ -25,7 +25,10 @@ export function computeOpenAtIndex(
   initialPoints: Array<PolygonSegment>,
   deltaYPx: number,
 ): number {
-  let index = 0;
+  // The last valid index is the final displayed row. Dragging past the end falls back to it
+  // (rather than wrapping back to the top).
+  const maxIndex = initialPoints.length - 1;
+  let index = deltaYPx < 0 ? 0 : maxIndex;
   if (deltaYPx < 0) {
     for (
       let i = initialOpenAtIndex, offsetInPx = 0;
@@ -51,5 +54,5 @@ export function computeOpenAtIndex(
       }
     }
   }
-  return Math.min(Math.max(index, 0), initialPoints.length);
+  return Math.min(Math.max(index, 0), maxIndex);
 }
