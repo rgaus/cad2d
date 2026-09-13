@@ -561,11 +561,11 @@ function parseMirrorFilter(
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => Id,
 ): Record<string, unknown> | null {
-  let id = attrs.id as Id;
+  let id = (attrs['data-id'] as Id) ?? (attrs.id as Id);
   if (typeof id === 'undefined' || doesIdExist(id)) {
     id = generateId(ID_PREFIXES.filter);
-    if (typeof attrs.id !== 'undefined') {
-      rewrittenIdMap.set(attrs.id as Id, id);
+    if (typeof attrs['data-id'] !== 'undefined' || typeof attrs.id !== 'undefined') {
+      rewrittenIdMap.set(attrs['data-id'] as Id, id);
     }
   } else {
     const rewritten = rewrittenIdMap.get(id);
@@ -601,11 +601,11 @@ function parsePatternFilter(
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => Id,
 ): Record<string, unknown> | null {
-  let id = attrs.id as Id;
+  let id = (attrs['data-id'] as Id) ?? (attrs.id as Id);
   if (typeof id === 'undefined' || doesIdExist(id)) {
     id = generateId(ID_PREFIXES.filter);
-    if (typeof attrs.id !== 'undefined') {
-      rewrittenIdMap.set(attrs.id as Id, id);
+    if (typeof attrs['data-id'] !== 'undefined' || typeof attrs.id !== 'undefined') {
+      rewrittenIdMap.set(attrs['data-id'] as Id, id);
     }
   } else {
     const rewritten = rewrittenIdMap.get(id);
@@ -666,11 +666,11 @@ function parseFilletOrChamferFilter(
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => Id,
 ): Record<string, unknown> | null {
-  let id = attrs.id as Id;
+  let id = (attrs['data-id'] as Id) ?? (attrs.id as Id);
   if (typeof id === 'undefined' || doesIdExist(id)) {
     id = generateId(ID_PREFIXES.filter);
-    if (typeof attrs.id !== 'undefined') {
-      rewrittenIdMap.set(attrs.id as Id, id);
+    if (typeof attrs['data-id'] !== 'undefined' || typeof attrs.id !== 'undefined') {
+      rewrittenIdMap.set(attrs['data-id'] as Id, id);
     }
   } else {
     const rewritten = rewrittenIdMap.get(id);

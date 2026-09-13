@@ -34,6 +34,7 @@ import {
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { ChamferFilter } from '@/lib/entity/filters/chamfer';
 import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
@@ -2629,5 +2630,104 @@ describe('filter serialization', () => {
     for (const p of afterRedo) {
       expect(FillColorComponent.getOptional(p as any)).toBeDefined();
     }
+  });
+
+  it('full-file load preserves fillet and chamfer filters', () => {
+    // Build a source system with a rectangle + fillet and an open polygon + chamfer
+    const srcSheet = Sheet.a4();
+    const srcStore = srcSheet.geometryStore;
+    const srcHistory = srcSheet.historyManager;
+    const srcSelection = new SelectionManager();
+    const srcToolManager = new ToolManager(srcStore, srcSelection, srcHistory);
+    const srcActions = new ActionsManager(srcSheet, srcStore, srcSelection, srcHistory);
+    const srcSerialization = new SerializationManager(srcActions, srcToolManager, srcSheet);
+    srcActions.setSerializationManager(srcSerialization);
+    srcToolManager.setSerializationManager(srcSerialization);
+
+    // Rectangle + fillet on its upperLeft corner
+    srcStore.addDirect(
+      makeRectangle({
+        id: 'rect_fc1',
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 10),
+      }),
+    );
+    const fillet = FilletFilter.createOnRectangle(
+      'rect_fc1',
+      'lowerLeft',
+      'upperLeft',
+      'upperRight',
+      Length.fromSheetUnits('cm', 2),
+    );
+    srcStore.addDirect({ id: 'ftr_fc_fillet', ...fillet } as Entity);
+
+    // Open polygon + chamfer on its middle vertex
+    srcStore.addDirect(
+      makePolygon({
+        id: 'poly_fc1',
+        points: [makePoint(0, 0), makePoint(5, 10), makePoint(10, 0)],
+        closed: false,
+        openAtIndex: 0,
+      }),
+    );
+    const chamfer = ChamferFilter.createOnPolygon(
+      'poly_fc1',
+      0,
+      1,
+      2,
+      Length.fromSheetUnits('cm', 1.5),
+    );
+    srcStore.addDirect({ id: 'ftr_fc_chamfer', ...chamfer } as Entity);
+
+    // Serialize
+    const saveResult = srcSerialization.save();
+    expect(saveResult.success).toBe(true);
+    const svg = saveResult.svg!;
+    expect(svg).toContain('data-type="fillet-filter"');
+    expect(svg).toContain('data-type="chamfer-filter"');
+
+    // Load into a fresh system (mimics File > Load)
+    const dstSheet = Sheet.a4();
+    const dstStore = dstSheet.geometryStore;
+    const dstHistory = dstSheet.historyManager;
+    const dstSelection = new SelectionManager();
+    const dstToolManager = new ToolManager(dstStore, dstSelection, dstHistory);
+    const dstActions = new ActionsManager(dstSheet, dstStore, dstSelection, dstHistory);
+    const dstSerialization = new SerializationManager(dstActions, dstToolManager, dstSheet);
+    dstActions.setSerializationManager(dstSerialization);
+    dstToolManager.setSerializationManager(dstSerialization);
+
+    const loadResult = dstSerialization.load(svg);
+    expect(loadResult.success).toBe(true);
+
+    // Both filters must have survived with their ids intact
+    // (regression: fillet/chamfer were dropped entirely)
+    const loadedFilters = dstStore.listWithComponent(FilterComponent);
+    expect(loadedFilters).toHaveLength(2);
+
+    const loadedFillet = loadedFilters.find((f) => f.id === 'ftr_fc_fillet');
+    expect(loadedFillet).toBeDefined();
+    const loadedFilletData = FilterComponent.get(loadedFillet!);
+    expect(loadedFilletData.type).toBe('fillet');
+    if (loadedFilletData.type !== 'fillet' || loadedFilletData.geometryType !== 'rectangle') {
+      throw new Error('Expected rectangle fillet filter');
+    }
+    expect(loadedFilletData.geometryId).toBe('rect_fc1');
+    expect(loadedFilletData.pointCenterKeyPoint).toBe('upperLeft');
+    const filletOffset = loadedFilletData.offset.serialize();
+    expect(Math.abs(filletOffset.magnitude - 2)).toBeLessThan(0.001);
+    expect(filletOffset.type).toBe('cm');
+
+    const loadedChamfer = loadedFilters.find((f) => f.id === 'ftr_fc_chamfer');
+    expect(loadedChamfer).toBeDefined();
+    const loadedChamferData = FilterComponent.get(loadedChamfer!);
+    expect(loadedChamferData.type).toBe('chamfer');
+    if (loadedChamferData.type !== 'chamfer' || loadedChamferData.geometryType !== 'polygon') {
+      throw new Error('Expected polygon chamfer filter');
+    }
+    expect(loadedChamferData.geometryId).toBe('poly_fc1');
+    expect(loadedChamferData.pointCenterIndex).toBe(1);
+    const chamferOffset = loadedChamferData.offset.serialize();
+    expect(Math.abs(chamferOffset.magnitude - 1.5)).toBeLessThan(0.001);
   });
 });

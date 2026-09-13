@@ -232,6 +232,19 @@ export class SerializationManager {
             }
             break;
           }
+          case 'fillet':
+          case 'chamfer': {
+            const entity = this.reconstructFilletOrChamferFilterEntity(
+              type as 'fillet' | 'chamfer',
+              filterData,
+            );
+            if (eraseExisting) {
+              geometryStore.addDirect(entity);
+            } else {
+              this.getHistoryManager().apply(UndoEntry.insert(entity));
+            }
+            break;
+          }
           default:
             break;
         }
@@ -439,6 +452,58 @@ export class SerializationManager {
    */
   canLoad(svg: string): CanLoadResult {
     return canLoadSvg(svg);
+  }
+
+  /**
+   * Reconstructs a fillet or chamfer filter entity from the flat filter data
+   * parsed from an SVG <g> element, wrapping it in the proper `components` shape.
+   */
+  private reconstructFilletOrChamferFilterEntity(
+    type: 'fillet' | 'chamfer',
+    filterData: Record<string, unknown>,
+  ): Entity {
+    const offsetData = filterData.offset as { type: UnitType; magnitude: number };
+    const offset = Length.fromSheetUnits(offsetData.type, offsetData.magnitude);
+    const geometryId = filterData.geometryId as string;
+
+    let template;
+    if (filterData.geometryType === 'polygon') {
+      template =
+        type === 'fillet'
+          ? FilletFilter.createOnPolygon(
+              geometryId,
+              filterData.pointAIndex as number,
+              filterData.pointCenterIndex as number,
+              filterData.pointBIndex as number,
+              offset,
+            )
+          : ChamferFilter.createOnPolygon(
+              geometryId,
+              filterData.pointAIndex as number,
+              filterData.pointCenterIndex as number,
+              filterData.pointBIndex as number,
+              offset,
+            );
+    } else {
+      template =
+        type === 'fillet'
+          ? FilletFilter.createOnRectangle(
+              geometryId,
+              filterData.pointAKeyPoint as RectangleEndpoint,
+              filterData.pointCenterKeyPoint as RectangleEndpoint,
+              filterData.pointBKeyPoint as RectangleEndpoint,
+              offset,
+            )
+          : ChamferFilter.createOnRectangle(
+              geometryId,
+              filterData.pointAKeyPoint as RectangleEndpoint,
+              filterData.pointCenterKeyPoint as RectangleEndpoint,
+              filterData.pointBKeyPoint as RectangleEndpoint,
+              offset,
+            );
+    }
+
+    return { id: filterData.id as string, ...template } as Entity;
   }
 
   private getGeometryStore() {
