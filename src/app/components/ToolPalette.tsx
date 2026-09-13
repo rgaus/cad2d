@@ -16,7 +16,8 @@ type ToolPaletteProps = {
 const TOOL_LIST: Array<ToolType> = [
   'select',
   'move',
-  'edit',
+  'trim-split',
+  'filters',
   'constraint',
   'polygon',
   'rectangle',

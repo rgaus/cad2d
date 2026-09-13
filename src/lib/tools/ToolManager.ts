@@ -11,31 +11,34 @@ import { ViewportControls } from '../viewport/ViewportControls';
 import { BaseMultiTool, BaseTool, type SnapHintsVisibility } from './BaseTool';
 import { ConstraintTool } from './ConstraintTool';
 import { EllipseTool } from './EllipseTool';
-import { GeometryEditTool } from './GeometryEditTool';
+import { FiltersTool } from './FiltersTool';
 import { MoveTool } from './MoveTool';
 import { PolygonTool } from './PolygonTool';
 import { RectangleTool } from './RectangleTool';
 import { SelectTool } from './SelectTool';
 import { SelectionManager } from './SelectionManager';
+import { TrimSplitTool } from './TrimSplitTool';
 import { type ToolType } from './types';
 
 const TOOLS = [
   SelectTool,
   MoveTool,
+  TrimSplitTool,
+  FiltersTool,
   PolygonTool,
   RectangleTool,
   EllipseTool,
   ConstraintTool,
-  GeometryEditTool,
 ];
 export const TOOLS_BY_TYPE = {
   select: SelectTool,
   move: MoveTool,
+  'trim-split': TrimSplitTool,
+  filters: FiltersTool,
   polygon: PolygonTool,
   rectangle: RectangleTool,
   ellipse: EllipseTool,
   constraint: ConstraintTool,
-  edit: GeometryEditTool,
 };
 export type Tool = InstanceType<(typeof TOOLS)[0]>;
 

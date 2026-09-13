@@ -127,7 +127,7 @@ type RemovedVertexColinearInfo = {
  */
 export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
   readonly type = 'trim-split' as const;
-  focusKeyCombo = 'g t' as const;
+  focusKeyCombo = 't' as const;
   stability = 'beta' as const;
 
   label = 'Trim / Split';

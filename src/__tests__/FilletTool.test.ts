@@ -57,9 +57,9 @@ describe('FilletTool', () => {
     toolManager.setViewportControls(viewportControls);
     viewport = viewportControls.getState().viewport;
 
-    toolManager.setActiveTool('edit');
-    toolManager.changeToolSubTool('edit', 'fillet');
-    filletTool = toolManager.getTool('edit').activeSubTool as FilletFilterTool;
+    toolManager.setActiveTool('filters');
+    toolManager.changeToolSubTool('filters', 'fillet');
+    filletTool = toolManager.getTool('filters').activeSubTool as FilletFilterTool;
   });
 
   describe('Rectangle corner clicks create filters', () => {

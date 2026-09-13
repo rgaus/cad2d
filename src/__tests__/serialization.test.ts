@@ -2436,8 +2436,8 @@ describe('filter serialization', () => {
     const polygonId = polygons[0].id;
 
     // 2. Create a mirror filter via MirrorTool
-    toolManager.setActiveTool('edit');
-    toolManager.changeToolSubTool('edit', 'mirror');
+    toolManager.setActiveTool('filters');
+    toolManager.changeToolSubTool('filters', 'mirror');
     const editTool = toolManager.getActiveTool();
 
     // Click to pick the polygon

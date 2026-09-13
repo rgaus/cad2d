@@ -15,7 +15,7 @@ export type MirrorFilterToolEvents = {
 export class MirrorFilterTool extends BaseTool<MirrorFilterToolEvents, 'mirror'> {
   type = 'mirror' as const;
   label = 'Mirror';
-  focusKeyCombo = 'g m' as const;
+  focusKeyCombo = 'f m' as const;
 
   get icon(): React.ReactNode {
     return <SquareCenterlineDashedHorizontalIcon size={24} color="white" />;

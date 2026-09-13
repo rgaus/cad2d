@@ -486,10 +486,15 @@ export default function ViewportRenderer2D({
         };
       }
 
-      case 'edit': {
-        // TrimSplit
+      case 'trim-split': {
         activeTool.on('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
+        return () => {
+          activeTool.off('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
+          allToolsCleanup();
+        };
+      }
 
+      case 'filters': {
         // Fillet / Chamfer
         activeTool.on('pendingCornerChange', setPendingCornerState);
         activeTool.on('activeCornerChange', setActiveCornerState);
@@ -503,9 +508,6 @@ export default function ViewportRenderer2D({
           // Fillet / Chamfer
           activeTool.off('pendingCornerChange', setPendingCornerState);
           activeTool.off('activeCornerChange', setActiveCornerState);
-
-          // TrimSplit
-          activeTool.off('splitPointOrTrimSegmentChange', setSplitPointOrTrimSegment);
 
           allToolsCleanup();
         };
@@ -878,8 +880,7 @@ export default function ViewportRenderer2D({
               ) : null}
 
               {/* Render a fake handle when a possible split point has been found */}
-              {activeTool.type === 'edit' &&
-              activeTool.activeSubTool.type === 'trim-split' &&
+              {activeTool.type === 'trim-split' &&
               splitPointOrTrimSegment?.type === 'split-point' ? (
                 <pixiSprite
                   texture={IntersectionVertexHandleTexture.get()}
@@ -894,8 +895,7 @@ export default function ViewportRenderer2D({
               ) : null}
 
               {/* Render a highlight over the segment to be trimmed */}
-              {activeTool.type === 'edit' &&
-              activeTool.activeSubTool.type === 'trim-split' &&
+              {activeTool.type === 'trim-split' &&
               splitPointOrTrimSegment?.type === 'trim-segment' ? (
                 <pixiSprite
                   texture={Texture.WHITE}
@@ -930,7 +930,7 @@ export default function ViewportRenderer2D({
               ) : null}
 
               {/* Corner preview overlay for fillet/chamfer tools */}
-              {activeTool.type === 'edit' &&
+              {activeTool.type === 'filters' &&
               (activeTool.activeSubTool.type === 'fillet' ||
                 activeTool.activeSubTool.type === 'chamfer') &&
               pendingCornerState ? (
@@ -1173,7 +1173,7 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'edit' &&
+        {activeTool.type === 'filters' &&
         (activeTool.activeSubTool.type === 'fillet' ||
           activeTool.activeSubTool.type === 'chamfer') &&
         mouseScreenPos &&
@@ -1211,7 +1211,7 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {keyPointSnapInfo && viewportControlsState && activeTool.type !== 'edit' ? (
+        {keyPointSnapInfo && viewportControlsState && activeTool.type !== 'filters' ? (
           <HoverTooltip
             position={keyPointSnapInfo.sheetPosition
               .toWorld()
@@ -1259,8 +1259,7 @@ export default function ViewportRenderer2D({
         ) : null}
 
         {/* Trim / split tool tooltips */}
-        {activeTool.type === 'edit' &&
-        activeTool.activeSubTool.type === 'trim-split' &&
+        {activeTool.type === 'trim-split' &&
         splitPointOrTrimSegment?.type === 'split-point' &&
         viewportControlsState ? (
           <HoverTooltip
@@ -1272,15 +1271,14 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
-        {activeTool.type === 'edit' &&
-        activeTool.activeSubTool.type === 'trim-split' &&
+        {activeTool.type === 'trim-split' &&
         splitPointOrTrimSegment?.type === 'trim-segment' &&
         mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>Trim segment</HoverTooltip>
         ) : null}
 
         {/* Fillet / chamfer tool tooltips */}
-        {activeTool.type === 'edit' &&
+        {activeTool.type === 'filters' &&
         (activeTool.activeSubTool.type === 'fillet' ||
           activeTool.activeSubTool.type === 'chamfer') &&
         activeCornerState &&

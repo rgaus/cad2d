@@ -5,32 +5,23 @@ import { FilletFilterTool } from './FilletFilterTool';
 import { MirrorFilterTool, MirrorFilterToolEvents } from './MirrorFilterTool';
 import { PatternGridFilterTool, PatternGridFilterToolEvents } from './PatternGridFilterTool';
 import { PatternRadialFilterTool, PatternRadialFilterToolEvents } from './PatternRadialFilterTool';
-import { TrimSplitTool, TrimSplitToolEvents } from './TrimSplitTool';
 
-type ModifySubToolTypes =
-  | 'trim-split'
-  | 'fillet'
-  | 'chamfer'
-  | 'mirror'
-  | 'pattern-grid'
-  | 'pattern-radial';
+type FiltersSubToolTypes = 'fillet' | 'chamfer' | 'mirror' | 'pattern-grid' | 'pattern-radial';
 
-/** A multi tool containing a list of ways one can modify a geometry. */
-export class GeometryEditTool extends BaseMultiTool<
-  TrimSplitToolEvents &
-    CornerReplacementToolEvents &
+/** A multi tool containing a list of filters that can be applied to a geometry. */
+export class FiltersTool extends BaseMultiTool<
+  CornerReplacementToolEvents &
     MirrorFilterToolEvents &
     PatternGridFilterToolEvents &
     PatternRadialFilterToolEvents,
-  ModifySubToolTypes,
-  'g'
+  FiltersSubToolTypes,
+  'f'
 > {
-  type = 'edit' as const;
+  type = 'filters' as const;
 
-  focusKeyCombo = 'g' as const;
+  focusKeyCombo = 'f' as const;
 
   subTools = [
-    TrimSplitTool,
     FilletFilterTool,
     ChamferFilterTool,
     MirrorFilterTool,

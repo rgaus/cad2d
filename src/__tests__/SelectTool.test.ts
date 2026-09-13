@@ -5088,8 +5088,8 @@ describe('SelectTool', () => {
       );
 
       // Create mirror filter via MirrorTool — initial line (0,10)-(20,10) does NOT intersect polygon ends
-      toolManager.setActiveTool('edit');
-      toolManager.changeToolSubTool('edit', 'mirror');
+      toolManager.setActiveTool('filters');
+      toolManager.changeToolSubTool('filters', 'mirror');
       toolManager
         .getActiveTool()
         .handleGeometryFillPointerDown(new ScreenPosition(0, 10), viewportControls, polygon.id);
@@ -5176,8 +5176,8 @@ describe('SelectTool', () => {
 
       // Create mirror filter via MirrorTool — line (0,5)-(20,5) intersects both polygon ends
       // MirrorTool.complete() automatically calls syncFillColor to add fill.
-      toolManager.setActiveTool('edit');
-      toolManager.changeToolSubTool('edit', 'mirror');
+      toolManager.setActiveTool('filters');
+      toolManager.changeToolSubTool('filters', 'mirror');
       toolManager
         .getActiveTool()
         .handleGeometryFillPointerDown(new ScreenPosition(0, 5), viewportControls, polygon.id);
@@ -5252,8 +5252,8 @@ describe('SelectTool', () => {
       pointA: SheetPosition,
       pointB: SheetPosition,
     ): string {
-      toolManager.setActiveTool('edit');
-      toolManager.changeToolSubTool('edit', 'mirror');
+      toolManager.setActiveTool('filters');
+      toolManager.changeToolSubTool('filters', 'mirror');
       toolManager
         .getActiveTool()
         .handleGeometryFillPointerDown(
@@ -5412,8 +5412,8 @@ describe('SelectTool', () => {
       const polyId = polygons[0].id;
 
       // Add first mirror filter that TOUCHES the endpoints (0,5)-(20,5)
-      toolManager.setActiveTool('edit');
-      toolManager.changeToolSubTool('edit', 'mirror');
+      toolManager.setActiveTool('filters');
+      toolManager.changeToolSubTool('filters', 'mirror');
       const editTool = toolManager.getActiveTool();
       editTool.handleGeometryFillPointerDown(
         toScreen(new SheetPosition(0, 5)),
@@ -5463,8 +5463,8 @@ describe('SelectTool', () => {
       const polyId = polygons[0].id;
 
       // Add first mirror filter that TOUCHES the endpoints (0,5)-(20,5)
-      toolManager.setActiveTool('edit');
-      toolManager.changeToolSubTool('edit', 'mirror');
+      toolManager.setActiveTool('filters');
+      toolManager.changeToolSubTool('filters', 'mirror');
       let editTool = toolManager.getActiveTool();
       editTool.handleGeometryFillPointerDown(
         toScreen(new SheetPosition(0, 5)),
@@ -5475,7 +5475,7 @@ describe('SelectTool', () => {
       toolManager.handleMouseDown(toScreen(new SheetPosition(20, 5)), viewport);
 
       // Add second mirror filter that does NOT touch endpoints: line at y=20
-      toolManager.changeToolSubTool('edit', 'mirror');
+      toolManager.changeToolSubTool('filters', 'mirror');
       editTool = toolManager.getActiveTool();
       editTool.handleGeometryFillPointerDown(
         toScreen(new SheetPosition(0, 20)),
@@ -5539,8 +5539,8 @@ describe('SelectTool', () => {
       pointA: SheetPosition,
       pointB: SheetPosition,
     ): string {
-      toolManager.setActiveTool('edit');
-      toolManager.changeToolSubTool('edit', 'mirror');
+      toolManager.setActiveTool('filters');
+      toolManager.changeToolSubTool('filters', 'mirror');
       toolManager
         .getActiveTool()
         .handleGeometryFillPointerDown(

@@ -42,7 +42,7 @@ function ChamferIcon() {
 export class ChamferFilterTool extends BaseCornerGeometryReplacerTool<'chamfer'> {
   type = 'chamfer' as const;
   label = 'Chamfer';
-  focusKeyCombo = 'g c' as const;
+  focusKeyCombo = 'f c' as const;
 
   get icon(): React.ReactNode {
     return <ChamferIcon />;

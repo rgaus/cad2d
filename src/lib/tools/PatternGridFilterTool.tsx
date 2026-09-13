@@ -14,7 +14,7 @@ export type PatternGridFilterToolEvents = {
 export class PatternGridFilterTool extends BaseTool<PatternGridFilterToolEvents, 'pattern-grid'> {
   type = 'pattern-grid' as const;
   label = 'Grid Pattern';
-  focusKeyCombo = 'g g' as const;
+  focusKeyCombo = 'f g' as const;
 
   get icon(): React.ReactNode {
     return <Grid3x3Icon size={24} color="white" />;

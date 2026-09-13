@@ -18,7 +18,7 @@ export class PatternRadialFilterTool extends BaseTool<
 > {
   type = 'pattern-radial' as const;
   label = 'Radial Pattern';
-  focusKeyCombo = 'g r' as const;
+  focusKeyCombo = 'f r' as const;
 
   get icon(): React.ReactNode {
     return <ChartPieIcon size={24} color="white" className="-rotate-45" />;

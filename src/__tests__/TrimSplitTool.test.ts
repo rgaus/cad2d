@@ -109,9 +109,8 @@ describe('TrimSplitTool', () => {
 
     viewport = createViewportState(1);
 
-    toolManager.setActiveTool('edit');
-    toolManager.changeToolSubTool('edit', 'trim-split');
-    trimSplitTool = toolManager.getTool('edit').activeSubTool as TrimSplitTool;
+    toolManager.setActiveTool('trim-split');
+    trimSplitTool = toolManager.getTool('trim-split') as TrimSplitTool;
   });
 
   afterEach(() => {

@@ -17,7 +17,7 @@ import { BaseCornerGeometryReplacerTool, CornerState } from './BaseCornerGeometr
 export class FilletFilterTool extends BaseCornerGeometryReplacerTool<'fillet'> {
   type = 'fillet' as const;
   label = 'Fillet';
-  focusKeyCombo = 'g f' as const;
+  focusKeyCombo = 'f f' as const;
 
   get icon(): React.ReactNode {
     return <SquareRoundCornerIcon size={24} color="white" />;
