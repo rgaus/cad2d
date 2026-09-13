@@ -442,6 +442,13 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     this.emit('workingFieldDataChange', new Map());
   }
 
+  /** Cleans up after a filter field commit, dropping the drag-original marker and refreshing the
+   * field tree with the committed values. */
+  private finishFilterEdit(filterId: Id): void {
+    this.dragOriginals.delete(filterId);
+    this.recomputeFields();
+  }
+
   /**
    * Produces standard drag-aware handlers for a length-type field.
    *
@@ -2060,6 +2067,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                             currentFilter.pointB,
                           ),
                         );
+                        this.finishFilterEdit(filterId);
                       },
                     },
                   ),
@@ -2114,6 +2122,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                             currentFilter.pointB,
                           ),
                         );
+                        this.finishFilterEdit(filterId);
                       },
                     },
                   ),
@@ -2170,6 +2179,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                             afterPointB,
                           ),
                         );
+                        this.finishFilterEdit(filterId);
                       },
                     },
                   ),
@@ -2224,6 +2234,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                             afterPointB,
                           ),
                         );
+                        this.finishFilterEdit(filterId);
                       },
                     },
                   ),
@@ -2281,6 +2292,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                               fieldData.value,
                             ),
                           );
+                          this.finishFilterEdit(filterId);
                         },
                       },
                     ),
@@ -2319,6 +2331,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                           (g) =>
                             FilterComponent.update(g, { pointAIndex: val } as Partial<FilterData>),
                         );
+                        this.finishFilterEdit(filterId);
                       },
                     }),
                   ),
@@ -2356,6 +2369,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                               pointCenterIndex: val,
                             } as Partial<FilterData>),
                         );
+                        this.finishFilterEdit(filterId);
                       },
                     }),
                   ),
@@ -2391,6 +2405,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                           (g) =>
                             FilterComponent.update(g, { pointBIndex: val } as Partial<FilterData>),
                         );
+                        this.finishFilterEdit(filterId);
                       },
                     }),
                   ),
@@ -2445,6 +2460,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                               fieldData.value,
                             ),
                           );
+                          this.finishFilterEdit(filterId);
                         },
                       },
                     ),
@@ -2497,6 +2513,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                             FilterComponent,
                             (g) => FilterComponent.update(g, { xRepeats: val }),
                           );
+                          this.finishFilterEdit(filterId);
                         },
                       }),
                       number('yRepeats', filterData.yRepeats, {
@@ -2527,6 +2544,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                             FilterComponent,
                             (g) => FilterComponent.update(g, { yRepeats: val }),
                           );
+                          this.finishFilterEdit(filterId);
                         },
                       }),
                     ]),
@@ -2586,6 +2604,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                                   center: new SheetPosition(newX, currentFilter.center.y),
                                 }),
                             );
+                            this.finishFilterEdit(filterId);
                           },
                         },
                       ),
@@ -2641,6 +2660,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                                   center: new SheetPosition(currentFilter.center.x, newY),
                                 }),
                             );
+                            this.finishFilterEdit(filterId);
                           },
                         },
                       ),
@@ -2681,6 +2701,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                                 repeats: { type: 'count' as const, count: val },
                               }),
                           );
+                          this.finishFilterEdit(filterId);
                         },
                       }),
                     ),
@@ -2720,6 +2741,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                               FilterComponent,
                               (g) => FilterComponent.update(g, { radius }),
                             );
+                            this.finishFilterEdit(filterId);
                           },
                         },
                       ),

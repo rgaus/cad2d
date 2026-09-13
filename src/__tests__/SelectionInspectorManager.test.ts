@@ -1215,6 +1215,33 @@ describe('SelectionInspectorManager', () => {
       expect(filterData.pointA.x).toBeCloseTo(1);
       expect(filterData.pointA.y).toBeCloseTo(2);
     });
+
+    it('committed edits are not reverted by a later Escape', () => {
+      const sim = sheet.selectionInspectorManager;
+      const axField = getLeafFromRowLabel(sim.fields, 'point-a', 'ax');
+      const ayField = getLeafFromRowLabel(sim.fields, 'point-a', 'ay');
+      if (axField.type !== 'length' || ayField.type !== 'length') {
+        return;
+      }
+
+      // Commit AX = 10.
+      axField.handlers.onChange?.(Length.centimeters(10));
+      axField.handlers.onBlur?.();
+
+      // Begin editing AY = 20, then press Escape instead of blurring.
+      ayField.handlers.onChange?.(Length.centimeters(20));
+      ayField.handlers.onKeyDown?.('Escape');
+
+      const ids = sheet.selectionManager.getSelectedIds();
+      const entity = geometryStore.getById(ids[0]);
+      const filterData = FilterComponent.get(entity as unknown as Entity<FilterComponent>);
+      if (filterData.type !== 'mirror') {
+        return;
+      }
+      // AX stays committed and AY is reverted.
+      expect(filterData.pointA.x).toBeCloseTo(10);
+      expect(filterData.pointA.y).toBeCloseTo(2);
+    });
   });
 
   describe('fillet filter (polygon)', () => {
