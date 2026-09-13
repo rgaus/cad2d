@@ -562,6 +562,7 @@ export function serializeFilter(filter: Entity): string {
           fd satisfies never;
           throw new Error(`serializeFilter: unknown filter type ${(fd as any).type}`);
       }
+      break;
     case 'fillet': {
       const serializedOffset = (fd as any).offset.serialize();
       attrs.push(`data-type="fillet-filter"`);
