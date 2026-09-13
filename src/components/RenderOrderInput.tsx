@@ -328,14 +328,15 @@ const RenderOrderInput: React.FunctionComponent<{
         }}
         onBlur={() => {
           setFocused((old) => (old === 'input' ? null : old));
-          onBlur?.();
 
           const parsed = parseFloat(workingTextValue);
           if (isNaN(parsed)) {
+            onBlur?.();
             return;
           }
           setWorkingValue(parsed);
           onChange(parsed);
+          onBlur?.();
         }}
       />
 
