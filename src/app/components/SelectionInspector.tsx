@@ -102,8 +102,8 @@ const FieldLeafRenderer: React.FunctionComponent<{
           }}
         >
           <RenderOrderInput
-            // FIXME: add geometryId?
             value={field.value}
+            geometryId={field.geometryId}
             geometryStore={geometryStore}
             onChange={field.handlers.onChange ?? (() => {})}
             onFocus={field.handlers.onFocus}

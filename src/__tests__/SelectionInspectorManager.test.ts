@@ -1045,6 +1045,22 @@ describe('SelectionInspectorManager', () => {
   });
 
   describe('render order', () => {
+    function getRenderOrderField() {
+      const sim = sheet.selectionInspectorManager;
+      const roRow = getRowField(sim.fields, 'renderOrder');
+      const roLabel = roRow.fields[0];
+      expect(roLabel.type).toBe('label');
+      if (roLabel.type !== 'label') {
+        throw new Error('expected a label field');
+      }
+      const roField = roLabel.fields[0];
+      expect(roField.type).toBe('render-order');
+      if (roField.type !== 'render-order') {
+        throw new Error('expected a render-order field');
+      }
+      return roField;
+    }
+
     it('onBlur sets render order', () => {
       const rect = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
@@ -1052,24 +1068,41 @@ describe('SelectionInspectorManager', () => {
       );
       sheet.selectionManager.select(rect.id);
 
-      const sim = sheet.selectionInspectorManager;
-      const roRow = getRowField(sim.fields, 'renderOrder');
-      const roLabel = roRow.fields[0];
-      expect(roLabel.type).toBe('label');
-      if (roLabel.type !== 'label') {
-        return;
-      }
-      const roField = roLabel.fields[0];
-      expect(roField.type).toBe('render-order');
-      if (roField.type !== 'render-order') {
-        return;
-      }
-
+      const roField = getRenderOrderField();
       roField.handlers.onChange?.(42);
       roField.handlers.onBlur?.();
 
       const current = geometryStore.getById(rect.id);
       expect(RenderOrderComponent.get(current as unknown as Entity<RenderOrderComponent>)).toBe(42);
+    });
+
+    it('includes the geometryId when a single geometry is selected', () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      sheet.selectionManager.select(rect.id);
+
+      const roField = getRenderOrderField();
+      expect(roField.geometryId).toBe(rect.id);
+    });
+
+    it('omits the geometryId when multiple geometries are selected', () => {
+      const r1 = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+        { renderOrder: 0 },
+      );
+      const r2 = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(20, 20), new SheetPosition(30, 30)),
+        { renderOrder: 0 },
+      );
+      sheet.selectionManager.select(r1.id);
+      sheet.selectionManager.select(r2.id);
+
+      const roField = getRenderOrderField();
+      expect(roField.geometryId).toBeUndefined();
     });
   });
 

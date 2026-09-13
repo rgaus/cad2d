@@ -115,7 +115,13 @@ export type SelectionInspectorField =
       handlers: FieldHandlers<Length>;
     }
   | { type: 'angle'; key: string; value: Angle; handlers: FieldHandlers<Angle> }
-  | { type: 'render-order'; value: number; key: string; handlers: FieldHandlers<number> }
+  | {
+      type: 'render-order';
+      value: number;
+      geometryId?: Entity['id'];
+      key: string;
+      handlers: FieldHandlers<number>;
+    }
   | { type: 'color'; key: string; value: number | null; handlers: FieldHandlers<number | null> }
   | {
       type: 'link-dimensions-button';
@@ -151,6 +157,7 @@ export type SelectionInspectorFieldOptions =
   | {
       type: 'render-order';
       value: Array<number>;
+      geometryId: Array<Entity['id']>;
       key: string;
       handlers: Array<FieldHandlers<number>>;
     }
@@ -222,9 +229,16 @@ function angle(
 function renderOrder(
   key: string,
   renderOrder: number,
+  geometryId?: Entity['id'],
   handlers?: FieldHandlers<number>,
 ): SelectionInspectorFieldOptions {
-  return { type: 'render-order', key, value: [renderOrder], handlers: [handlers ?? {}] };
+  return {
+    type: 'render-order',
+    key,
+    value: [renderOrder],
+    geometryId: typeof geometryId !== 'undefined' ? [geometryId] : [],
+    handlers: [handlers ?? {}],
+  };
 }
 
 function color(
@@ -903,10 +917,20 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           handlers: combineHandlers(handlers as Array<FieldHandlers<Angle>>),
         };
       case 'render-order':
+        // Only include a geometry id (which allows for rendering the "context" on the render order
+        // slider) if all geometry ids are identical. Otherwise omit the context on the slider.
+        const allGeometryIdsSame = fieldOptions.every((opt) => {
+          if (opt.type !== 'render-order') {
+            return false;
+          }
+          return opt.geometryId.every((id) => id === fieldOptionsFirst.geometryId[0]);
+        });
+
         return {
           type: 'render-order',
           key: fieldOptionsFirst.key,
           value: (newValue as any) ?? fieldOptionsFirst.value[0],
+          geometryId: allGeometryIdsSame ? fieldOptionsFirst.geometryId[0] : undefined,
           handlers: combineHandlers(handlers as Array<FieldHandlers<number>>),
         };
       case 'color':
@@ -1767,7 +1791,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
             labelled(
               'renderOrder',
               'Render order:',
-              renderOrder('renderOrder', renderOrderValue, {
+              renderOrder('renderOrder', renderOrderValue, entity.id, {
                 onChange: (value) => {
                   this.captureDragOriginal(id);
                   this.workingFieldData.set('renderOrder', { type: 'render-order', value });
