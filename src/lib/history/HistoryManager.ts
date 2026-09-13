@@ -526,6 +526,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           }),
         );
         break;
+      case 'linear-constraint-change-axis':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            axis: entry.afterAxis,
+          }),
+        );
+        break;
       case 'polygon-translate': {
         this.geometryStore.updateByIdWithComponentDirect(entry.id, GeometryComponent, (old) => {
           if (!GeometryComponent.isPolygon(old)) {
@@ -937,6 +944,13 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
           ConstraintComponent.update(g, {
             constrainedLength: entry.beforeLength,
+          }),
+        );
+        break;
+      case 'linear-constraint-change-axis':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            axis: entry.beforeAxis,
           }),
         );
         break;

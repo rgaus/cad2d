@@ -253,6 +253,14 @@ export type LinearConstraintChangeLengthEntry = {
   afterLength: Length;
 };
 
+/** Recorded when a linear constraint's axis is changed. */
+export type LinearConstraintChangeAxisEntry = {
+  type: 'linear-constraint-change-axis';
+  id: Id;
+  beforeAxis: 'x' | 'y' | null;
+  afterAxis: 'x' | 'y' | null;
+};
+
 // ==================== HORIZONTAL CONSTRAINT ENTRIES ====================
 
 /** Recorded when a horizontal constraint's endpoints (pointA/pointB) are moved. */
@@ -392,6 +400,7 @@ export type UndoEntry =
   | ColinearConstraintMoveEndpointsEntry
   | LinearConstraintMoveLabelEntry
   | LinearConstraintChangeLengthEntry
+  | LinearConstraintChangeAxisEntry
   | SheetWidthEntry
   | SheetHeightEntry
   | SheetDefaultUnitEntry
@@ -675,6 +684,15 @@ export namespace UndoEntry {
     afterLength: Length,
   ): LinearConstraintChangeLengthEntry {
     return { type: 'linear-constraint-change-length', id, beforeLength, afterLength };
+  }
+
+  /** Creates an entry for changing a linear constraint's axis. */
+  export function linearConstraintChangeAxis(
+    id: Id,
+    beforeAxis: 'x' | 'y' | null,
+    afterAxis: 'x' | 'y' | null,
+  ): LinearConstraintChangeAxisEntry {
+    return { type: 'linear-constraint-change-axis', id, beforeAxis, afterAxis };
   }
 
   /** Creates an entry for moving a horizontal constraint's endpoints (pointA/pointB). */

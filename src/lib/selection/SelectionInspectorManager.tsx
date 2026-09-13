@@ -3001,21 +3001,34 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   'Axis:',
                   choices(
                     'axis',
-                    constraintData.axis ?? '',
+                    constraintData.axis ?? 'full',
                     [
-                      { value: '', label: 'Full' },
+                      { value: 'full', label: 'Full' },
                       { value: 'x', label: 'X' },
                       { value: 'y', label: 'Y' },
                     ],
                     {
                       onChange: (next) => {
-                        if (next !== '' && next !== 'x' && next !== 'y') {
+                        if (next !== 'full' && next !== 'x' && next !== 'y') {
                           return;
                         }
-                        this.geometryStore.updateByIdWithComponentDirect(
+                        const current = this.geometryStore.getByIdWithComponent(
                           id,
                           ConstraintComponent,
-                          (g) => ConstraintComponent.update(g, { axis: next === '' ? null : next }),
+                        );
+                        if (!current) {
+                          return;
+                        }
+                        const c = ConstraintComponent.get(current);
+                        if (c.type !== 'linear') {
+                          return;
+                        }
+                        this.historyManager.apply(
+                          UndoEntry.linearConstraintChangeAxis(
+                            id,
+                            c.axis,
+                            next === 'full' ? null : next,
+                          ),
                         );
                       },
                     },
