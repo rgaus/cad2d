@@ -18,6 +18,7 @@ export const PINNED_ACTION_TYPES: Array<ActionType> = [
   'undo',
   'redo',
   'reconstrain',
+  'sheet-settings',
 ];
 
 /** The length of time a pinned action should "flash" when executed. */

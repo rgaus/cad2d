@@ -51,7 +51,7 @@ const SheetSettingsPanel: React.FunctionComponent<SheetSettingsPanelProps> = ({ 
   }, [sheet]);
 
   return (
-    <FloatingPanel title="Sheet settings">
+    <FloatingPanel title="Sheet settings" onClose={() => sheet.hideSheetSettingsPanel()}>
       <div className="flex flex-col gap-3">
         <div className="flex overflow-x-auto gap-2 max-w-[300px] pb-5 -mb-2.5 -mx-1 px-1">
           {Object.entries(SHEET_SIZE_PRESETS).map(([key, spec]) => {

@@ -71,6 +71,7 @@ export type SheetEvents = {
   defaultUnitFamilyChange: (family: UnitFamily) => void;
   unitPlacesChanged: (places: number) => void;
   dcelDebugViewChange: (value: boolean) => void;
+  sheetSettingsPanelVisibleChange: (visible: boolean) => void;
 };
 
 /**
@@ -107,6 +108,9 @@ export class Sheet extends EventEmitter<SheetEvents> {
 
   /** When enabled, renders the {@link DCELDebugRenderer}. */
   dcelDebugView: boolean;
+
+  /** Whether the Sheet Settings panel is currently visible. */
+  sheetSettingsPanelVisible: boolean = false;
 
   private constructor(args: { width: Length; height: Length; defaultUnit: UnitType }) {
     super();
@@ -268,5 +272,19 @@ export class Sheet extends EventEmitter<SheetEvents> {
     this.dcelDebugView = value;
     localStorage?.setItem('cad2d-dcel-debug-view', this.dcelDebugView ? 'true' : 'false');
     this.emit('dcelDebugViewChange', this.dcelDebugView);
+  }
+
+  /** Hides the Sheet Settings panel. */
+  hideSheetSettingsPanel() {
+    if (this.sheetSettingsPanelVisible) {
+      this.sheetSettingsPanelVisible = false;
+      this.emit('sheetSettingsPanelVisibleChange', false);
+    }
+  }
+
+  /** Toggles the visibility of the Sheet Settings panel. */
+  toggleSheetSettingsPanel() {
+    this.sheetSettingsPanelVisible = !this.sheetSettingsPanelVisible;
+    this.emit('sheetSettingsPanelVisibleChange', this.sheetSettingsPanelVisible);
   }
 }

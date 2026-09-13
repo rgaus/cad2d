@@ -16,6 +16,16 @@ export default function Home() {
   // For debugging:
   (globalThis as any).SHEET = sheet;
 
+  const [sheetSettingsPanelVisible, setSheetSettingsPanelVisible] = useState(
+    sheet.sheetSettingsPanelVisible,
+  );
+  useEffect(() => {
+    sheet.on('sheetSettingsPanelVisibleChange', setSheetSettingsPanelVisible);
+    return () => {
+      sheet.off('sheetSettingsPanelVisibleChange', setSheetSettingsPanelVisible);
+    };
+  }, [sheet]);
+
   const [toolManager] = useState(
     () => new ToolManager(sheet.geometryStore, sheet.selectionManager, sheet.historyManager),
   );
@@ -50,7 +60,7 @@ export default function Home() {
         <ActionPanel actionsManager={actionManager} />
       </div>
       <div className="absolute right-4 top-4">
-        <SheetSettingsPanel sheet={sheet} />
+        {sheetSettingsPanelVisible ? <SheetSettingsPanel sheet={sheet} /> : null}
       </div>
       <ToolPalette toolManager={toolManager} />
       <SelectionInspector

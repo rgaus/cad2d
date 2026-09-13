@@ -26,6 +26,7 @@ import { RedoAction } from './RedoAction';
 import { SaveAction } from './SaveAction';
 import { SaveAsAction } from './SaveAsAction';
 import { SelectAllAction } from './SelectAllAction';
+import { SheetSettingsAction } from './SheetSettingsAction';
 import { ToggleLinkDimensionsAction } from './ToggleLinkDimensionsAction';
 import { UndoAction } from './UndoAction';
 import { UnionAction } from './UnionAction';
@@ -54,6 +55,7 @@ const ACTIONS = [
   ToggleLinkDimensionsAction,
   ConvertToPolygonAction,
   ApplyFilterToGeometryAction,
+  SheetSettingsAction,
 ];
 const ACTIONS_BY_TYPE = {
   undo: UndoAction,
@@ -79,6 +81,7 @@ const ACTIONS_BY_TYPE = {
   'toggle-link-dimensions': ToggleLinkDimensionsAction,
   'convert-to-polygon': ConvertToPolygonAction,
   'apply-filter-to-geometry': ApplyFilterToGeometryAction,
+  'sheet-settings': SheetSettingsAction,
 };
 export type ActionType = keyof typeof ACTIONS_BY_TYPE;
 export type Action = InstanceType<(typeof ACTIONS_BY_TYPE)[ActionType]>;
