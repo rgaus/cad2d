@@ -2,6 +2,7 @@ import { EventEmitter } from 'eventemitter3';
 import { ActionsManager } from '../actions/ActionsManager';
 import {
   ConstraintComponent,
+  type ConstraintEndpoint,
   DatumComponent,
   Entity,
   FillColorComponent,
@@ -31,6 +32,15 @@ import {
   type ShapePreviewState,
 } from './ShapePreviewManager';
 import { computeOpenAtIndex } from './polygon-point-row';
+
+/** Rectangle key points that a corner filter (fillet / chamfer) can target. */
+const RECTANGLE_KEYPOINTS = [
+  'upperLeft',
+  'upperRight',
+  'lowerRight',
+  'lowerLeft',
+  'center',
+] as const;
 
 /** The order of components in the {@link SelectionInspectorManager}. If a component isn't in this
  * list, it will be rendered at the bottom. */
@@ -141,6 +151,20 @@ export type SelectionInspectorField =
       value: PolygonData;
       isPolygonFilledDueToFilter: boolean;
       handlers: PolygonPointsHandlers;
+    }
+  | {
+      type: 'constraint-endpoint';
+      key: string;
+      label: string;
+      value: ConstraintEndpoint;
+      handlers: FieldHandlers<ConstraintEndpoint>;
+    }
+  | {
+      type: 'choices';
+      key: string;
+      value: string;
+      options: Array<{ value: string; label: string }>;
+      handlers: FieldHandlers<string>;
     };
 
 export type SelectionInspectorFieldOptions =
@@ -185,6 +209,20 @@ export type SelectionInspectorFieldOptions =
       value: Array<PolygonData>;
       isPolygonFilledDueToFilter: boolean;
       handlers: Array<PolygonPointsHandlers>;
+    }
+  | {
+      type: 'constraint-endpoint';
+      key: string;
+      label: string;
+      value: Array<ConstraintEndpoint>;
+      handlers: Array<FieldHandlers<ConstraintEndpoint>>;
+    }
+  | {
+      type: 'choices';
+      key: string;
+      value: Array<string>;
+      options: Array<{ value: string; label: string }>;
+      handlers: Array<FieldHandlers<string>>;
     };
 
 function readOnly(
@@ -278,6 +316,24 @@ function polygonPoints(
     isPolygonFilledDueToFilter,
     handlers: [handlers ?? {}],
   };
+}
+
+function constraintEndpoint(
+  key: string,
+  label: string,
+  value: ConstraintEndpoint,
+  handlers?: FieldHandlers<ConstraintEndpoint>,
+): SelectionInspectorFieldOptions {
+  return { type: 'constraint-endpoint', key, label, value: [value], handlers: [handlers ?? {}] };
+}
+
+function choices(
+  key: string,
+  value: string,
+  options: Array<{ value: string; label: string }>,
+  handlers?: FieldHandlers<string>,
+): SelectionInspectorFieldOptions {
+  return { type: 'choices', key, value: [value], options, handlers: [handlers ?? {}] };
 }
 
 export type SelectionInspectorLabelledField = Label<SelectionInspectorFieldOptions>;
@@ -984,6 +1040,22 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           // Rendering multiple polygons will fall back to type=heterogeneous
           handlers: handlers[0] as PolygonPointsHandlers,
         };
+      case 'constraint-endpoint':
+        return {
+          type: 'constraint-endpoint',
+          key: fieldOptionsFirst.key,
+          label: fieldOptionsFirst.label,
+          value: (newValue as any) ?? fieldOptionsFirst.value[0],
+          handlers: combineHandlers(handlers as Array<FieldHandlers<ConstraintEndpoint>>),
+        };
+      case 'choices':
+        return {
+          type: 'choices',
+          key: fieldOptionsFirst.key,
+          value: (newValue as any) ?? fieldOptionsFirst.value[0],
+          options: fieldOptionsFirst.options,
+          handlers: combineHandlers(handlers as Array<FieldHandlers<string>>),
+        };
       default:
         fieldOptionsFirst satisfies never;
         throw new Error(
@@ -1049,6 +1121,10 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           return (acc as typeof e.value).filter((value) => e.value.includes(value));
         case 'polygon-points':
           // Polygon points will not merge together with other polygon points
+          return [];
+        case 'constraint-endpoint':
+        case 'choices':
+          // Not mergeable across multiple selections; falls through to heterogeneous
           return [];
         case 'link-dimensions-button':
         case 'button':
@@ -2418,8 +2494,35 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                 ]),
               ];
             } else {
-              // geometryType === 'rectangle' -- use readOnly for keypoints since toggle groups
-              // would need a new field type.
+              // geometryType === 'rectangle' -- render the corner key points as choice toggle
+              // groups so the user can switch which rectangle key point each corner targets.
+              const keypointChoices = (
+                fieldKey: string,
+                label: string,
+                dataKey: 'pointAKeyPoint' | 'pointCenterKeyPoint' | 'pointBKeyPoint',
+                current: string,
+              ) =>
+                labelled(
+                  fieldKey,
+                  label,
+                  choices(
+                    fieldKey,
+                    current,
+                    RECTANGLE_KEYPOINTS.map((kp) => ({ value: kp, label: kp })),
+                    {
+                      onChange: (value) => {
+                        this.geometryStore.updateByIdWithComponentDirect(
+                          filterId,
+                          FilterComponent,
+                          (g) =>
+                            FilterComponent.update(g, { [dataKey]: value } as Partial<FilterData>),
+                        );
+                        this.finishFilterEdit(filterId);
+                      },
+                    },
+                  ),
+                );
+
               return [
                 row('offset', [
                   labelled(
@@ -2473,13 +2576,9 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   ),
                 ]),
                 row('keypoints', [
-                  labelled('a', 'A:', readOnly('pointAKeyPoint', filterData.pointAKeyPoint)),
-                  labelled(
-                    'c',
-                    'C:',
-                    readOnly('pointCenterKeyPoint', filterData.pointCenterKeyPoint),
-                  ),
-                  labelled('b', 'B:', readOnly('pointBKeyPoint', filterData.pointBKeyPoint)),
+                  keypointChoices('a', 'A:', 'pointAKeyPoint', filterData.pointAKeyPoint),
+                  keypointChoices('c', 'C:', 'pointCenterKeyPoint', filterData.pointCenterKeyPoint),
+                  keypointChoices('b', 'B:', 'pointBKeyPoint', filterData.pointBKeyPoint),
                 ]),
               ];
             }
@@ -2764,10 +2863,170 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         }
       }
       case ConstraintComponent.key: {
-        // ConstraintComponent requires ConstraintEndpointField which is a rich custom widget
-        // (toggle groups, EntityInput, etc.) that needs a new field type and FieldLeafRenderer
-        // support. This will be addressed in a follow-up.
-        return [];
+        if (!Entity.hasComponent(entity, ConstraintComponent)) {
+          return [];
+        }
+        const constraintData = ConstraintComponent.get(entity);
+        const id = entity.id;
+        switch (constraintData.type) {
+          case 'linear': {
+            const moveEndpoints = (key: 'pointA' | 'pointB', next: ConstraintEndpoint) => {
+              const current = this.geometryStore.getByIdWithComponent(id, ConstraintComponent);
+              if (!current) {
+                return;
+              }
+              const c = ConstraintComponent.get(current);
+              if (c.type !== 'linear') {
+                return;
+              }
+              this.historyManager.apply(
+                UndoEntry.linearConstraintMoveEndpoints(
+                  id,
+                  c.pointA,
+                  c.pointB,
+                  key === 'pointA' ? next : c.pointA,
+                  key === 'pointB' ? next : c.pointB,
+                ),
+              );
+            };
+            return [
+              constraintEndpoint('pointA', 'A', constraintData.pointA, {
+                onChange: (next) => moveEndpoints('pointA', next),
+              }),
+              constraintEndpoint('pointB', 'B', constraintData.pointB, {
+                onChange: (next) => moveEndpoints('pointB', next),
+              }),
+              row('constrainedLength', [
+                labelled(
+                  'constrainedLength',
+                  'Length:',
+                  length(
+                    'constrainedLength',
+                    constraintData.constrainedLength,
+                    { readOnlyUnit: true },
+                    {
+                      onChange: (value) => {
+                        this.captureDragOriginal(id);
+                        this.workingFieldData.set('constrainedLength', { type: 'length', value });
+                        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                      },
+                      onKeyDown: (k) => {
+                        if (k === 'Escape' && this.dragOriginals.has(id)) {
+                          this.restoreDragOriginal(id);
+                          this.workingFieldData.clear();
+                          this.emit('workingFieldDataChange', new Map());
+                          this.recomputeFields();
+                        }
+                      },
+                      onBlur: () => {
+                        const fieldData = this.workingFieldData.get('constrainedLength');
+                        if (!fieldData || fieldData.type !== 'length') {
+                          return;
+                        }
+                        const current = this.geometryStore.getByIdWithComponent(
+                          id,
+                          ConstraintComponent,
+                        );
+                        if (!current) {
+                          return;
+                        }
+                        const c = ConstraintComponent.get(current);
+                        if (c.type !== 'linear') {
+                          return;
+                        }
+                        this.historyManager.apply(
+                          UndoEntry.linearConstraintChangeLength(
+                            id,
+                            c.constrainedLength,
+                            fieldData.value,
+                          ),
+                        );
+                        this.dragOriginals.delete(id);
+                        this.recomputeFields();
+                      },
+                    },
+                  ),
+                ),
+              ]),
+              row('connectorLineOffsetPx', [
+                labelled(
+                  'connectorLineOffsetPx',
+                  'Label offset:',
+                  number('connectorLineOffsetPx', constraintData.connectorLineOffsetPx, {
+                    onChange: (value) => {
+                      this.captureDragOriginal(id);
+                      this.workingFieldData.set('connectorLineOffsetPx', { type: 'number', value });
+                      this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+                    },
+                    onKeyDown: (k) => {
+                      if (k === 'Escape' && this.dragOriginals.has(id)) {
+                        this.restoreDragOriginal(id);
+                        this.workingFieldData.clear();
+                        this.emit('workingFieldDataChange', new Map());
+                        this.recomputeFields();
+                      }
+                    },
+                    onBlur: () => {
+                      const fieldData = this.workingFieldData.get('connectorLineOffsetPx');
+                      if (!fieldData || fieldData.type !== 'number') {
+                        return;
+                      }
+                      const val = parseFloat(fieldData.value);
+                      if (isNaN(val)) {
+                        return;
+                      }
+                      const current = this.geometryStore.getByIdWithComponent(
+                        id,
+                        ConstraintComponent,
+                      );
+                      if (!current) {
+                        return;
+                      }
+                      const c = ConstraintComponent.get(current);
+                      if (c.type !== 'linear') {
+                        return;
+                      }
+                      this.historyManager.apply(
+                        UndoEntry.linearConstraintMoveLabel(id, c.connectorLineOffsetPx, val),
+                      );
+                      this.dragOriginals.delete(id);
+                      this.recomputeFields();
+                    },
+                  }),
+                ),
+              ]),
+              row('axis', [
+                labelled(
+                  'axis',
+                  'Axis:',
+                  choices(
+                    'axis',
+                    constraintData.axis ?? '',
+                    [
+                      { value: '', label: 'Full' },
+                      { value: 'x', label: 'X' },
+                      { value: 'y', label: 'Y' },
+                    ],
+                    {
+                      onChange: (next) => {
+                        if (next !== '' && next !== 'x' && next !== 'y') {
+                          return;
+                        }
+                        this.geometryStore.updateByIdWithComponentDirect(
+                          id,
+                          ConstraintComponent,
+                          (g) => ConstraintComponent.update(g, { axis: next === '' ? null : next }),
+                        );
+                      },
+                    },
+                  ),
+                ),
+              ]),
+            ];
+          }
+          default:
+            return [];
+        }
       }
       case LinkDimensionsComponent.key: {
         // LinkDimensionsComponent is consumed within GeometryComponent to conditionally show the

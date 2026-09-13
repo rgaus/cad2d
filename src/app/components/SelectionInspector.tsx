@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import RenderOrderInput from '@/components/RenderOrderInput';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { type Id } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import {
@@ -20,6 +21,7 @@ import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { cn } from '@/lib/utils';
 import AngleInput from './AngleInput';
 import ColorInput from './ColorInput';
+import ConstraintEndpointField from './ConstraintEndpointField';
 import FloatingPanel from './FloatingPanel';
 import LabeledRow from './LabeledRow';
 import LengthInput from './LengthInput';
@@ -210,6 +212,36 @@ const FieldLeafRenderer: React.FunctionComponent<{
             </Button>
           )}
         </>
+      );
+    case 'constraint-endpoint':
+      return (
+        <ConstraintEndpointField
+          label={field.label}
+          endpoint={field.value}
+          onChange={field.handlers.onChange ?? (() => {})}
+          geometryStore={geometryStore}
+          sheetUnitPlaces={sheetUnitPlaces}
+          sheetDefaultUnit={sheetDefaultUnit}
+        />
+      );
+    case 'choices':
+      return (
+        <ToggleGroup
+          type="single"
+          value={field.value}
+          onValueChange={(next) => {
+            if (next) {
+              field.handlers.onChange?.(next);
+            }
+          }}
+          className="flex-wrap"
+        >
+          {field.options.map((opt) => (
+            <ToggleGroupItem key={opt.value} value={opt.value} className="w-auto px-2 h-6 text-xs">
+              {opt.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
       );
     default:
       field satisfies never;
