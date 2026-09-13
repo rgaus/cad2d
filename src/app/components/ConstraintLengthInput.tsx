@@ -13,6 +13,7 @@ import {
   UNIT_OPTIONS,
   createLengthFromMagnitudeAndUnit,
   getUnitFromLength,
+  parseLengthSuffix,
   parseSuffix,
 } from './LengthInput';
 
@@ -128,7 +129,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
           return;
         }
 
-        const parsed = parseSuffix(inputValue);
+        const parsed = parseLengthSuffix(inputValue);
         // console.log('OUT:', inputValue, '=>', parsed, parsed.unit !== getUnitFromLength(value));
         if (!parsed.valid) {
           return;
@@ -197,7 +198,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
           case 'ArrowUp': {
             e.preventDefault();
             const step = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
-            const { magnitude: currentVal, unit } = parseSuffix(inputValue);
+            const { magnitude: currentVal, unit } = parseLengthSuffix(inputValue);
             const newVal = currentVal + step;
             setInputValue(newVal.toString());
             onChange(createLengthFromMagnitudeAndUnit(newVal, unit ?? defaultUnit));
@@ -206,7 +207,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
           case 'ArrowDown': {
             e.preventDefault();
             const step = e.shiftKey ? 10 : e.altKey ? 0.1 : 1;
-            const { magnitude: currentVal, unit } = parseSuffix(inputValue);
+            const { magnitude: currentVal, unit } = parseLengthSuffix(inputValue);
             const newVal = Math.max(0, currentVal - step);
             setInputValue(newVal.toString());
             onChange(createLengthFromMagnitudeAndUnit(newVal, unit ?? defaultUnit));

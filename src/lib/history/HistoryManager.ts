@@ -149,22 +149,23 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
   applyTransaction<T = void>(
     purpose: string,
     scopeFn: () => T,
-    options?: { collapseIfSingle?: boolean },
+    options?: { collapseIfSingle?: boolean; omitIfEmpty?: boolean },
   ): T;
   applyTransaction<T = void>(
     purpose: string,
     scopeFn: () => Promise<T>,
-    options?: { collapseIfSingle?: boolean },
+    options?: { collapseIfSingle?: boolean; omitIfEmpty?: boolean },
   ): Promise<T>;
   applyTransaction<T = void>(
     purpose: string,
     scopeFn: () => T | Promise<T>,
-    options?: { collapseIfSingle?: boolean },
+    options?: { collapseIfSingle?: boolean; omitIfEmpty?: boolean },
   ): T | Promise<T> {
     const previousActiveTransaction = this.activeTransaction;
     this.activeTransaction = [];
 
     const collapseIfSingle = options?.collapseIfSingle ?? false;
+    const omitIfEmpty = options?.omitIfEmpty ?? false;
 
     const complete = (result: T) => {
       const capturedEntries = this.activeTransaction ?? [];
@@ -176,6 +177,8 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         // and push the single entry directly to the parent transaction.
         if (collapseIfSingle && capturedEntries.length === 1) {
           this.activeTransaction = [...previousActiveTransaction, capturedEntries[0]];
+        } else if (omitIfEmpty && capturedEntries.length === 0) {
+          // Skip, capturedEntries is empty
         } else {
           this.activeTransaction = [...previousActiveTransaction, transactionEntry];
         }
@@ -184,6 +187,8 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.activeTransaction = null;
         if (collapseIfSingle && capturedEntries.length === 1) {
           this.push(capturedEntries[0]);
+        } else if (omitIfEmpty && capturedEntries.length === 0) {
+          // Skip, capturedEntries is empty
         } else {
           this.push(transactionEntry);
         }

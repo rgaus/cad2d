@@ -219,9 +219,11 @@ const RenderOrderSlider: React.FunctionComponent<{
 const RenderOrderInput: React.FunctionComponent<{
   value: number;
   onChange: (newValue: number) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   geometryStore: GeometryStore;
   geometryId?: Id;
-}> = ({ value, onChange, geometryStore, geometryId }) => {
+}> = ({ value, onChange, onFocus, onBlur, geometryStore, geometryId }) => {
   const [focused, setFocused] = useState<'slider' | 'input' | null>(null);
 
   useEffect(() => {
@@ -291,7 +293,10 @@ const RenderOrderInput: React.FunctionComponent<{
         )}
         value={workingTextValue}
         onChange={handleWorkingValueChange}
-        onFocus={() => setFocused((old) => old || 'input')}
+        onFocus={() => {
+          setFocused((old) => old || 'input');
+          onFocus?.();
+        }}
         onKeyDown={(e) => {
           switch (e.key) {
             case 'Enter':
@@ -326,10 +331,12 @@ const RenderOrderInput: React.FunctionComponent<{
 
           const parsed = parseFloat(workingTextValue);
           if (isNaN(parsed)) {
+            onBlur?.();
             return;
           }
           setWorkingValue(parsed);
           onChange(parsed);
+          onBlur?.();
         }}
       />
 

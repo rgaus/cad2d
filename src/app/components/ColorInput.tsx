@@ -23,6 +23,8 @@ type ColorInputProps = {
   value: number | null | 'non-homogeneous';
   openDirection?: 'up' | 'down';
   onChange: (color: number | null) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
 };
 
 function hexToDisplay(hex: string): string {
@@ -37,6 +39,8 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({
   value,
   openDirection = 'down',
   onChange,
+  onFocus,
+  onBlur,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(() =>
@@ -44,6 +48,14 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({
   );
   const [isInvalid, setIsInvalid] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      onFocus?.();
+    } else {
+      onBlur?.();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     setInputValue(

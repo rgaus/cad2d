@@ -69,11 +69,42 @@ export function createLengthFromMagnitudeAndUnit(magnitude: number, unit: UnitTy
   }
 }
 
-export function parseSuffix(text: string): {
+const LENGTH_UNIT_SUFFIXES = {
+  in: ['in', 'inch', 'inches', '"'],
+  ft: ['f', 'ft', 'foot', 'feet', "'"],
+  mm: ['mm', 'millimeter', 'millimeters'],
+  cm: ['c', 'cm', 'centimeter', 'centimeters'],
+  m: ['me', 'met', 'mete', 'meter', 'meters'],
+};
+
+export type ParsedSuffixOutput<U> = {
   valid: boolean;
   magnitude: number;
-  unit: UnitType | null;
-} {
+  unit: U | null;
+};
+
+/** Special case: feet and inches formatted like `5' 3"` */
+const feetInchesSpecialCase = (trimmed: string) => {
+  const feetInchesMatch = trimmed.match(
+    /^([\d.]+)\s*(?:f|ft|feet|foot|')\s*([\d.]+)\s*(?:in|inch|inches|")$/,
+  );
+  if (!feetInchesMatch) {
+    return null;
+  }
+
+  const inches = parseFloat(feetInchesMatch[1] /* feet */) * 12 + parseFloat(feetInchesMatch[2]);
+  if (!Number.isNaN(inches)) {
+    return { valid: true, magnitude: inches, unit: 'in' as const };
+  }
+  return null;
+};
+
+/** Parse the given input, extracting a magnitude and unit suffix. */
+export function parseSuffix<Unit extends string>(
+  text: string,
+  unitToSuffixes: Record<Unit, Array<string>>,
+  specialCases: Array<(trimmed: string) => ParsedSuffixOutput<Unit> | null> = [],
+): ParsedSuffixOutput<Unit> {
   const trimmed = text.trim();
   if (!trimmed) {
     return { valid: false, magnitude: 0, unit: null };
@@ -81,15 +112,11 @@ export function parseSuffix(text: string): {
 
   const match = trimmed.match(/^([\d.]+)\s*([a-zA-Z'"]*)$/);
   if (!match) {
-    // Special case: feet and inches formatted like `5' 3"`
-    const feetInchesMatch = trimmed.match(
-      /^([\d.]+)\s*(?:f|ft|feet|foot|')\s*([\d.]+)\s*(?:in|inch|inches|")$/,
-    );
-    if (feetInchesMatch) {
-      const inches =
-        parseFloat(feetInchesMatch[1] /* feet */) * 12 + parseFloat(feetInchesMatch[2]);
-      if (!Number.isNaN(inches)) {
-        return { valid: true, magnitude: inches, unit: 'in' };
+    // If the base case didn't match, try any special cases
+    for (const specialCase of specialCases) {
+      const output = specialCase(trimmed);
+      if (output) {
+        return output;
       }
     }
 
@@ -104,36 +131,18 @@ export function parseSuffix(text: string): {
   const magnitude = parseFloat(match[1]);
   const suffix = match[2].toLowerCase();
 
-  if (suffix === 'in' || suffix === 'inch' || suffix === 'inches' || suffix === '"') {
-    return { valid: true, magnitude, unit: 'in' };
-  }
-  if (
-    suffix === 'f' ||
-    suffix === 'ft' ||
-    suffix === 'foot' ||
-    suffix === 'feet' ||
-    suffix === "'"
-  ) {
-    return { valid: true, magnitude, unit: 'ft' };
-  }
-  if (suffix === 'mm' || suffix === 'millimeter' || suffix === 'millimeters') {
-    return { valid: true, magnitude, unit: 'mm' };
-  }
-  if (suffix === 'c' || suffix === 'cm' || suffix === 'centimeter' || suffix === 'centimeters') {
-    return { valid: true, magnitude, unit: 'cm' };
-  }
-  if (
-    suffix === 'me' ||
-    suffix === 'met' ||
-    suffix === 'mete' ||
-    suffix === 'meter' ||
-    suffix === 'meters'
-  ) {
-    return { valid: true, magnitude, unit: 'm' };
+  for (const unit of Object.keys(unitToSuffixes)) {
+    const suffixOptions = unitToSuffixes[unit as Unit];
+    if (suffixOptions.includes(suffix)) {
+      return { valid: true, magnitude, unit: unit as Unit };
+    }
   }
 
   return { valid: true, magnitude, unit: null };
 }
+
+export const parseLengthSuffix = (text: string) =>
+  parseSuffix<UnitType>(text, LENGTH_UNIT_SUFFIXES, [feetInchesSpecialCase]);
 
 type LengthInputProps = {
   value: Length | null;
@@ -200,11 +209,11 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   const handleUnitChange = useCallback(
     (newUnit: UnitType) => {
       setSelectedUnit(newUnit);
-      const parsed = parseSuffix(inputDefaultValue);
-      const magnitude = parsed.magnitude || 0;
+      const parsed = parseLengthSuffix(inputDefaultValue);
+      const magnitude = round(parsed.magnitude || 0, roundPlaces);
       onChange(createLengthFromMagnitudeAndUnit(magnitude, newUnit));
     },
-    [inputDefaultValue, onChange],
+    [inputDefaultValue, onChange, roundPlaces],
   );
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,11 +228,11 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
   }, [onFocus]);
 
   const handleBlur = useCallback(() => {
-    onBlur?.();
     setInputFocused(false);
 
-    const parsed = parseSuffix(inputDefaultValue);
-    const cleanMagnitude = parsed.magnitude.toString();
+    const parsed = parseLengthSuffix(inputDefaultValue);
+    const roundedMagnitude = round(parsed.magnitude, roundPlaces);
+    const cleanMagnitude = roundedMagnitude.toString();
     setInputDefaultValue(cleanMagnitude);
     if (inputRef.current) {
       inputRef.current.value = cleanMagnitude;
@@ -231,9 +240,10 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
 
     const outputUnit = parsed.unit ?? selectedUnit;
     setSelectedUnit(outputUnit);
-    const output = createLengthFromMagnitudeAndUnit(parsed.magnitude, outputUnit);
+    const output = createLengthFromMagnitudeAndUnit(roundedMagnitude, outputUnit);
     onChange(output);
-  }, [inputDefaultValue, selectedUnit, onChange, onBlur]);
+    onBlur?.();
+  }, [inputDefaultValue, selectedUnit, onChange, onBlur, roundPlaces]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -259,8 +269,8 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
         case 'ArrowUp': {
           e.preventDefault();
           const step = e.shiftKey ? 10 : e.altKey && roundPlaces >= 1 ? 0.1 : 1;
-          const currentVal = parseSuffix(inputDefaultValue).magnitude;
-          const newVal = currentVal + step;
+          const currentVal = parseLengthSuffix(inputDefaultValue).magnitude;
+          const newVal = round(currentVal + step, roundPlaces);
           if (inputRef.current) {
             inputRef.current.value = newVal.toString();
           }
@@ -271,8 +281,8 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
         case 'ArrowDown': {
           e.preventDefault();
           const step = e.shiftKey ? 10 : e.altKey && roundPlaces >= 1 ? 0.1 : 1;
-          const currentVal = parseSuffix(inputDefaultValue).magnitude;
-          const newVal = Math.max(0, currentVal - step);
+          const currentVal = parseLengthSuffix(inputDefaultValue).magnitude;
+          const newVal = round(Math.max(0, currentVal - step), roundPlaces);
           if (inputRef.current) {
             inputRef.current.value = newVal.toString();
           }
@@ -282,7 +292,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
         }
       }
     },
-    [handleBlur, reset, inputDefaultValue, selectedUnit, onChange, shiftHeld, altHeld],
+    [handleBlur, reset, inputDefaultValue, selectedUnit, onChange, shiftHeld, altHeld, roundPlaces],
   );
 
   const handleKeyUp = useCallback(
