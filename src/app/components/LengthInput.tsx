@@ -210,10 +210,10 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
     (newUnit: UnitType) => {
       setSelectedUnit(newUnit);
       const parsed = parseLengthSuffix(inputDefaultValue);
-      const magnitude = parsed.magnitude || 0;
+      const magnitude = round(parsed.magnitude || 0, roundPlaces);
       onChange(createLengthFromMagnitudeAndUnit(magnitude, newUnit));
     },
-    [inputDefaultValue, onChange],
+    [inputDefaultValue, onChange, roundPlaces],
   );
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -231,7 +231,8 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
     setInputFocused(false);
 
     const parsed = parseLengthSuffix(inputDefaultValue);
-    const cleanMagnitude = parsed.magnitude.toString();
+    const roundedMagnitude = round(parsed.magnitude, roundPlaces);
+    const cleanMagnitude = roundedMagnitude.toString();
     setInputDefaultValue(cleanMagnitude);
     if (inputRef.current) {
       inputRef.current.value = cleanMagnitude;
@@ -239,10 +240,10 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
 
     const outputUnit = parsed.unit ?? selectedUnit;
     setSelectedUnit(outputUnit);
-    const output = createLengthFromMagnitudeAndUnit(parsed.magnitude, outputUnit);
+    const output = createLengthFromMagnitudeAndUnit(roundedMagnitude, outputUnit);
     onChange(output);
     onBlur?.();
-  }, [inputDefaultValue, selectedUnit, onChange, onBlur]);
+  }, [inputDefaultValue, selectedUnit, onChange, onBlur, roundPlaces]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -269,7 +270,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
           e.preventDefault();
           const step = e.shiftKey ? 10 : e.altKey && roundPlaces >= 1 ? 0.1 : 1;
           const currentVal = parseLengthSuffix(inputDefaultValue).magnitude;
-          const newVal = currentVal + step;
+          const newVal = round(currentVal + step, roundPlaces);
           if (inputRef.current) {
             inputRef.current.value = newVal.toString();
           }
@@ -281,7 +282,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
           e.preventDefault();
           const step = e.shiftKey ? 10 : e.altKey && roundPlaces >= 1 ? 0.1 : 1;
           const currentVal = parseLengthSuffix(inputDefaultValue).magnitude;
-          const newVal = Math.max(0, currentVal - step);
+          const newVal = round(Math.max(0, currentVal - step), roundPlaces);
           if (inputRef.current) {
             inputRef.current.value = newVal.toString();
           }
@@ -291,7 +292,7 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
         }
       }
     },
-    [handleBlur, reset, inputDefaultValue, selectedUnit, onChange, shiftHeld, altHeld],
+    [handleBlur, reset, inputDefaultValue, selectedUnit, onChange, shiftHeld, altHeld, roundPlaces],
   );
 
   const handleKeyUp = useCallback(
