@@ -1,13 +1,22 @@
 'use client';
 
 import { Input } from '@/components/ui/input';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useEntities } from '@/hooks/useEntities';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { DatumComponent } from '@/lib/entity/components/DatumComponent';
 import { GeometryComponent } from '@/lib/entity/components/GeometryComponent';
 import { ConstraintEndpoint } from '@/lib/entity/constraints';
+import { type EllipseEndpoint } from '@/lib/entity/ellipse';
+import { type RectangleEndpoint } from '@/lib/entity/rectangle';
 import { Length, type UnitType } from '@/lib/units/length';
+import { cn } from '@/lib/utils';
 import { SheetPosition } from '@/lib/viewport/types';
 import EntityInput from './EntityInput';
 import LabeledRow from './LabeledRow';
@@ -17,19 +26,95 @@ const ENDPOINT_TYPE_OPTIONS = [
   { value: 'point', label: 'Point' },
   { value: 'locked-rectangle', label: 'Rect' },
   { value: 'locked-ellipse', label: 'Ellipse' },
-  { value: 'locked-polygon', label: 'Poly' },
+  { value: 'locked-polygon', label: 'Polygon' },
   { value: 'locked-datum', label: 'Datum' },
 ] as const;
 
-const RECTANGLE_KEYPOINTS = [
-  'upperLeft',
-  'upperRight',
-  'lowerRight',
-  'lowerLeft',
-  'center',
-] as const;
+/** A cell within the 3x3 anchor dot grid. */
+type AnchorDotPosition =
+  | 'top-left'
+  | 'top'
+  | 'top-right'
+  | 'left'
+  | 'center'
+  | 'right'
+  | 'bottom-left'
+  | 'bottom'
+  | 'bottom-right';
 
-const ELLIPSE_KEYPOINTS = ['top', 'right', 'bottom', 'left', 'center'] as const;
+/** A single selectable anchor dot mapping a keypoint value to its grid position. */
+type AnchorDot<V extends string> = { value: V; position: AnchorDotPosition };
+
+type AnchorDotGridProps<V extends string> = {
+  /** Currently-selected keypoint value. */
+  value: V;
+  /** The keypoint dots to render, each mapped to a position within the 3x3 grid. */
+  dots: Array<AnchorDot<V>>;
+  onChange: (value: V) => void;
+};
+
+/** Ordered positions of the 3x3 anchor dot grid (row-major). */
+const ANCHOR_GRID_POSITIONS: Array<AnchorDotPosition> = [
+  'top-left',
+  'top',
+  'top-right',
+  'left',
+  'center',
+  'right',
+  'bottom-left',
+  'bottom',
+  'bottom-right',
+];
+
+/** Rectangle keypoints drawn as a die "5" (four corners plus center). */
+const RECTANGLE_ANCHOR_DOTS: Array<AnchorDot<RectangleEndpoint>> = [
+  { value: 'upperLeft', position: 'top-left' },
+  { value: 'upperRight', position: 'top-right' },
+  { value: 'lowerRight', position: 'bottom-right' },
+  { value: 'lowerLeft', position: 'bottom-left' },
+  { value: 'center', position: 'center' },
+];
+
+/** Ellipse keypoints drawn as a cross (four cardinals plus center). */
+const ELLIPSE_ANCHOR_DOTS: Array<AnchorDot<EllipseEndpoint>> = [
+  { value: 'top', position: 'top' },
+  { value: 'right', position: 'right' },
+  { value: 'bottom', position: 'bottom' },
+  { value: 'left', position: 'left' },
+  { value: 'center', position: 'center' },
+];
+
+/** A compact 3x3 dot grid for picking a keypoint / anchor on a shape, similar to InDesign's
+ *  reference point picker. Cells without a dot render as empty spacers so the active dots sit at
+ *  their intended positions (e.g. corners for a rectangle, cardinals for an ellipse). */
+function AnchorDotGrid<V extends string>({ value, dots, onChange }: AnchorDotGridProps<V>) {
+  return (
+    <div className="grid grid-cols-3 gap-1">
+      {ANCHOR_GRID_POSITIONS.map((position) => {
+        const dot = dots.find((d) => d.position === position);
+        if (!dot) {
+          return <span key={position} className="w-4 h-4" />;
+        }
+        const active = dot.value === value;
+        return (
+          <button
+            key={position}
+            type="button"
+            title={dot.value}
+            aria-pressed={active}
+            onClick={() => onChange(dot.value)}
+            className={cn(
+              'w-4 h-4 rounded-full border transition-colors',
+              active
+                ? 'bg-[var(--teal-9)] border-[var(--teal-9)]'
+                : 'bg-[var(--slate-5)] border-[var(--slate-7)] hover:bg-[var(--slate-6)]',
+            )}
+          />
+        );
+      })}
+    </div>
+  );
+}
 
 type ConstraintEndpointFieldProps = {
   label: string;
@@ -42,7 +127,7 @@ type ConstraintEndpointFieldProps = {
 
 /** A composite editor for a {@link ConstraintEndpoint}. Lets a user switch between the free-floating
  *  `point` variant and the `locked-*` variants. For locked endpoints, an {@link EntityInput} selects
- *  the referenced geometry and a keypoint / index control specifies the exact point on it. */
+ *  the referenced geometry and an anchor dot grid / index control specifies the exact point on it. */
 const ConstraintEndpointField: React.FunctionComponent<ConstraintEndpointFieldProps> = ({
   label,
   endpoint,
@@ -61,8 +146,6 @@ const ConstraintEndpointField: React.FunctionComponent<ConstraintEndpointFieldPr
     g.listWithComponent(GeometryComponent).filter((e) => GeometryComponent.isPolygon(e)),
   );
   const datums = useEntities(geometryStore, (g) => g.listWithComponent(DatumComponent));
-
-  const endpointType = endpoint.type;
 
   const handleTypeChange = (nextType: string) => {
     switch (nextType) {
@@ -127,13 +210,18 @@ const ConstraintEndpointField: React.FunctionComponent<ConstraintEndpointFieldPr
         >
           {label}:
         </span>
-        <ToggleGroup type="single" value={endpointType} onValueChange={handleTypeChange}>
-          {ENDPOINT_TYPE_OPTIONS.map((opt) => (
-            <ToggleGroupItem key={opt.value} value={opt.value} className="w-auto px-2 h-6 text-xs">
-              {opt.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+        <Select value={endpoint.type} onValueChange={handleTypeChange}>
+          <SelectTrigger fieldSize="sm" className="w-28">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {ENDPOINT_TYPE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="flex flex-col gap-1.5 pl-2">
@@ -165,21 +253,21 @@ const ConstraintEndpointField: React.FunctionComponent<ConstraintEndpointFieldPr
               entities={rectangles}
               onChange={(id) => onChange(ConstraintEndpoint.lockedToRectangle(id, endpoint.point))}
             />
-            <ToggleGroup
-              type="single"
-              value={endpoint.point}
-              onValueChange={(next) => {
-                if (next) {
-                  onChange(ConstraintEndpoint.lockedToRectangle(endpoint.id, next as never));
+            <div className="flex items-center gap-2">
+              <span
+                className="text-xs text-[var(--slate-11)] select-none"
+                style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+              >
+                anchor:
+              </span>
+              <AnchorDotGrid
+                value={endpoint.point}
+                dots={RECTANGLE_ANCHOR_DOTS}
+                onChange={(next) =>
+                  onChange(ConstraintEndpoint.lockedToRectangle(endpoint.id, next))
                 }
-              }}
-            >
-              {RECTANGLE_KEYPOINTS.map((kp) => (
-                <ToggleGroupItem key={kp} value={kp} className="w-auto px-2 h-6 text-xs">
-                  {kp}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+              />
+            </div>
           </>
         ) : null}
 
@@ -190,21 +278,19 @@ const ConstraintEndpointField: React.FunctionComponent<ConstraintEndpointFieldPr
               entities={ellipses}
               onChange={(id) => onChange(ConstraintEndpoint.lockedToEllipse(id, endpoint.point))}
             />
-            <ToggleGroup
-              type="single"
-              value={endpoint.point}
-              onValueChange={(next) => {
-                if (next) {
-                  onChange(ConstraintEndpoint.lockedToEllipse(endpoint.id, next as never));
-                }
-              }}
-            >
-              {ELLIPSE_KEYPOINTS.map((kp) => (
-                <ToggleGroupItem key={kp} value={kp} className="w-auto px-2 h-6 text-xs">
-                  {kp}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+            <div className="flex items-center gap-2">
+              <span
+                className="text-xs text-[var(--slate-11)] select-none"
+                style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+              >
+                Anchor:
+              </span>
+              <AnchorDotGrid
+                value={endpoint.point}
+                dots={ELLIPSE_ANCHOR_DOTS}
+                onChange={(next) => onChange(ConstraintEndpoint.lockedToEllipse(endpoint.id, next))}
+              />
+            </div>
           </>
         ) : null}
 
