@@ -640,19 +640,19 @@ function parsePatternFilter(
       );
       return { id, ...template };
     }
-    case 'radial':
-      return {
-        type: 'pattern',
-        mode: 'radial',
-        id,
-        geometryId: rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
-        center: {
-          x: parseFloat(String(attrs['data-center-x'] ?? '0')),
-          y: parseFloat(String(attrs['data-center-y'] ?? '0')),
-        },
-        radius: parseFloat(String(attrs['data-radius'] ?? '1')),
-        repeats: { type: 'count', count: parseFloat(String(attrs['data-repeats-count'] ?? '1')) },
+    case 'radial': {
+      const center = {
+        x: parseFloat(String(attrs['data-center-x'] ?? '0')),
+        y: parseFloat(String(attrs['data-center-y'] ?? '0')),
       };
+      const template = PatternFilter.createRadial(
+        rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
+        new SheetPosition(center.x, center.y),
+        parseFloat(String(attrs['data-radius'] ?? '1')),
+        { count: parseFloat(String(attrs['data-repeats-count'] ?? '4')) },
+      );
+      return { id, ...template };
+    }
     default:
       throw new Error(`Unknown filter mode=${attrs['data-pattern-mode']} for filter with id ${id}`);
   }

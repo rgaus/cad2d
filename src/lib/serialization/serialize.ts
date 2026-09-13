@@ -553,7 +553,7 @@ export function serializeFilter(filter: Entity): string {
         case 'radial':
           attrs.push(`data-pattern-mode="radial"`);
           attrs.push(`data-center-x="${fd.center.x}"`);
-          attrs.push(`data-center-x="${fd.center.y}"`);
+          attrs.push(`data-center-y="${fd.center.y}"`);
           attrs.push(`data-radius="${fd.radius}"`);
           attrs.push(`data-repeats-type="${fd.repeats.type}"`);
           attrs.push(`data-repeats-count="${fd.repeats.count}"`);

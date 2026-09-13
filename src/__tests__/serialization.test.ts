@@ -3,8 +3,9 @@ import {
   ConstraintComponent,
   type CubicBezierSegment,
   Ellipse,
-  type Entity,
+  Entity,
   FillColorComponent,
+  FrameComponent,
   GeometryComponent,
   LinkDimensionsComponent,
   type PointSegment,
@@ -35,6 +36,7 @@ import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
+import { PatternFilter } from '@/lib/entity/filters/pattern';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
@@ -2180,6 +2182,131 @@ describe('filter serialization', () => {
     const parsedFilter = parseResult.filters[0];
     expect(parsedFilter.pointA).toEqual({ x: 0, y: 5 });
     expect(parsedFilter.pointB).toEqual({ x: 20, y: 5 });
+  });
+
+  it('serializes and deserializes a radial pattern filter roundtrip as a well-formed entity', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    // Create a rectangle to be patterned
+    const rect = makeRectangle({
+      id: 'rect_rp1',
+      upperLeft: new SheetPosition(0, 0),
+      lowerRight: new SheetPosition(4, 2),
+    });
+    geometryStore.addDirect(rect);
+
+    // Create a radial pattern filter
+    const filter = PatternFilter.createRadial('rect_rp1', new SheetPosition(5, 7), 3, {
+      count: 6,
+    });
+    geometryStore.addDirect({ id: 'ftr_rp1', ...filter } as Entity);
+
+    // Serialize
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+
+    // Radial center Y must be serialized as data-center-y (regression: was data-center-x)
+    expect(svg).toContain('data-center-x="5"');
+    expect(svg).toContain('data-center-y="7"');
+    // Ensure no duplicated data-center-x attribute is emitted
+    expect(svg.match(/data-center-x=/g)).toHaveLength(1);
+
+    // Parse with a fresh store so the original ids are preserved
+    const freshStore = makeSheet().geometryStore;
+    const parseResult = parseSvg(
+      svg,
+      historyManager.generateStableId.bind(historyManager),
+      freshStore.hasId.bind(freshStore),
+    );
+
+    expect(parseResult.filters).toHaveLength(1);
+    const parsedFilter = parseResult.filters[0];
+
+    // Insert geometry then the filter, mimicking SerializationManager.loadInternal
+    for (const r of parseResult.rectangles) {
+      freshStore.addDirect(r);
+    }
+    freshStore.addDirect({ id: parsedFilter.id as string, ...(parsedFilter as any) } as Entity);
+
+    // The filter must be a well-formed entity (regression: was missing `components`)
+    const loadedFilters = freshStore.listWithComponent(FilterComponent);
+    expect(loadedFilters).toHaveLength(1);
+    const filterData = FilterComponent.get(loadedFilters[0] as any);
+    expect(filterData.type).toBe('pattern');
+    if (filterData.type !== 'pattern' || filterData.mode !== 'radial') {
+      throw new Error('Expected radial pattern filter');
+    }
+    expect(filterData.center.x).toBe(5);
+    expect(filterData.center.y).toBe(7);
+    expect(filterData.radius).toBe(3);
+    expect(filterData.repeats).toEqual({ type: 'count', count: 6 });
+    expect(filterData.geometryId).toBe('rect_rp1');
+  });
+
+  it('serializes and deserializes a grid pattern filter roundtrip', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    // Create a rectangle to be patterned
+    const rect = makeRectangle({
+      id: 'rect_gp1',
+      upperLeft: new SheetPosition(0, 0),
+      lowerRight: new SheetPosition(4, 2),
+    });
+    geometryStore.addDirect(rect);
+
+    // Create a grid pattern filter
+    const filter = PatternFilter.createGrid(
+      'rect_gp1',
+      new SheetPosition(0, 0),
+      new SheetPosition(8, 10),
+      { xRepeats: 2, yRepeats: 3 },
+    );
+    geometryStore.addDirect({ id: 'ftr_gp1', ...filter } as Entity);
+
+    // Serialize
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    expect(svg).toContain('data-pattern-mode="grid"');
+    expect(svg).toContain('data-upper-left-x="0"');
+    expect(svg).toContain('data-upper-left-y="0"');
+    expect(svg).toContain('data-lower-right-x="8"');
+    expect(svg).toContain('data-lower-right-y="10"');
+    expect(svg).toContain('data-repeats-x="2"');
+    expect(svg).toContain('data-repeats-y="3"');
+
+    // Parse with a fresh store so the original ids are preserved
+    const freshStore = makeSheet().geometryStore;
+    const parseResult = parseSvg(
+      svg,
+      historyManager.generateStableId.bind(historyManager),
+      freshStore.hasId.bind(freshStore),
+    );
+
+    expect(parseResult.filters).toHaveLength(1);
+    const parsedFilter = parseResult.filters[0];
+
+    // Insert geometry then the filter, mimicking SerializationManager.loadInternal
+    for (const r of parseResult.rectangles) {
+      freshStore.addDirect(r);
+    }
+    freshStore.addDirect({ id: parsedFilter.id as string, ...(parsedFilter as any) } as Entity);
+
+    const loadedFilters = freshStore.listWithComponent(FilterComponent);
+    expect(loadedFilters).toHaveLength(1);
+    const filterData = FilterComponent.get(loadedFilters[0] as any);
+    expect(filterData.type).toBe('pattern');
+    if (filterData.type !== 'pattern' || filterData.mode !== 'grid') {
+      throw new Error('Expected grid pattern filter');
+    }
+    expect(filterData.xRepeats).toBe(2);
+    expect(filterData.yRepeats).toBe(3);
+    expect(filterData.geometryId).toBe('rect_gp1');
+
+    // Grid pattern filters carry a FrameComponent which must survive round-trip
+    expect(Entity.hasComponent(loadedFilters[0], FrameComponent)).toBe(true);
+    const frame = FrameComponent.get(loadedFilters[0] as any);
+    expect(frame.upperLeft.x).toBe(0);
+    expect(frame.upperLeft.y).toBe(0);
+    expect(frame.lowerRight.x).toBe(8);
+    expect(frame.lowerRight.y).toBe(10);
   });
 
   it('render shape path includes arc commands for fillet curve segments', () => {
