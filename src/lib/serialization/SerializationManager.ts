@@ -17,6 +17,7 @@ import type { ToolType } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
 import { GeometryData } from '../entity/geometry';
 import { UndoEntry } from '../history/types';
+import { ParseSvgWarningError } from './ParseSvgWarningError';
 import { canLoad as canLoadSvg, parseSvg } from './deserialize';
 import {
   serializeColinearConstraint,
@@ -42,7 +43,7 @@ export type SaveResult = {
 /** Result of a load operation. */
 export type LoadResult = {
   success: boolean;
-  warnings: Array<string>;
+  warnings: Array<ParseSvgWarningError>;
 };
 
 /** Checks if an SVG string can be loaded. */

@@ -40,6 +40,7 @@ import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
+import { ParseSvgWarningError } from '@/lib/serialization/ParseSvgWarningError';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { parseSvg } from '@/lib/serialization/deserialize';
 import {
@@ -361,6 +362,19 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.polygons).toHaveLength(0);
+    });
+
+    it('collects a ParseSvgWarningError when a geometry fails to parse', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+        <rect id="r1" data-type="rectangle" x="0" y="0" width="0" height="0"/>
+        <path id="p1" fill="none" data-type="polygon" d="M0,0"/>
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.rectangles).toHaveLength(0);
+      expect(result.polygons).toHaveLength(0);
+      expect(result.warnings).toHaveLength(2);
+      expect(result.warnings[0]).toBeInstanceOf(ParseSvgWarningError);
+      expect(result.warnings[1]).toBeInstanceOf(ParseSvgWarningError);
     });
 
     it('parses polygon with fill color', () => {

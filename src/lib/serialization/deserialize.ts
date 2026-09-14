@@ -36,6 +36,7 @@ import { ChamferFilter } from '../entity/filters/chamfer';
 import { FilletFilter } from '../entity/filters/fillet';
 import { MirrorFilter } from '../entity/filters/mirror';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
+import { ParseSvgWarningError } from './ParseSvgWarningError';
 import { CAD2D_STATE_COMMENT_PREFIX, type SerializedState, migrateState } from './versions';
 
 /** Result of parsing an SVG file. */
@@ -61,7 +62,7 @@ export type ParseResult = {
   /** Parsed filters (from cad2d-state comment). */
   filters: Array<Filter>;
   /** Validation warnings logged during parsing. */
-  warnings: Array<string>;
+  warnings: Array<ParseSvgWarningError>;
 };
 
 /** Converts a pixel coordinate to SheetPosition. */
@@ -113,12 +114,6 @@ function extractStateComment(svg: string): { state: SerializedState; version: nu
   }
 }
 
-/** Logs a warning during parsing. */
-function warn(result: ParseResult, message: string): void {
-  result.warnings.push(message);
-  console.warn(`[cad2d] ${message}`);
-}
-
 /** Parses a <path> element as a polygon by parsing the `d` attribute.
  *  Q = arc-quadratic, C = arc-cubic, M/L/H/V = point.
  *  Returns null if the element couldn't be parsed as a valid polygon.
@@ -163,7 +158,9 @@ function parsePolygonPath(
   // Parse path commands
   const commands = d.match(/[MLQCZHV][^MLQCZHV]*/gi) || [];
   if (commands.length < 2) {
-    return null;
+    throw new ParseSvgWarningError(
+      `path#${id}: expected at least 2 path commands, got ${commands.length}`,
+    );
   }
 
   const points: Array<PolygonSegment> = [];
@@ -247,14 +244,13 @@ function parsePolygonPath(
 
   // Parse the path to see if it contains only M (move) commands (which are "empty" for cad2d)
   if (isAllMoves) {
-    console.warn(
-      `[cad2d] path#${id}: ignoring path with only move commands - no geometry to extract`,
+    throw new ParseSvgWarningError(
+      `path#${id}: ignoring path with only move commands - no geometry to extract`,
     );
-    return null;
   }
 
   if (points.length < 2) {
-    return null;
+    throw new ParseSvgWarningError(`path#${id}: expected at least 2 points, got ${points.length}`);
   }
 
   const polygonTemplate = Polygon.create(points, {
@@ -313,7 +309,7 @@ function parsePolygonPolygon(
   const renderOrder = parseRenderOrder(element, lastRenderOrder);
 
   if (!element.points) {
-    return null;
+    throw new ParseSvgWarningError(`polygon#${id}: missing points attribute`);
   }
 
   const splitPoints = element.points
@@ -332,7 +328,9 @@ function parsePolygonPolygon(
     });
   if (splitPoints.length % 2 !== 0) {
     // Must have an even number of points
-    return null;
+    throw new ParseSvgWarningError(
+      `polygon#${id}: expected an even number of point values, got ${splitPoints.length}`,
+    );
   }
   const points: Array<PolygonSegment> = new Array(splitPoints.length / 2)
     .fill(0)
@@ -344,7 +342,9 @@ function parsePolygonPolygon(
     });
   if (points.length < 3) {
     // Must have enough points for a valid geometry
-    return null;
+    throw new ParseSvgWarningError(
+      `polygon#${id}: expected at least 3 points, got ${points.length}`,
+    );
   }
 
   // Duplicate the first point at the end, since it is a closed polygon
@@ -412,20 +412,9 @@ function parseRectangle(
   const renderOrder = parseRenderOrder(element, lastRenderOrder);
 
   if (width <= 0 || height <= 0) {
-    warn(
-      {
-        isValid: false,
-        version: null,
-        isFallback: false,
-        state: null,
-        polygons: [],
-        rectangles: [],
-        ellipses: [],
-        warnings: [],
-      } as any,
+    throw new ParseSvgWarningError(
       `rect#${element.id}: width and height must be positive, got ${width}x${height}`,
     );
-    return null;
   }
 
   const upperLeft = pixelsToSheetPosition(x, y);
@@ -492,7 +481,7 @@ function parseEllipse(
   const renderOrder = parseRenderOrder(element, lastRenderOrder);
 
   if (rx <= 0 || ry <= 0) {
-    return null;
+    throw new ParseSvgWarningError(`ellipse#${id}: radius must be positive, got ${rx}x${ry}`);
   }
 
   const center = pixelsToSheetPosition(cx, cy);
@@ -582,7 +571,7 @@ function parseMirrorFilter(
 
   const geometryId = attrs['data-geometry-id'] as string | undefined;
   if (typeof geometryId === 'undefined') {
-    return null;
+    throw new ParseSvgWarningError(`mirror-filter#${id}: missing data-geometry-id`);
   }
 
   const pointA = new SheetPosition(
@@ -622,7 +611,7 @@ function parsePatternFilter(
 
   const geometryId = attrs['data-geometry-id'] as string | undefined;
   if (typeof geometryId === 'undefined') {
-    return null;
+    throw new ParseSvgWarningError(`pattern-filter#${id}: missing data-geometry-id`);
   }
 
   switch (attrs['data-pattern-mode']) {
@@ -664,7 +653,9 @@ function parsePatternFilter(
       };
     }
     default:
-      throw new Error(`Unknown filter mode=${attrs['data-pattern-mode']} for filter with id ${id}`);
+      throw new ParseSvgWarningError(
+        `Unknown filter mode=${attrs['data-pattern-mode']} for filter with id ${id}`,
+      );
   }
 }
 
@@ -693,14 +684,13 @@ function parseFilletOrChamferFilter(
   const geometryType = attrs['data-geometry-type'] as string | undefined;
 
   if (typeof geometryId === 'undefined') {
-    return null;
+    throw new ParseSvgWarningError(`${type}-filter#${id}: missing data-geometry-id`);
   }
 
   if (geometryType !== 'rectangle' && geometryType !== 'polygon') {
-    console.warn(
-      `Fillet/chamfer geometry type (id of ${id}) is not rectangle/polygon, got ${geometryType}`,
+    throw new ParseSvgWarningError(
+      `${type} filter (id of ${id}) geometry type is not rectangle/polygon, got ${geometryType}`,
     );
-    return null;
   }
 
   const offsetMagnitude = parseFloat(String(attrs['data-offset-magnitude'] ?? '0'));
@@ -710,26 +700,23 @@ function parseFilletOrChamferFilter(
     case 'polygon':
       const pointAIndex = parseInt(attrs['data-point-a-index'] as string, 10);
       if (isNaN(pointAIndex)) {
-        console.warn(
-          `Fillet/chamfer geometry type (id of ${id}) point a index is not number, got ${pointAIndex}`,
+        throw new ParseSvgWarningError(
+          `${type} filter (id of ${id}) point a index is not number, got ${pointAIndex}`,
         );
-        return null;
       }
 
       const pointCenterIndex = parseInt(attrs['data-point-center-index'] as string, 10);
       if (isNaN(pointCenterIndex)) {
-        console.warn(
-          `Fillet/chamfer geometry type (id of ${id}) point center index is not number, got ${pointCenterIndex}`,
+        throw new ParseSvgWarningError(
+          `${type} filter (id of ${id}) point center index is not number, got ${pointCenterIndex}`,
         );
-        return null;
       }
 
       const pointBIndex = parseInt(attrs['data-point-b-index'] as string, 10);
       if (isNaN(pointBIndex)) {
-        console.warn(
-          `Fillet/chamfer geometry type (id of ${id}) point b index is not number, got ${pointBIndex}`,
+        throw new ParseSvgWarningError(
+          `${type} filter (id of ${id}) point b index is not number, got ${pointBIndex}`,
         );
-        return null;
       }
 
       return {
@@ -745,26 +732,23 @@ function parseFilletOrChamferFilter(
     case 'rectangle':
       const pointAKeyPoint = attrs['data-point-a-key-point'];
       if (!RectangleEndpoint.is(pointAKeyPoint)) {
-        console.warn(
-          `Fillet/chamfer geometry type (id of ${id}) point a is not RectangleEndpoint, got ${pointAKeyPoint}`,
+        throw new ParseSvgWarningError(
+          `${type} filter (id of ${id}) point a is not RectangleEndpoint, got ${pointAKeyPoint}`,
         );
-        return null;
       }
 
       const pointCenterKeyPoint = attrs['data-point-center-key-point'];
       if (!RectangleEndpoint.is(pointCenterKeyPoint)) {
-        console.warn(
-          `Fillet/chamfer geometry type (id of ${id}) point center is not RectangleEndpoint, got ${pointCenterKeyPoint}`,
+        throw new ParseSvgWarningError(
+          `${type} filter (id of ${id}) point center is not RectangleEndpoint, got ${pointCenterKeyPoint}`,
         );
-        return null;
       }
 
       const pointBKeyPoint = attrs['data-point-b-key-point'];
       if (!RectangleEndpoint.is(pointBKeyPoint)) {
-        console.warn(
-          `Fillet/chamfer geometry type (id of ${id}) point b is not RectangleEndpoint, got ${pointBKeyPoint}`,
+        throw new ParseSvgWarningError(
+          `${type} filter (id of ${id}) point b is not RectangleEndpoint, got ${pointBKeyPoint}`,
         );
-        return null;
       }
 
       return {
@@ -788,7 +772,7 @@ function parseEndpoint(
   attrs: Record<string, string | number>,
   rewrittenIdMap: Map<Id, Id>,
   prefix: string,
-): ConstraintEndpoint | null {
+): ConstraintEndpoint {
   const type = attrs[`data-${prefix}-type`];
   if (!type) {
     // Old format: data-point-a-x/y for endpoint-a, data-point-b-x/y for endpoint-b
@@ -798,7 +782,7 @@ function parseEndpoint(
     const x = typeof attrs[xKey] === 'number' ? attrs[xKey] : parseFloat(`${attrs[xKey]}`);
     const y = typeof attrs[yKey] === 'number' ? attrs[yKey] : parseFloat(`${attrs[yKey]}`);
     if (Number.isNaN(x) || Number.isNaN(y)) {
-      return null;
+      throw new ParseSvgWarningError(`constraint endpoint ${prefix}: missing or invalid point`);
     }
     return { type: 'point', point: new SheetPosition(x, y) };
   }
@@ -820,7 +804,7 @@ function parseEndpoint(
       const x: number = typeof rawX === 'number' ? rawX : parseFloat(`${rawX}`);
       const y: number = typeof rawY === 'number' ? rawY : parseFloat(`${rawY}`);
       if (Number.isNaN(x) || Number.isNaN(y)) {
-        return null;
+        throw new ParseSvgWarningError(`constraint endpoint ${prefix}: missing or invalid point`);
       }
       return ConstraintEndpoint.point(new SheetPosition(x, y));
     }
@@ -840,7 +824,9 @@ function parseEndpoint(
       const pointIndex: number =
         typeof rawIndex === 'number' ? rawIndex : parseInt(`${rawIndex}`, 10);
       if (Number.isNaN(pointIndex)) {
-        return null;
+        throw new ParseSvgWarningError(
+          `constraint endpoint ${prefix}: missing or invalid point index`,
+        );
       }
       return ConstraintEndpoint.lockedToPolygon(id, pointIndex);
     }
@@ -849,7 +835,9 @@ function parseEndpoint(
       return ConstraintEndpoint.lockedToDatum(id);
     }
     default:
-      return null;
+      throw new ParseSvgWarningError(
+        `constraint endpoint ${prefix}: unknown endpoint type ${type}`,
+      );
   }
 }
 
@@ -890,42 +878,11 @@ function parseConstraint(
       : `${attrs['data-length-type']}`;
 
   if (Number.isNaN(offset) || Number.isNaN(lengthMag)) {
-    warn(
-      {
-        isValid: false,
-        version: null,
-        isFallback: false,
-        state: null,
-        polygons: [],
-        rectangles: [],
-        ellipses: [],
-        constraints: [],
-        warnings: [],
-      } as any,
-      `constraint: missing or invalid required attributes`,
-    );
-    return null;
+    throw new ParseSvgWarningError(`constraint#${id}: missing or invalid required attributes`);
   }
 
   const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
   const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
-  if (!pointA || !pointB) {
-    warn(
-      {
-        isValid: false,
-        version: null,
-        isFallback: false,
-        state: null,
-        polygons: [],
-        rectangles: [],
-        ellipses: [],
-        constraints: [],
-        warnings: [],
-      } as any,
-      `constraint: missing or invalid endpoint`,
-    );
-    return null;
-  }
 
   let constrainedLength: Length;
   switch (lengthType) {
@@ -982,23 +939,6 @@ function parsePerpendicularConstraint(
   const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
   const pointCenter = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-center');
   const pointC = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-c');
-  if (!pointA || !pointCenter || !pointC) {
-    warn(
-      {
-        isValid: false,
-        version: null,
-        isFallback: false,
-        state: null,
-        polygons: [],
-        rectangles: [],
-        ellipses: [],
-        constraints: [],
-        warnings: [],
-      } as any,
-      `perpendicular constraint: missing or invalid endpoint`,
-    );
-    return null;
-  }
 
   return {
     id,
@@ -1032,23 +972,6 @@ function parseParallelConstraint(
   const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
   const pointC = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-c');
   const pointD = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-d');
-  if (!pointA || !pointB || !pointC || !pointD) {
-    warn(
-      {
-        isValid: false,
-        version: null,
-        isFallback: false,
-        state: null,
-        polygons: [],
-        rectangles: [],
-        ellipses: [],
-        constraints: [],
-        warnings: [],
-      } as any,
-      `parallel constraint: missing or invalid endpoint`,
-    );
-    return null;
-  }
 
   return {
     id,
@@ -1078,23 +1001,6 @@ function parseHorizontalConstraint(
 
   const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
   const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
-  if (!pointA || !pointB) {
-    warn(
-      {
-        isValid: false,
-        version: null,
-        isFallback: false,
-        state: null,
-        polygons: [],
-        rectangles: [],
-        ellipses: [],
-        constraints: [],
-        warnings: [],
-      } as any,
-      `horizontal constraint: missing or invalid endpoint`,
-    );
-    return null;
-  }
 
   return {
     id,
@@ -1124,23 +1030,6 @@ function parseVerticalConstraint(
 
   const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
   const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
-  if (!pointA || !pointB) {
-    warn(
-      {
-        isValid: false,
-        version: null,
-        isFallback: false,
-        state: null,
-        polygons: [],
-        rectangles: [],
-        ellipses: [],
-        constraints: [],
-        warnings: [],
-      } as any,
-      `vertical constraint: missing or invalid endpoint`,
-    );
-    return null;
-  }
 
   return {
     id,
@@ -1171,23 +1060,6 @@ function parseColinearConstraint(
   const pointTarget = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-target');
   const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
   const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
-  if (!pointTarget || !pointA || !pointB) {
-    warn(
-      {
-        isValid: false,
-        version: null,
-        isFallback: false,
-        state: null,
-        polygons: [],
-        rectangles: [],
-        ellipses: [],
-        constraints: [],
-        warnings: [],
-      } as any,
-      `colinear constraint: missing or invalid endpoint`,
-    );
-    return null;
-  }
 
   return {
     id,
@@ -1230,12 +1102,12 @@ export function parseSvg(
   try {
     parsed = parse(svg);
   } catch (e) {
-    warn(result, `Failed to parse SVG: ${e}`);
+    result.warnings.push(new ParseSvgWarningError(`Failed to parse SVG: ${e}`));
     return result;
   }
 
   if (!parsed || !parsed.children || parsed.children.length <= 0) {
-    warn(result, 'SVG has no children elements');
+    result.warnings.push(new ParseSvgWarningError('SVG has no children elements'));
     return result;
   }
 
@@ -1290,7 +1162,7 @@ export function parseSvg(
             lastRenderOrder = rectangleAndOrder[1];
           }
         } else {
-          warn(result, `data-type=rectangle was not rect, found ${tagName}`);
+          throw new ParseSvgWarningError(`data-type=rectangle was not rect, found ${tagName}`);
         }
         break;
       case 'ellipse':
@@ -1307,7 +1179,7 @@ export function parseSvg(
             lastRenderOrder = ellipseAndOrder[1];
           }
         } else {
-          warn(result, `data-type=ellipse was not ellipse, found ${tagName}`);
+          throw new ParseSvgWarningError(`data-type=ellipse was not ellipse, found ${tagName}`);
         }
         break;
       case 'polygon':
@@ -1351,7 +1223,7 @@ export function parseSvg(
             return;
           }
         } else {
-          warn(result, `data-type=constraint was not g, found ${tagName}`);
+          throw new ParseSvgWarningError(`data-type=constraint was not g, found ${tagName}`);
         }
         break;
       case 'perpendicular-constraint':
@@ -1367,7 +1239,9 @@ export function parseSvg(
             return;
           }
         } else {
-          warn(result, `data-type=perpendicular-constraint was not g, found ${tagName}`);
+          throw new ParseSvgWarningError(
+            `data-type=perpendicular-constraint was not g, found ${tagName}`,
+          );
         }
         break;
       case 'parallel-constraint':
@@ -1383,7 +1257,9 @@ export function parseSvg(
             return;
           }
         } else {
-          warn(result, `data-type=parallel-constraint was not g, found ${tagName}`);
+          throw new ParseSvgWarningError(
+            `data-type=parallel-constraint was not g, found ${tagName}`,
+          );
         }
         break;
       case 'horizontal-constraint':
@@ -1399,7 +1275,9 @@ export function parseSvg(
             return;
           }
         } else {
-          warn(result, `data-type=horizontal-constraint was not g, found ${tagName}`);
+          throw new ParseSvgWarningError(
+            `data-type=horizontal-constraint was not g, found ${tagName}`,
+          );
         }
         break;
       case 'vertical-constraint':
@@ -1415,7 +1293,9 @@ export function parseSvg(
             return;
           }
         } else {
-          warn(result, `data-type=vertical-constraint was not g, found ${tagName}`);
+          throw new ParseSvgWarningError(
+            `data-type=vertical-constraint was not g, found ${tagName}`,
+          );
         }
         break;
       case 'colinear-constraint':
@@ -1431,7 +1311,9 @@ export function parseSvg(
             return;
           }
         } else {
-          warn(result, `data-type=colinear-constraint was not g, found ${tagName}`);
+          throw new ParseSvgWarningError(
+            `data-type=colinear-constraint was not g, found ${tagName}`,
+          );
         }
         break;
       case 'mirror-filter': {
@@ -1583,14 +1465,28 @@ export function parseSvg(
         if (typeof child === 'string') {
           continue;
         }
-        processElement(child);
+        processElementSafely(child);
+      }
+    }
+  }
+
+  // Process an element, catching any parse warning it raises so that a single
+  // malformed element does not abort parsing of its siblings.
+  function processElementSafely(element: Node): void {
+    try {
+      processElement(element);
+    } catch (e) {
+      if (e instanceof ParseSvgWarningError) {
+        result.warnings.push(e);
+      } else {
+        throw e;
       }
     }
   }
 
   // Process all top-level elements
   for (const child of parsed.children) {
-    processElement(child);
+    processElementSafely(child);
   }
 
   // If no data-type elements were found, this is a non-cad2d SVG.
@@ -1620,7 +1516,7 @@ export function parseSvg(
       result.state = migrateState(stateInfo.state);
       result.isValid = true;
     } catch (e) {
-      warn(result, `Failed to migrate state: ${e}`);
+      result.warnings.push(new ParseSvgWarningError(`Failed to migrate state: ${e}`));
       return result;
     }
   } else {
