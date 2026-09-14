@@ -36,7 +36,7 @@ import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { ChamferFilter } from '@/lib/entity/filters/chamfer';
 import { FilletFilter } from '@/lib/entity/filters/fillet';
-import { MirrorFilter } from '@/lib/entity/filters/mirror';
+import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
@@ -2150,8 +2150,12 @@ describe('filter serialization', () => {
 
     // Verify filter was parsed
     expect(parseResult.filters).toHaveLength(1);
-    expect(parseResult.filters[0].type).toBe('mirror');
-    expect(parseResult.filters[0].geometryId).toBe('rect_1');
+    expect(FilterComponent.get(parseResult.filters[0] as Entity<FilterComponent>).type).toBe(
+      'mirror',
+    );
+    expect(FilterComponent.get(parseResult.filters[0] as Entity<FilterComponent>).geometryId).toBe(
+      'rect_1',
+    );
 
     // The rectangle was parsed only once (render shape duplicate is discarded)
     expect(parseResult.rectangles).toHaveLength(1);
@@ -2180,9 +2184,14 @@ describe('filter serialization', () => {
     );
 
     expect(parseResult.filters).toHaveLength(1);
-    const parsedFilter = parseResult.filters[0];
-    expect(parsedFilter.pointA).toEqual({ x: 0, y: 5 });
-    expect(parsedFilter.pointB).toEqual({ x: 20, y: 5 });
+    const parsedFilter = FilterComponent.get<MirrorFilterData>(
+      parseResult.filters[0] as MirrorFilter,
+    );
+    expect(parsedFilter.type).toStrictEqual('mirror');
+    expect(parsedFilter.pointA.x).toBe(0);
+    expect(parsedFilter.pointA.y).toBe(5);
+    expect(parsedFilter.pointB.x).toBe(20);
+    expect(parsedFilter.pointB.y).toBe(5);
   });
 
   it('serializes and deserializes a radial pattern filter roundtrip as a well-formed entity', () => {
@@ -2226,7 +2235,7 @@ describe('filter serialization', () => {
     for (const r of parseResult.rectangles) {
       freshStore.addDirect(r);
     }
-    freshStore.addDirect({ id: parsedFilter.id as string, ...(parsedFilter as any) } as Entity);
+    freshStore.addDirect(parsedFilter);
 
     // The filter must be a well-formed entity (regression: was missing `components`)
     const loadedFilters = freshStore.listWithComponent(FilterComponent);
@@ -2288,7 +2297,7 @@ describe('filter serialization', () => {
     for (const r of parseResult.rectangles) {
       freshStore.addDirect(r);
     }
-    freshStore.addDirect({ id: parsedFilter.id as string, ...(parsedFilter as any) } as Entity);
+    freshStore.addDirect(parsedFilter);
 
     const loadedFilters = freshStore.listWithComponent(FilterComponent);
     expect(loadedFilters).toHaveLength(1);
@@ -2393,17 +2402,8 @@ describe('filter serialization', () => {
     }
 
     // Simulate loadInternal's filter insertion + syncFillColor logic
-    for (const fd of parseResult.filters) {
-      if (fd.type === 'mirror') {
-        const pa = fd.pointA as { x: number; y: number };
-        const pb = fd.pointB as { x: number; y: number };
-        const template = MirrorFilter.create(
-          fd.geometryId as string,
-          new SheetPosition(pa.x, pa.y),
-          new SheetPosition(pb.x, pb.y),
-        );
-        freshStore.addDirect({ id: fd.id as string, ...template } as Entity);
-      }
+    for (const filter of parseResult.filters) {
+      freshStore.addDirect(filter);
     }
 
     // Sync fill color (as SerializationManager.loadInternal does)
@@ -2435,9 +2435,9 @@ describe('filter serialization', () => {
 
     const fillet = FilletFilter.createOnRectangle(
       'rect_orig',
-      'topLeft' as any,
-      'topRight' as any,
-      'bottomRight' as any,
+      'lowerLeft',
+      'upperLeft',
+      'upperRight',
       Length.fromSheetUnits('cm', 1),
     );
     const filterEntity = { id: 'ftr_orig', ...fillet } as Entity;
@@ -2465,23 +2465,19 @@ describe('filter serialization', () => {
 
     const newFilter = parseResult.filters[0];
     expect(newFilter.id).not.toBe('ftr_orig');
+
+    const newFilterData = FilterComponent.get(newFilter);
+    expect(newFilterData.type).toBe('fillet');
+    if (newFilterData.type !== 'fillet' || newFilterData.geometryType !== 'rectangle') {
+      throw new Error('Expected rectangle fillet filter');
+    }
     // Filter's geometryId must point to the NEW rectangle, not the original
-    expect(newFilter.geometryId).toBe(newRectId);
+    expect(newFilterData.geometryId).toBe(newRectId);
+    expect(newFilterData.pointCenterKeyPoint).toBe('upperLeft');
 
     // Insert into the store (simulating paste)
     geometryStore.addDirect(parseResult.rectangles[0]);
-
-    // Reconstruct and insert the filter (simulating loadInternal logic)
-    const fd = newFilter as any;
-    const offset = Length.fromSheetUnits(fd.offset.type, fd.offset.magnitude);
-    const template = FilletFilter.createOnRectangle(
-      fd.geometryId,
-      fd.pointAKeyPoint as any,
-      fd.pointCenterKeyPoint as any,
-      fd.pointBKeyPoint as any,
-      offset,
-    );
-    geometryStore.addDirect({ id: fd.id, ...template } as Entity);
+    geometryStore.addDirect(newFilter);
 
     // After insert, verify store state
     // Original rect (1) + new rect (1) = 2 rectangles
@@ -2729,5 +2725,64 @@ describe('filter serialization', () => {
     expect(loadedChamferData.pointCenterIndex).toBe(1);
     const chamferOffset = loadedChamferData.offset.serialize();
     expect(Math.abs(chamferOffset.magnitude - 1.5)).toBeLessThan(0.001);
+  });
+
+  it('paste fragment with grid pattern filter attaches the filter to the pasted geometry', () => {
+    const sheet = Sheet.a4();
+    const geometryStore = sheet.geometryStore;
+    const historyManager = sheet.historyManager;
+    const selectionManager = new SelectionManager();
+    const toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
+    const actionsManager = new ActionsManager(
+      sheet,
+      geometryStore,
+      selectionManager,
+      historyManager,
+    );
+    const serializationManager = new SerializationManager(actionsManager, toolManager, sheet);
+    actionsManager.setSerializationManager(serializationManager);
+    toolManager.setSerializationManager(serializationManager);
+
+    // Pre-populate the store with the ellipse + grid filter (simulates copying from the current doc)
+    geometryStore.addDirect(
+      makeEllipse({
+        id: 'elp_src',
+        center: new SheetPosition(8, 8),
+        radiusX: 2.5,
+        radiusY: 2.5,
+      }),
+    );
+    const gridFilter = PatternFilter.createGrid(
+      'elp_src',
+      new SheetPosition(4, 4),
+      new SheetPosition(12, 12),
+      { xRepeats: 2, yRepeats: 2 },
+    );
+    geometryStore.addDirect({ id: 'ftr_src', ...gridFilter } as Entity);
+
+    const fragment = `<g>
+  <ellipse id="elp_src" data-type="ellipse" fill="#cbd5e1" stroke="#000" stroke-width="2" data-link-dimensions="true" data-render-order="1" cx="512.00" cy="512.00" rx="160" ry="160"/>
+  <g data-id="ftr_src" data-geometry-id="elp_src" data-type="pattern-filter" data-pattern-mode="grid" data-upper-left-x="4" data-upper-left-y="4" data-lower-right-x="12" data-lower-right-y="12" data-repeats-x="2" data-repeats-y="2"></g>
+</g>`;
+
+    const result = serializationManager.loadFragment(fragment);
+    expect(result.success).toBe(true);
+
+    // Both the original filter and the newly pasted filter must exist
+    const filters = geometryStore.listWithComponent(FilterComponent);
+    expect(filters).toHaveLength(2);
+
+    const pastedFilter = filters.find((f) => f.id !== 'ftr_src');
+    expect(pastedFilter).toBeDefined();
+    const data = FilterComponent.get(pastedFilter!);
+    expect(data.type).toBe('pattern');
+    if (data.type !== 'pattern' || data.mode !== 'grid') {
+      throw new Error('Expected grid pattern filter');
+    }
+    // The pasted filter must reference the newly pasted ellipse, not the original
+    expect(data.geometryId).not.toBe('elp_src');
+    expect(geometryStore.hasId(data.geometryId)).toBe(true);
+    expect(data.xRepeats).toBe(2);
+    expect(data.yRepeats).toBe(2);
   });
 });

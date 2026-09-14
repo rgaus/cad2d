@@ -15,6 +15,7 @@ import {
   Polygon,
   PolygonSegment,
   Rectangle,
+  RectangleEndpoint,
   RenderOrderComponent,
   VerticalConstraint,
 } from '@/lib/entity';
@@ -24,11 +25,16 @@ import {
   CentimetersLength,
   FeetLength,
   InchesLength,
-  type Length,
+  Length,
   MetersLength,
   MillimetersLength,
+  UnitType,
 } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
+import { Filter } from '../entity/filters';
+import { ChamferFilter } from '../entity/filters/chamfer';
+import { FilletFilter } from '../entity/filters/fillet';
+import { MirrorFilter } from '../entity/filters/mirror';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { CAD2D_STATE_COMMENT_PREFIX, type SerializedState, migrateState } from './versions';
 
@@ -53,7 +59,7 @@ export type ParseResult = {
   /** Parsed datums. */
   datums: Array<Datum>;
   /** Parsed filters (from cad2d-state comment). */
-  filters: Array<Record<string, unknown>>;
+  filters: Array<Filter>;
   /** Validation warnings logged during parsing. */
   warnings: Array<string>;
 };
@@ -560,7 +566,7 @@ function parseMirrorFilter(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => Id,
-): Record<string, unknown> | null {
+): MirrorFilter | null {
   let id = (attrs['data-id'] as Id) ?? (attrs.id as Id);
   if (typeof id === 'undefined' || doesIdExist(id)) {
     id = generateId(ID_PREFIXES.filter);
@@ -574,23 +580,23 @@ function parseMirrorFilter(
     }
   }
 
-  const geometryId = attrs['data-geometry-id'];
+  const geometryId = attrs['data-geometry-id'] as string | undefined;
   if (typeof geometryId === 'undefined') {
     return null;
   }
 
+  const pointA = new SheetPosition(
+    parseFloat(String(attrs['data-point-a-x'] ?? '0')),
+    parseFloat(String(attrs['data-point-a-y'] ?? '0')),
+  );
+  const pointB = new SheetPosition(
+    parseFloat(String(attrs['data-point-b-x'] ?? '0')),
+    parseFloat(String(attrs['data-point-b-y'] ?? '0')),
+  );
+
   return {
-    type: 'mirror',
     id,
-    geometryId: rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
-    pointA: {
-      x: parseFloat(String(attrs['data-point-a-x'] ?? '0')),
-      y: parseFloat(String(attrs['data-point-a-y'] ?? '0')),
-    },
-    pointB: {
-      x: parseFloat(String(attrs['data-point-b-x'] ?? '0')),
-      y: parseFloat(String(attrs['data-point-b-y'] ?? '0')),
-    },
+    ...MirrorFilter.create(rewrittenIdMap.get(geometryId) ?? geometryId, pointA, pointB),
   };
 }
 
@@ -600,7 +606,7 @@ function parsePatternFilter(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => Id,
-): Record<string, unknown> | null {
+): PatternFilter | null {
   let id = (attrs['data-id'] as Id) ?? (attrs.id as Id);
   if (typeof id === 'undefined' || doesIdExist(id)) {
     id = generateId(ID_PREFIXES.filter);
@@ -614,44 +620,48 @@ function parsePatternFilter(
     }
   }
 
-  const geometryId = attrs['data-geometry-id'];
+  const geometryId = attrs['data-geometry-id'] as string | undefined;
   if (typeof geometryId === 'undefined') {
     return null;
   }
 
   switch (attrs['data-pattern-mode']) {
     case 'grid': {
-      const upperLeft = {
-        x: parseFloat(String(attrs['data-upper-left-x'] ?? '0')),
-        y: parseFloat(String(attrs['data-upper-left-y'] ?? '0')),
-      };
-      const lowerRight = {
-        x: parseFloat(String(attrs['data-lower-right-x'] ?? '0')),
-        y: parseFloat(String(attrs['data-lower-right-y'] ?? '0')),
-      };
-      const template = PatternFilter.createGrid(
-        rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
-        new SheetPosition(upperLeft.x, upperLeft.y),
-        new SheetPosition(lowerRight.x, lowerRight.y),
-        {
-          xRepeats: parseFloat(String(attrs['data-repeats-x'] ?? '2')),
-          yRepeats: parseFloat(String(attrs['data-repeats-y'] ?? '2')),
-        },
+      const upperLeft = new SheetPosition(
+        parseFloat(String(attrs['data-upper-left-x'] ?? '0')),
+        parseFloat(String(attrs['data-upper-left-y'] ?? '0')),
       );
-      return { id, ...template };
+      const lowerRight = new SheetPosition(
+        parseFloat(String(attrs['data-lower-right-x'] ?? '0')),
+        parseFloat(String(attrs['data-lower-right-y'] ?? '0')),
+      );
+      return {
+        id,
+        ...PatternFilter.createGrid(
+          rewrittenIdMap.get(geometryId) ?? geometryId,
+          upperLeft,
+          lowerRight,
+          {
+            xRepeats: parseFloat(String(attrs['data-repeats-x'] ?? '2')),
+            yRepeats: parseFloat(String(attrs['data-repeats-y'] ?? '2')),
+          },
+        ),
+      };
     }
     case 'radial': {
-      const center = {
-        x: parseFloat(String(attrs['data-center-x'] ?? '0')),
-        y: parseFloat(String(attrs['data-center-y'] ?? '0')),
-      };
-      const template = PatternFilter.createRadial(
-        rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
-        new SheetPosition(center.x, center.y),
-        parseFloat(String(attrs['data-radius'] ?? '1')),
-        { count: parseFloat(String(attrs['data-repeats-count'] ?? '4')) },
+      const center = new SheetPosition(
+        parseFloat(String(attrs['data-center-x'] ?? '0')),
+        parseFloat(String(attrs['data-center-y'] ?? '0')),
       );
-      return { id, ...template };
+      return {
+        id,
+        ...PatternFilter.createRadial(
+          rewrittenIdMap.get(geometryId) ?? geometryId,
+          center,
+          parseFloat(String(attrs['data-radius'] ?? '1')),
+          { count: parseFloat(String(attrs['data-repeats-count'] ?? '4')) },
+        ),
+      };
     }
     default:
       throw new Error(`Unknown filter mode=${attrs['data-pattern-mode']} for filter with id ${id}`);
@@ -665,7 +675,7 @@ function parseFilletOrChamferFilter(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => Id,
-): Record<string, unknown> | null {
+): FilletFilter | ChamferFilter | null {
   let id = (attrs['data-id'] as Id) ?? (attrs.id as Id);
   if (typeof id === 'undefined' || doesIdExist(id)) {
     id = generateId(ID_PREFIXES.filter);
@@ -679,38 +689,97 @@ function parseFilletOrChamferFilter(
     }
   }
 
-  const geometryId = attrs['data-geometry-id'];
-  const geometryType = attrs['data-geometry-type'] as string;
+  const geometryId = attrs['data-geometry-id'] as string | undefined;
+  const geometryType = attrs['data-geometry-type'] as string | undefined;
 
-  if (typeof geometryId === 'undefined' || !geometryType) {
+  if (typeof geometryId === 'undefined') {
+    return null;
+  }
+
+  if (geometryType !== 'rectangle' && geometryType !== 'polygon') {
+    console.warn(
+      `Fillet/chamfer geometry type (id of ${id}) is not rectangle/polygon, got ${geometryType}`,
+    );
     return null;
   }
 
   const offsetMagnitude = parseFloat(String(attrs['data-offset-magnitude'] ?? '0'));
-  const offsetType = String(attrs['data-offset-type'] ?? 'cm');
+  const offsetType = String(attrs['data-offset-type'] ?? 'cm') as UnitType;
 
-  const base = {
-    id,
-    type,
-    geometryId: rewrittenIdMap.get(geometryId as string) ?? (geometryId as string),
-    offset: { magnitude: offsetMagnitude, type: offsetType },
-    geometryType,
-  };
+  switch (geometryType) {
+    case 'polygon':
+      const pointAIndex = parseInt(attrs['data-point-a-index'] as string, 10);
+      if (isNaN(pointAIndex)) {
+        console.warn(
+          `Fillet/chamfer geometry type (id of ${id}) point a index is not number, got ${pointAIndex}`,
+        );
+        return null;
+      }
 
-  if (geometryType === 'polygon') {
-    return {
-      ...base,
-      pointAIndex: parseInt(String(attrs['data-point-a-index'] ?? '0'), 10),
-      pointCenterIndex: parseInt(String(attrs['data-point-center-index'] ?? '0'), 10),
-      pointBIndex: parseInt(String(attrs['data-point-b-index'] ?? '0'), 10),
-    };
-  } else {
-    return {
-      ...base,
-      pointAKeyPoint: String(attrs['data-point-a-key-point'] ?? ''),
-      pointCenterKeyPoint: String(attrs['data-point-center-key-point'] ?? ''),
-      pointBKeyPoint: String(attrs['data-point-b-key-point'] ?? ''),
-    };
+      const pointCenterIndex = parseInt(attrs['data-point-center-index'] as string, 10);
+      if (isNaN(pointCenterIndex)) {
+        console.warn(
+          `Fillet/chamfer geometry type (id of ${id}) point center index is not number, got ${pointCenterIndex}`,
+        );
+        return null;
+      }
+
+      const pointBIndex = parseInt(attrs['data-point-b-index'] as string, 10);
+      if (isNaN(pointBIndex)) {
+        console.warn(
+          `Fillet/chamfer geometry type (id of ${id}) point b index is not number, got ${pointBIndex}`,
+        );
+        return null;
+      }
+
+      return {
+        id,
+        ...(type === 'fillet' ? FilletFilter : ChamferFilter).createOnPolygon(
+          rewrittenIdMap.get(geometryId) ?? geometryId,
+          pointAIndex,
+          pointCenterIndex,
+          pointBIndex,
+          Length.fromSheetUnits(offsetType, offsetMagnitude),
+        ),
+      };
+    case 'rectangle':
+      const pointAKeyPoint = attrs['data-point-a-key-point'];
+      if (!RectangleEndpoint.is(pointAKeyPoint)) {
+        console.warn(
+          `Fillet/chamfer geometry type (id of ${id}) point a is not RectangleEndpoint, got ${pointAKeyPoint}`,
+        );
+        return null;
+      }
+
+      const pointCenterKeyPoint = attrs['data-point-center-key-point'];
+      if (!RectangleEndpoint.is(pointCenterKeyPoint)) {
+        console.warn(
+          `Fillet/chamfer geometry type (id of ${id}) point center is not RectangleEndpoint, got ${pointCenterKeyPoint}`,
+        );
+        return null;
+      }
+
+      const pointBKeyPoint = attrs['data-point-b-key-point'];
+      if (!RectangleEndpoint.is(pointBKeyPoint)) {
+        console.warn(
+          `Fillet/chamfer geometry type (id of ${id}) point b is not RectangleEndpoint, got ${pointBKeyPoint}`,
+        );
+        return null;
+      }
+
+      return {
+        id,
+        ...(type === 'fillet' ? FilletFilter : ChamferFilter).createOnRectangle(
+          rewrittenIdMap.get(geometryId) ?? geometryId,
+          pointAKeyPoint,
+          pointCenterKeyPoint,
+          pointBKeyPoint,
+          Length.fromSheetUnits(offsetType, offsetMagnitude),
+        ),
+      };
+    default:
+      geometryType satisfies never;
+      return null;
   }
 }
 

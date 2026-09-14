@@ -20,9 +20,29 @@ export type RectangleTemplate = Omit<EntityOmitComponents<Rectangle, RenderOrder
 
 export type RectangleCorner = 'upperLeft' | 'upperRight' | 'lowerRight' | 'lowerLeft';
 
+export namespace RectangleCorner {
+  /** Attempts to cast the given passed string into a {@link RectangleCorner} */
+  export function is(input: any): input is RectangleCorner {
+    if (typeof input !== 'string') {
+      return false;
+    }
+    return ['upperLeft', 'upperRight', 'lowerRight', 'lowerLeft'].includes(input);
+  }
+}
+
 /** A point on a rectangle that a constraint endpoint can lock to.
  *  Derived from {@link GeometryComponent.keyPoints} -> {@link RectangleData.keyPoints}. */
 export type RectangleEndpoint = KeyPointKeys<ReturnType<typeof RectangleData.keyPoints>>;
+
+export namespace RectangleEndpoint {
+  /** Attempts to cast the given passed string into a {@link RectangleEndpoint} */
+  export function is(input: any): input is RectangleEndpoint {
+    if (typeof input !== 'string') {
+      return false;
+    }
+    return RectangleCorner.is(input) || input === 'center';
+  }
+}
 
 export namespace Rectangle {
   /** Create a new {@link RectangleTemplate} which can be created by {@link GeometryStore#addRectangle}. */

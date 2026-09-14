@@ -8,18 +8,13 @@ import {
   GeometryComponent,
   type Polygon,
   type Rectangle,
-  type RectangleEndpoint,
   RenderOrderComponent,
 } from '@/lib/entity';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
-import { ChamferFilter } from '@/lib/entity/filters/chamfer';
-import { FilletFilter } from '@/lib/entity/filters/fillet';
-import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
-import { Length, type UnitType } from '@/lib/units/length';
-import { SheetPosition } from '@/lib/viewport/types';
+import { Length } from '@/lib/units/length';
 import { GeometryData } from '../entity/geometry';
 import { UndoEntry } from '../history/types';
 import { canLoad as canLoadSvg, parseSvg } from './deserialize';
@@ -204,49 +199,11 @@ export class SerializationManager {
       }
 
       // Insert parsed filters (from SVG <g> elements)
-      for (const filterData of parseResult.filters) {
-        const type = filterData.type as string;
-        switch (type) {
-          case 'mirror': {
-            const pointA = filterData.pointA as { x: number; y: number };
-            const pointB = filterData.pointB as { x: number; y: number };
-            const template = MirrorFilter.create(
-              filterData.geometryId as string,
-              new SheetPosition(pointA.x, pointA.y),
-              new SheetPosition(pointB.x, pointB.y),
-            );
-            const entity = { id: filterData.id as string, ...template } as Entity;
-            if (eraseExisting) {
-              geometryStore.addDirect(entity);
-            } else {
-              this.getHistoryManager().apply(UndoEntry.insert(entity));
-            }
-            break;
-          }
-          case 'pattern': {
-            const entity = { id: filterData.id as string, ...(filterData as any) } as Entity;
-            if (eraseExisting) {
-              geometryStore.addDirect(entity);
-            } else {
-              this.getHistoryManager().apply(UndoEntry.insert(entity));
-            }
-            break;
-          }
-          case 'fillet':
-          case 'chamfer': {
-            const entity = this.reconstructFilletOrChamferFilterEntity(
-              type as 'fillet' | 'chamfer',
-              filterData,
-            );
-            if (eraseExisting) {
-              geometryStore.addDirect(entity);
-            } else {
-              this.getHistoryManager().apply(UndoEntry.insert(entity));
-            }
-            break;
-          }
-          default:
-            break;
+      for (const filter of parseResult.filters) {
+        if (eraseExisting) {
+          geometryStore.addDirect(filter);
+        } else {
+          this.getHistoryManager().apply(UndoEntry.insert(filter));
         }
       }
 
@@ -452,58 +409,6 @@ export class SerializationManager {
    */
   canLoad(svg: string): CanLoadResult {
     return canLoadSvg(svg);
-  }
-
-  /**
-   * Reconstructs a fillet or chamfer filter entity from the flat filter data
-   * parsed from an SVG <g> element, wrapping it in the proper `components` shape.
-   */
-  private reconstructFilletOrChamferFilterEntity(
-    type: 'fillet' | 'chamfer',
-    filterData: Record<string, unknown>,
-  ): Entity {
-    const offsetData = filterData.offset as { type: UnitType; magnitude: number };
-    const offset = Length.fromSheetUnits(offsetData.type, offsetData.magnitude);
-    const geometryId = filterData.geometryId as string;
-
-    let template;
-    if (filterData.geometryType === 'polygon') {
-      template =
-        type === 'fillet'
-          ? FilletFilter.createOnPolygon(
-              geometryId,
-              filterData.pointAIndex as number,
-              filterData.pointCenterIndex as number,
-              filterData.pointBIndex as number,
-              offset,
-            )
-          : ChamferFilter.createOnPolygon(
-              geometryId,
-              filterData.pointAIndex as number,
-              filterData.pointCenterIndex as number,
-              filterData.pointBIndex as number,
-              offset,
-            );
-    } else {
-      template =
-        type === 'fillet'
-          ? FilletFilter.createOnRectangle(
-              geometryId,
-              filterData.pointAKeyPoint as RectangleEndpoint,
-              filterData.pointCenterKeyPoint as RectangleEndpoint,
-              filterData.pointBKeyPoint as RectangleEndpoint,
-              offset,
-            )
-          : ChamferFilter.createOnRectangle(
-              geometryId,
-              filterData.pointAKeyPoint as RectangleEndpoint,
-              filterData.pointCenterKeyPoint as RectangleEndpoint,
-              filterData.pointBKeyPoint as RectangleEndpoint,
-              offset,
-            );
-    }
-
-    return { id: filterData.id as string, ...template } as Entity;
   }
 
   private getGeometryStore() {
