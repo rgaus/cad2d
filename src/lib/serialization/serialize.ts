@@ -90,7 +90,7 @@ function segmentsToPathData(segments: Array<PolygonSegment>): string {
 }
 
 /** Serializes a polygon to an SVG <path> element string. */
-export function serializePolygon(polygon: Polygon): string {
+export function serializePolygon(polygon: Polygon, options?: { hidden?: boolean }): string {
   const fillColor = colorToHex(FillColorComponent.getOptional(polygon) ?? null);
   const polygonData = GeometryComponent.get(polygon);
 
@@ -101,7 +101,8 @@ export function serializePolygon(polygon: Polygon): string {
     `stroke-width="2"`,
     `data-open-at-index="${polygonData.openAtIndex}"`,
     `data-render-order="${RenderOrderComponent.get(polygon)}"`,
-  ];
+    options?.hidden ? 'display="none"' : '',
+  ].filter((attr) => attr.length > 0);
 
   if (polygonData.closed && polygonData.points.every((p) => p.type === 'point')) {
     // For closed fully linear polygons, render as a polygon element
@@ -125,7 +126,7 @@ export function serializePolygon(polygon: Polygon): string {
 }
 
 /** Serializes a rectangle to an SVG <rect> element string. */
-export function serializeRectangle(geometry: Rectangle): string {
+export function serializeRectangle(geometry: Rectangle, options?: { hidden?: boolean }): string {
   const rectangleData = GeometryComponent.get(geometry);
   const upperLeft = positionToPixels(rectangleData.upperLeft);
   const lowerRight = positionToPixels(rectangleData.lowerRight);
@@ -142,13 +143,14 @@ export function serializeRectangle(geometry: Rectangle): string {
     `stroke-width="2"`,
     `data-link-dimensions="${LinkDimensionsComponent.get(geometry)}"`,
     `data-render-order="${RenderOrderComponent.get(geometry)}"`,
-  ];
+    options?.hidden ? 'display="none"' : '',
+  ].filter((attr) => attr.length > 0);
 
   return `<rect id="${geometry.id}" ${attrs.join(' ')} x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${width.toFixed(2)}" height="${height.toFixed(2)}"/>`;
 }
 
 /** Serializes an ellipse to an SVG <ellipse> element string. */
-export function serializeEllipse(ellipse: Ellipse): string {
+export function serializeEllipse(ellipse: Ellipse, options?: { hidden?: boolean }): string {
   const ellipseData = GeometryComponent.get(ellipse);
   const center = positionToPixels(ellipseData.center);
   const fillColor = colorToHex(FillColorComponent.get(ellipse));
@@ -160,7 +162,8 @@ export function serializeEllipse(ellipse: Ellipse): string {
     `stroke-width="2"`,
     `data-link-dimensions="${LinkDimensionsComponent.get(ellipse)}"`,
     `data-render-order="${RenderOrderComponent.get(ellipse)}"`,
-  ];
+    options?.hidden ? 'display="none"' : '',
+  ].filter((attr) => attr.length > 0);
 
   return `<ellipse id="${ellipse.id}" ${attrs.join(' ')} cx="${center.x.toFixed(2)}" cy="${center.y.toFixed(2)}" rx="${ellipseData.radiusX * SHEET_UNITS_TO_PIXELS}" ry="${ellipseData.radiusY * SHEET_UNITS_TO_PIXELS}"/>`;
 }
@@ -627,30 +630,108 @@ export function serializeToSvg(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${widthPx} ${heightPx}" data-cad2d-version="${CURRENT_VERSION}">`,
   );
 
+  const filterGeometries = geometryStore.listWithComponent(FilterComponent);
+
   // Collect all shapes and sort by render order (ascending, lower = further back)
-  const allShapes: Array<{ renderOrder: number; serialize: () => string }> = [];
+  const allShapes: Array<{ renderOrder: number; serialize: () => Array<string> }> = [];
   for (const geometry of geometryStore.listWithComponents(
     GeometryComponent,
     RenderOrderComponent,
   )) {
+    const attachedFilters = filterGeometries.filter(
+      (f) => FilterComponent.get(f).geometryId === geometry.id
+    );
+
+    // Render shapes: for each geometry that has attached filters, serialize
+    // the non-primary render shapes (from getRenderShapes()) as SVG elements
+    // without data-type. These provide visual fidelity when the file is opened
+    // in external tools, showing the filtered/mirrored/filleted output.
+    let renderShapesSvgParts: Array<string> = [];
+    if (attachedFilters.length > 0) {
+      const fillColor = FillColorComponent.getOptional(geometry);
+      const renderShapes = GeometryComponent.getRenderShapes(
+        geometry,
+        sheet.defaultUnit,
+        attachedFilters,
+      );
+
+      for (const rs of renderShapes) {
+        switch (rs.shape) {
+          case 'polygon': {
+            const d = segmentsToPathData(rs.points);
+            if (rs.closed) {
+              const fillAttr =
+                typeof fillColor === 'number'
+                  ? ` fill="#${fillColor.toString(16).padStart(6, '0')}"`
+                  : '';
+              renderShapesSvgParts.push(`<path d="${d} Z"${fillAttr} stroke="#000" stroke-width="1" />`);
+            } else {
+              renderShapesSvgParts.push(`<path d="${d}" fill="none" stroke="#000" stroke-width="1" />`);
+            }
+            break;
+          }
+          case 'rectangle': {
+            const fillAttr =
+              typeof fillColor === 'number'
+                ? ` fill="#${fillColor.toString(16).padStart(6, '0')}"`
+                : '';
+            const x = rs.upperLeft.x * SHEET_UNITS_TO_PIXELS;
+            const y = rs.upperLeft.y * SHEET_UNITS_TO_PIXELS;
+            const w = (rs.lowerRight.x - rs.upperLeft.x) * SHEET_UNITS_TO_PIXELS;
+            const h = (rs.lowerRight.y - rs.upperLeft.y) * SHEET_UNITS_TO_PIXELS;
+            renderShapesSvgParts.push(
+              `<rect x="${x}" y="${y}" width="${w}" height="${h}"${fillAttr} stroke="#000" stroke-width="1" />`,
+            );
+            break;
+          }
+          case 'ellipse': {
+            const fillAttr =
+              typeof fillColor === 'number'
+                ? ` fill="#${fillColor.toString(16).padStart(6, '0')}"`
+                : '';
+            const cx = rs.center.x * SHEET_UNITS_TO_PIXELS;
+            const cy = rs.center.y * SHEET_UNITS_TO_PIXELS;
+            const rx = rs.radiusX * SHEET_UNITS_TO_PIXELS;
+            const ry = rs.radiusY * SHEET_UNITS_TO_PIXELS;
+            renderShapesSvgParts.push(
+              `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"${fillAttr} stroke="#000" stroke-width="1" />`,
+            );
+            break;
+          }
+          default:
+            rs satisfies never;
+            break;
+        }
+      }
+    }
+
     const data = GeometryComponent.get<GeometryData>(geometry);
     switch (data.type) {
       case 'polygon':
         allShapes.push({
           renderOrder: RenderOrderComponent.get(geometry),
-          serialize: () => serializePolygon(geometry as Polygon),
+          serialize: () => [
+            serializePolygon(geometry as Polygon, { hidden: renderShapesSvgParts.length > 0 }),
+            ...renderShapesSvgParts,
+          ],
         });
         break;
       case 'rectangle':
         allShapes.push({
           renderOrder: RenderOrderComponent.get(geometry),
-          serialize: () => serializeRectangle(geometry as Rectangle),
+          serialize: () => [
+            serializeRectangle(geometry as Rectangle, { hidden: renderShapesSvgParts.length > 0 }),
+            ...renderShapesSvgParts,
+          ],
         });
         break;
       case 'ellipse':
         allShapes.push({
           renderOrder: RenderOrderComponent.get(geometry),
-          serialize: () => serializeEllipse(geometry as Ellipse),
+          serialize: () => [
+            serializeEllipse(geometry as Ellipse, { hidden: renderShapesSvgParts.length > 0 }),
+            ...renderShapesSvgParts,
+          ],
         });
         break;
       default:
@@ -659,84 +740,9 @@ export function serializeToSvg(
     }
   }
   allShapes.sort((a, b) => a.renderOrder - b.renderOrder);
+  console.log('SHAPES', allShapes);
   for (const shape of allShapes) {
-    svgParts.push(shape.serialize());
-  }
-
-  // Render shapes: for each geometry that has attached filters, serialize
-  // the non-primary render shapes (from getRenderShapes()) as SVG elements
-  // without data-type. These provide visual fidelity when the file is opened
-  // in external tools, showing the filtered/mirrored/filleted output.
-  const filterGeometries = geometryStore.listWithComponent(FilterComponent);
-  for (const geometry of geometryStore.listWithComponent(GeometryComponent)) {
-    const attached = filterGeometries.filter(
-      (f) => FilterComponent.get(f).geometryId === (geometry as unknown as { id: string }).id,
-    );
-    if (attached.length === 0) {
-      continue;
-    }
-
-    const fillColor = FillColorComponent.getOptional(geometry);
-    const renderShapes = GeometryComponent.getRenderShapes(
-      geometry as any,
-      sheet.defaultUnit,
-      attached,
-    );
-
-    for (const rs of renderShapes) {
-      // Skip the primary render shape if it is identical to the native
-      // geometry — it's already serialized with data-type above.
-      if (rs.primary && GeometryComponent.isGeometricallyEqual(geometry, rs)) {
-        continue;
-      }
-
-      switch (rs.shape) {
-        case 'polygon': {
-          const d = segmentsToPathData(rs.points);
-          if (rs.closed) {
-            const fillAttr =
-              typeof fillColor === 'number'
-                ? ` fill="#${fillColor.toString(16).padStart(6, '0')}"`
-                : '';
-            svgParts.push(`<path d="${d} Z"${fillAttr} stroke="#000" stroke-width="1" />`);
-          } else {
-            svgParts.push(`<path d="${d}" fill="none" stroke="#000" stroke-width="1" />`);
-          }
-          break;
-        }
-        case 'rectangle': {
-          const fillAttr =
-            typeof fillColor === 'number'
-              ? ` fill="#${fillColor.toString(16).padStart(6, '0')}"`
-              : '';
-          const x = rs.upperLeft.x * SHEET_UNITS_TO_PIXELS;
-          const y = rs.upperLeft.y * SHEET_UNITS_TO_PIXELS;
-          const w = (rs.lowerRight.x - rs.upperLeft.x) * SHEET_UNITS_TO_PIXELS;
-          const h = (rs.lowerRight.y - rs.upperLeft.y) * SHEET_UNITS_TO_PIXELS;
-          svgParts.push(
-            `<rect x="${x}" y="${y}" width="${w}" height="${h}"${fillAttr} stroke="#000" stroke-width="1" />`,
-          );
-          break;
-        }
-        case 'ellipse': {
-          const fillAttr =
-            typeof fillColor === 'number'
-              ? ` fill="#${fillColor.toString(16).padStart(6, '0')}"`
-              : '';
-          const cx = rs.center.x * SHEET_UNITS_TO_PIXELS;
-          const cy = rs.center.y * SHEET_UNITS_TO_PIXELS;
-          const rx = rs.radiusX * SHEET_UNITS_TO_PIXELS;
-          const ry = rs.radiusY * SHEET_UNITS_TO_PIXELS;
-          svgParts.push(
-            `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"${fillAttr} stroke="#000" stroke-width="1" />`,
-          );
-          break;
-        }
-        default:
-          rs satisfies never;
-          break;
-      }
-    }
+    svgParts.push(...shape.serialize());
   }
 
   // Serialize datums after geometry but before constraints
