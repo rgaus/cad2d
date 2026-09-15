@@ -44,6 +44,7 @@ import { ParseSvgWarningError } from '@/lib/serialization/ParseSvgWarningError';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { parseSvg } from '@/lib/serialization/deserialize';
 import {
+  serializeEllipse,
   serializeFilter,
   serializePolygon,
   serializeRectangle,
@@ -2150,8 +2151,10 @@ describe('filter serialization', () => {
     expect(svg).toContain('data-point-a-x="15"');
     expect(svg).toContain('data-point-b-x="15"');
 
-    // Verify render shapes are in the SVG (non-data-type elements)
-    // The mirrored rectangle should appear as a <rect> without data-type
+    // The native rect carries the metadata and is hidden - the mirrored
+    // render shape (non-data-type element) is what external SVG viewers see.
+    expect(svg).toContain('<rect id="rect_1"');
+    expect(svg).toContain('display="none"');
     expect(svg).toContain('<rect ');
 
     // Parse — use a fresh store's hasId so original IDs are preserved
@@ -2345,12 +2348,12 @@ describe('filter serialization', () => {
     });
     geometryStore.addDirect(rect);
 
-    // Create a fillet filter on the rectangle's top-right corner
+    // Create a fillet filter on the rectangle's upperLeft corner
     const fillet = FilletFilter.createOnRectangle(
       'rect_f1',
-      'topLeft' as any,
-      'topRight' as any,
-      'bottomRight' as any,
+      'lowerLeft',
+      'upperLeft',
+      'upperRight',
       Length.fromSheetUnits('cm', 1),
     );
     geometryStore.addDirect({ id: 'ftr_fil_1', ...fillet } as Entity);
@@ -2359,6 +2362,10 @@ describe('filter serialization', () => {
 
     // The render shape path for the fillet should contain C (cubic) arc commands
     expect(svg).toContain('C');
+
+    // The native rect is hidden; the fillet render shape is what's displayed
+    expect(svg).toContain('<rect id="rect_f1"');
+    expect(svg).toContain('display="none"');
   });
 
   it('re-loading preserves fill color on non-closed polygon with mirror filter', () => {
@@ -2798,5 +2805,238 @@ describe('filter serialization', () => {
     expect(geometryStore.hasId(data.geometryId)).toBe(true);
     expect(data.xRepeats).toBe(2);
     expect(data.yRepeats).toBe(2);
+  });
+});
+
+describe('serialize <hidden> option', () => {
+  it('serializeRectangle(rect, { hidden: true }) emits display=none while keeping metadata', () => {
+    const rect = makeRectangle({
+      id: 'rect_h1',
+      upperLeft: new SheetPosition(0, 0),
+      lowerRight: new SheetPosition(10, 10),
+      fillColor: 0xff0000,
+    });
+    const svg = serializeRectangle(rect, { hidden: true });
+    expect(svg).toContain('display="none"');
+    expect(svg).toContain('<rect id="rect_h1" data-type="rectangle"');
+    expect(svg).toContain('data-render-order="0"');
+    expect(svg).toContain('fill="#ff0000"');
+  });
+
+  it('serializeRectangle(rect) does not emit display=none', () => {
+    const rect = makeRectangle({
+      id: 'rect_h2',
+      upperLeft: new SheetPosition(0, 0),
+      lowerRight: new SheetPosition(10, 10),
+    });
+    expect(serializeRectangle(rect)).not.toContain('display="none"');
+  });
+
+  it('serializePolygon emits display=none for the closed <polygon> form', () => {
+    const poly = makePolygon({
+      id: 'poly_h1',
+      points: [makePoint(0, 0), makePoint(1, 0), makePoint(1, 1), makePoint(0, 1)],
+      closed: true,
+    });
+    const svg = serializePolygon(poly, { hidden: true });
+    expect(svg).toContain('display="none"');
+    expect(svg).toContain('<polygon id="poly_h1" data-type="polygon"');
+  });
+
+  it('serializePolygon emits display=none for the <path> form', () => {
+    const poly = makePolygon({
+      id: 'poly_h2',
+      points: [makePoint(0, 0), makePoint(1, 0), makePoint(1, 1)],
+      closed: false,
+      openAtIndex: 0,
+    });
+    const svg = serializePolygon(poly, { hidden: true });
+    expect(svg).toContain('display="none"');
+    expect(svg).toContain('<path id="poly_h2" data-type="polygon"');
+  });
+
+  it('serializePolygon does not emit display=none by default', () => {
+    const poly = makePolygon({
+      id: 'poly_h3',
+      points: [makePoint(0, 0), makePoint(1, 0), makePoint(1, 1)],
+      closed: false,
+      openAtIndex: 0,
+    });
+    expect(serializePolygon(poly)).not.toContain('display="none"');
+  });
+
+  it('serializeEllipse(ellipse, { hidden: true }) emits display=none while keeping metadata', () => {
+    const ellipse = makeEllipse({
+      id: 'ell_h1',
+      center: new SheetPosition(5, 5),
+      radiusX: 0.5,
+      radiusY: 0.25,
+    });
+    const svg = serializeEllipse(ellipse, { hidden: true });
+    expect(svg).toContain('display="none"');
+    expect(svg).toContain('<ellipse id="ell_h1" data-type="ellipse"');
+  });
+
+  it('serializeEllipse does not emit display=none by default', () => {
+    const ellipse = makeEllipse({
+      id: 'ell_h2',
+      center: new SheetPosition(5, 5),
+      radiusX: 0.5,
+      radiusY: 0.25,
+    });
+    expect(serializeEllipse(ellipse)).not.toContain('display="none"');
+  });
+});
+
+describe('serializeToSvg filtered geometries', () => {
+  it('hides the native rect and emits the fillet render shape immediately after it', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    const rect = makeRectangle({
+      id: 'rect_fil',
+      upperLeft: new SheetPosition(0, 0),
+      lowerRight: new SheetPosition(10, 10),
+      fillColor: 0xff0000,
+    });
+    geometryStore.addDirect(rect);
+
+    const fillet = FilletFilter.createOnRectangle(
+      'rect_fil',
+      'lowerLeft',
+      'upperLeft',
+      'upperRight',
+      Length.fromSheetUnits('cm', 1),
+    );
+    geometryStore.addDirect({ id: 'ftr_fil_vis', ...fillet } as Entity);
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+
+    // Native rect is present and hidden
+    const primaryIdx = svg.indexOf('<rect id="rect_fil"');
+    expect(primaryIdx).toBeGreaterThan(-1);
+    expect(svg).toContain('display="none"');
+
+    // The render shape <path> (no data-type) immediately follows the hidden rect.
+    // Assert the element right after the rect's close tag is the render path.
+    const rectCloseIdx = svg.indexOf('/>', primaryIdx);
+    const nextElemIdx = svg.indexOf('<', rectCloseIdx + 1);
+    expect(svg.slice(nextElemIdx, nextElemIdx + 30)).toContain('<path');
+
+    // The fillet render shape uses cubic commands and appears before the filter's
+    // metadata <g> element.
+    const renderShapeSegment = svg.slice(rectCloseIdx, svg.indexOf('data-type="fillet-filter"'));
+    expect(renderShapeSegment).toContain('C');
+
+    // Round-trip: the metadata rect + filter parse back; render shape is discarded
+    const freshStore = makeSheet().geometryStore;
+    const parseResult = parseSvg(
+      svg,
+      historyManager.generateStableId.bind(historyManager),
+      freshStore.hasId.bind(freshStore),
+    );
+    expect(parseResult.rectangles).toHaveLength(1);
+    expect(parseResult.rectangles[0].id).toBe('rect_fil');
+    expect(parseResult.filters).toHaveLength(1);
+    const filterData = FilterComponent.get(parseResult.filters[0] as Entity<FilterComponent>);
+    expect(filterData.type).toBe('fillet');
+    expect(filterData.geometryId).toBe('rect_fil');
+  });
+
+  it('does not emit display=none for a rectangle with no filters', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.addDirect(
+      makeRectangle({
+        id: 'rect_plain',
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 10),
+      }),
+    );
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    expect(svg).toContain('<rect id="rect_plain"');
+    expect(svg).not.toContain('display="none"');
+  });
+
+  it('hides a filtered polygon and emits the mirrored render shape after it', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    const poly = makePolygon({
+      id: 'poly_mir_vis',
+      points: [makePoint(5, 5), makePoint(10, 10), makePoint(15, 5)],
+      closed: false,
+      openAtIndex: 0,
+    });
+    geometryStore.addDirect(poly);
+
+    const filter = MirrorFilter.create(
+      'poly_mir_vis',
+      new SheetPosition(0, 5),
+      new SheetPosition(20, 5),
+    );
+    geometryStore.addDirect({ id: 'ftr_mir_vis', ...filter } as Entity);
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+
+    const primaryIdx = svg.indexOf('<path id="poly_mir_vis"');
+    expect(primaryIdx).toBeGreaterThan(-1);
+    expect(svg).toContain('display="none"');
+
+    // A non-data-type render shape <path> follows the hidden primary polygon
+    const rectCloseIdx = svg.indexOf('/>', primaryIdx);
+    const nextElemIdx = svg.indexOf('<', rectCloseIdx + 1);
+    expect(svg.slice(nextElemIdx, nextElemIdx + 30)).toContain('<path');
+
+    // Round-trip: primary polygon parses back once; mirror filter preserved
+    const freshStore = makeSheet().geometryStore;
+    const parseResult = parseSvg(
+      svg,
+      historyManager.generateStableId.bind(historyManager),
+      freshStore.hasId.bind(freshStore),
+    );
+    expect(parseResult.polygons).toHaveLength(1);
+    expect(parseResult.polygons[0].id).toBe('poly_mir_vis');
+    expect(parseResult.filters).toHaveLength(1);
+  });
+
+  it('hides a filtered ellipse and emits pattern render shapes after it', () => {
+    const { sheet, geometryStore, historyManager } = makeSheet();
+
+    const ellipse = makeEllipse({
+      id: 'ell_pat_vis',
+      center: new SheetPosition(8, 8),
+      radiusX: 2.5,
+      radiusY: 2.5,
+    });
+    geometryStore.addDirect(ellipse);
+
+    const filter = PatternFilter.createGrid(
+      'ell_pat_vis',
+      new SheetPosition(4, 4),
+      new SheetPosition(12, 12),
+      { xRepeats: 2, yRepeats: 2 },
+    );
+    geometryStore.addDirect({ id: 'ftr_pat_vis', ...filter } as Entity);
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+
+    const primaryIdx = svg.indexOf('<ellipse id="ell_pat_vis"');
+    expect(primaryIdx).toBeGreaterThan(-1);
+    expect(svg).toContain('display="none"');
+
+    // A non-data-type render shape <ellipse> follows the hidden primary
+    const ellipseCloseIdx = svg.indexOf('/>', primaryIdx);
+    const nextElemIdx = svg.indexOf('<', ellipseCloseIdx + 1);
+    expect(svg.slice(nextElemIdx, nextElemIdx + 40)).toContain('<ellipse');
+
+    // Round-trip: primary ellipse parses back once; grid filter preserved
+    const freshStore = makeSheet().geometryStore;
+    const parseResult = parseSvg(
+      svg,
+      historyManager.generateStableId.bind(historyManager),
+      freshStore.hasId.bind(freshStore),
+    );
+    expect(parseResult.ellipses).toHaveLength(1);
+    expect(parseResult.ellipses[0].id).toBe('ell_pat_vis');
+    expect(parseResult.filters).toHaveLength(1);
   });
 });

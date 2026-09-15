@@ -639,7 +639,7 @@ export function serializeToSvg(
     RenderOrderComponent,
   )) {
     const attachedFilters = filterGeometries.filter(
-      (f) => FilterComponent.get(f).geometryId === geometry.id
+      (f) => FilterComponent.get(f).geometryId === geometry.id,
     );
 
     // Render shapes: for each geometry that has attached filters, serialize
@@ -664,9 +664,13 @@ export function serializeToSvg(
                 typeof fillColor === 'number'
                   ? ` fill="#${fillColor.toString(16).padStart(6, '0')}"`
                   : '';
-              renderShapesSvgParts.push(`<path d="${d} Z"${fillAttr} stroke="#000" stroke-width="1" />`);
+              renderShapesSvgParts.push(
+                `<path d="${d} Z"${fillAttr} stroke="#000" stroke-width="1" />`,
+              );
             } else {
-              renderShapesSvgParts.push(`<path d="${d}" fill="none" stroke="#000" stroke-width="1" />`);
+              renderShapesSvgParts.push(
+                `<path d="${d}" fill="none" stroke="#000" stroke-width="1" />`,
+              );
             }
             break;
           }
@@ -740,7 +744,6 @@ export function serializeToSvg(
     }
   }
   allShapes.sort((a, b) => a.renderOrder - b.renderOrder);
-  console.log('SHAPES', allShapes);
   for (const shape of allShapes) {
     svgParts.push(...shape.serialize());
   }
