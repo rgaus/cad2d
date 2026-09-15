@@ -20,6 +20,16 @@ const CENTIMETERS_TO_METERS = 0.01;
 export const UNITS = ['in', 'ft', 'mm', 'cm', 'm'] as const;
 export type UnitType = (typeof UNITS)[number];
 
+export namespace UnitType {
+  /** Attempts to cast the given passed string into a {@link UnitType} */
+  export function is(input: unknown): input is UnitType {
+    if (typeof input !== 'string') {
+      return false;
+    }
+    return (UNITS as readonly string[]).includes(input);
+  }
+}
+
 /** Serialized form of a Length value suitable for JSON round-tripping. */
 export type SerializedLength = {
   type: UnitType;

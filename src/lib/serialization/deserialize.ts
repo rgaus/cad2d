@@ -6,6 +6,7 @@ import {
   ConstraintEndpoint,
   Datum,
   Ellipse,
+  EllipseEndpoint,
   Entity,
   HorizontalConstraint,
   Id,
@@ -76,7 +77,13 @@ function parseRenderOrder(
   lastRenderOrder?: number,
 ): number {
   if (element['data-render-order'] !== undefined) {
-    return parseInt(element['data-render-order'], 10);
+    const parsed = parseInt(element['data-render-order'], 10);
+    if (Number.isNaN(parsed)) {
+      throw new ParseSvgWarningError(
+        `data-render-order is not a number: ${element['data-render-order']}`,
+      );
+    }
+    return parsed;
   }
   return (lastRenderOrder ?? 0) + 1;
 }
@@ -153,6 +160,11 @@ function parsePolygonPath(
   // NOTE: data-closed is deprecated / is here for backwards compatibility.
   let closed = element['data-closed'] === 'true';
   const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
+  if (Number.isNaN(openAtIndex)) {
+    throw new ParseSvgWarningError(
+      `path#${id}: data-open-at-index is not a number: ${element['data-open-at-index']}`,
+    );
+  }
   const renderOrder = parseRenderOrder(element, lastRenderOrder);
 
   // Parse path commands
@@ -306,6 +318,11 @@ function parsePolygonPolygon(
 
   const fillColor = parseColor(element.fill);
   const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
+  if (Number.isNaN(openAtIndex)) {
+    throw new ParseSvgWarningError(
+      `polygon#${id}: data-open-at-index is not a number: ${element['data-open-at-index']}`,
+    );
+  }
   const renderOrder = parseRenderOrder(element, lastRenderOrder);
 
   if (!element.points) {
@@ -411,6 +428,12 @@ function parseRectangle(
   const linkDimensions = element['data-link-dimensions'] === 'true';
   const renderOrder = parseRenderOrder(element, lastRenderOrder);
 
+  if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(width) || Number.isNaN(height)) {
+    throw new ParseSvgWarningError(
+      `rect#${element.id}: non-numeric x/y/width/height, got ${x}x${y} ${width}x${height}`,
+    );
+  }
+
   if (width <= 0 || height <= 0) {
     throw new ParseSvgWarningError(
       `rect#${element.id}: width and height must be positive, got ${width}x${height}`,
@@ -480,6 +503,12 @@ function parseEllipse(
   const linkDimensions = element['data-link-dimensions'] === 'true';
   const renderOrder = parseRenderOrder(element, lastRenderOrder);
 
+  if (Number.isNaN(cx) || Number.isNaN(cy) || Number.isNaN(rx) || Number.isNaN(ry)) {
+    throw new ParseSvgWarningError(
+      `ellipse#${id}: non-numeric cx/cy/rx/ry, got cx=${cx} cy=${cy} rx=${rx} ry=${ry}`,
+    );
+  }
+
   if (rx <= 0 || ry <= 0) {
     throw new ParseSvgWarningError(`ellipse#${id}: radius must be positive, got ${rx}x${ry}`);
   }
@@ -534,6 +563,10 @@ function parseDatum(
   const x = parseFloat(element['data-x'] || '0');
   const y = parseFloat(element['data-y'] || '0');
 
+  if (Number.isNaN(x) || Number.isNaN(y)) {
+    throw new ParseSvgWarningError(`datum#${id}: non-numeric x/y, got ${x}x${y}`);
+  }
+
   const template = Datum.create(new SheetPosition(x, y));
 
   return [
@@ -583,6 +616,17 @@ function parseMirrorFilter(
     parseFloat(String(attrs['data-point-b-y'] ?? '0')),
   );
 
+  if (
+    Number.isNaN(pointA.x) ||
+    Number.isNaN(pointA.y) ||
+    Number.isNaN(pointB.x) ||
+    Number.isNaN(pointB.y)
+  ) {
+    throw new ParseSvgWarningError(
+      `mirror-filter#${id}: non-numeric point A/B coordinates, got A=${pointA.x}x${pointA.y} B=${pointB.x}x${pointB.y}`,
+    );
+  }
+
   return {
     id,
     ...MirrorFilter.create(rewrittenIdMap.get(geometryId) ?? geometryId, pointA, pointB),
@@ -624,16 +668,27 @@ function parsePatternFilter(
         parseFloat(String(attrs['data-lower-right-x'] ?? '0')),
         parseFloat(String(attrs['data-lower-right-y'] ?? '0')),
       );
+      const xRepeats = parseFloat(String(attrs['data-repeats-x'] ?? '2'));
+      const yRepeats = parseFloat(String(attrs['data-repeats-y'] ?? '2'));
+      if (
+        Number.isNaN(upperLeft.x) ||
+        Number.isNaN(upperLeft.y) ||
+        Number.isNaN(lowerRight.x) ||
+        Number.isNaN(lowerRight.y) ||
+        Number.isNaN(xRepeats) ||
+        Number.isNaN(yRepeats)
+      ) {
+        throw new ParseSvgWarningError(
+          `pattern-filter#${id}: non-numeric grid bounds/repeats, got ul=${upperLeft.x}x${upperLeft.y} lr=${lowerRight.x}x${lowerRight.y} repeats=${xRepeats}x${yRepeats}`,
+        );
+      }
       return {
         id,
         ...PatternFilter.createGrid(
           rewrittenIdMap.get(geometryId) ?? geometryId,
           upperLeft,
           lowerRight,
-          {
-            xRepeats: parseFloat(String(attrs['data-repeats-x'] ?? '2')),
-            yRepeats: parseFloat(String(attrs['data-repeats-y'] ?? '2')),
-          },
+          { xRepeats, yRepeats },
         ),
       };
     }
@@ -642,13 +697,25 @@ function parsePatternFilter(
         parseFloat(String(attrs['data-center-x'] ?? '0')),
         parseFloat(String(attrs['data-center-y'] ?? '0')),
       );
+      const radius = parseFloat(String(attrs['data-radius'] ?? '1'));
+      const count = parseFloat(String(attrs['data-repeats-count'] ?? '4'));
+      if (
+        Number.isNaN(center.x) ||
+        Number.isNaN(center.y) ||
+        Number.isNaN(radius) ||
+        Number.isNaN(count)
+      ) {
+        throw new ParseSvgWarningError(
+          `pattern-filter#${id}: non-numeric radial values, got center=${center.x}x${center.y} radius=${radius} count=${count}`,
+        );
+      }
       return {
         id,
         ...PatternFilter.createRadial(
           rewrittenIdMap.get(geometryId) ?? geometryId,
           center,
-          parseFloat(String(attrs['data-radius'] ?? '1')),
-          { count: parseFloat(String(attrs['data-repeats-count'] ?? '4')) },
+          radius,
+          { count },
         ),
       };
     }
@@ -694,7 +761,18 @@ function parseFilletOrChamferFilter(
   }
 
   const offsetMagnitude = parseFloat(String(attrs['data-offset-magnitude'] ?? '0'));
-  const offsetType = String(attrs['data-offset-type'] ?? 'cm') as UnitType;
+  const offsetTypeRaw = String(attrs['data-offset-type'] ?? 'cm');
+  if (!UnitType.is(offsetTypeRaw)) {
+    throw new ParseSvgWarningError(
+      `${type} filter (id of ${id}) offset type is not a valid unit, got ${offsetTypeRaw}`,
+    );
+  }
+  const offsetType = offsetTypeRaw;
+  if (Number.isNaN(offsetMagnitude)) {
+    throw new ParseSvgWarningError(
+      `${type} filter (id of ${id}) offset magnitude is not a number, got ${offsetTypeRaw}`,
+    );
+  }
 
   switch (geometryType) {
     case 'polygon':
@@ -810,12 +888,22 @@ function parseEndpoint(
     }
     case 'locked-rectangle': {
       const id = getId(`${attrs[`data-${prefix}-id`]}`);
-      const point = `${attrs[`data-${prefix}-point`]}` as any;
+      const point = `${attrs[`data-${prefix}-point`]}`;
+      if (!RectangleEndpoint.is(point)) {
+        throw new ParseSvgWarningError(
+          `constraint endpoint ${prefix}: not a valid RectangleEndpoint, got ${point}`,
+        );
+      }
       return ConstraintEndpoint.lockedToRectangle(id, point);
     }
     case 'locked-ellipse': {
       const id = getId(`${attrs[`data-${prefix}-id`]}`);
-      const point = `${attrs[`data-${prefix}-point`]}` as any;
+      const point = `${attrs[`data-${prefix}-point`]}`;
+      if (!EllipseEndpoint.is(point)) {
+        throw new ParseSvgWarningError(
+          `constraint endpoint ${prefix}: not a valid EllipseEndpoint, got ${point}`,
+        );
+      }
       return ConstraintEndpoint.lockedToEllipse(id, point);
     }
     case 'locked-polygon': {
@@ -905,11 +993,21 @@ function parseConstraint(
       constrainedLength = new CentimetersLength(lengthMag);
   }
 
+  const rawAxis = attrs['data-axis'];
+  let axis: 'x' | 'y' | null = null;
+  if (typeof rawAxis === 'string') {
+    if (rawAxis === 'x' || rawAxis === 'y') {
+      axis = rawAxis;
+    } else {
+      throw new ParseSvgWarningError(`constraint#${id}: data-axis is not x/y, got ${rawAxis}`);
+    }
+  }
+
   return {
     id,
     ...LinearConstraint.create(pointA, pointB, constrainedLength, {
       connectorLineOffsetPx: offset,
-      axis: typeof attrs['data-axis'] === 'string' ? (attrs['data-axis'] as 'x' | 'y') : null,
+      axis,
     }),
   };
 }

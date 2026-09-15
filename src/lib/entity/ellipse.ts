@@ -24,6 +24,16 @@ export type EllipseTemplate = Omit<EntityOmitComponents<Ellipse, RenderOrderComp
  *  Derived from {@link GeometryComponent.keyPoints} -> {@link EllipseData.keyPoints}. */
 export type EllipseEndpoint = KeyPointKeys<ReturnType<typeof EllipseData.keyPoints>>;
 
+export namespace EllipseEndpoint {
+  /** Attempts to cast the given passed string into an {@link EllipseEndpoint} */
+  export function is(input: unknown): input is EllipseEndpoint {
+    if (typeof input !== 'string') {
+      return false;
+    }
+    return ['top', 'right', 'bottom', 'left', 'center'].includes(input);
+  }
+}
+
 export namespace Ellipse {
   /** Create a new {@link EllipseTemplate} which can be created by {@link GeometryStore#addEllipse}. */
   export function create(
