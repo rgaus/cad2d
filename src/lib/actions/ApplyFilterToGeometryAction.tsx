@@ -6,16 +6,24 @@ import {
   ConstraintComponent,
   ConstraintEndpoint,
   Datum,
+  Ellipse,
   Entity,
   GeometryComponent,
   HorizontalConstraint,
   type Id,
+  Polygon,
+  Rectangle,
   VerticalConstraint,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { DEFAULT_COLOR } from '@/lib/entity/colors';
+import { FillColorComponent } from '@/lib/entity/components/FillColorComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { RenderShape } from '@/lib/entity/components/GeometryComponent';
 import { type ChamferFilterData } from '@/lib/entity/filters/chamfer';
 import { type FilletFilterData } from '@/lib/entity/filters/fillet';
+import { type MirrorFilterData } from '@/lib/entity/filters/mirror';
+import { type PatternFilterData } from '@/lib/entity/filters/pattern';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { PolygonSegment } from '@/lib/entity/polygon';
 import { type RectangleEndpoint } from '@/lib/entity/rectangle';
@@ -96,21 +104,16 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     super(actionManager);
 
     this.getSelectionManager().on('selectionChange', this.updateDisabled);
-    this.disabled = !this.hasApplicableFilters();
+    this.disabled = !this.hasFilters();
   }
 
   private updateDisabled = () => {
-    this.disabled = !this.hasApplicableFilters();
+    this.disabled = !this.hasFilters();
   };
 
-  private hasApplicableFilters(): boolean {
+  private hasFilters(): boolean {
     return [...this.getSelectionManager().getSelectedIds()].some((id) => {
-      const geom = this.getGeometryStore().getByIdWithComponent(id, FilterComponent);
-      if (!geom) {
-        return false;
-      }
-      const filter = FilterComponent.get(geom);
-      return filter.type === 'fillet' || filter.type === 'chamfer';
+      return this.getGeometryStore().getByIdWithComponent(id, FilterComponent);
     });
   }
 
@@ -185,13 +188,17 @@ export class ApplyFilterToGeometryAction extends BaseAction {
               this.getSelectionManager().deselect(id);
               break;
             }
-            case 'mirror':
+            case 'mirror': {
+              this.collapseMirrorOrPattern(filterGeom, filter, geometryIdRemap, remappedPolygons);
               break;
-            case 'pattern':
+            }
+            case 'pattern': {
+              this.collapseMirrorOrPattern(filterGeom, filter, geometryIdRemap, remappedPolygons);
               break;
+            }
             default:
               filter satisfies never;
-              break;
+              throw new Error(`ApplyFilterToGeometryAction.execute: Unknown filter type=${(filter as any).type}, is a case missing?`);
           }
         }
       },
@@ -246,6 +253,157 @@ export class ApplyFilterToGeometryAction extends BaseAction {
           } as any),
         );
       }
+    }
+  }
+
+  /**
+   * Collapses a mirror or pattern filter into its underlying geometry by
+   * materializing the filter's render shapes (via getRenderShapes) as real
+   * geometry, then removing the filter.
+   *
+   * - A single merged render shape (open polygon mirrored/radially-chained over
+   *   the filter line) replaces the source polygon in place, and any constraints
+   *   locked to the polygon's old points are removed (constraint migration is a
+   *   future enhancement).
+   * - Multiple render shapes keep the source and add each non-primary shape as
+   *   new geometry.
+   */
+  private collapseMirrorOrPattern(
+    filterGeom: Entity<FilterComponent>,
+    filterData: MirrorFilterData | PatternFilterData,
+    geometryIdRemap: Map<Id, Id>,
+    remappedPolygons: Map<Id, Entity<GeometryComponent<PolygonData>>>,
+  ): void {
+    const geometryStore = this.getGeometryStore();
+
+    let geometry = geometryStore.getByIdWithComponent(filterData.geometryId, GeometryComponent);
+    if (!geometry) {
+      // A prior filter in this batch (eg. fillet) may have converted the
+      // rectangle this filter references into a polygon; resolve against that.
+      const remapped = remappedPolygons.get(filterData.geometryId);
+      if (!remapped) {
+        return;
+      }
+      geometry = remapped;
+    }
+
+    const renderShapes = GeometryComponent.getRenderShapes(
+      geometry,
+      this.getSheet().defaultUnit,
+      [filterGeom],
+      { combineNonClosedPolygons: true },
+    );
+    if (renderShapes.length === 0) {
+      return;
+    }
+
+    const sourceFillColor = FillColorComponent.getOptional(geometry);
+
+    if (renderShapes.length === 1) {
+      this.mergeRenderShapeIntoGeometry(geometry, renderShapes[0], sourceFillColor);
+    } else {
+      for (const renderShape of renderShapes.slice(1)) {
+        this.addRenderShapeAsGeometry(renderShape, sourceFillColor);
+      }
+    }
+
+    geometryStore.deleteById(filterGeom.id);
+    this.getSelectionManager().deselect(filterGeom.id);
+  }
+
+  /**
+   * Replaces the given geometry with a merged render shape (an open polygon
+   * whose mirror/radial filter collapses it into a single closed polygon). The
+   * geometry keeps its id; constraints locked to the old polygon points are
+   * removed since their indices no longer line up with the merged shape.
+   */
+  private mergeRenderShapeIntoGeometry(
+    geometry: Entity<GeometryComponent>,
+    merged: RenderShape,
+    sourceFillColor: number | null | undefined,
+  ): void {
+    const geometryStore = this.getGeometryStore();
+    if (merged.shape !== 'polygon') {
+      return;
+    }
+
+    const polygonId = geometry.id;
+
+    // Remove constraints locked to the polygon's old points - migrating them to
+    // the merged geometry is a future enhancement.
+    const constraints = geometryStore.findConstraintsByGeometryId(polygonId);
+    for (const c of constraints) {
+      const keys = Constraint.getPositionKeys(c);
+      let referencesPolygon = false;
+      for (const key of keys) {
+        const ep = Constraint.getEndpoint(c, key);
+        if (ep && ep.type === 'locked-polygon' && ep.id === polygonId) {
+          referencesPolygon = true;
+        }
+      }
+      if (referencesPolygon) {
+        geometryStore.deleteById(c.id);
+      }
+    }
+
+    geometryStore.updateById(polygonId, (g) => {
+      if (!Entity.hasComponent(g, GeometryComponent)) {
+        return g;
+      }
+      const polygon = g as Entity<GeometryComponent<PolygonData>>;
+      const withMergedPoints = GeometryComponent.update(polygon, {
+        points: merged.points,
+        closed: true,
+        openAtIndex: 0,
+      });
+      if (typeof sourceFillColor === 'number') {
+        return withMergedPoints;
+      }
+      // Ensure the now-closed polygon carries a fill color
+      const withFill = FillColorComponent.update(
+        withMergedPoints as unknown as Entity<FillColorComponent>,
+        DEFAULT_COLOR,
+      );
+      return withFill as unknown as Entity<GeometryComponent<PolygonData>>;
+    });
+  }
+
+  /**
+   * Adds a render shape to the store as a new piece of geometry, inheriting the
+   * source geometry's fill color.
+   */
+  private addRenderShapeAsGeometry(
+    renderShape: RenderShape,
+    sourceFillColor: number | null | undefined,
+  ): void {
+    const fillColor = typeof sourceFillColor === 'number' ? sourceFillColor : DEFAULT_COLOR;
+    switch (renderShape.shape) {
+      case 'polygon':
+        this.getGeometryStore().addOrdered(
+          ID_PREFIXES.polygon,
+          Polygon.create(renderShape.points, { closed: renderShape.closed, fillColor }),
+        );
+        break;
+      case 'rectangle':
+        this.getGeometryStore().addOrdered(
+          ID_PREFIXES.rectangle,
+          Rectangle.create(renderShape.upperLeft, renderShape.lowerRight, {
+            fillColor,
+            linkDimensions: false,
+          }),
+        );
+        break;
+      case 'ellipse':
+        this.getGeometryStore().addOrdered(
+          ID_PREFIXES.ellipse,
+          Ellipse.create(renderShape.center, {
+            radiusX: renderShape.radiusX,
+            radiusY: renderShape.radiusY,
+            fillColor,
+            linkDimensions: false,
+          }),
+        );
+        break;
     }
   }
 

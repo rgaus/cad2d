@@ -1,16 +1,22 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintComponent,
+  ConstraintEndpoint,
   type CubicBezierSegment,
+  Ellipse,
   GeometryComponent,
+  HorizontalConstraint,
   PointSegment,
   Polygon,
   Rectangle,
 } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
+import { FillColorComponent } from '@/lib/entity/components/FillColorComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { FilletFilter } from '@/lib/entity/filters/fillet';
+import { MirrorFilter } from '@/lib/entity/filters/mirror';
+import { PatternFilter } from '@/lib/entity/filters/pattern';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
@@ -571,6 +577,303 @@ describe('ApplyFilterToGeometryAction', () => {
       expect(arc.controlPointA.y).toBeCloseTo(0, 2);
       expect(arc.controlPointB.x).toBeCloseTo(100);
       expect(arc.controlPointB.y).toBeCloseTo(8.95, 2);
+    });
+  });
+
+  describe('Mirror filter', () => {
+    it('applies mirror to an ellipse, producing two ellipses', async () => {
+      const ellipse = geometryStore.addOrdered(
+        ID_PREFIXES.ellipse,
+        Ellipse.create(new SheetPosition(50, 50), {
+          radiusX: 20,
+          radiusY: 10,
+          fillColor: DEFAULT_COLOR,
+        }),
+      ) as Ellipse;
+
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(ellipse.id, new SheetPosition(0, 0), new SheetPosition(0, 100)),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      const ellipses = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.get(g).type === 'ellipse');
+      expect(ellipses).toHaveLength(2);
+      expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
+
+      const centers = ellipses.map((e) => {
+        const c = GeometryComponent.get(e).center;
+        return [c.x, c.y];
+      });
+      expect(centers).toContainEqual([50, 50]);
+      expect(centers).toContainEqual([-50, 50]);
+    });
+
+    it('applies mirror to a rectangle, producing a rectangle and a mirrored closed polygon', async () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
+          fillColor: DEFAULT_COLOR,
+        }),
+      ) as Rectangle;
+
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(rect.id, new SheetPosition(0, 0), new SheetPosition(0, 100)),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      const shapes = geometryStore.listWithComponent(GeometryComponent);
+      expect(shapes).toHaveLength(2);
+      expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
+
+      const rects = shapes.filter((g) => GeometryComponent.get(g).type === 'rectangle');
+      const polys = shapes.filter((g) => GeometryComponent.get(g).type === 'polygon');
+      expect(rects).toHaveLength(1);
+      expect(polys).toHaveLength(1);
+      expect(GeometryComponent.get(polys[0]).closed).toBe(true);
+    });
+
+    it('applies mirror to a closed polygon, producing two polygons', async () => {
+      const poly = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(50, 100), makePoint(0, 0)], {
+          closed: true,
+        }),
+      ) as Polygon;
+
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(poly.id, new SheetPosition(0, 0), new SheetPosition(0, 100)),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      const polys = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.get(g).type === 'polygon');
+      expect(polys).toHaveLength(2);
+      expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
+    });
+
+    it('collapses an open polygon mirrored over the mirror line into one closed polygon', async () => {
+      const poly = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(50, 50), makePoint(0, 100)], {
+          closed: false,
+        }),
+      ) as Polygon;
+      const polygonId = poly.id;
+
+      // Attach a horizontal constraint between the two on-mirror-line endpoints
+      const constraintId = geometryStore.add(
+        ID_PREFIXES.constraint,
+        HorizontalConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygonId, 0),
+          ConstraintEndpoint.lockedToPolygon(polygonId, 2),
+        ),
+      ).id;
+
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(polygonId, new SheetPosition(0, 0), new SheetPosition(0, 100)),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      const polys = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.get(g).type === 'polygon');
+      expect(polys).toHaveLength(1);
+      expect(polys[0].id).toBe(polygonId);
+      expect(GeometryComponent.get(polys[0]).closed).toBe(true);
+      // Combined points: source (3) + reversed mirror (3)
+      expect(GeometryComponent.get(polys[0]).points.length).toBe(6);
+      // The merged closed polygon carries a fill color
+      expect(FillColorComponent.getOptional(polys[0])).toBe(DEFAULT_COLOR);
+      expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
+
+      // Constraint locked to the old polygon points is removed
+      expect(geometryStore.findConstraintsByGeometryId(polygonId)).toHaveLength(0);
+      expect(geometryStore.getById(constraintId)).toBeNull();
+    });
+  });
+
+  describe('Pattern filter (grid)', () => {
+    it('applies a 2x2 grid to a rectangle, producing four rectangles', async () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+          fillColor: DEFAULT_COLOR,
+        }),
+      ) as Rectangle;
+
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createGrid(rect.id, new SheetPosition(0, 0), new SheetPosition(10, 10), {
+          xRepeats: 2,
+          yRepeats: 2,
+        }),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      const shapes = geometryStore.listWithComponent(GeometryComponent);
+      expect(shapes).toHaveLength(4);
+      expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
+      expect(shapes.every((g) => GeometryComponent.get(g).type === 'rectangle')).toBe(true);
+
+      const upperLefts = shapes.map((g) => {
+        const r = GeometryComponent.get(g);
+        return [r.upperLeft.x, r.upperLeft.y];
+      });
+      expect(upperLefts).toContainEqual([0, 0]);
+      expect(upperLefts).toContainEqual([10, 0]);
+      expect(upperLefts).toContainEqual([0, 10]);
+      expect(upperLefts).toContainEqual([10, 10]);
+    });
+
+    it('applies a 2x2 grid to an ellipse, producing four ellipses', async () => {
+      const ellipse = geometryStore.addOrdered(
+        ID_PREFIXES.ellipse,
+        Ellipse.create(new SheetPosition(5, 5), {
+          radiusX: 2,
+          radiusY: 2,
+          fillColor: DEFAULT_COLOR,
+        }),
+      ) as Ellipse;
+
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createGrid(ellipse.id, new SheetPosition(0, 0), new SheetPosition(10, 10), {
+          xRepeats: 2,
+          yRepeats: 2,
+        }),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      const ellipses = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.get(g).type === 'ellipse');
+      expect(ellipses).toHaveLength(4);
+      expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
+    });
+  });
+
+  describe('Pattern filter (radial)', () => {
+    it('applies a radial pattern to a rectangle, producing a rectangle and three closed polygons', async () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+          fillColor: DEFAULT_COLOR,
+        }),
+      ) as Rectangle;
+
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createRadial(rect.id, new SheetPosition(40, 40), 100, { count: 4 }),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      const shapes = geometryStore.listWithComponent(GeometryComponent);
+      expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
+
+      const rects = shapes.filter((g) => GeometryComponent.get(g).type === 'rectangle');
+      const polys = shapes.filter((g) => GeometryComponent.get(g).type === 'polygon');
+      expect(rects).toHaveLength(1);
+      expect(polys).toHaveLength(3);
+      expect(polys.every((p) => GeometryComponent.get(p).closed)).toBe(true);
+    });
+
+    it('applies a radial pattern to an ellipse, producing four ellipses', async () => {
+      const ellipse = geometryStore.addOrdered(
+        ID_PREFIXES.ellipse,
+        Ellipse.create(new SheetPosition(50, 40), {
+          radiusX: 5,
+          radiusY: 5,
+          fillColor: DEFAULT_COLOR,
+        }),
+      ) as Ellipse;
+
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createRadial(ellipse.id, new SheetPosition(40, 40), 100, { count: 4 }),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      const ellipses = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.get(g).type === 'ellipse');
+      expect(ellipses).toHaveLength(4);
+      expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
+    });
+
+    it('collapses an open polygon whose endpoints touch the radial ring into one closed polygon', async () => {
+      const poly = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(50, -50), makePoint(0, 50), makePoint(-50, -50)], {
+          closed: false,
+        }),
+      ) as Polygon;
+      const polygonId = poly.id;
+
+      const filterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createRadial(polygonId, new SheetPosition(0, 0), 100, { count: 4 }),
+      ).id;
+      selectionManager.select(filterId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      const polys = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.get(g).type === 'polygon');
+      expect(polys).toHaveLength(1);
+      expect(polys[0].id).toBe(polygonId);
+      expect(GeometryComponent.get(polys[0]).closed).toBe(true);
+      expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
+    });
+  });
+
+  describe('Multiple filters', () => {
+    it('applies a fillet then a mirror on the same rectangle, resolving the mirror against the converted polygon', async () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
+          fillColor: DEFAULT_COLOR,
+        }),
+      ) as Rectangle;
+
+      const filletFilterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnRectangle(
+          rect.id,
+          'lowerLeft',
+          'upperLeft',
+          'upperRight',
+          Length.centimeters(20),
+        ),
+      ).id;
+      const mirrorFilterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(rect.id, new SheetPosition(0, 0), new SheetPosition(0, 100)),
+      ).id;
+      selectionManager.select(filletFilterId);
+      selectionManager.select(mirrorFilterId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      // Source rect became a filleted polygon, and the mirror copied it
+      const polys = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.get(g).type === 'polygon');
+      expect(polys).toHaveLength(2);
+      expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
     });
   });
 });
