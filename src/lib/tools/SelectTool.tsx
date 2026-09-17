@@ -838,7 +838,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
-        const afterPoint = world.toSheet();
+        const afterPoint = applySnappingOnConstrainedTrack(
+          world.toSheet(),
+          this.draggingConstrainedTrackResult,
+          {
+            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+            ctrlHeld: this.toolManager.getCtrlHeld(),
+            superHeld: false,
+            selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(polygonId),
+            viewportScale: liveViewport.scale,
+          },
+          this.getSheet()?.epsilon ?? 0.001,
+        );
 
         if (
           this.draggingPolygonId &&
@@ -1074,7 +1086,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
-        const afterPoint = world.toSheet();
+        const afterPoint = applySnapping(world.toSheet(), {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          ctrlHeld: this.toolManager.getCtrlHeld(),
+          superHeld: false,
+          selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(polygonId),
+          viewportScale: liveViewport.scale,
+        });
         if (
           this.draggingPolygonId &&
           (beforePoint.x !== afterPoint.x || beforePoint.y !== afterPoint.y)

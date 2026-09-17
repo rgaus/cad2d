@@ -558,6 +558,70 @@ describe('SelectTool', () => {
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
+
+    it('records the SNAPPED position (not the raw mouse position) when a vertex snaps to a filter edge, surviving undo/redo', () => {
+      // Open polygon well away from the mirror line
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            { type: 'point' as const, point: new SheetPosition(10, 10) },
+            { type: 'point' as const, point: new SheetPosition(15, 10) },
+            { type: 'point' as const, point: new SheetPosition(20, 15) },
+          ],
+          { closed: false, openAtIndex: 0 },
+        ),
+      ) as Polygon;
+
+      // Attach a mirror filter whose line runs horizontally at y=5
+      geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(polygon.id, new SheetPosition(0, 5), new SheetPosition(20, 5)),
+      );
+
+      const viewport = viewportControls.getState().viewport;
+      const vertexScreen = new SheetPosition(10, 10).toScreen(viewport);
+
+      // Drag vertex 0 toward a point JUST off the mirror line (y=5.05) so it snaps onto it
+      const targetSheet = new SheetPosition(12, 5.05);
+      const moveScreen = targetSheet.toScreen(viewport);
+
+      selectTool.onVertexPointerDown(vertexScreen, viewportControls, polygon.id, 0);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      // The vertex snapped onto the mirror line (y == 5), not the raw 5.05
+      const livePolygon = GeometryComponent.get(
+        geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!,
+      );
+      if (livePolygon.type !== 'polygon') {
+        throw new Error('Expected polygon');
+      }
+      const liveY = livePolygon.points[0].point.y;
+      expect(liveY).toBeCloseTo(5, 3);
+
+      // Undo returns the vertex to its original position
+      historyManager.undo();
+      const undone = GeometryComponent.get(
+        geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!,
+      );
+      if (undone.type !== 'polygon') {
+        throw new Error('Expected polygon');
+      }
+      expect(undone.points[0].point.y).toBeCloseTo(10, 3);
+
+      // Redo must restore the SNAPPED position so the vertex stays exactly on the
+      // mirror line (and the filter's dynamic fill-sync can engage).
+      historyManager.redo();
+      const redone = GeometryComponent.get(
+        geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!,
+      );
+      if (redone.type !== 'polygon') {
+        throw new Error('Expected polygon');
+      }
+      expect(redone.points[0].point.y).toBe(liveY);
+      expect(redone.points[0].point.y).toBeCloseTo(5, 3);
+    });
   });
 
   describe('corner handle resize', () => {
