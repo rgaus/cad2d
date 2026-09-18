@@ -279,7 +279,8 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           if (!GeometryComponent.isPolygon(old)) {
             return old;
           }
-          return GeometryComponent.update(old, { points: entry.afterSegments });
+          const updated = GeometryComponent.update(old, { points: entry.afterSegments });
+          return this.geometryStore!.resyncGeometryFillColor(updated);
         });
         break;
       case 'rectangle-move':
@@ -303,7 +304,8 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
             ...segments[entry.segmentIndex],
             point: entry.afterPoint,
           };
-          return GeometryComponent.update(old, { points: segments });
+          const updated = GeometryComponent.update(old, { points: segments });
+          return this.geometryStore!.resyncGeometryFillColor(updated);
         });
         break;
       }
@@ -316,7 +318,8 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           const segments = [...data.points];
           const seg = segments[entry.segmentIndex] as any;
           segments[entry.segmentIndex] = { ...seg, [entry.pointKey]: entry.afterPoint };
-          return GeometryComponent.update(old, { points: segments });
+          const updated = GeometryComponent.update(old, { points: segments });
+          return this.geometryStore!.resyncGeometryFillColor(updated);
         });
         break;
       }
@@ -332,7 +335,8 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
               ...segments[move.segmentIndex],
               point: move.afterPoint,
             };
-            return GeometryComponent.update(old, { points: segments });
+            const updated = GeometryComponent.update(old, { points: segments });
+            return this.geometryStore!.resyncGeometryFillColor(updated);
           });
         }
         break;
@@ -688,7 +692,9 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           if (!GeometryComponent.isPolygon(old)) {
             return old;
           }
-          return GeometryComponent.update(old, { points: entry.beforeSegments });
+          const updated = GeometryComponent.update(old, { points: entry.beforeSegments });
+
+          return this.geometryStore!.resyncGeometryFillColor(updated);
         });
         break;
       case 'rectangle-move':
@@ -712,7 +718,8 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
             ...segments[entry.segmentIndex],
             point: entry.beforePoint,
           };
-          return GeometryComponent.update(old, { points: segments });
+          const updated = GeometryComponent.update(old, { points: segments });
+          return this.geometryStore!.resyncGeometryFillColor(updated);
         });
         break;
       }
@@ -741,7 +748,8 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
               ...segments[move.segmentIndex],
               point: move.beforePoint,
             };
-            return GeometryComponent.update(old, { points: segments });
+            const updated = GeometryComponent.update(old, { points: segments });
+            return this.geometryStore!.resyncGeometryFillColor(updated);
           });
         }
         break;

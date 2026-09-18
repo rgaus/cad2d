@@ -493,57 +493,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * Does NOT record to history. Used by HistoryManager redo.
    */
   addDirect(entity: Entity): void {
-    console.log('ADD DIRECT', entity);
-
-    // // Special case: before inserting a geometry, check to see if it's a non closed polygon which is
-    // // being mirrored over a line / etc via a filter, and if it is, then add the required
-    // // FillColorComponent.
-    // if (Entity.hasComponent(entity, GeometryComponent)) {
-    //   const filters = this.listWithComponent(FilterComponent);
-    //   if (filters.length > 0) {
-    //     const geometryIds = new Set(
-    //       filters
-    //         .map((f) => FilterComponent.get(f).geometryId)
-    //         .filter((id) => entity.id === id)
-    //     );
-
-    //     let acc = entity;
-    //     for (const geometryId of geometryIds) {
-    //       const geometry = this.getByIdWithComponent(geometryId, GeometryComponent);
-    //       console.log('geom:', geometryId, geometry);
-    //       if (!geometry) {
-    //         continue;
-    //       }
-    //       const [output] = FilterComponent.syncFillColor(
-    //         acc,
-    //         this.findFiltersByGeometryId(geometryId),
-    //       );
-    //       if (output !== entity) {
-    //         acc = output;
-    //       }
-    //     }
-    //     entity = acc;
-    //   }
-    // }
-
-    // Special case: before inserting a geometry, check to see if it's a non closed polygon which is
-    // being mirrored over a line / etc via a filter, and if it is, then add the required
-    // FillColorComponent.
-    if (Entity.hasComponent(entity, FilterComponent)) {
-      const geometryId = FilterComponent.get(entity).geometryId;
-      const geometry = this.getByIdWithComponent(geometryId, GeometryComponent);
-      console.log('geom:', geometryId, geometry);
-      if (geometry) {
-        const [output] = FilterComponent.syncFillColor(
-          geometry,
-          this.findFiltersByGeometryId(geometryId),
-        );
-        if (output !== geometry) {
-          this.updateByIdDirect(geometryId, output);
-        }
-      }
-    }
-
     this.geometryById.set(entity.id, entity);
 
     if (
@@ -691,6 +640,38 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     this.geometryById.clear();
     this.dcelIndex = new DCELShapeIndex();
     this._debouncedDcelUpdaters.clear();
+  }
+
+  /** When changing the positioning of an open polygon which could be mirrored / patterned via a
+    * filter to form a closed polygon, recomputes whether the {@link FillColorComponent} should be
+    * added or not. */
+  resyncGeometryFillColor(entity: Entity<GeometryComponent>) {
+    const filters = this.listWithComponent(FilterComponent);
+    if (filters.length === 0) {
+      return entity;
+    }
+    const geometryIds = new Set(
+      filters
+        .map((f) => FilterComponent.get(f).geometryId)
+        .filter((id) => entity.id === id)
+    );
+
+    for (const geometryId of geometryIds) {
+      const geometry = this.getByIdWithComponent(geometryId, GeometryComponent);
+      console.log('geom:', geometryId, geometry);
+      if (!geometry) {
+        continue;
+      }
+      const [output] = FilterComponent.syncFillColor(
+        entity,
+        this.findFiltersByGeometryId(geometryId),
+      );
+      if (output !== entity) {
+        entity = output;
+      }
+    }
+
+    return entity;
   }
 
   /**
