@@ -41,25 +41,34 @@ export class OpenClosePolygonAction extends BaseAction {
       return;
     }
 
-    historyManager.applyTransaction('open-close-polygon', () => {
-      for (const id of selectedIds) {
-        const polygon = geometryStore.getByIdWithComponent(id, GeometryComponent);
-        if (!polygon) {
-          continue;
+    historyManager.applyTransaction(
+      'open-close-polygon',
+      () => {
+        for (const id of selectedIds) {
+          const polygon = geometryStore.getByIdWithComponent(id, GeometryComponent);
+          if (!polygon) {
+            continue;
+          }
+          const geomData = GeometryComponent.get(polygon);
+          if (geomData.type !== 'polygon') {
+            continue;
+          }
+          const data = geomData;
+          if (data.points.length < 3) {
+            continue;
+          }
+          if (data.closed) {
+            historyManager.apply(UndoEntry.polygonClose(id, true, false));
+          } else {
+            historyManager.apply(UndoEntry.polygonClose(id, false, true));
+          }
+          return;
         }
-        const geomData = GeometryComponent.get(polygon);
-        if (geomData.type !== 'polygon') {
-          continue;
-        }
-        const data = geomData;
-        if (data.points.length < 3) return;
-        if (data.closed) {
-          historyManager.apply(UndoEntry.polygonClose(id, true, false));
-        } else {
-          historyManager.apply(UndoEntry.polygonClose(id, false, true));
-        }
-        return;
-      }
-    });
+      },
+      // If nothing was toggled (e.g. the selection no longer contains a
+      // valid polygon), do not push an undo frame: undoing an empty
+      // transaction is a silent no-op.
+      { omitIfEmpty: true },
+    );
   }
 }
