@@ -426,9 +426,13 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
           if (!GeometryComponent.isPolygon(geometry)) {
             return false;
           }
-          return GeometryComponent.get(geometry).points.every((p, i) =>
-            PolygonSegment.equals(p, mainPoints[i]),
-          );
+          const candidatePoints = GeometryComponent.get(geometry).points;
+          // Only compare polygons with the same vertex count — evaluating
+          // .every() over a longer polygon would index past mainPoints.
+          if (candidatePoints.length !== mainPoints.length) {
+            return false;
+          }
+          return candidatePoints.every((p, i) => PolygonSegment.equals(p, mainPoints[i]));
         });
       let mainPolygonId: Id | undefined;
       if (
