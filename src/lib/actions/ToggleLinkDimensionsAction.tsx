@@ -58,59 +58,65 @@ export class ToggleLinkDimensionsAction extends BaseAction {
       return;
     }
 
-    historyManager.applyTransaction('toggle-link-dimensions', () => {
-      for (const id of selectedIds) {
-        const geometry = geometryStore.getById(id);
-        if (!geometry) {
-          continue;
-        }
-
-        if (
-          Entity.hasComponent(geometry, GeometryComponent) &&
-          Entity.hasComponent(geometry, LinkDimensionsComponent)
-        ) {
-          const geomData = GeometryComponent.get(geometry as Entity<GeometryComponent>);
-
-          if (geomData.type === 'rectangle') {
-            const rectData = geomData;
-            const newLink = !LinkDimensionsComponent.get(geometry);
-            if (newLink) {
-              const w = rectData.lowerRight.x - rectData.upperLeft.x;
-              const h = rectData.lowerRight.y - rectData.upperLeft.y;
-              const dimension = Math.max(w, h);
-              geometryStore.setLinkDimensions(geometry.id, true);
-              geometryStore.updateById(geometry.id, (old) =>
-                GeometryComponent.update(old as Entity<GeometryComponent<RectangleData>>, {
-                  lowerRight: new SheetPosition(
-                    rectData.upperLeft.x + dimension,
-                    rectData.upperLeft.y + dimension,
-                  ),
-                }),
-              );
-            } else {
-              geometryStore.setLinkDimensions(geometry.id, false);
-            }
+    historyManager.applyTransaction(
+      'toggle-link-dimensions',
+      () => {
+        for (const id of selectedIds) {
+          const geometry = geometryStore.getById(id);
+          if (!geometry) {
             continue;
           }
 
-          if (geomData.type === 'ellipse') {
-            const ellipseData = geomData;
-            const newLink = !LinkDimensionsComponent.get(geometry);
-            if (newLink) {
-              geometryStore.setLinkDimensions(geometry.id, true);
-              geometryStore.updateById(geometry.id, (old) =>
-                GeometryComponent.update(old as Entity<GeometryComponent<EllipseData>>, {
-                  radiusX: ellipseData.radiusX,
-                  radiusY: ellipseData.radiusX,
-                }),
-              );
-            } else {
-              geometryStore.setLinkDimensions(geometry.id, false);
+          if (
+            Entity.hasComponent(geometry, GeometryComponent) &&
+            Entity.hasComponent(geometry, LinkDimensionsComponent)
+          ) {
+            const geomData = GeometryComponent.get(geometry as Entity<GeometryComponent>);
+
+            if (geomData.type === 'rectangle') {
+              const rectData = geomData;
+              const newLink = !LinkDimensionsComponent.get(geometry);
+              if (newLink) {
+                const w = rectData.lowerRight.x - rectData.upperLeft.x;
+                const h = rectData.lowerRight.y - rectData.upperLeft.y;
+                const dimension = Math.max(w, h);
+                geometryStore.setLinkDimensions(geometry.id, true);
+                geometryStore.updateById(geometry.id, (old) =>
+                  GeometryComponent.update(old as Entity<GeometryComponent<RectangleData>>, {
+                    lowerRight: new SheetPosition(
+                      rectData.upperLeft.x + dimension,
+                      rectData.upperLeft.y + dimension,
+                    ),
+                  }),
+                );
+              } else {
+                geometryStore.setLinkDimensions(geometry.id, false);
+              }
+              continue;
             }
-            continue;
+
+            if (geomData.type === 'ellipse') {
+              const ellipseData = geomData;
+              const newLink = !LinkDimensionsComponent.get(geometry);
+              if (newLink) {
+                geometryStore.setLinkDimensions(geometry.id, true);
+                geometryStore.updateById(geometry.id, (old) =>
+                  GeometryComponent.update(old as Entity<GeometryComponent<EllipseData>>, {
+                    radiusX: ellipseData.radiusX,
+                    radiusY: ellipseData.radiusX,
+                  }),
+                );
+              } else {
+                geometryStore.setLinkDimensions(geometry.id, false);
+              }
+              continue;
+            }
           }
         }
-      }
-    });
+      },
+      // If nothing was toggled (e.g. only polygons were selected), do not
+      // push an undo frame: undoing an empty transaction is a silent no-op.
+      { omitIfEmpty: true },
+    );
   }
 }
