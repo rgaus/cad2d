@@ -585,6 +585,60 @@ describe('TrimSplitTool', () => {
       expect(polygonData.points[1].point.y).toBeCloseTo(100, 0);
     });
 
+    it('skips a degenerate trim whose boundary retraces an untouched shape (gh fuzz bug)', () => {
+      // Regression for the fuzzer bug where trimming an edge that overlaps an
+      // untouched rectangle produced a merged boundary that retraced the
+      // rectangle's edges. Re-registering that boundary corrupted the DCEL
+      // shared-edge ref counts and crashed undo/redo with
+      // "linkNext: half-edge does not exist". The trim should now be skipped
+      // (geometry left unchanged) with a console.warn.
+      geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(5.497, 25.771), new SheetPosition(7.409, 36.34)),
+      );
+      geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            makePoint(3.126, 54.906),
+            makePoint(5.093, 40.035),
+            makePoint(6.522, 9.195),
+            makePoint(13.767, 10.635),
+          ],
+          { closed: true },
+        ),
+      );
+
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      // Cursor placed at the fuzz artifact's trim point.
+      toolManager.handleMouseMove(sheetToScreen(8.44, 24.126, viewport), viewport);
+      toolManager.handleMouseDown(sheetToScreen(8.44, 24.126, viewport), viewport);
+
+      // The trim is skipped: no new polygons are created and the rectangle
+      // remains untouched.
+      const polygons = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.isPolygon(g as Entity<GeometryComponent>));
+      expect(polygons).toHaveLength(1);
+
+      const rects = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.get(g as Entity<GeometryComponent>).type === 'rectangle');
+      expect(rects).toHaveLength(1);
+
+      // A warning explains why nothing happened.
+      expect(warnSpy).toHaveBeenCalled();
+      const warned = warnSpy.mock.calls.join(' ');
+      expect(warned).toContain('skipped');
+
+      // Undo/redo round-trip must not crash.
+      historyManager.undo();
+      historyManager.redo();
+
+      warnSpy.mockRestore();
+    });
+
     it('trims a rectangle with an inset circle to have a rounded / fillet corner', () => {
       geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
