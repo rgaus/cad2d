@@ -2332,6 +2332,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   ),
                 ),
               ]),
+              button('apply-filter', 'Apply filter...', {
+                onClick: () => {
+                  this.actionsManager?.execute('apply-filter-to-geometry');
+                },
+              }),
             ];
           }
           case 'fillet':
@@ -2502,6 +2507,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                     }),
                   ),
                 ]),
+                button('apply-filter', 'Apply filter...', {
+                  onClick: () => {
+                    this.actionsManager?.execute('apply-filter-to-geometry');
+                  },
+                }),
               ];
             } else {
               // geometryType === 'rectangle' -- render the corner key points as choice toggle
@@ -2590,6 +2600,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   keypointChoices('c', 'C:', 'pointCenterKeyPoint', filterData.pointCenterKeyPoint),
                   keypointChoices('b', 'B:', 'pointBKeyPoint', filterData.pointBKeyPoint),
                 ]),
+                button('apply-filter', 'Apply filter...', {
+                  onClick: () => {
+                    this.actionsManager?.execute('apply-filter-to-geometry');
+                  },
+                }),
               ];
             }
           }
@@ -2664,6 +2679,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                       }),
                     ]),
                   ]),
+                  button('apply-filter', 'Apply filter...', {
+                    onClick: () => {
+                      this.actionsManager?.execute('apply-filter-to-geometry');
+                    },
+                  }),
                 ];
               case 'radial':
                 return [
@@ -2862,6 +2882,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                       ),
                     ),
                   ]),
+                  button('apply-filter', 'Apply filter...', {
+                    onClick: () => {
+                      this.actionsManager?.execute('apply-filter-to-geometry');
+                    },
+                  }),
                 ];
               default:
                 return [];
