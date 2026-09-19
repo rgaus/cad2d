@@ -100,7 +100,7 @@ export default function ToolPalette({ toolManager }: ToolPaletteProps) {
 
   return (
     <div
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-[4px] px-2 py-2 bg-[var(--slate-1)]"
+      className="fixed bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-[4px] px-2 py-2 bg-[var(--slate-1)]"
       style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
       onMouseUp={(e) => {
         e.stopPropagation();
