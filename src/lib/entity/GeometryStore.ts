@@ -674,6 +674,28 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     return entity;
   }
 
+  /** When changing the position of a filter which is attached to geometries, recomputes whether the
+    * {@link FillColorComponent} component on the attached geometry needs to be added, removed, or
+    * left alone. */
+  resyncFilterAttachedGeometryFillColor(filter: Entity<FilterComponent>) {
+    // Special case: before inserting a geometry, check to see if it's a non closed polygon which is
+    // being mirrored over a line / etc via a filter, and if it is, then add the required
+    // FillColorComponent.
+    if (Entity.hasComponent(filter, FilterComponent)) {
+      const geometryId = FilterComponent.get(filter).geometryId;
+      const geometry = this.getByIdWithComponent(geometryId, GeometryComponent);
+      if (geometry) {
+        const [output] = FilterComponent.syncFillColor(
+          geometry,
+          this.findFiltersByGeometryId(geometryId),
+        );
+        if (output !== geometry) {
+          this.updateByIdDirect(geometryId, output);
+        }
+      }
+    }
+  }
+
   /**
    * Updates a geometry by id. Does NOT record to history - use updateById for that.
    * Internal version used by HistoryManager.

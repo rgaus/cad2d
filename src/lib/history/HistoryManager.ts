@@ -621,19 +621,27 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           DatumComponent.update(old, entry.after.position),
         );
         break;
-      case 'filter-change-offset':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+      case 'filter-change-offset': {
+        const updates = this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
           FilterComponent.update(g, { offset: entry.afterLength }),
         );
+        if (updates) {
+          this.geometryStore.resyncFilterAttachedGeometryFillColor(updates[1 /* after */]);
+        }
         break;
-      case 'mirror-filter-move-endpoints':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+      }
+      case 'mirror-filter-move-endpoints': {
+        const updates = this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
           FilterComponent.update(g, {
             pointA: entry.afterPointA,
             pointB: entry.afterPointB,
           }),
         );
+        if (updates) {
+          this.geometryStore.resyncFilterAttachedGeometryFillColor(updates[1 /* after */]);
+        }
         break;
+      }
       case 'frame-move': {
         const geom = this.geometryStore.getById(entry.id);
         if (!geom || !Entity.hasComponent(geom, FrameComponent)) {
@@ -650,11 +658,15 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         });
         break;
       }
-      case 'pattern-radial-filter-move-center':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+      case 'pattern-radial-filter-move-center': {
+        const updates = this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
           FilterComponent.update(g, { center: entry.afterCenter }),
         );
+        if (updates) {
+          this.geometryStore.resyncFilterAttachedGeometryFillColor(updates[1 /* after */]);
+        }
         break;
+      }
       default:
         entry satisfies never;
         break;
@@ -1046,19 +1058,27 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           DatumComponent.update(old, entry.before.position),
         );
         break;
-      case 'filter-change-offset':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+      case 'filter-change-offset': {
+        const updates = this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
           FilterComponent.update(g, { offset: entry.beforeLength }),
         );
+        if (updates) {
+          this.geometryStore.resyncFilterAttachedGeometryFillColor(updates[1 /* after */]);
+        }
         break;
-      case 'mirror-filter-move-endpoints':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+      }
+      case 'mirror-filter-move-endpoints': {
+        const updates = this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
           FilterComponent.update(g, {
             pointA: entry.beforePointA,
             pointB: entry.beforePointB,
           }),
         );
+        if (updates) {
+          this.geometryStore.resyncFilterAttachedGeometryFillColor(updates[1 /* after */]);
+        }
         break;
+      }
       case 'frame-move': {
         const geom = this.geometryStore.getById(entry.id);
         if (!geom || !Entity.hasComponent(geom, FrameComponent)) {
@@ -1075,11 +1095,15 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         });
         break;
       }
-      case 'pattern-radial-filter-move-center':
-        this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
+      case 'pattern-radial-filter-move-center': {
+        const updates = this.geometryStore.updateByIdWithComponentDirect(entry.id, FilterComponent, (g) =>
           FilterComponent.update(g, { center: entry.beforeCenter }),
         );
+        if (updates) {
+          this.geometryStore.resyncFilterAttachedGeometryFillColor(updates[1 /* after */]);
+        }
         break;
+      }
       default:
         entry satisfies never;
         break;
