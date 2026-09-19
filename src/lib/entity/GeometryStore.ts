@@ -658,7 +658,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     for (const geometryId of geometryIds) {
       const geometry = this.getByIdWithComponent(geometryId, GeometryComponent);
-      console.log('geom:', geometryId, geometry);
       if (!geometry) {
         continue;
       }
