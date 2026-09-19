@@ -2193,22 +2193,37 @@ export class DCELShapeIndex {
           prevVId = interVId;
         }
 
+        const lastSplit = splitsOnThisEdge[splitsOnThisEdge.length - 1];
+        // When the final segment would close with a zero-length self-loop edge
+        // (prevVId === destId) because the last split point resolved to the
+        // candidate's own destination, the real prevVId -> destId edge was
+        // already added by the split loop above. If that split came from a
+        // colinear-duplicate contact (dest-of-new meets origin-of-existing,
+        // u≈0), the trailing self-loop is a degenerate artifact that orphans
+        // half-edge pairs and corrupts DCEL ref counts. Skip it. (Splits at
+        // u≈1 are load-bearing shared-edge endpoints used by colinear merges.)
+        const selfLoopOnly =
+          prevVId === candidate.destId &&
+          typeof lastSplit !== 'undefined' &&
+          lastSplit.uOnExisting < 0.5;
         // Final segment from last split point to destination
-        if (remainingCtx) {
-          this.edgeKeyToCurveContext.set(
-            this._dcel.getEdgeKey(prevVId, candidate.destId),
-            remainingCtx,
-          );
-        }
+        if (!selfLoopOnly) {
+          if (remainingCtx) {
+            this.edgeKeyToCurveContext.set(
+              this._dcel.getEdgeKey(prevVId, candidate.destId),
+              remainingCtx,
+            );
+          }
 
-        const [ab, ba] = this._dcel.addEdge(prevVId, candidate.destId);
-        halfEdgeIds.push(ab, ba);
-        edgePairs.push({ originId: prevVId, destId: candidate.destId });
+          const [ab, ba] = this._dcel.addEdge(prevVId, candidate.destId);
+          halfEdgeIds.push(ab, ba);
+          edgePairs.push({ originId: prevVId, destId: candidate.destId });
 
-        if (lastHalfEdgeId !== null) {
-          this._dcel.linkNext(lastHalfEdgeId, ab);
+          if (lastHalfEdgeId !== null) {
+            this._dcel.linkNext(lastHalfEdgeId, ab);
+          }
+          lastHalfEdgeId = ab;
         }
-        lastHalfEdgeId = ab;
       }
     }
 
