@@ -65,6 +65,36 @@ type EdgeCurveContext =
   | { type: 'quadratic'; controlPoint: SheetPosition }
   | { type: 'cubic'; controlPointA: SheetPosition; controlPointB: SheetPosition };
 
+// Distance threshold below which a computed intersection point is treated
+// as coincident with an existing vertex. The segment intersection solver can
+// return a point a few epsilon-units away from a real shared vertex; without
+// snapping, _registerShape Phase 4 would mint a near-duplicate vertex and
+// split an existing edge AT its own endpoint, producing degenerate zero-length
+// edges and duplicate half-edge pairs for the same edge key.
+const SPLIT_ENDPOINT_EPSILON = 1e-9;
+
+/**
+ * Snap a query point onto the closest of the given vertex positions when that
+ * vertex is within `SPLIT_ENDPOINT_EPSILON`. Used to absorb floating-point
+ * noise so computed intersection points coincide exactly with the existing
+ * vertices they geometrically share.
+ */
+function snapPointToNearbyVertex(
+  point: SheetPosition,
+  vertices: Array<SheetPosition>,
+): SheetPosition {
+  let best: SheetPosition | null = null;
+  let bestDist = SPLIT_ENDPOINT_EPSILON;
+  for (const v of vertices) {
+    const d = Vector2.distance(point, v);
+    if (d < bestDist) {
+      bestDist = d;
+      best = v;
+    }
+  }
+  return best ?? point;
+}
+
 namespace EdgeCurveContext {
   export function split(
     start: SheetPosition,
@@ -1815,7 +1845,7 @@ export class DCELShapeIndex {
           existingSegment,
         );
 
-        for (const [point, tOnNew, uOnExisting] of allSegmentIntersections) {
+        for (const [rawPoint, tOnNew, uOnExisting] of allSegmentIntersections) {
           // When intersecting against a curved existing edge, the cubic-line
           // solver may return endpoint touches (t≈0/t≈1) for colocated edges.
           // These cause Phase 5 to double-add edges — filter them here.
@@ -1824,6 +1854,21 @@ export class DCELShapeIndex {
           if (existing.curveContext && (tOnNew <= 0 || tOnNew >= 1)) {
             continue;
           }
+
+          // Snap the intersection point onto an existing shared vertex when
+          // it lands within floating-point noise of one. The solver can
+          // report a point ~1e-13 away from a vertex that the two shapes
+          // genuinely share; leaving the point "almost coincident" makes
+          // addVertex() mint a duplicate vertex an instant later, and then
+          // Phase 4 tries to split an existing edge AT its own endpoint —
+          // or two adjacent edges at the SAME phantom point, producing two
+          // half-edge pairs for one edge key (corrupting ref counts).
+          const point = snapPointToNearbyVertex(rawPoint, [
+            existing.originPos,
+            existing.destPos,
+            candidate.originPos,
+            candidate.destPos,
+          ]);
 
           allIntersections.push({
             point,
@@ -2148,22 +2193,37 @@ export class DCELShapeIndex {
           prevVId = interVId;
         }
 
+        const lastSplit = splitsOnThisEdge[splitsOnThisEdge.length - 1];
+        // When the final segment would close with a zero-length self-loop edge
+        // (prevVId === destId) because the last split point resolved to the
+        // candidate's own destination, the real prevVId -> destId edge was
+        // already added by the split loop above. If that split came from a
+        // colinear-duplicate contact (dest-of-new meets origin-of-existing,
+        // u≈0), the trailing self-loop is a degenerate artifact that orphans
+        // half-edge pairs and corrupts DCEL ref counts. Skip it. (Splits at
+        // u≈1 are load-bearing shared-edge endpoints used by colinear merges.)
+        const selfLoopOnly =
+          prevVId === candidate.destId &&
+          typeof lastSplit !== 'undefined' &&
+          lastSplit.uOnExisting < 0.5;
         // Final segment from last split point to destination
-        if (remainingCtx) {
-          this.edgeKeyToCurveContext.set(
-            this._dcel.getEdgeKey(prevVId, candidate.destId),
-            remainingCtx,
-          );
-        }
+        if (!selfLoopOnly) {
+          if (remainingCtx) {
+            this.edgeKeyToCurveContext.set(
+              this._dcel.getEdgeKey(prevVId, candidate.destId),
+              remainingCtx,
+            );
+          }
 
-        const [ab, ba] = this._dcel.addEdge(prevVId, candidate.destId);
-        halfEdgeIds.push(ab, ba);
-        edgePairs.push({ originId: prevVId, destId: candidate.destId });
+          const [ab, ba] = this._dcel.addEdge(prevVId, candidate.destId);
+          halfEdgeIds.push(ab, ba);
+          edgePairs.push({ originId: prevVId, destId: candidate.destId });
 
-        if (lastHalfEdgeId !== null) {
-          this._dcel.linkNext(lastHalfEdgeId, ab);
+          if (lastHalfEdgeId !== null) {
+            this._dcel.linkNext(lastHalfEdgeId, ab);
+          }
+          lastHalfEdgeId = ab;
         }
-        lastHalfEdgeId = ab;
       }
     }
 

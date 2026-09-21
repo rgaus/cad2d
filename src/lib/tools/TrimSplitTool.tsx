@@ -344,6 +344,31 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
       return;
     }
 
+    // Detect a degenerate trim whose reconstructed boundary merely retraces an
+    // untouched shape's edges. The combined boundary should follow the outlines
+    // of the shapes being trimmed (the `shapeIds` set). If NONE of the boundary
+    // vertices belong to an affected shape, the walk has wandered onto unrelated
+    // geometry (e.g. an overlapping shape that was never meant to be trimmed),
+    // and "merging" the boundary back into a new polygon would duplicate that
+    // shape, corrupting the DCEL's shared-edge ref counts (a later undo/redo
+    // crashes with "linkNext: half-edge does not exist").
+    //
+    // In that ambiguous case the least-bad outcome is to leave all shapes
+    // untouched rather than produce a corrupt merged region.
+    const boundaryHasAffectedVertex = boundary.result.some((he) =>
+      dcelIndex.computeShapesForVertexId(he.originId).some((entry) => shapeIds.includes(entry.id)),
+    );
+    if (!boundaryHasAffectedVertex) {
+      console.warn(
+        '[trim-split] skipped: combined boundary (',
+        boundary.result.length,
+        'edges) does not touch any of the affected shapes (',
+        shapeIds.join(', '),
+        '). Likely trimming an overlapping shape by mistake — leaving geometry unchanged.',
+      );
+      return;
+    }
+
     // Build a set of edge keys from the combined boundary for fast lookup.
     // We use edge keys (canonical origin↔dest) rather than half-edge IDs
     // because the boundary may use the twin of a loop edge in the face loop.
@@ -426,9 +451,13 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
           if (!GeometryComponent.isPolygon(geometry)) {
             return false;
           }
-          return GeometryComponent.get(geometry).points.every((p, i) =>
-            PolygonSegment.equals(p, mainPoints[i]),
-          );
+          const candidatePoints = GeometryComponent.get(geometry).points;
+          // Only compare polygons with the same vertex count — evaluating
+          // .every() over a longer polygon would index past mainPoints.
+          if (candidatePoints.length !== mainPoints.length) {
+            return false;
+          }
+          return candidatePoints.every((p, i) => PolygonSegment.equals(p, mainPoints[i]));
         });
       let mainPolygonId: Id | undefined;
       if (
