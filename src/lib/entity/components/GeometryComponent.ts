@@ -37,7 +37,7 @@ export type RenderShapeEllipse = {
   radiusY: number;
 };
 
-export type GetRenderShapesOptions = {
+export type GetRenderShapesOptions<D extends GeometryData = GeometryData> = {
   /** Defaults to true. When set to false, a non closed polygon which would become closed (ie,
    * polygon mirrored over a mirror line) will be returned as two distinct polygons (one
    * primary, one not) so that the two halves can be rendered differently. */
@@ -48,7 +48,11 @@ export type GetRenderShapesOptions = {
    * `RectangleEndpoint` corners for rectangles), and valued with every destination point that
    * feature maps to across the returned render shapes. Omit to skip this bookkeeping entirely.
    */
-  destinationPointMapping?: Map<number | RectangleEndpoint, Array<DestinationPoint>>;
+  destinationPointMapping?: Map<
+    | (D extends PolygonData ? number : never)
+    | (D extends RectangleData ? RectangleEndpoint : never),
+    Array<DestinationPoint>
+  >,
 };
 
 export type DestinationPoint =
@@ -426,15 +430,15 @@ export namespace GeometryComponent {
     pattern: 2,
   };
 
-  export function getRenderShapes(
-    geometry: Entity<GeometryComponent<GeometryData>>,
+  export function getRenderShapes<D extends GeometryData = GeometryData>(
+    geometry: Entity<GeometryComponent<D>>,
     sheetDefaultUnit: UnitType,
     filters: Array<Filter> = [],
-    options: GetRenderShapesOptions = { combineNonClosedPolygons: true },
+    options: GetRenderShapesOptions<D> = { combineNonClosedPolygons: true },
   ): Array<RenderShape> {
     let shapes;
 
-    const mapping = options.destinationPointMapping;
+    const mapping = options.destinationPointMapping as GetRenderShapesOptions<GeometryData>['destinationPointMapping'];
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
