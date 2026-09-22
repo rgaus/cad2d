@@ -2,12 +2,13 @@ import { BoundingBox, closestPointOnSegment } from '@/lib/math';
 import { lineLineIntersection } from '@/lib/math/intersection';
 import { Angle } from '@/lib/units/angle';
 import { SheetPosition } from '@/lib/viewport/types';
-import { Entity, type Polygon, PolygonSegment } from '..';
+import { Entity, type Polygon, PolygonSegment, RectangleEndpoint } from '..';
 import { DEFAULT_COLOR } from '../colors';
 import { FillColorComponent } from '../components/FillColorComponent';
 import { FilterComponent } from '../components/FilterComponent';
 import { FrameComponent } from '../components/FrameComponent';
 import {
+  DestinationPoint,
   GeometryComponent,
   GetRenderShapesOptions,
   RenderShape,
@@ -31,6 +32,57 @@ export type PatternRadialFilterData = {
 };
 
 export type PatternFilterData = PatternGridFilterData | PatternRadialFilterData;
+
+const RECT_CORNER_NAMES: Array<RectangleEndpoint> = [
+  'upperLeft',
+  'upperRight',
+  'lowerRight',
+  'lowerLeft',
+];
+
+/**
+ * Records, for each source feature of `sourceShape` (polygon point indexes, rectangle corners),
+ * every copy destination it lands on. Each copy occupies `shapeIndex` = `1 + copyIndex` in the
+ * returned render-shapes array.
+ */
+function recordCopyDestinations(
+  mapping: Map<number | RectangleEndpoint, Array<DestinationPoint>>,
+  sourceShape: RenderShape,
+  copies: Array<RenderShape>,
+): void {
+  for (let copyIdx = 0; copyIdx < copies.length; copyIdx += 1) {
+    const copyShapeIndex = 1 + copyIdx;
+    switch (sourceShape.shape) {
+      case 'polygon':
+        for (let pi = 0; pi < sourceShape.points.length; pi += 1) {
+          const existing = mapping.get(pi) ?? [];
+          existing.push({ shapeIndex: copyShapeIndex, type: 'polygon', pointIndex: pi });
+          mapping.set(pi, existing);
+        }
+        break;
+      case 'rectangle': {
+        if (copies[copyIdx].shape === 'rectangle') {
+          for (const corner of RECT_CORNER_NAMES) {
+            const existing = mapping.get(corner) ?? [];
+            existing.push({ shapeIndex: copyShapeIndex, type: 'rectangle', corner });
+            mapping.set(corner, existing);
+          }
+        } else {
+          // Radial copies of a rectangle are polygons with corners in CCW order.
+          for (let j = 0; j < RECT_CORNER_NAMES.length; j += 1) {
+            const corner = RECT_CORNER_NAMES[j];
+            const existing = mapping.get(corner) ?? [];
+            existing.push({ shapeIndex: copyShapeIndex, type: 'polygon', pointIndex: j });
+            mapping.set(corner, existing);
+          }
+        }
+        break;
+      }
+      case 'ellipse':
+        break;
+    }
+  }
+}
 
 export namespace PatternFilter {
   /** Creates a new pattern filter, which takes a rectilinear region and repeats it a defined number
@@ -307,6 +359,12 @@ export namespace PatternFilter {
     generateFilterKey: () => string,
     options: GetRenderShapesOptions,
   ): Array<RenderShape> {
+    const mapping = options.destinationPointMapping;
+    // The destination-point mapping is keyed on the source geometry's features, so it can only
+    // be populated when the filter is applied to the un-transformed source shape array.
+    const populateMapping = typeof mapping !== 'undefined' && shapes.length === 1;
+    const sourceShape = shapes[0];
+
     switch (filterData.mode) {
       case 'grid': {
         if (!Entity.hasComponent(filter, FrameComponent)) {
@@ -419,6 +477,10 @@ export namespace PatternFilter {
                   );
               }
             }
+          }
+
+          if (populateMapping && renderShape === sourceShape) {
+            recordCopyDestinations(mapping, renderShape, copies);
           }
 
           return [renderShape, ...copies];
@@ -651,6 +713,10 @@ export namespace PatternFilter {
                   );
                 }
 
+                if (populateMapping && renderShape === sourceShape) {
+                  recordCopyDestinations(mapping, renderShape, copies);
+                }
+
                 return [renderShape, ...copies];
               }
               default:
@@ -659,6 +725,10 @@ export namespace PatternFilter {
                   `getRenderShapes pattern radial: Unknown render shape type ${(renderShape as any).shape}`,
                 );
             }
+          }
+
+          if (populateMapping && renderShape === sourceShape) {
+            recordCopyDestinations(mapping, renderShape, copies);
           }
 
           return [renderShape, ...copies];

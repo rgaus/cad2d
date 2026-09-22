@@ -643,17 +643,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   }
 
   /** When changing the positioning of an open polygon which could be mirrored / patterned via a
-    * filter to form a closed polygon, recomputes whether the {@link FillColorComponent} should be
-    * added or not. */
+   * filter to form a closed polygon, recomputes whether the {@link FillColorComponent} should be
+   * added or not. */
   resyncGeometryFillColor(entity: Entity<GeometryComponent>) {
     const filters = this.listWithComponent(FilterComponent);
     if (filters.length === 0) {
       return entity;
     }
     const geometryIds = new Set(
-      filters
-        .map((f) => FilterComponent.get(f).geometryId)
-        .filter((id) => entity.id === id)
+      filters.map((f) => FilterComponent.get(f).geometryId).filter((id) => entity.id === id),
     );
 
     for (const geometryId of geometryIds) {
@@ -674,8 +672,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   }
 
   /** When changing the position of a filter which is attached to geometries, recomputes whether the
-    * {@link FillColorComponent} component on the attached geometry needs to be added, removed, or
-    * left alone. */
+   * {@link FillColorComponent} component on the attached geometry needs to be added, removed, or
+   * left alone. */
   resyncFilterAttachedGeometryFillColor(filter: Entity<FilterComponent>) {
     // Special case: before inserting a geometry, check to see if it's a non closed polygon which is
     // being mirrored over a line / etc via a filter, and if it is, then add the required

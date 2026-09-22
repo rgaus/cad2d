@@ -8,6 +8,7 @@ import { type Geometry, type GeometryData } from '../geometry';
 import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
 import { RectangleData } from '../geometry/rectangle';
+import { RectangleEndpoint } from '../rectangle';
 import { type Entity, type EntityComponent, ResizeParams } from '../types';
 import { ConstraintComponent } from './ConstraintComponent';
 import { FilterComponent } from './FilterComponent';
@@ -41,7 +42,26 @@ export type GetRenderShapesOptions = {
    * polygon mirrored over a mirror line) will be returned as two distinct polygons (one
    * primary, one not) so that the two halves can be rendered differently. */
   combineNonClosedPolygons: boolean;
+  /**
+   * When provided, `getRenderShapes` (and any filter it applies) populates this map as a side
+   * effect, keyed by each feature of the source geometry (point `number` indexes for polygons,
+   * `RectangleEndpoint` corners for rectangles), and valued with every destination point that
+   * feature maps to across the returned render shapes. Omit to skip this bookkeeping entirely.
+   */
+  destinationPointMapping?: Map<number | RectangleEndpoint, Array<DestinationPoint>>;
 };
+
+export type DestinationPoint =
+  | {
+      shapeIndex: number;
+      type: 'polygon';
+      pointIndex: number;
+    }
+  | {
+      shapeIndex: number;
+      type: 'rectangle';
+      corner: RectangleEndpoint;
+    };
 
 export type RenderShape = RenderShapePolygon | RenderShapeRectangle | RenderShapeEllipse;
 
@@ -414,17 +434,35 @@ export namespace GeometryComponent {
   ): Array<RenderShape> {
     let shapes;
 
+    const mapping = options.destinationPointMapping;
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
         shapes = [
           RenderShape.polygon(geometry.id, state.points, { closed: state.closed, primary: true }),
         ];
+        if (mapping) {
+          for (let i = 0; i < state.points.length; i += 1) {
+            mapping.set(i, [{ shapeIndex: 0, type: 'polygon', pointIndex: i }]);
+          }
+        }
         break;
       case 'rectangle':
         shapes = [
           RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight, { primary: true }),
         ];
+        if (mapping) {
+          const cornerNames: Array<RectangleEndpoint> = [
+            'upperLeft',
+            'upperRight',
+            'lowerRight',
+            'lowerLeft',
+            'center',
+          ];
+          for (const corner of cornerNames) {
+            mapping.set(corner, [{ shapeIndex: 0, type: 'rectangle', corner }]);
+          }
+        }
         break;
       case 'ellipse':
         shapes = [

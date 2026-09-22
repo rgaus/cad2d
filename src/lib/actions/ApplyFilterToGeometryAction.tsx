@@ -19,7 +19,7 @@ import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { FillColorComponent } from '@/lib/entity/components/FillColorComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
-import { RenderShape } from '@/lib/entity/components/GeometryComponent';
+import { DestinationPoint, RenderShape } from '@/lib/entity/components/GeometryComponent';
 import { type ChamferFilterData } from '@/lib/entity/filters/chamfer';
 import { type FilletFilterData } from '@/lib/entity/filters/fillet';
 import { type MirrorFilterData } from '@/lib/entity/filters/mirror';
@@ -198,7 +198,9 @@ export class ApplyFilterToGeometryAction extends BaseAction {
             }
             default:
               filter satisfies never;
-              throw new Error(`ApplyFilterToGeometryAction.execute: Unknown filter type=${(filter as any).type}, is a case missing?`);
+              throw new Error(
+                `ApplyFilterToGeometryAction.execute: Unknown filter type=${(filter as any).type}, is a case missing?`,
+              );
           }
         }
       },
@@ -287,23 +289,47 @@ export class ApplyFilterToGeometryAction extends BaseAction {
       geometry = remapped;
     }
 
+    const destinationPointMapping = new Map<number | RectangleEndpoint, Array<DestinationPoint>>();
     const renderShapes = GeometryComponent.getRenderShapes(
       geometry,
       this.getSheet().defaultUnit,
       [filterGeom],
-      { combineNonClosedPolygons: true },
+      { combineNonClosedPolygons: true, destinationPointMapping },
     );
     if (renderShapes.length === 0) {
       return;
     }
 
+    const sourceId = geometry.id;
+    // Other filters (fillet/chamfer are the only filters that reference a geometry's
+    // points/keypoints) attached to the source geometry are remapped in place when the
+    // source is merged, or duplicated onto each generated copy otherwise.
+    const otherFilters = geometryStore
+      .findFiltersByGeometryId(sourceId)
+      .filter((f) => f.id !== filterGeom.id)
+      .filter((f) => {
+        const d = FilterComponent.get(f);
+        return d.type === 'fillet' || d.type === 'chamfer';
+      });
+
     const sourceFillColor = FillColorComponent.getOptional(geometry);
 
     if (renderShapes.length === 1) {
       this.mergeRenderShapeIntoGeometry(geometry, renderShapes[0], sourceFillColor);
+      this.migrateMergedGeometryFilters(sourceId, otherFilters, destinationPointMapping);
     } else {
-      for (const renderShape of renderShapes.slice(1)) {
-        this.addRenderShapeAsGeometry(renderShape, sourceFillColor);
+      for (let shapeIndex = 1; shapeIndex < renderShapes.length; shapeIndex += 1) {
+        const copyEntity = this.addRenderShapeAsGeometry(renderShapes[shapeIndex], sourceFillColor);
+        if (!copyEntity) {
+          continue;
+        }
+        this.duplicateFiltersOntoCopy(
+          sourceId,
+          copyEntity.id,
+          otherFilters,
+          destinationPointMapping,
+          shapeIndex,
+        );
       }
     }
 
@@ -370,31 +396,30 @@ export class ApplyFilterToGeometryAction extends BaseAction {
 
   /**
    * Adds a render shape to the store as a new piece of geometry, inheriting the
-   * source geometry's fill color.
+   * source geometry's fill color. Returns the created entity, or undefined if the
+   * render shape could not be added.
    */
   private addRenderShapeAsGeometry(
     renderShape: RenderShape,
     sourceFillColor: number | null | undefined,
-  ): void {
+  ): Entity | undefined {
     const fillColor = typeof sourceFillColor === 'number' ? sourceFillColor : DEFAULT_COLOR;
     switch (renderShape.shape) {
       case 'polygon':
-        this.getGeometryStore().addOrdered(
+        return this.getGeometryStore().addOrdered(
           ID_PREFIXES.polygon,
           Polygon.create(renderShape.points, { closed: renderShape.closed, fillColor }),
         );
-        break;
       case 'rectangle':
-        this.getGeometryStore().addOrdered(
+        return this.getGeometryStore().addOrdered(
           ID_PREFIXES.rectangle,
           Rectangle.create(renderShape.upperLeft, renderShape.lowerRight, {
             fillColor,
             linkDimensions: false,
           }),
         );
-        break;
       case 'ellipse':
-        this.getGeometryStore().addOrdered(
+        return this.getGeometryStore().addOrdered(
           ID_PREFIXES.ellipse,
           Ellipse.create(renderShape.center, {
             radiusX: renderShape.radiusX,
@@ -403,8 +428,176 @@ export class ApplyFilterToGeometryAction extends BaseAction {
             linkDimensions: false,
           }),
         );
-        break;
+      default:
+        renderShape satisfies never;
+        return undefined;
     }
+  }
+
+  /**
+   * Remaps fillet/chamfer filters attached to a geometry that has been merged into a single
+   * render shape (open polygon collapsed into one closed polygon). A merged polygon keeps its
+   * source points (0..n-1) in order, so the point indexes remain valid; this re-asserts them
+   * through the destination mapping for robustness against reordered merges.
+   */
+  private migrateMergedGeometryFilters(
+    sourceId: Id,
+    otherFilters: Array<Entity<FilterComponent>>,
+    destinationPointMapping: Map<number | RectangleEndpoint, Array<DestinationPoint>>,
+  ): void {
+    const geometryStore = this.getGeometryStore();
+    for (const f of otherFilters) {
+      const data = FilterComponent.get(f);
+      if (data.type !== 'fillet' && data.type !== 'chamfer') {
+        continue;
+      }
+      if (data.geometryType !== 'polygon') {
+        continue;
+      }
+      const center = this.findMergedPolygonIndex(data.pointCenterIndex, destinationPointMapping);
+      const a = this.findMergedPolygonIndex(data.pointAIndex, destinationPointMapping);
+      const b = this.findMergedPolygonIndex(data.pointBIndex, destinationPointMapping);
+      if (center === null || a === null || b === null) {
+        continue;
+      }
+      geometryStore.updateByIdWithComponent(f.id, FilterComponent, (g) =>
+        FilterComponent.update(g, {
+          pointCenterIndex: center,
+          pointAIndex: a,
+          pointBIndex: b,
+        }),
+      );
+    }
+  }
+
+  /** Looks up the primary-shape destination (source-half occurrence) for a source point index. */
+  private findMergedPolygonIndex(
+    sourceIndex: number,
+    destinationPointMapping: Map<number | RectangleEndpoint, Array<DestinationPoint>>,
+  ): number | null {
+    const dests = destinationPointMapping.get(sourceIndex);
+    if (!dests) {
+      return null;
+    }
+    const primary = dests.find((d) => d.shapeIndex === 0);
+    return primary && primary.type === 'polygon' ? primary.pointIndex : null;
+  }
+
+  /**
+   * Duplicates the fillet/chamfer filters attached to the source geometry onto a newly created
+   * mirror/pattern copy, remapping each referenced point index / keypoint through the destination
+   * mapping. The original filters keep referring to the (unchanged) source geometry.
+   */
+  private duplicateFiltersOntoCopy(
+    sourceId: Id,
+    copyId: Id,
+    otherFilters: Array<Entity<FilterComponent>>,
+    destinationPointMapping: Map<number | RectangleEndpoint, Array<DestinationPoint>>,
+    shapeIndex: number,
+  ): void {
+    for (const f of otherFilters) {
+      const data = FilterComponent.get(f);
+      if (data.type !== 'fillet' && data.type !== 'chamfer') {
+        continue;
+      }
+
+      if (data.geometryType === 'polygon') {
+        const center = this.findDestinationIndex(
+          data.pointCenterIndex,
+          destinationPointMapping,
+          shapeIndex,
+        );
+        const a = this.findDestinationIndex(data.pointAIndex, destinationPointMapping, shapeIndex);
+        const b = this.findDestinationIndex(data.pointBIndex, destinationPointMapping, shapeIndex);
+        if (center === null || a === null || b === null) {
+          continue;
+        }
+        this.addFilterCopy({
+          type: data.type,
+          offset: data.offset,
+          geometryId: copyId,
+          geometryType: 'polygon',
+          pointCenterIndex: center,
+          pointAIndex: a,
+          pointBIndex: b,
+        } as FilletFilterData | ChamferFilterData);
+      } else if (data.geometryType === 'rectangle') {
+        const center = this.findDestinationForKeyPoint(
+          data.pointCenterKeyPoint,
+          destinationPointMapping,
+          shapeIndex,
+        );
+        const a = this.findDestinationForKeyPoint(
+          data.pointAKeyPoint,
+          destinationPointMapping,
+          shapeIndex,
+        );
+        const b = this.findDestinationForKeyPoint(
+          data.pointBKeyPoint,
+          destinationPointMapping,
+          shapeIndex,
+        );
+        if (!center || !a || !b) {
+          continue;
+        }
+
+        if (center.type === 'rectangle' && a.type === 'rectangle' && b.type === 'rectangle') {
+          this.addFilterCopy({
+            type: data.type,
+            offset: data.offset,
+            geometryId: copyId,
+            geometryType: 'rectangle',
+            pointCenterKeyPoint: center.corner,
+            pointAKeyPoint: a.corner,
+            pointBKeyPoint: b.corner,
+          } as FilletFilterData | ChamferFilterData);
+        } else if (center.type === 'polygon' && a.type === 'polygon' && b.type === 'polygon') {
+          this.addFilterCopy({
+            type: data.type,
+            offset: data.offset,
+            geometryId: copyId,
+            geometryType: 'polygon',
+            pointCenterIndex: center.pointIndex,
+            pointAIndex: a.pointIndex,
+            pointBIndex: b.pointIndex,
+          } as FilletFilterData | ChamferFilterData);
+        }
+      }
+    }
+  }
+
+  /** Finds a polygon-index destination for a source point index on the given copy shape. */
+  private findDestinationIndex(
+    sourceIndex: number,
+    destinationPointMapping: Map<number | RectangleEndpoint, Array<DestinationPoint>>,
+    shapeIndex: number,
+  ): number | null {
+    const dests = destinationPointMapping.get(sourceIndex);
+    if (!dests) {
+      return null;
+    }
+    const d = dests.find((x) => x.shapeIndex === shapeIndex && x.type === 'polygon');
+    return d && d.type === 'polygon' ? d.pointIndex : null;
+  }
+
+  /** Finds a destination point for a source rectangle keypoint on the given copy shape. */
+  private findDestinationForKeyPoint(
+    keyPoint: RectangleEndpoint,
+    destinationPointMapping: Map<number | RectangleEndpoint, Array<DestinationPoint>>,
+    shapeIndex: number,
+  ): DestinationPoint | null {
+    const dests = destinationPointMapping.get(keyPoint);
+    if (!dests) {
+      return null;
+    }
+    return dests.find((x) => x.shapeIndex === shapeIndex) ?? null;
+  }
+
+  /** Adds a new fillet/chamfer filter (duplicate of a source filter) to the store. */
+  private addFilterCopy(data: FilletFilterData | ChamferFilterData): Entity<FilterComponent> {
+    return this.getGeometryStore().add(ID_PREFIXES.filter, {
+      components: FilterComponent.create(data),
+    });
   }
 
   /**

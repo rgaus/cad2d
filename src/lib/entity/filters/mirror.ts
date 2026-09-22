@@ -1,6 +1,6 @@
 import { BoundingBox, closestPointOnSegment } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
-import { Entity, type Polygon, PolygonSegment } from '..';
+import { Entity, type Polygon, PolygonSegment, RectangleEndpoint } from '..';
 import { DEFAULT_COLOR } from '../colors';
 import { FillColorComponent } from '../components/FillColorComponent';
 import { FilterComponent } from '../components/FilterComponent';
@@ -173,8 +173,24 @@ export namespace MirrorFilter {
     generateFilterKey: () => string,
     options: GetRenderShapesOptions,
   ): Array<RenderShape> {
-    return shapes.flatMap((renderShape) => {
+    const mapping = options.destinationPointMapping;
+    // The destination-point mapping is keyed on the source geometry's features, so it can only
+    // be populated when the filter is applied to the un-transformed source shape array.
+    const populateMapping = typeof mapping !== 'undefined' && shapes.length === 1;
+    const sourceShape = shapes[0];
+    const cornerNames: Array<RectangleEndpoint> = [
+      'upperLeft',
+      'upperRight',
+      'lowerRight',
+      'lowerLeft',
+    ];
+
+    const outShapes: Array<RenderShape> = [];
+    let outBase = 0;
+
+    for (const renderShape of shapes) {
       const key = generateFilterKey();
+      const produced: Array<RenderShape> = [];
 
       switch (renderShape.shape) {
         case 'rectangle': {
@@ -187,8 +203,8 @@ export namespace MirrorFilter {
             mirrorPointOverLine(point, filterData.pointA, filterData.pointB),
           );
 
-          return [
-            renderShape,
+          produced.push(renderShape);
+          produced.push(
             RenderShape.polygon(
               key,
               [...flippedCorners, flippedCorners[0]].map((point) => ({
@@ -197,7 +213,22 @@ export namespace MirrorFilter {
               })),
               { closed: true },
             ),
-          ];
+          );
+
+          // Source rectangle corners map to the mirrored polygon's corner indexes
+          if (populateMapping && renderShape === sourceShape) {
+            for (let cornerIdx = 0; cornerIdx < cornerNames.length; cornerIdx += 1) {
+              const corner = cornerNames[cornerIdx];
+              const existing = mapping.get(corner) ?? [];
+              existing.push({
+                shapeIndex: outBase + 1,
+                type: 'polygon' as const,
+                pointIndex: cornerIdx,
+              });
+              mapping.set(corner, existing);
+            }
+          }
+          break;
         }
         case 'ellipse': {
           // IMPORTANT: the below algorithm does not properly handle flipping over non 90 or 45
@@ -210,13 +241,14 @@ export namespace MirrorFilter {
             filterData.pointA,
             filterData.pointB,
           );
-          return [
-            renderShape,
+          produced.push(renderShape);
+          produced.push(
             RenderShape.ellipse(key, mirroredCenter, {
               radiusX: renderShape.radiusX,
               radiusY: renderShape.radiusY,
             }),
-          ];
+          );
+          break;
         }
         case 'polygon': {
           const mirroredPoints = renderShape.points.map((segment) => {
@@ -275,33 +307,51 @@ export namespace MirrorFilter {
             // In this case, return them seperately, though importantly, the mirrored section
             // is CLOSED! Which is different than what would happen normally.
             if (!options.combineNonClosedPolygons) {
-              return [
-                { ...renderShape, closed: true },
-                RenderShape.polygon(key, mirroredPoints, { closed: true }),
+              produced.push({ ...renderShape, closed: true });
+              produced.push(RenderShape.polygon(key, mirroredPoints, { closed: true }));
+            } else {
+              const combined = [
+                ...renderShape.points,
+                // Flip around the mirrored points so it can continue where `renderShape`
+                // left off.
+                ...PolygonSegment.reverseList(mirroredPoints),
               ];
+              produced.push(
+                RenderShape.polygon(key, combined, {
+                  closed: true,
+                  primary: renderShape.primary,
+                }),
+              );
             }
-
-            const combined = [
-              ...renderShape.points,
-              // Flip around the mirrored points so it can continue where `renderShape`
-              // left off.
-              ...PolygonSegment.reverseList(mirroredPoints),
-            ];
-            return [
-              RenderShape.polygon(key, combined, {
-                closed: true,
-                primary: renderShape.primary,
+          } else {
+            produced.push(renderShape);
+            produced.push(
+              RenderShape.polygon(key, mirroredPoints, {
+                closed: renderShape.closed,
+                primary: false,
               }),
-            ];
+            );
           }
 
-          return [
-            renderShape,
-            RenderShape.polygon(key, mirroredPoints, {
-              closed: renderShape.closed,
-              primary: false,
-            }),
-          ];
+          // Source polygon points map onto the mirrored shape (same indexes), or onto the
+          // combined shape (the source-half index and the reflected index).
+          if (populateMapping && renderShape === sourceShape) {
+            const n = renderShape.points.length;
+            const isMerged =
+              !renderShape.closed &&
+              MirrorFilter.arePolygonEndpointsOnMirrorLine(filterData, renderShape.points) &&
+              options.combineNonClosedPolygons;
+            for (let i = 0; i < n; i += 1) {
+              const existing = mapping.get(i) ?? [];
+              existing.push(
+                isMerged
+                  ? { shapeIndex: outBase, type: 'polygon' as const, pointIndex: 2 * n - 1 - i }
+                  : { shapeIndex: outBase + 1, type: 'polygon' as const, pointIndex: i },
+              );
+              mapping.set(i, existing);
+            }
+          }
+          break;
         }
         default:
           renderShape satisfies never;
@@ -309,7 +359,12 @@ export namespace MirrorFilter {
             `getRenderShapes: Unknown render shape type ${(renderShape as any).shape}`,
           );
       }
-    });
+
+      outShapes.push(...produced);
+      outBase += produced.length;
+    }
+
+    return outShapes;
   }
 }
 
