@@ -52,10 +52,7 @@ export namespace RectangleEndpoint {
   ];
 
   /** A list of all rectangle endpoint values, including corners and center. */
-  export const LIST: Array<RectangleEndpoint> = [
-    ...RectangleEndpoint.CORNERS,
-    'center',
-  ];
+  export const LIST: Array<RectangleEndpoint> = [...RectangleEndpoint.CORNERS, 'center'];
 }
 
 export namespace Rectangle {

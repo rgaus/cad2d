@@ -52,7 +52,7 @@ export type GetRenderShapesOptions<D extends GeometryData = GeometryData> = {
     | (D extends PolygonData ? number : never)
     | (D extends RectangleData ? RectangleEndpoint : never),
     Array<DestinationPoint>
-  >,
+  >;
 };
 
 export type DestinationPoint =
@@ -438,7 +438,8 @@ export namespace GeometryComponent {
   ): Array<RenderShape> {
     let shapes;
 
-    const mapping = options.destinationPointMapping as GetRenderShapesOptions<GeometryData>['destinationPointMapping'];
+    const mapping =
+      options.destinationPointMapping as GetRenderShapesOptions<GeometryData>['destinationPointMapping'];
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
