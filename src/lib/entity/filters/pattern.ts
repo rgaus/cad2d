@@ -33,13 +33,6 @@ export type PatternRadialFilterData = {
 
 export type PatternFilterData = PatternGridFilterData | PatternRadialFilterData;
 
-const RECT_CORNER_NAMES: Array<RectangleEndpoint> = [
-  'upperLeft',
-  'upperRight',
-  'lowerRight',
-  'lowerLeft',
-];
-
 /**
  * Records, for each source feature of `sourceShape` (polygon point indexes, rectangle corners),
  * every copy destination it lands on. Each copy occupies `shapeIndex` = `1 + copyIndex` in the
@@ -62,15 +55,15 @@ function recordCopyDestinations(
         break;
       case 'rectangle': {
         if (copies[copyIdx].shape === 'rectangle') {
-          for (const corner of RECT_CORNER_NAMES) {
+          for (const corner of RectangleEndpoint.CORNERS) {
             const existing = mapping.get(corner) ?? [];
             existing.push({ shapeIndex: copyShapeIndex, type: 'rectangle', corner });
             mapping.set(corner, existing);
           }
         } else {
           // Radial copies of a rectangle are polygons with corners in CCW order.
-          for (let j = 0; j < RECT_CORNER_NAMES.length; j += 1) {
-            const corner = RECT_CORNER_NAMES[j];
+          for (let j = 0; j < RectangleEndpoint.CORNERS.length; j += 1) {
+            const corner = RectangleEndpoint.CORNERS[j];
             const existing = mapping.get(corner) ?? [];
             existing.push({ shapeIndex: copyShapeIndex, type: 'polygon', pointIndex: j });
             mapping.set(corner, existing);

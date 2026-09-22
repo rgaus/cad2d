@@ -42,6 +42,20 @@ export namespace RectangleEndpoint {
     }
     return RectangleCorner.is(input) || input === 'center';
   }
+
+  /** A list of all rectangle endpoint corners, in CCW order starting at `upperLeft`. */
+  export const CORNERS: Array<RectangleEndpoint> = [
+    'upperLeft',
+    'upperRight',
+    'lowerRight',
+    'lowerLeft',
+  ];
+
+  /** A list of all rectangle endpoint values, including corners and center. */
+  export const LIST: Array<RectangleEndpoint> = [
+    ...RectangleEndpoint.CORNERS,
+    'center',
+  ];
 }
 
 export namespace Rectangle {

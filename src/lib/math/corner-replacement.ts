@@ -1,4 +1,4 @@
-import { type RectangleEndpoint } from '@/lib/entity/rectangle';
+import { RectangleEndpoint } from '@/lib/entity/rectangle';
 import { CubicCurve, LineSegment, type Position, QuadraticCurve } from '@/lib/viewport/types';
 import { Vector2 } from './vector';
 
@@ -133,12 +133,7 @@ export function computeFilletArcControlPoints<P extends Position>(
 }
 
 /** The four rectangle corners in CCW perimeter order. */
-const RECTANGLE_PERIMETER_ORDER: Array<RectangleEndpoint> = [
-  'upperLeft',
-  'upperRight',
-  'lowerRight',
-  'lowerLeft',
-];
+const RECTANGLE_PERIMETER_ORDER = RectangleEndpoint.CORNERS;
 
 /**
  * Converts an axis-aligned rectangle into an array of four line segments

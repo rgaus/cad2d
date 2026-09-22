@@ -7,6 +7,7 @@ import {
   type Polygon,
   PolygonSegment,
   type Rectangle,
+  RectangleCorner,
   RectangleEndpoint,
   RenderShape,
 } from '..';
@@ -156,12 +157,7 @@ export namespace FilletFilter {
           switch (filterData.geometryType) {
             case 'rectangle': {
               // Skip non corner points
-              if (
-                filterData.pointCenterKeyPoint !== 'upperLeft' &&
-                filterData.pointCenterKeyPoint !== 'upperRight' &&
-                filterData.pointCenterKeyPoint !== 'lowerLeft' &&
-                filterData.pointCenterKeyPoint !== 'lowerRight'
-              ) {
+              if (!RectangleCorner.is(filterData.pointCenterKeyPoint)) {
                 return [];
               }
 

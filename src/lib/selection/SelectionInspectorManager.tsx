@@ -11,6 +11,7 @@ import {
   GeometryComponent,
   type Id,
   LinkDimensionsComponent,
+  RectangleEndpoint,
   RenderOrderComponent,
 } from '../entity';
 import { GeometryStore } from '../entity/GeometryStore';
@@ -33,15 +34,6 @@ import {
   type ShapePreviewState,
 } from './ShapePreviewManager';
 import { computeOpenAtIndex } from './polygon-point-row';
-
-/** Rectangle key points that a corner filter (fillet / chamfer) can target. */
-const RECTANGLE_KEYPOINTS = [
-  'upperLeft',
-  'upperRight',
-  'lowerRight',
-  'lowerLeft',
-  'center',
-] as const;
 
 /** The order of components in the {@link SelectionInspectorManager}. If a component isn't in this
  * list, it will be rendered at the bottom. */
@@ -2528,7 +2520,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
                   choices(
                     fieldKey,
                     current,
-                    RECTANGLE_KEYPOINTS.map((kp) => ({ value: kp, label: kp })),
+                    RectangleEndpoint.LIST.map((kp) => ({ value: kp, label: kp })),
                     {
                       onChange: (value) => {
                         this.geometryStore.updateByIdWithComponentDirect(

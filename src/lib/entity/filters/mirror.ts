@@ -178,12 +178,6 @@ export namespace MirrorFilter {
     // be populated when the filter is applied to the un-transformed source shape array.
     const populateMapping = typeof mapping !== 'undefined' && shapes.length === 1;
     const sourceShape = shapes[0];
-    const cornerNames: Array<RectangleEndpoint> = [
-      'upperLeft',
-      'upperRight',
-      'lowerRight',
-      'lowerLeft',
-    ];
 
     const outShapes: Array<RenderShape> = [];
     let outBase = 0;
@@ -217,8 +211,8 @@ export namespace MirrorFilter {
 
           // Source rectangle corners map to the mirrored polygon's corner indexes
           if (populateMapping && renderShape === sourceShape) {
-            for (let cornerIdx = 0; cornerIdx < cornerNames.length; cornerIdx += 1) {
-              const corner = cornerNames[cornerIdx];
+            for (let cornerIdx = 0; cornerIdx < RectangleEndpoint.CORNERS.length; cornerIdx += 1) {
+              const corner = RectangleEndpoint.CORNERS[cornerIdx];
               const existing = mapping.get(corner) ?? [];
               existing.push({
                 shapeIndex: outBase + 1,

@@ -452,14 +452,7 @@ export namespace GeometryComponent {
           RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight, { primary: true }),
         ];
         if (mapping) {
-          const cornerNames: Array<RectangleEndpoint> = [
-            'upperLeft',
-            'upperRight',
-            'lowerRight',
-            'lowerLeft',
-            'center',
-          ];
-          for (const corner of cornerNames) {
+          for (const corner of RectangleEndpoint.LIST) {
             mapping.set(corner, [{ shapeIndex: 0, type: 'rectangle', corner }]);
           }
         }
