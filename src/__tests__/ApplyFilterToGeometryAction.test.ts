@@ -14,6 +14,7 @@ import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { FillColorComponent } from '@/lib/entity/components/FillColorComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { ChamferFilter } from '@/lib/entity/filters/chamfer';
 import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
@@ -874,6 +875,191 @@ describe('ApplyFilterToGeometryAction', () => {
         .filter((g) => GeometryComponent.get(g).type === 'polygon');
       expect(polys).toHaveLength(2);
       expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
+    });
+  });
+
+  describe('Filter migration on mirror/pattern apply', () => {
+    it('duplicates a polygon-mode fillet onto a mirrored copy', async () => {
+      const poly = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(50, 80), makePoint(0, 0)], {
+          closed: true,
+        }),
+      ) as Polygon;
+
+      geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnPolygon(poly.id, 0, 1, 2, Length.centimeters(10)),
+      );
+      const mirrorId = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(poly.id, new SheetPosition(0, 0), new SheetPosition(0, 100)),
+      ).id;
+
+      selectionManager.select(mirrorId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      // Source polygon + mirrored copy
+      const polys = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.get(g).type === 'polygon');
+      expect(polys).toHaveLength(2);
+
+      // Mirror deleted; source fillet retained + fillet duplicated onto the copy
+      const filters = geometryStore.listWithComponent(FilterComponent);
+      expect(filters).toHaveLength(2);
+      const copy = polys.find((p) => p.id !== poly.id)!;
+
+      const copyFillet = filters.find((f) => FilterComponent.get(f).geometryId === copy.id);
+      expect(copyFillet).toBeDefined();
+      expect(filters.find((f) => FilterComponent.get(f).geometryId === poly.id)).toBeDefined();
+
+      const copyData = FilterComponent.get(copyFillet!);
+      if (copyData.type !== 'fillet' || copyData.geometryType !== 'polygon') {
+        throw new Error('Expected polygon-mode fillet on the mirrored copy');
+      }
+      // Mirroring preserves point order, so the indices match the source fillet
+      expect(copyData.pointCenterIndex).toBe(1);
+      expect(copyData.pointAIndex).toBe(0);
+      expect(copyData.pointBIndex).toBe(2);
+    });
+
+    it('converts a rectangle-mode chamfer onto a mirrored polygon copy', async () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
+          fillColor: DEFAULT_COLOR,
+        }),
+      ) as Rectangle;
+
+      geometryStore.add(
+        ID_PREFIXES.filter,
+        ChamferFilter.createOnRectangle(
+          rect.id,
+          'lowerLeft',
+          'upperLeft',
+          'upperRight',
+          Length.centimeters(10),
+        ),
+      );
+      const mirrorId = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(rect.id, new SheetPosition(0, 0), new SheetPosition(0, 100)),
+      ).id;
+
+      selectionManager.select(mirrorId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      // Source rect + mirrored polygon
+      const shapes = geometryStore.listWithComponent(GeometryComponent);
+      expect(shapes).toHaveLength(2);
+      const copy = shapes.find((g) => GeometryComponent.get(g).type === 'polygon')!;
+
+      const filters = geometryStore.listWithComponent(FilterComponent);
+      expect(filters).toHaveLength(2);
+
+      const copyChamfer = filters.find((f) => FilterComponent.get(f).geometryId === copy.id);
+      expect(copyChamfer).toBeDefined();
+      const copyData = FilterComponent.get(copyChamfer!);
+      if (copyData.type !== 'chamfer' || copyData.geometryType !== 'polygon') {
+        throw new Error('Expected polygon-mode chamfer on the mirrored copy');
+      }
+      // Mirrored polygon corners are CCW: UL=0, UR=1, LR=2, LL=3
+      expect(copyData.pointCenterIndex).toBe(0); // upperLeft
+      expect(copyData.pointAIndex).toBe(3); // lowerLeft
+      expect(copyData.pointBIndex).toBe(1); // upperRight
+    });
+
+    it('duplicates a rectangle-mode fillet onto each grid copy', async () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+          fillColor: DEFAULT_COLOR,
+        }),
+      ) as Rectangle;
+
+      geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnRectangle(
+          rect.id,
+          'lowerLeft',
+          'upperLeft',
+          'upperRight',
+          Length.centimeters(1),
+        ),
+      );
+      const gridId = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createGrid(rect.id, new SheetPosition(0, 0), new SheetPosition(10, 10), {
+          xRepeats: 2,
+          yRepeats: 2,
+        }),
+      ).id;
+
+      selectionManager.select(gridId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      // 1 source rect + 3 copies
+      const shapes = geometryStore.listWithComponent(GeometryComponent);
+      expect(shapes).toHaveLength(4);
+
+      // Source fillet + 3 duplicated fillets
+      const filters = geometryStore.listWithComponent(FilterComponent);
+      expect(filters).toHaveLength(4);
+
+      const copies = shapes.filter((g) => g.id !== rect.id);
+      expect(copies).toHaveLength(3);
+      for (const copy of copies) {
+        const copyFillet = filters.find((f) => FilterComponent.get(f).geometryId === copy.id);
+        expect(copyFillet).toBeDefined();
+        const d = FilterComponent.get(copyFillet!);
+        if (d.type !== 'fillet' || d.geometryType !== 'rectangle') {
+          throw new Error('Expected rectangle-mode fillet on the grid copy');
+        }
+        expect(d.pointCenterKeyPoint).toBe('upperLeft');
+        expect(d.pointAKeyPoint).toBe('lowerLeft');
+        expect(d.pointBKeyPoint).toBe('upperRight');
+      }
+    });
+
+    it('keeps a fillet attached to the merged polygon when a radial pattern combines it into one closed polygon', async () => {
+      const poly = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(50, -50), makePoint(0, 50), makePoint(-50, -50)], {
+          closed: false,
+        }),
+      ) as Polygon;
+      const polygonId = poly.id;
+
+      // Simulate the dynamic fill the pattern filter applies to this open polygon
+      geometryStore.updateByIdDirect(polygonId, (old) =>
+        FillColorComponent.update(old, DEFAULT_COLOR),
+      );
+
+      geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnPolygon(polygonId, 0, 1, 2, Length.centimeters(3)),
+      );
+      const radialId = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createRadial(polygonId, new SheetPosition(0, 0), 100, { count: 4 }),
+      ).id;
+
+      selectionManager.select(radialId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      const polys = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.get(g).type === 'polygon');
+      expect(polys).toHaveLength(1);
+      expect(polys[0].id).toBe(polygonId);
+      expect(GeometryComponent.get(polys[0]).closed).toBe(true);
+
+      // The fillet survives, still attached to the merged polygon
+      const fillets = geometryStore
+        .listWithComponent(FilterComponent)
+        .filter((f) => FilterComponent.get(f).geometryId === polygonId);
+      expect(fillets).toHaveLength(1);
     });
   });
 });
