@@ -230,30 +230,39 @@ export class ApplyFilterToGeometryAction extends BaseAction {
       const allFilters = this.getGeometryStore().listWithComponent(FilterComponent);
       for (const f of allFilters) {
         const otherFilter = FilterComponent.get(f);
-        if (
-          (otherFilter.type !== 'fillet' && otherFilter.type !== 'chamfer') ||
-          otherFilter.geometryType !== 'rectangle' ||
-          otherFilter.geometryId !== pending.geometryId
-        ) {
+        if (otherFilter.geometryId !== pending.geometryId) {
           continue;
         }
 
-        const cornerState = this.buildCornerStateFromPolygon(finalPolygon, otherFilter);
-        if (!cornerState || cornerState.mode !== 'polygon') {
-          continue;
-        }
+        if (otherFilter.type === 'fillet' || otherFilter.type === 'chamfer') {
+          // Convert any other fillet/chamfer that still references the old rectangle into
+          // a polygon-mode filter so it acts just like a native polygon filter.
+          if (otherFilter.geometryType !== 'rectangle') {
+            continue;
+          }
+          const cornerState = this.buildCornerStateFromPolygon(finalPolygon, otherFilter);
+          if (!cornerState || cornerState.mode !== 'polygon') {
+            continue;
+          }
 
-        this.getGeometryStore().updateByIdWithComponent(f.id, FilterComponent, (g) =>
-          FilterComponent.update(g, {
-            type: otherFilter.type,
-            offset: otherFilter.offset,
-            geometryType: 'polygon' as const,
-            geometryId: finalPolygon.id,
-            pointAIndex: cornerState.pointAIndex,
-            pointCenterIndex: cornerState.centerIndex,
-            pointBIndex: cornerState.pointBIndex,
-          } as any),
-        );
+          this.getGeometryStore().updateByIdWithComponent(f.id, FilterComponent, (g) =>
+            FilterComponent.update(g, {
+              type: otherFilter.type,
+              offset: otherFilter.offset,
+              geometryType: 'polygon' as const,
+              geometryId: finalPolygon.id,
+              pointAIndex: cornerState.pointAIndex,
+              pointCenterIndex: cornerState.centerIndex,
+              pointBIndex: cornerState.pointBIndex,
+            } as any),
+          );
+        } else if (otherFilter.type === 'mirror' || otherFilter.type === 'pattern') {
+          // Mirror/pattern filters only reference the geometry by id - point them at the
+          // converted polygon so they keep rendering/applying against the new geometry.
+          this.getGeometryStore().updateByIdWithComponent(f.id, FilterComponent, (g) =>
+            FilterComponent.update(g, { geometryId: finalPolygon.id }),
+          );
+        }
       }
     }
   }

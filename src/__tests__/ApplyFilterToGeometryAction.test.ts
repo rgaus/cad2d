@@ -876,6 +876,59 @@ describe('ApplyFilterToGeometryAction', () => {
       expect(polys).toHaveLength(2);
       expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
     });
+
+    it('re-points a mirror filter at the polygon created when a fillet converts the rectangle', async () => {
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(100, 100), {
+          fillColor: DEFAULT_COLOR,
+        }),
+      ) as Rectangle;
+
+      const mirrorFilterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(rect.id, new SheetPosition(0, 0), new SheetPosition(0, 100)),
+      ).id;
+      const filletFilterId = geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnRectangle(
+          rect.id,
+          'lowerLeft',
+          'upperLeft',
+          'upperRight',
+          Length.centimeters(20),
+        ),
+      ).id;
+
+      selectionManager.select(filletFilterId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      // The rectangle became a filleted polygon with a NEW id
+      const polys = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.get(g).type === 'polygon');
+      expect(polys).toHaveLength(1);
+      const polygonId = polys[0].id;
+      expect(polygonId).not.toBe(rect.id);
+
+      // The mirror filter must now reference the converted polygon, not the old rectangle
+      const mirrorFilter = geometryStore.getByIdWithComponent(mirrorFilterId, FilterComponent)!;
+      const mirrorData = FilterComponent.get(mirrorFilter);
+      if (mirrorData.type !== 'mirror') {
+        throw new Error('Expected mirror filter');
+      }
+      expect(mirrorData.geometryId).toBe(polygonId);
+
+      // And applying the mirror in a SEPARATE execution now works standalone
+      selectionManager.select(mirrorFilterId);
+      await actionsManager.execute('apply-filter-to-geometry');
+
+      expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
+      const allPolys = geometryStore
+        .listWithComponent(GeometryComponent)
+        .filter((g) => GeometryComponent.get(g).type === 'polygon');
+      expect(allPolys).toHaveLength(2);
+    });
   });
 
   describe('Filter migration on mirror/pattern apply', () => {
