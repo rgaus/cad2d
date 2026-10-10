@@ -12,6 +12,13 @@ export namespace LinkDimensionsComponent {
   export function get(geometry: Entity<LinkDimensionsComponent>): boolean {
     return geometry.components.linkDimensions;
   }
+  /** Returns the linkDimensions flag if present, or undefined if the component is missing. */
+  export function getOptional(geometry: Entity): boolean | undefined {
+    if (LinkDimensionsComponent.key in geometry.components) {
+      return (geometry.components as LinkDimensionsComponent).linkDimensions;
+    }
+    return undefined;
+  }
   export function update<G extends Entity<LinkDimensionsComponent>>(
     geometry: G,
     linkDimensions: boolean,

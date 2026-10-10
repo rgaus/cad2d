@@ -3,6 +3,9 @@ import { ChamferFilter, ChamferFilterData } from '@/lib/entity/filters/chamfer';
 import { FilletFilter, FilletFilterData } from '@/lib/entity/filters/fillet';
 import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { UndoEntry } from '@/lib/history/types';
+import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
+import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
+import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from '../colors';
 import { PatternFilter, PatternFilterData } from '../filters/pattern';
@@ -225,6 +228,512 @@ export namespace FilterComponent {
       ];
     } else {
       return [geometry, []];
+    }
+  }
+
+  /** Builds the selection inspector fields for a filter entity, dispatching on the filter type. */
+  export function computeSelectionInspectorFields(
+    entity: Entity<FilterComponent>,
+    ctx: SelectionInspectorContext,
+  ): FieldOptionsList {
+    const filterData = FilterComponent.get(entity);
+    switch (filterData.type) {
+      case 'mirror': {
+        const filterId = entity.id;
+        const pointField = (
+          fieldKey: string,
+          label: string,
+          currentValue: SheetPosition,
+          buildAfter: (value: Length, current: MirrorFilterData) => SheetPosition,
+          buildEntry: (
+            current: MirrorFilterData,
+            afterPointA: SheetPosition,
+            afterPointB: SheetPosition,
+          ) => UndoEntry,
+        ) =>
+          Fields.labelled(
+            fieldKey,
+            label,
+            Fields.length(
+              fieldKey,
+              Length.fromSheetUnits(
+                ctx.sheetDefaultUnit,
+                fieldKey.endsWith('x') ? currentValue.x : currentValue.y,
+              ),
+              { readOnlyUnit: true },
+              {
+                onChange: (value) => {
+                  ctx.captureDragOriginal(filterId);
+                  ctx.setWorkingFieldData(fieldKey, { type: 'length', value });
+                },
+                onKeyDown: (k) => {
+                  if (k === 'Escape' && ctx.hasDragOriginal(filterId)) {
+                    ctx.restoreDragOriginal(filterId);
+                    ctx.clearWorkingFieldData();
+                    ctx.recomputeFields();
+                  }
+                },
+                onBlur: () => {
+                  const fieldData = ctx.getWorkingFieldData(fieldKey);
+                  if (!fieldData || fieldData.type !== 'length') {
+                    return;
+                  }
+                  const current = ctx.geometryStore.getByIdWithComponent(filterId, FilterComponent);
+                  if (!current) {
+                    return;
+                  }
+                  const currentFilter = FilterComponent.get(current);
+                  if (currentFilter.type !== 'mirror') {
+                    return;
+                  }
+                  const afterPoint = buildAfter(fieldData.value, currentFilter);
+                  const afterPointA = fieldKey.startsWith('a') ? afterPoint : currentFilter.pointA;
+                  const afterPointB = fieldKey.startsWith('b') ? afterPoint : currentFilter.pointB;
+                  ctx.historyManager.apply(buildEntry(currentFilter, afterPointA, afterPointB));
+                  ctx.finishEdit(filterId);
+                },
+              },
+            ),
+          );
+
+        return [
+          Fields.row('point-a', [
+            pointField(
+              'ax',
+              'AX:',
+              filterData.pointA,
+              (value, current) =>
+                new SheetPosition(
+                  value.toSheetUnits(ctx.sheetDefaultUnit).magnitude,
+                  current.pointA.y,
+                ),
+              (current, afterPointA, afterPointB) =>
+                UndoEntry.mirrorFilterMoveEndpoints(
+                  filterId,
+                  current.pointA,
+                  current.pointB,
+                  afterPointA,
+                  afterPointB,
+                ),
+            ),
+            pointField(
+              'ay',
+              'AY:',
+              filterData.pointA,
+              (value, current) =>
+                new SheetPosition(
+                  current.pointA.x,
+                  value.toSheetUnits(ctx.sheetDefaultUnit).magnitude,
+                ),
+              (current, afterPointA, afterPointB) =>
+                UndoEntry.mirrorFilterMoveEndpoints(
+                  filterId,
+                  current.pointA,
+                  current.pointB,
+                  afterPointA,
+                  afterPointB,
+                ),
+            ),
+          ]),
+          Fields.row('point-b', [
+            pointField(
+              'bx',
+              'BX:',
+              filterData.pointB,
+              (value, current) =>
+                new SheetPosition(
+                  value.toSheetUnits(ctx.sheetDefaultUnit).magnitude,
+                  current.pointB.y,
+                ),
+              (current, afterPointA, afterPointB) =>
+                UndoEntry.mirrorFilterMoveEndpoints(
+                  filterId,
+                  current.pointA,
+                  current.pointB,
+                  afterPointA,
+                  afterPointB,
+                ),
+            ),
+            pointField(
+              'by',
+              'BY:',
+              filterData.pointB,
+              (value, current) =>
+                new SheetPosition(
+                  current.pointB.x,
+                  value.toSheetUnits(ctx.sheetDefaultUnit).magnitude,
+                ),
+              (current, afterPointA, afterPointB) =>
+                UndoEntry.mirrorFilterMoveEndpoints(
+                  filterId,
+                  current.pointA,
+                  current.pointB,
+                  afterPointA,
+                  afterPointB,
+                ),
+            ),
+          ]),
+          Fields.button('apply-filter', 'Apply filter...', {
+            onClick: () => {
+              ctx.actionsManager?.execute('apply-filter-to-geometry');
+            },
+          }),
+        ];
+      }
+      case 'fillet':
+      case 'chamfer': {
+        const filterId = entity.id;
+        const offsetField = () =>
+          Fields.row('offset', [
+            Fields.labelled(
+              'offset',
+              'Offset:',
+              Fields.length(
+                'offset',
+                filterData.offset,
+                { readOnlyUnit: true },
+                {
+                  onChange: (value) => {
+                    ctx.captureDragOriginal(filterId);
+                    ctx.setWorkingFieldData('offset', { type: 'length', value });
+                  },
+                  onKeyDown: (k) => {
+                    if (k === 'Escape' && ctx.hasDragOriginal(filterId)) {
+                      ctx.restoreDragOriginal(filterId);
+                      ctx.clearWorkingFieldData();
+                      ctx.recomputeFields();
+                    }
+                  },
+                  onBlur: () => {
+                    const fieldData = ctx.getWorkingFieldData('offset');
+                    if (!fieldData || fieldData.type !== 'length') {
+                      return;
+                    }
+                    const current = ctx.geometryStore.getByIdWithComponent(
+                      filterId,
+                      FilterComponent,
+                    );
+                    if (!current) {
+                      return;
+                    }
+                    const currentFilter = FilterComponent.get(current);
+                    if (currentFilter.type !== 'fillet' && currentFilter.type !== 'chamfer') {
+                      return;
+                    }
+                    ctx.historyManager.apply(
+                      UndoEntry.filterChangeOffset(filterId, currentFilter.offset, fieldData.value),
+                    );
+                    ctx.finishEdit(filterId);
+                  },
+                },
+              ),
+            ),
+          ]);
+
+        if (filterData.geometryType === 'polygon') {
+          const numberField = (
+            fieldKey: string,
+            label: string,
+            dataKey: 'pointAIndex' | 'pointCenterIndex' | 'pointBIndex',
+          ) =>
+            Fields.labelled(
+              fieldKey,
+              label,
+              Fields.number(dataKey, filterData[dataKey], {
+                onChange: (value) => {
+                  ctx.captureDragOriginal(filterId);
+                  ctx.setWorkingFieldData(dataKey, { type: 'number', value });
+                },
+                onKeyDown: (k) => {
+                  if (k === 'Escape' && ctx.hasDragOriginal(filterId)) {
+                    ctx.restoreDragOriginal(filterId);
+                    ctx.clearWorkingFieldData();
+                    ctx.recomputeFields();
+                  }
+                },
+                onBlur: () => {
+                  const fieldData = ctx.getWorkingFieldData(dataKey);
+                  if (!fieldData || fieldData.type !== 'number') {
+                    return;
+                  }
+                  const val = parseInt(fieldData.value, 10);
+                  if (isNaN(val) || val < 0) {
+                    return;
+                  }
+                  ctx.geometryStore.updateByIdWithComponentDirect(filterId, FilterComponent, (g) =>
+                    FilterComponent.update(g, { [dataKey]: val } as Partial<FilterData>),
+                  );
+                  ctx.finishEdit(filterId);
+                },
+              }),
+            );
+
+          return [
+            offsetField(),
+            Fields.row('points', [
+              numberField('a', 'A:', 'pointAIndex'),
+              numberField('c', 'C:', 'pointCenterIndex'),
+              numberField('b', 'B:', 'pointBIndex'),
+            ]),
+            Fields.button('apply-filter', 'Apply filter...', {
+              onClick: () => {
+                ctx.actionsManager?.execute('apply-filter-to-geometry');
+              },
+            }),
+          ];
+        } else {
+          // geometryType === 'rectangle' -- render the corner key points as choice toggle
+          // groups so the user can switch which rectangle key point each corner targets.
+          const keypointChoices = (
+            fieldKey: string,
+            label: string,
+            dataKey: 'pointAKeyPoint' | 'pointCenterKeyPoint' | 'pointBKeyPoint',
+            current: string,
+          ) =>
+            Fields.labelled(
+              fieldKey,
+              label,
+              Fields.choices(
+                fieldKey,
+                current,
+                RectangleEndpoint.LIST.map((kp) => ({ value: kp, label: kp })),
+                {
+                  onChange: (value) => {
+                    ctx.geometryStore.updateByIdWithComponentDirect(
+                      filterId,
+                      FilterComponent,
+                      (g) => FilterComponent.update(g, { [dataKey]: value } as Partial<FilterData>),
+                    );
+                    ctx.finishEdit(filterId);
+                  },
+                },
+              ),
+            );
+
+          return [
+            offsetField(),
+            Fields.row('keypoints', [
+              keypointChoices('a', 'A:', 'pointAKeyPoint', filterData.pointAKeyPoint),
+              keypointChoices('c', 'C:', 'pointCenterKeyPoint', filterData.pointCenterKeyPoint),
+              keypointChoices('b', 'B:', 'pointBKeyPoint', filterData.pointBKeyPoint),
+            ]),
+            Fields.button('apply-filter', 'Apply filter...', {
+              onClick: () => {
+                ctx.actionsManager?.execute('apply-filter-to-geometry');
+              },
+            }),
+          ];
+        }
+      }
+      case 'pattern': {
+        const filterId = entity.id;
+        switch (filterData.mode) {
+          case 'grid':
+            return [
+              Fields.row('repeats', [
+                Fields.labelled('repeats', 'Repeats:', [
+                  Fields.number('xRepeats', filterData.xRepeats, {
+                    onChange: (value) => {
+                      ctx.captureDragOriginal(filterId);
+                      ctx.setWorkingFieldData('xRepeats', { type: 'number', value });
+                    },
+                    onKeyDown: (k) => {
+                      if (k === 'Escape' && ctx.hasDragOriginal(filterId)) {
+                        ctx.restoreDragOriginal(filterId);
+                        ctx.clearWorkingFieldData();
+                        ctx.recomputeFields();
+                      }
+                    },
+                    onBlur: () => {
+                      const fieldData = ctx.getWorkingFieldData('xRepeats');
+                      if (!fieldData || fieldData.type !== 'number') {
+                        return;
+                      }
+                      const val = parseInt(fieldData.value, 10);
+                      if (isNaN(val) || val < 1) {
+                        return;
+                      }
+                      ctx.geometryStore.updateByIdWithComponent(filterId, FilterComponent, (g) =>
+                        FilterComponent.update(g, { xRepeats: val }),
+                      );
+                      ctx.finishEdit(filterId);
+                    },
+                  }),
+                  Fields.number('yRepeats', filterData.yRepeats, {
+                    onChange: (value) => {
+                      ctx.captureDragOriginal(filterId);
+                      ctx.setWorkingFieldData('yRepeats', { type: 'number', value });
+                    },
+                    onKeyDown: (k) => {
+                      if (k === 'Escape' && ctx.hasDragOriginal(filterId)) {
+                        ctx.restoreDragOriginal(filterId);
+                        ctx.clearWorkingFieldData();
+                        ctx.recomputeFields();
+                      }
+                    },
+                    onBlur: () => {
+                      const fieldData = ctx.getWorkingFieldData('yRepeats');
+                      if (!fieldData || fieldData.type !== 'number') {
+                        return;
+                      }
+                      const val = parseInt(fieldData.value, 10);
+                      if (isNaN(val) || val < 1) {
+                        return;
+                      }
+                      ctx.geometryStore.updateByIdWithComponent(filterId, FilterComponent, (g) =>
+                        FilterComponent.update(g, { yRepeats: val }),
+                      );
+                      ctx.finishEdit(filterId);
+                    },
+                  }),
+                ]),
+              ]),
+              Fields.button('apply-filter', 'Apply filter...', {
+                onClick: () => {
+                  ctx.actionsManager?.execute('apply-filter-to-geometry');
+                },
+              }),
+            ];
+          case 'radial':
+            const centerField = (fieldKey: 'x' | 'y', label: string, currentValue: number) =>
+              Fields.labelled(
+                fieldKey,
+                label,
+                Fields.length(
+                  fieldKey,
+                  Length.fromSheetUnits(ctx.sheetDefaultUnit, currentValue),
+                  { readOnlyUnit: true },
+                  {
+                    onChange: (value) => {
+                      ctx.captureDragOriginal(filterId);
+                      ctx.setWorkingFieldData(fieldKey, { type: 'length', value });
+                    },
+                    onKeyDown: (k) => {
+                      if (k === 'Escape' && ctx.hasDragOriginal(filterId)) {
+                        ctx.restoreDragOriginal(filterId);
+                        ctx.clearWorkingFieldData();
+                        ctx.recomputeFields();
+                      }
+                    },
+                    onBlur: () => {
+                      const fieldData = ctx.getWorkingFieldData(fieldKey);
+                      if (!fieldData || fieldData.type !== 'length') {
+                        return;
+                      }
+                      const current = ctx.geometryStore.getByIdWithComponent(
+                        filterId,
+                        FilterComponent,
+                      );
+                      if (!current) {
+                        return;
+                      }
+                      const currentFilter = FilterComponent.get(current);
+                      if (currentFilter.type !== 'pattern' || currentFilter.mode !== 'radial') {
+                        return;
+                      }
+                      const newValue = fieldData.value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                      ctx.geometryStore.updateByIdWithComponent(filterId, FilterComponent, (g) =>
+                        FilterComponent.update(g, {
+                          center:
+                            fieldKey === 'x'
+                              ? new SheetPosition(newValue, currentFilter.center.y)
+                              : new SheetPosition(currentFilter.center.x, newValue),
+                        }),
+                      );
+                      ctx.finishEdit(filterId);
+                    },
+                  },
+                ),
+              );
+
+            return [
+              Fields.row('position', [
+                centerField('x', 'X:', filterData.center.x),
+                centerField('y', 'Y:', filterData.center.y),
+              ]),
+              Fields.row('repeats', [
+                Fields.labelled(
+                  'repeats',
+                  'Repeats:',
+                  Fields.number('repeats', filterData.repeats.count, {
+                    onChange: (value) => {
+                      ctx.captureDragOriginal(filterId);
+                      ctx.setWorkingFieldData('repeats', { type: 'number', value });
+                    },
+                    onKeyDown: (k) => {
+                      if (k === 'Escape' && ctx.hasDragOriginal(filterId)) {
+                        ctx.restoreDragOriginal(filterId);
+                        ctx.clearWorkingFieldData();
+                        ctx.recomputeFields();
+                      }
+                    },
+                    onBlur: () => {
+                      const fieldData = ctx.getWorkingFieldData('repeats');
+                      if (!fieldData || fieldData.type !== 'number') {
+                        return;
+                      }
+                      const val = parseInt(fieldData.value, 10);
+                      if (isNaN(val) || val < 2) {
+                        return;
+                      }
+                      ctx.geometryStore.updateByIdWithComponent(filterId, FilterComponent, (g) =>
+                        FilterComponent.update(g, {
+                          repeats: { type: 'count' as const, count: val },
+                        }),
+                      );
+                      ctx.finishEdit(filterId);
+                    },
+                  }),
+                ),
+              ]),
+              Fields.row('radius', [
+                Fields.labelled(
+                  'radius',
+                  'Radius:',
+                  Fields.length(
+                    'radius',
+                    Length.fromSheetUnits(ctx.sheetDefaultUnit, filterData.radius),
+                    { readOnlyUnit: true },
+                    {
+                      onChange: (value) => {
+                        ctx.captureDragOriginal(filterId);
+                        ctx.setWorkingFieldData('radius', { type: 'length', value });
+                      },
+                      onKeyDown: (k) => {
+                        if (k === 'Escape' && ctx.hasDragOriginal(filterId)) {
+                          ctx.restoreDragOriginal(filterId);
+                          ctx.clearWorkingFieldData();
+                          ctx.recomputeFields();
+                        }
+                      },
+                      onBlur: () => {
+                        const fieldData = ctx.getWorkingFieldData('radius');
+                        if (!fieldData || fieldData.type !== 'length') {
+                          return;
+                        }
+                        const radius = fieldData.value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                        ctx.geometryStore.updateByIdWithComponent(filterId, FilterComponent, (g) =>
+                          FilterComponent.update(g, { radius }),
+                        );
+                        ctx.finishEdit(filterId);
+                      },
+                    },
+                  ),
+                ),
+              ]),
+              Fields.button('apply-filter', 'Apply filter...', {
+                onClick: () => {
+                  ctx.actionsManager?.execute('apply-filter-to-geometry');
+                },
+              }),
+            ];
+          default:
+            return [];
+        }
+      }
+      default:
+        filterData satisfies never;
+        return [];
     }
   }
 }

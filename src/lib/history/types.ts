@@ -1,15 +1,15 @@
-import {
-  type ConstraintEndpoint,
+import type {
+  ConstraintEndpoint,
   Entity,
   GeometryComponent,
-  type Id,
+  Id,
   Polygon,
   PolygonSegment,
 } from '@/lib/entity';
-import { type Length, type SerializedLength, type UnitType } from '@/lib/units/length';
+import type { Length, SerializedLength, UnitType } from '@/lib/units/length';
 import type { SheetPosition } from '@/lib/viewport/types';
-import { EllipseData } from '../entity/geometry/ellipse';
-import { RectangleData } from '../entity/geometry/rectangle';
+import type { EllipseData } from '../entity/geometry/ellipse';
+import type { RectangleData } from '../entity/geometry/rectangle';
 
 export type TransactionEntity = {
   type: 'transaction';

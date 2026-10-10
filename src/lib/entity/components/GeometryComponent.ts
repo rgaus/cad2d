@@ -1,5 +1,10 @@
+import { UndoEntry } from '@/lib/history/types';
 import { BoundingBox } from '@/lib/math';
-import { type UnitType } from '@/lib/units/length';
+import { POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR } from '@/lib/selection/constants';
+import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
+import { computeOpenAtIndex } from '@/lib/selection/polygon-point-row';
+import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
+import { Length, type UnitType } from '@/lib/units/length';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { FilletFilter, Filter, FilterData } from '../filters';
 import { MirrorFilter } from '../filters/mirror';
@@ -13,6 +18,7 @@ import { type Entity, type EntityComponent, ResizeParams } from '../types';
 import { ConstraintComponent } from './ConstraintComponent';
 import { FilterComponent } from './FilterComponent';
 import { FrameComponent } from './FrameComponent';
+import { LinkDimensionsComponent } from './LinkDimensionsComponent';
 
 export type RenderShapePolygon = {
   shape: 'polygon';
@@ -522,5 +528,637 @@ export namespace GeometryComponent {
     }
 
     return shapes;
+  }
+
+  /** Builds the selection inspector fields (position / dimensions / points / actions) for a
+   * geometry entity. Dispatches on the underlying {@link GeometryData} type. */
+  export function computeSelectionInspectorFields(
+    entity: Entity<GeometryComponent>,
+    ctx: SelectionInspectorContext,
+  ): FieldOptionsList {
+    const geometryData = GeometryComponent.get<GeometryData>(entity);
+    const isLinked = LinkDimensionsComponent.getOptional(entity) ?? false;
+    switch (geometryData.type) {
+      case 'rectangle': {
+        const id = entity.id;
+        return [
+          Fields.row('position', [
+            Fields.labelled(
+              'x',
+              'X:',
+              Fields.length(
+                'x',
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.upperLeft.x),
+                { readOnlyUnit: true },
+                ctx.makeLengthHandlers(
+                  id,
+                  'x',
+                  GeometryComponent,
+                  (value) => {
+                    const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                    if (!current) {
+                      return null;
+                    }
+                    const currentGeom = GeometryComponent.get<GeometryData>(current);
+                    if (currentGeom.type !== 'rectangle') {
+                      return null;
+                    }
+                    const newX = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                    const deltaX = newX - currentGeom.upperLeft.x;
+                    const upperLeft = new SheetPosition(newX, currentGeom.upperLeft.y);
+                    const lowerRight = new SheetPosition(
+                      currentGeom.lowerRight.x + deltaX,
+                      currentGeom.lowerRight.y,
+                    );
+                    return { upperLeft, lowerRight };
+                  },
+                  'origin',
+                ),
+              ),
+            ),
+            Fields.labelled(
+              'y',
+              'Y:',
+              Fields.length(
+                'y',
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.upperLeft.y),
+                { readOnlyUnit: true },
+                ctx.makeLengthHandlers(
+                  id,
+                  'y',
+                  GeometryComponent,
+                  (value) => {
+                    const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                    if (!current) {
+                      return null;
+                    }
+                    const currentGeom = GeometryComponent.get<GeometryData>(current);
+                    if (currentGeom.type !== 'rectangle') {
+                      return null;
+                    }
+                    const newY = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                    const deltaY = newY - currentGeom.upperLeft.y;
+                    const upperLeft = new SheetPosition(currentGeom.upperLeft.x, newY);
+                    const lowerRight = new SheetPosition(
+                      currentGeom.lowerRight.x,
+                      currentGeom.lowerRight.y + deltaY,
+                    );
+                    return { upperLeft, lowerRight };
+                  },
+                  'origin',
+                ),
+              ),
+            ),
+          ]),
+          Fields.row('dimensions', [
+            Fields.labelled(
+              'width',
+              'W:',
+              Fields.length(
+                'width',
+                Length.fromSheetUnits(
+                  ctx.sheetDefaultUnit,
+                  geometryData.lowerRight.x - geometryData.upperLeft.x,
+                ),
+                { readOnlyUnit: true },
+                ctx.makeLengthHandlers(
+                  id,
+                  'width',
+                  GeometryComponent,
+                  (value) => {
+                    const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                    if (!current) {
+                      return null;
+                    }
+                    const currentGeom = GeometryComponent.get<GeometryData>(current);
+                    if (currentGeom.type !== 'rectangle') {
+                      return null;
+                    }
+                    const isLinkedNow = LinkDimensionsComponent.getOptional(current) ?? false;
+                    const w = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                    return {
+                      lowerRight: new SheetPosition(
+                        currentGeom.upperLeft.x + w,
+                        isLinkedNow ? currentGeom.upperLeft.y + w : currentGeom.lowerRight.y,
+                      ),
+                    };
+                  },
+                  'width',
+                ),
+              ),
+            ),
+            Fields.linkDimensionsButton('link', isLinked, {
+              onClick: () => {
+                ctx.actionsManager?.execute('toggle-link-dimensions');
+              },
+            }),
+            Fields.labelled(
+              'height',
+              'H:',
+              Fields.length(
+                'height',
+                Length.fromSheetUnits(
+                  ctx.sheetDefaultUnit,
+                  geometryData.lowerRight.y - geometryData.upperLeft.y,
+                ),
+                { readOnlyUnit: true },
+                ctx.makeLengthHandlers(
+                  id,
+                  'height',
+                  GeometryComponent,
+                  (value) => {
+                    const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                    if (!current) {
+                      return null;
+                    }
+                    const currentGeom = GeometryComponent.get<GeometryData>(current);
+                    if (currentGeom.type !== 'rectangle') {
+                      return null;
+                    }
+                    const isLinkedNow = LinkDimensionsComponent.getOptional(current) ?? false;
+                    const h = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                    return {
+                      lowerRight: new SheetPosition(
+                        isLinkedNow ? currentGeom.upperLeft.x + h : currentGeom.lowerRight.x,
+                        currentGeom.upperLeft.y + h,
+                      ),
+                    };
+                  },
+                  'height',
+                ),
+              ),
+            ),
+          ]),
+          Fields.button('convert-to-polygon', 'To polygon...', {
+            onClick: () => {
+              ctx.actionsManager?.execute('convert-to-polygon');
+            },
+          }),
+        ];
+      }
+      case 'ellipse': {
+        const id = entity.id;
+        return [
+          Fields.row('position', [
+            Fields.labelled(
+              'x',
+              'X:',
+              Fields.length(
+                'x',
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.center.x),
+                { readOnlyUnit: true },
+                ctx.makeLengthHandlers(
+                  id,
+                  'x',
+                  GeometryComponent,
+                  (value) => {
+                    const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                    if (!current) {
+                      return null;
+                    }
+                    const currentGeom = GeometryComponent.get<GeometryData>(current);
+                    if (currentGeom.type !== 'ellipse') {
+                      return null;
+                    }
+                    const newCX = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                    return { center: new SheetPosition(newCX, currentGeom.center.y) };
+                  },
+                  'origin',
+                ),
+              ),
+            ),
+            Fields.labelled(
+              'y',
+              'Y:',
+              Fields.length(
+                'y',
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.center.y),
+                { readOnlyUnit: true },
+                ctx.makeLengthHandlers(
+                  id,
+                  'y',
+                  GeometryComponent,
+                  (value) => {
+                    const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                    if (!current) {
+                      return null;
+                    }
+                    const currentGeom = GeometryComponent.get<GeometryData>(current);
+                    if (currentGeom.type !== 'ellipse') {
+                      return null;
+                    }
+                    const newCY = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                    return { center: new SheetPosition(currentGeom.center.x, newCY) };
+                  },
+                  'origin',
+                ),
+              ),
+            ),
+          ]),
+          Fields.row('radius', [
+            Fields.labelled(
+              'rx',
+              'RX:',
+              Fields.length(
+                'rx',
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.radiusX),
+                { readOnlyUnit: true },
+                ctx.makeLengthHandlers(
+                  id,
+                  'rx',
+                  GeometryComponent,
+                  (value) => {
+                    const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                    if (!current) {
+                      return null;
+                    }
+                    const currentGeom = GeometryComponent.get<GeometryData>(current);
+                    if (currentGeom.type !== 'ellipse') {
+                      return null;
+                    }
+                    const isLinkedNow = LinkDimensionsComponent.getOptional(current) ?? false;
+                    const rx = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                    return {
+                      radiusX: rx,
+                      radiusY: isLinkedNow ? rx : currentGeom.radiusY,
+                    };
+                  },
+                  'radiusX',
+                ),
+              ),
+            ),
+            Fields.linkDimensionsButton('link', isLinked, {
+              onClick: () => {
+                ctx.actionsManager?.execute('toggle-link-dimensions');
+              },
+            }),
+            Fields.labelled(
+              'ry',
+              'RY:',
+              Fields.length(
+                'ry',
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.radiusY),
+                { readOnlyUnit: true },
+                ctx.makeLengthHandlers(
+                  id,
+                  'ry',
+                  GeometryComponent,
+                  (value) => {
+                    const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                    if (!current) {
+                      return null;
+                    }
+                    const currentGeom = GeometryComponent.get<GeometryData>(current);
+                    if (currentGeom.type !== 'ellipse') {
+                      return null;
+                    }
+                    const isLinkedNow = LinkDimensionsComponent.getOptional(current) ?? false;
+                    const ry = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                    return {
+                      radiusX: isLinkedNow ? ry : currentGeom.radiusX,
+                      radiusY: ry,
+                    };
+                  },
+                  'radiusY',
+                ),
+              ),
+            ),
+          ]),
+          Fields.button('convert-to-polygon', 'To polygon...', {
+            onClick: () => {
+              ctx.actionsManager?.execute('convert-to-polygon');
+            },
+          }),
+        ];
+      }
+      case 'polygon': {
+        const id = entity.id;
+        const bounds = BoundingBox.fromPoints(geometryData.points.map((s) => s.point));
+        const isPolygonFilledDueToFilter = !geometryData.closed && 'fillColor' in entity.components;
+        const pointXHandlers = ctx.makePolygonPointLengthHandlers(id, 'x');
+        const pointYHandlers = ctx.makePolygonPointLengthHandlers(id, 'y');
+        return [
+          Fields.row('position', [
+            Fields.labelled(
+              'x',
+              'X:',
+              Fields.length(
+                'x',
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, bounds.position.x),
+                { readOnlyUnit: true },
+                ctx.makeLengthHandlers(id, 'x', GeometryComponent, (value) => {
+                  const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                  if (!current || !GeometryComponent.isPolygon(current)) {
+                    return null;
+                  }
+                  const currentGeom = GeometryComponent.get(current);
+                  const newX = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                  const currentBounds = BoundingBox.fromPoints(
+                    currentGeom.points.map((s) => s.point),
+                  );
+                  const deltaX = newX - currentBounds.position.x;
+                  if (deltaX === 0) {
+                    return null;
+                  }
+                  const translated = PolygonData.translate(
+                    current,
+                    (p) => new SheetPosition(p.x + deltaX, p.y),
+                  );
+                  return { points: GeometryComponent.get(translated).points };
+                }),
+              ),
+            ),
+            Fields.labelled(
+              'y',
+              'Y:',
+              Fields.length(
+                'y',
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, bounds.position.y),
+                { readOnlyUnit: true },
+                ctx.makeLengthHandlers(id, 'y', GeometryComponent, (value) => {
+                  const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                  if (!current || !GeometryComponent.isPolygon(current)) {
+                    return null;
+                  }
+                  const currentGeom = GeometryComponent.get(current);
+                  const newY = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                  const currentBounds = BoundingBox.fromPoints(
+                    currentGeom.points.map((s) => s.point),
+                  );
+                  const deltaY = newY - currentBounds.position.y;
+                  if (deltaY === 0) {
+                    return null;
+                  }
+                  const translated = PolygonData.translate(
+                    current,
+                    (p) => new SheetPosition(p.x, p.y + deltaY),
+                  );
+                  return { points: GeometryComponent.get(translated).points };
+                }),
+              ),
+            ),
+          ]),
+          Fields.row('dimensions', [
+            Fields.labelled(
+              'width',
+              'W:',
+              Fields.length(
+                'width',
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, bounds.width),
+                { readOnlyUnit: true },
+                ctx.makeLengthHandlers(
+                  id,
+                  'width',
+                  GeometryComponent,
+                  (value) => {
+                    const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                    if (!current || !GeometryComponent.isPolygon(current)) {
+                      return null;
+                    }
+                    const currentGeom = GeometryComponent.get(current);
+                    const w = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                    const currentBounds = BoundingBox.fromPoints(
+                      currentGeom.points.map((s) => s.point),
+                    );
+                    if (w === currentBounds.width) {
+                      return null;
+                    }
+                    const newBounds = {
+                      position: currentBounds.position,
+                      width: w,
+                      height: currentBounds.height,
+                    };
+                    return {
+                      points: BoundingBox.interpolatePoints(
+                        currentGeom.points,
+                        currentBounds,
+                        newBounds,
+                      ),
+                    };
+                  },
+                  'width',
+                ),
+              ),
+            ),
+            Fields.labelled(
+              'height',
+              'H:',
+              Fields.length(
+                'height',
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, bounds.height),
+                { readOnlyUnit: true },
+                ctx.makeLengthHandlers(
+                  id,
+                  'height',
+                  GeometryComponent,
+                  (value) => {
+                    const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+                    if (!current || !GeometryComponent.isPolygon(current)) {
+                      return null;
+                    }
+                    const currentGeom = GeometryComponent.get(current);
+                    const h = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                    const currentBounds = BoundingBox.fromPoints(
+                      currentGeom.points.map((s) => s.point),
+                    );
+                    if (h === currentBounds.height) {
+                      return null;
+                    }
+                    const newBounds = {
+                      position: currentBounds.position,
+                      width: currentBounds.width,
+                      height: h,
+                    };
+                    return {
+                      points: BoundingBox.interpolatePoints(
+                        currentGeom.points,
+                        currentBounds,
+                        newBounds,
+                      ),
+                    };
+                  },
+                  'height',
+                ),
+              ),
+            ),
+          ]),
+          Fields.polygonPoints('points', geometryData, isPolygonFilledDueToFilter, {
+            onPointXChange: pointXHandlers.onChange,
+            onPointYChange: pointYHandlers.onChange,
+            onPointXBlur: pointXHandlers.onBlur,
+            onPointYBlur: pointYHandlers.onBlur,
+            onControlPointChange: (index, pointKey, axis, len) => {
+              const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+              if (!current || !GeometryComponent.isPolygon(current)) {
+                return;
+              }
+              const polygonData = GeometryComponent.get(current);
+              const beforePoint = (polygonData.points[index] as any)[pointKey];
+              const sheetVal = len.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+              const afterPoint =
+                axis === 'x'
+                  ? new SheetPosition(sheetVal, beforePoint.y)
+                  : new SheetPosition(beforePoint.x, sheetVal);
+              ctx.historyManager.apply(
+                UndoEntry.polygonMoveControlPoint(id, index, pointKey, beforePoint, afterPoint),
+              );
+            },
+            onDeletePoint: (index) => {
+              ctx.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) => {
+                if (!GeometryComponent.isPolygon(old)) {
+                  return old;
+                }
+                const oldData = GeometryComponent.get(old);
+                return GeometryComponent.update(old, {
+                  points: oldData.points.filter((_, i) => i !== index),
+                });
+              });
+            },
+            onInsertPoint: (index) => {
+              const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+              if (!current || !GeometryComponent.isPolygon(current)) {
+                return;
+              }
+              const polygonData = GeometryComponent.get(current);
+              const seg = polygonData.points[index];
+              const nextSeg = polygonData.points[index + 1];
+              if (!seg || !nextSeg) {
+                return;
+              }
+              const midX = (seg.point.x + nextSeg.point.x) / 2;
+              const midY = (seg.point.y + nextSeg.point.y) / 2;
+              ctx.geometryStore.addPointOnLineSegmentEdge(id, index, new SheetPosition(midX, midY));
+            },
+            onPointTypeChange: (index, type) => {
+              if (index === 0) {
+                // Point at index=0 must always stay a point
+                return;
+              }
+              ctx.geometryStore.updateByIdWithComponent(id, GeometryComponent, (old) => {
+                if (!GeometryComponent.isPolygon(old)) {
+                  return old;
+                }
+                const oldData = GeometryComponent.get(old);
+                const current = oldData.points[index];
+                if (!current || current.type === type) {
+                  return old;
+                }
+                const points = oldData.points.map((seg, i) => {
+                  if (i !== index) {
+                    return seg;
+                  }
+                  const previousSeg = i > 0 ? oldData.points[i - 1] : oldData.points.at(-1);
+                  if (!previousSeg) {
+                    return seg;
+                  }
+                  return PolygonSegment.changePointType(seg, previousSeg, type);
+                });
+                return GeometryComponent.update(old, { points });
+              });
+            },
+            onPointMouseEnter: (index) => {
+              ctx.shapePreview.setHighlight({ type: 'point', index });
+            },
+            onPointMouseLeave: () => {
+              ctx.shapePreview.setHighlight(null);
+            },
+            onOpenAtIndexMouseEnter: () => {
+              ctx.shapePreview.setHighlight({
+                type: 'segment',
+                index: geometryData.openAtIndex,
+                color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+              });
+            },
+            onOpenAtIndexMouseLeave: () => {
+              ctx.shapePreview.setHighlight(null);
+            },
+            onOpenAtIndexMouseDown: () => {
+              const current = ctx.geometryStore.getByIdWithComponent(id, GeometryComponent);
+              if (!current || !GeometryComponent.isPolygon(current)) {
+                return;
+              }
+              const polygonData = GeometryComponent.get(current);
+              const initialOpenAtIndex = polygonData.openAtIndex;
+              // Only drag across the displayed rows: closed polygons hide their duplicated
+              // closing point.
+              const initialPoints = polygonData.closed
+                ? polygonData.points.slice(0, -1)
+                : polygonData.points;
+              let newOpenAtIndex = initialOpenAtIndex;
+              let deltaYPx = 0;
+
+              ctx.setOpenAtIndexState('dragging');
+              ctx.shapePreview.setHighlight({
+                type: 'segment',
+                index: newOpenAtIndex,
+                color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+              });
+
+              const onMouseMove = (e: MouseEvent) => {
+                deltaYPx += e.movementY;
+                newOpenAtIndex = computeOpenAtIndex(initialOpenAtIndex, initialPoints, deltaYPx);
+                ctx.geometryStore.updateByIdWithComponentDirect(id, GeometryComponent, (old) =>
+                  GeometryComponent.update(old, { openAtIndex: newOpenAtIndex }),
+                );
+                ctx.shapePreview.setHighlight({
+                  type: 'segment',
+                  index: newOpenAtIndex,
+                  color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+                });
+              };
+
+              const cleanup = () => {
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+                ctx.clearOpenAtIndexDragCleanup(cleanup);
+              };
+
+              const onMouseUp = () => {
+                ctx.setOpenAtIndexState('idle');
+                ctx.shapePreview.setHighlight(null);
+                if (newOpenAtIndex !== initialOpenAtIndex) {
+                  ctx.historyManager.push(
+                    UndoEntry.polygonOpenAtIndex(id, initialOpenAtIndex, newOpenAtIndex),
+                  );
+                }
+                cleanup();
+              };
+
+              ctx.setOpenAtIndexDragCleanup(cleanup);
+              window.addEventListener('mousemove', onMouseMove);
+              window.addEventListener('mouseup', onMouseUp);
+            },
+            onCloseOpen: () => {
+              ctx.actionsManager?.execute('open-close-polygon');
+            },
+            onCloseOpenMouseEnter: () => {
+              if (!geometryData.closed) {
+                return;
+              }
+
+              // When hovering the open / close button, highlight the line, but don't actually
+              // mark it as being dragged.
+              ctx.setOpenAtIndexState('highlighted');
+
+              ctx.shapePreview.setHighlight({
+                type: 'segment',
+                index: geometryData.openAtIndex,
+                color: POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR,
+              });
+            },
+            onCloseOpenMouseLeave: () => {
+              if (!geometryData.closed) {
+                return;
+              }
+              ctx.setOpenAtIndexState('idle');
+              ctx.shapePreview.setHighlight(null);
+            },
+          }),
+        ];
+      }
+      default:
+        geometryData satisfies never;
+        return [];
+    }
   }
 }

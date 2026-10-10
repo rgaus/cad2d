@@ -1,4 +1,7 @@
 import { BoundingBox } from '@/lib/math';
+import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
+import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
+import { Length } from '@/lib/units/length';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { type Entity, type EntityComponent, ResizeParams } from '../types';
 
@@ -390,5 +393,122 @@ export namespace FrameComponent {
       return { position: ul, width: lr.x - ul.x, height: lr.y - ul.y };
     }
     return null;
+  }
+
+  /** Builds the position + dimensions rows shown in the selection inspector for this frame. */
+  export function computeSelectionInspectorFields(
+    entity: Entity<FrameComponent>,
+    ctx: SelectionInspectorContext,
+  ): FieldOptionsList {
+    const frameData = FrameComponent.get(entity);
+    const id = entity.id;
+    return [
+      Fields.row('position', [
+        Fields.labelled(
+          'x',
+          'X:',
+          Fields.length(
+            'x',
+            Length.fromSheetUnits(ctx.sheetDefaultUnit, frameData.upperLeft.x),
+            { readOnlyUnit: true },
+            ctx.makeLengthHandlers(id, 'x', FrameComponent, (value) => {
+              const current = ctx.geometryStore.getByIdWithComponent(id, FrameComponent);
+              if (!current) {
+                return null;
+              }
+              const currentFrame = FrameComponent.get(current);
+              const newX = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+              const deltaX = newX - currentFrame.upperLeft.x;
+              return {
+                upperLeft: new SheetPosition(newX, currentFrame.upperLeft.y),
+                lowerRight: new SheetPosition(
+                  currentFrame.lowerRight.x + deltaX,
+                  currentFrame.lowerRight.y,
+                ),
+              };
+            }),
+          ),
+        ),
+        Fields.labelled(
+          'y',
+          'Y:',
+          Fields.length(
+            'y',
+            Length.fromSheetUnits(ctx.sheetDefaultUnit, frameData.upperLeft.y),
+            { readOnlyUnit: true },
+            ctx.makeLengthHandlers(id, 'y', FrameComponent, (value) => {
+              const current = ctx.geometryStore.getByIdWithComponent(id, FrameComponent);
+              if (!current) {
+                return null;
+              }
+              const currentFrame = FrameComponent.get(current);
+              const newY = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+              const deltaY = newY - currentFrame.upperLeft.y;
+              return {
+                upperLeft: new SheetPosition(currentFrame.upperLeft.x, newY),
+                lowerRight: new SheetPosition(
+                  currentFrame.lowerRight.x,
+                  currentFrame.lowerRight.y + deltaY,
+                ),
+              };
+            }),
+          ),
+        ),
+      ]),
+      Fields.row('dimensions', [
+        Fields.labelled(
+          'w',
+          'W:',
+          Fields.length(
+            'w',
+            Length.fromSheetUnits(
+              ctx.sheetDefaultUnit,
+              frameData.lowerRight.x - frameData.upperLeft.x,
+            ),
+            { readOnlyUnit: true },
+            ctx.makeLengthHandlers(id, 'w', FrameComponent, (value) => {
+              const current = ctx.geometryStore.getByIdWithComponent(id, FrameComponent);
+              if (!current) {
+                return null;
+              }
+              const currentFrame = FrameComponent.get(current);
+              const w = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+              return {
+                lowerRight: new SheetPosition(
+                  currentFrame.upperLeft.x + w,
+                  currentFrame.lowerRight.y,
+                ),
+              };
+            }),
+          ),
+        ),
+        Fields.labelled(
+          'h',
+          'H:',
+          Fields.length(
+            'h',
+            Length.fromSheetUnits(
+              ctx.sheetDefaultUnit,
+              frameData.lowerRight.y - frameData.upperLeft.y,
+            ),
+            { readOnlyUnit: true },
+            ctx.makeLengthHandlers(id, 'h', FrameComponent, (value) => {
+              const current = ctx.geometryStore.getByIdWithComponent(id, FrameComponent);
+              if (!current) {
+                return null;
+              }
+              const currentFrame = FrameComponent.get(current);
+              const h = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+              return {
+                lowerRight: new SheetPosition(
+                  currentFrame.lowerRight.x,
+                  currentFrame.upperLeft.y + h,
+                ),
+              };
+            }),
+          ),
+        ),
+      ]),
+    ];
   }
 }

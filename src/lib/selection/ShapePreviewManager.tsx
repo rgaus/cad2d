@@ -4,6 +4,9 @@ import { GeometryStore } from '../entity/GeometryStore';
 import { FilterComponent } from '../entity/components/FilterComponent';
 import { Filter } from '../entity/filters';
 import { Sheet } from '../sheet/Sheet';
+import { POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR } from './constants';
+
+export { POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR };
 
 /** A highlight overlay drawn on the {@link ShapePreview} (a point vertex or a polygon segment). */
 export type ShapePreviewHighlight =
@@ -19,9 +22,6 @@ export type ShapePreviewEditingDimension =
   | 'origin'
   | 'radiusX'
   | 'radiusY';
-
-/** The color used to highlight the polygon's open dividing segment. */
-export const POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR = 'var(--teal-10)';
 
 /**
  * The full state driving the {@link ShapePreview}. `null` indicates no preview should render (no

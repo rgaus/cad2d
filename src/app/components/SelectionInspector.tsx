@@ -11,9 +11,9 @@ import { GeometryStore } from '@/lib/entity/GeometryStore';
 import {
   type Field,
   FieldLabel,
+  FieldLeaf,
   FieldRow,
   OpenAtIndexState,
-  SelectionInspectorField,
   type WorkingFieldData,
 } from '@/lib/selection/SelectionInspectorManager';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -56,7 +56,7 @@ function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => voi
 
 const FieldLeafRenderer: React.FunctionComponent<{
   geometryStore: GeometryStore;
-  field: SelectionInspectorField;
+  field: FieldLeaf;
   sheetDefaultUnit: Sheet['defaultUnit'];
   sheetUnitPlaces: Sheet['unitPlaces'];
   openAtIndexState?: OpenAtIndexState;

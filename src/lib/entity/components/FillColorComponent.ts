@@ -1,3 +1,5 @@
+import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
+import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { Entity, EntityComponent, EntityOmitComponents } from '../types';
 
 /** Fill color as a 24-bit integer (0xRRGGBB), or null for no fill. */
@@ -42,5 +44,50 @@ export namespace FillColorComponent {
     const components: Partial<G['components']> = { ...geometry.components };
     delete components.fillColor;
     return { ...geometry, components };
+  }
+
+  /** Builds the fill-color row shown in the selection inspector for this entity. */
+  export function computeSelectionInspectorFields(
+    entity: Entity<FillColorComponent>,
+    ctx: SelectionInspectorContext,
+  ): FieldOptionsList {
+    const fillColor = FillColorComponent.get(entity);
+    const id = entity.id;
+    return [
+      Fields.row('fillColor', [
+        Fields.labelled(
+          'fillColor',
+          'Fill:',
+          Fields.color('fillColor', fillColor, {
+            onChange: (value) => {
+              ctx.captureDragOriginal(id);
+              ctx.setWorkingFieldData('fillColor', { type: 'color', value });
+              ctx.geometryStore.updateByIdWithComponentDirect(id, FillColorComponent, (old) =>
+                FillColorComponent.update(old, value),
+              );
+            },
+            onBlur: () => {
+              if (!ctx.hasDragOriginal(id)) {
+                return;
+              }
+              const fieldData = ctx.getWorkingFieldData('fillColor');
+              if (!fieldData || fieldData.type !== 'color') {
+                return;
+              }
+              ctx.geometryStore.updateByIdDirect(id, ctx.getDragOriginal(id)!);
+              ctx.geometryStore.setFillColor(id, fieldData.value);
+              ctx.clearDragOriginal(id);
+            },
+            onKeyDown: (k) => {
+              if (k === 'Escape' && ctx.hasDragOriginal(id)) {
+                ctx.restoreDragOriginal(id);
+                ctx.clearWorkingFieldData();
+                ctx.recomputeFields();
+              }
+            },
+          }),
+        ),
+      ]),
+    ];
   }
 }

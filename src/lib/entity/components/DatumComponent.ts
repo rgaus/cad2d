@@ -1,3 +1,6 @@
+import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
+import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
+import { Length } from '@/lib/units/length';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { Entity, EntityComponent, type ResizeParams } from '../types';
 
@@ -92,5 +95,54 @@ export namespace DatumComponent {
     _originalBBox?: Rect<SheetPosition>,
   ): null {
     return null;
+  }
+
+  /** Builds the position row shown in the selection inspector for this datum. */
+  export function computeSelectionInspectorFields(
+    entity: Entity<DatumComponent>,
+    ctx: SelectionInspectorContext,
+  ): FieldOptionsList {
+    const datumData = DatumComponent.get(entity);
+    const id = entity.id;
+    return [
+      Fields.row('position', [
+        Fields.labelled(
+          'x',
+          'X:',
+          Fields.length(
+            'x',
+            Length.fromSheetUnits(ctx.sheetDefaultUnit, datumData.x),
+            { readOnlyUnit: true },
+            ctx.makeLengthHandlers(id, 'x', DatumComponent, (value) => {
+              const current = ctx.geometryStore.getByIdWithComponent(id, DatumComponent);
+              if (!current) {
+                return null;
+              }
+              const currentDatum = DatumComponent.get(current);
+              const newX = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+              return new SheetPosition(newX, currentDatum.y);
+            }),
+          ),
+        ),
+        Fields.labelled(
+          'y',
+          'Y:',
+          Fields.length(
+            'y',
+            Length.fromSheetUnits(ctx.sheetDefaultUnit, datumData.y),
+            { readOnlyUnit: true },
+            ctx.makeLengthHandlers(id, 'y', DatumComponent, (value) => {
+              const current = ctx.geometryStore.getByIdWithComponent(id, DatumComponent);
+              if (!current) {
+                return null;
+              }
+              const currentDatum = DatumComponent.get(current);
+              const newY = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+              return new SheetPosition(currentDatum.x, newY);
+            }),
+          ),
+        ),
+      ]),
+    ];
   }
 }
