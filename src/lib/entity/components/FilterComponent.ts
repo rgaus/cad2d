@@ -373,6 +373,25 @@ export namespace FilterComponent {
                 ),
             ),
           ]),
+          Fields.row('geometry', [
+            Fields.labelled(
+              'geometry',
+              'Geometry',
+              Fields.entity(
+                'geometry-id',
+                filterData.geometryId,
+                { clearable: false },
+                {
+                  onClick: () => {
+                    console.log('START PICKING GEOMETRY');
+                  },
+                  onClear: () => {
+                    console.log('CLEAR GEOMETRY');
+                  },
+                },
+              ),
+            ),
+          ]),
           Fields.button('apply-filter', 'Apply filter...', {
             onClick: () => {
               ctx.actionsManager?.execute('apply-filter-to-geometry');

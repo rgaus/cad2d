@@ -99,6 +99,13 @@ export type FieldLeaf =
       value: string;
       options: Array<{ value: string; label: string }>;
       handlers: FieldHandlers<string>;
+    }
+  | {
+      type: 'entity-selector';
+      key: string;
+      value: Entity['id'] | null;
+      clearable: boolean;
+      handlers: { onClick?: () => void; onClear?: () => void; };
     };
 
 /**
@@ -162,6 +169,13 @@ export type FieldOptions =
       value: Array<string>;
       options: Array<{ value: string; label: string }>;
       handlers: Array<FieldHandlers<string>>;
+    }
+  | {
+      type: 'entity-selector';
+      key: string;
+      value: Array<Entity['id'] | null>;
+      clearable: boolean;
+      handlers: Array<{ onClick?: () => void; onClear?: () => void; }>;
     };
 
 /** A labelled group of {@link FieldOptions}, produced by {@link Fields.labelled}. */
@@ -227,7 +241,8 @@ export type WorkingValue =
   | { type: 'angle'; value: Angle }
   | { type: 'render-order'; value: number }
   | { type: 'color'; value: number | null }
-  | { type: 'link-dimensions-button'; value: boolean };
+  | { type: 'link-dimensions-button'; value: boolean }
+  | { type: 'entity'; value: Entity['id'] | null };
 
 /** Map from field key to the in-progress value being edited. */
 export type WorkingFieldData = Map<string, WorkingValue>;
@@ -361,6 +376,16 @@ export namespace Fields {
     handlers?: FieldHandlers<string>,
   ): FieldOptions {
     return { type: 'choices', key, value: [value], options, handlers: [handlers ?? {}] };
+  }
+
+  /** Build a constraint-endpoint picker field. */
+  export function entity(
+    key: string,
+    value: Entity['id'] | null,
+    options?: { clearable?: boolean },
+    handlers?: { onClick?: () => void; onClear?: () => void; },
+  ): FieldOptions {
+    return { type: 'entity-selector', key, value: [value], clearable: options?.clearable ?? false, handlers: [handlers ?? {}] };
   }
 
   /** Wrap field(s) under a text label. */

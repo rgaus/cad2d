@@ -1,6 +1,6 @@
 'use client';
 
-import { Link2Icon, Link2OffIcon } from 'lucide-react';
+import { Link2Icon, Link2OffIcon, XIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import RenderOrderInput from '@/components/RenderOrderInput';
 import { Button } from '@/components/ui/button';
@@ -242,6 +242,31 @@ const FieldLeafRenderer: React.FunctionComponent<{
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
+      );
+    case 'entity-selector':
+      return (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={field.handlers.onClick}
+            className="px-3 py-1.5 bg-[var(--slate-5)] text-[var(--slate-12)] text-sm rounded-[4px] border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
+            style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+          >
+            <span className="font-bold text-xs">
+              {field.value === null ? 'Select...' : `ID: ${field.value.slice(0, 8)}`}
+            </span>
+          </button>
+          {field.clearable ? (
+            <button
+              type="button"
+              onClick={() => field.handlers.onClear?.()}
+              className="w-8 h-8 px-1.5 py-1.5 bg-[var(--slate-5)] text-[var(--slate-12)] text-sm rounded-[4px] border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
+              style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+            >
+              <XIcon size={16} />
+            </button>
+          ) : null}
+        </div>
       );
     default:
       field satisfies never;

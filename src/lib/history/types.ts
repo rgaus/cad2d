@@ -336,6 +336,13 @@ export type FilterChangeOffsetEntry = {
   afterLength: Length;
 };
 
+export type FilterChangeGeometryIdEntry = {
+  type: 'filter-change-geometry-id';
+  id: Entity['id'];
+  beforeGeometryId: Entity['id'];
+  afterGeometryId: Entity['id'];
+};
+
 // ==================== MIRROR FILTER ENTRIES ====================
 
 /** Recorded when a mirror filter's endpoint (pointA/pointB) is moved. */
@@ -406,6 +413,7 @@ export type UndoEntry =
   | SheetDefaultUnitEntry
   | SheetUnitPlacesEntry
   | FilterChangeOffsetEntry
+  | FilterChangeGeometryIdEntry
   | MirrorFilterMoveEndpointsEntry
   | FrameMoveEntry
   | PatternRadialFilterMoveCenterEntry;
@@ -796,6 +804,20 @@ export namespace UndoEntry {
       id: filterId,
       beforeLength,
       afterLength,
+    };
+  }
+
+  /** Creates an entry recording that the geometry a filter is associated with has changed. */
+  export function filterChangeGeometryId(
+    filterId: Entity['id'],
+    beforeGeometryId: Entity['id'],
+    afterGeometryId: Entity['id'],
+  ): FilterChangeGeometryIdEntry {
+    return {
+      type: 'filter-change-geometry-id',
+      id: filterId,
+      beforeGeometryId,
+      afterGeometryId,
     };
   }
 

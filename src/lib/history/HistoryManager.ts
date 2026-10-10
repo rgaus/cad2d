@@ -632,6 +632,17 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         }
         break;
       }
+      case 'filter-change-geometry-id': {
+        const updates = this.geometryStore.updateByIdWithComponentDirect(
+          entry.id,
+          FilterComponent,
+          (g) => FilterComponent.update(g, { geometryId: entry.afterGeometryId }),
+        );
+        if (updates) {
+          this.geometryStore.resyncFilterAttachedGeometryFillColor(updates[1 /* after */]);
+        }
+        break;
+      }
       case 'mirror-filter-move-endpoints': {
         const updates = this.geometryStore.updateByIdWithComponentDirect(
           entry.id,
@@ -1070,6 +1081,17 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           entry.id,
           FilterComponent,
           (g) => FilterComponent.update(g, { offset: entry.beforeLength }),
+        );
+        if (updates) {
+          this.geometryStore.resyncFilterAttachedGeometryFillColor(updates[1 /* after */]);
+        }
+        break;
+      }
+      case 'filter-change-geometry-id': {
+        const updates = this.geometryStore.updateByIdWithComponentDirect(
+          entry.id,
+          FilterComponent,
+          (g) => FilterComponent.update(g, { geometryId: entry.beforeGeometryId }),
         );
         if (updates) {
           this.geometryStore.resyncFilterAttachedGeometryFillColor(updates[1 /* after */]);

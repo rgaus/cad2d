@@ -770,6 +770,14 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           options: fieldOptionsFirst.options,
           handlers: combineHandlers(handlers as Array<FieldHandlers<string>>),
         };
+      case 'entity-selector':
+        return {
+          type: 'entity-selector',
+          key: fieldOptionsFirst.key,
+          value: (newValue as any) ?? fieldOptionsFirst.value[0],
+          clearable: fieldOptionsFirst.clearable,
+          handlers: combineHandlers(handlers as Array<FieldHandlers<Entity['id'] | null>>),
+        };
       default:
         fieldOptionsFirst satisfies never;
         throw new Error(
@@ -830,6 +838,8 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
             );
           });
         case 'color':
+          return (acc as typeof e.value).filter((value) => e.value.includes(value));
+        case 'entity-selector':
           return (acc as typeof e.value).filter((value) => e.value.includes(value));
         case 'polygon-points':
           // Polygon points will not merge together with other polygon points
