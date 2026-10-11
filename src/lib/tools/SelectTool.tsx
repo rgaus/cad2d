@@ -65,6 +65,8 @@ export type SelectToolEvents = {
   hoveringConstraintLabelChange: (constraintId: Constraint['id'] | null) => void;
   hoveringFilterLabelChange: (filterId: Filter['id'] | null) => void;
   dragSelectBoundingBoxChange: (bounds: Rect<SheetPosition> | null) => void;
+  entityPickBegin: () => void;
+  entityPickEnd: (entityId: Entity['id'] | null) => void;
 };
 
 /** The pixels offset the selected bounded box is rendered from the actual bounding box. */
@@ -388,15 +390,23 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.cancelActiveDrag();
     this.cancelTooltip();
     this.entityPick = { onSelect };
+    this.emit('entityPickBegin');
   }
 
   /** Leaves entity-pick mode and clears any highlight. Safe to call when not picking. */
-  private endEntityPick(): void {
+  endEntityPick(entityId?: Entity['id']): void {
     if (!this.entityPick) {
       return;
     }
+
+    const { onSelect } = this.entityPick;
     this.entityPick = null;
     this.highlightGeometry(null);
+    this.emit('entityPickEnd', entityId ?? null);
+
+    if (typeof entityId !== 'undefined') {
+      onSelect(entityId);
+    }
   }
 
   handleToolBlur(): void {
@@ -1692,13 +1702,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     viewportControls: ViewportControls,
     geometryId: Id,
   ): boolean {
-    // While picking an entity, a geometry click completes the pick and is consumed.
-    if (this.entityPick) {
-      const { onSelect } = this.entityPick;
-      this.endEntityPick();
-      onSelect(geometryId);
-      return true;
-    }
     return this.handleFillPointerDown(screenPos, viewportControls, geometryId);
   }
 
@@ -1707,9 +1710,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     viewportControls: ViewportControls,
     entityId: Entity['id'],
   ): boolean {
-    // In pick mode only geometry fills are interactive; ignore other entity clicks.
+    // While picking an entity, a geometry click completes the pick and is consumed.
     if (this.entityPick) {
-      return false;
+      this.endEntityPick(entityId);
+      return true;
     }
 
     const shiftHeld = this.toolManager.getShiftHeld();

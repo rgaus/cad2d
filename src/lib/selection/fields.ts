@@ -21,14 +21,15 @@ export type FieldHandlers<Value> = {
   onKeyDown?: (key: string) => void;
 };
 
-/**
- * Handlers for the {@link FieldLeaf} `entity-selector` variant. `onClick` begins an interactive
- * pick session (hover highlights a geometry, click selects it); `onSelect` is invoked with the
- * picked entity's id once a geometry is clicked; `onClear` clears the current value.
- */
+/** Handlers for the {@link FieldLeaf} `entity-selector` variant. */
 export type EntitySelectorHandlers = {
+  /** Begins an interactive pick session (hover highlights a geometry, click selects it) */
   onClick?: () => void;
+  /** Clears the current value, if possible. */
   onClear?: () => void;
+  /** Cancels an interactive pick session. */
+  onCancel?: () => void;
+  /** Invoked with the picked entity if once a geometry is clicked. */
   onSelect?: (id: Entity['id']) => void;
 };
 

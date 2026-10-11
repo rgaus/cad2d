@@ -109,4 +109,6 @@ export interface SelectionInspectorContext {
    * geometry highlights it and clicking one invokes `onSelect` with its id.
    */
   beginEntityPick(onSelect: (id: Entity['id']) => void): void;
+
+  endEntityPick(): void;
 }

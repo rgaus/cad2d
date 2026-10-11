@@ -244,6 +244,13 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         this.toolManager.setActiveTool('select');
         this.toolManager.getTool('select').beginEntityPick(onSelect);
       },
+      endEntityPick: () => {
+        if (!this.toolManager) {
+          return;
+        }
+        this.toolManager.setActiveTool('select');
+        this.toolManager.getTool('select').endEntityPick();
+      }
     };
   }
 
