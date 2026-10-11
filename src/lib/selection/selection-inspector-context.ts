@@ -103,4 +103,10 @@ export interface SelectionInspectorContext {
 
   /** Rebuilds and emits the selection inspector fields. */
   recomputeFields(): void;
+
+  /**
+   * Begins an interactive entity pick session on the select tool. While active, hovering a
+   * geometry highlights it and clicking one invokes `onSelect` with its id.
+   */
+  beginEntityPick(onSelect: (id: Entity['id']) => void): void;
 }

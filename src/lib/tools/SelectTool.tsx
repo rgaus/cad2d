@@ -378,11 +378,34 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    * if the user just clicked, or clicked and dragged (which moves the label). */
   private constraintLabelPointerDownPosition: ScreenPosition | null = null;
 
+  /** When set, the tool is in "pick an entity" mode. While active it takes precedence over all other
+   * select-tool mouse handling: hovering a geometry highlights it and clicking one invokes the
+   * stored callback with that geometry's id. */
+  private entityPick: { onSelect: (id: Id) => void } | null = null;
+
+  /** Enters interactive entity-pick mode, replacing any existing pick session. */
+  beginEntityPick(onSelect: (id: Id) => void): void {
+    this.cancelActiveDrag();
+    this.cancelTooltip();
+    this.entityPick = { onSelect };
+  }
+
+  /** Leaves entity-pick mode and clears any highlight. Safe to call when not picking. */
+  private endEntityPick(): void {
+    if (!this.entityPick) {
+      return;
+    }
+    this.entityPick = null;
+    this.highlightGeometry(null);
+  }
+
   handleToolBlur(): void {
     this.getSelectionManager().clearSelection();
     this.emit('hoveringPolygonSegmentChange', false);
     this.emit('hoveringConstraintLabelChange', null);
     this.cancelTooltip();
+    this.highlightGeometry(null);
+    this.entityPick = null;
   }
 
   dragSelectBoundingBox: Rect<SheetPosition> | null = null;
@@ -401,6 +424,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   private dragSelectStartSheetPos: SheetPosition | null = null;
 
   handleBackdropPointerDown(screenPos: ScreenPosition, viewportControls: ViewportControls): void {
+    // While picking an entity, a backdrop click just cancels the pick.
+    if (this.entityPick) {
+      this.endEntityPick();
+      return;
+    }
+
     if (this.dragSelectBoundingBox) {
       this.dragSelectBoundingBox = null;
       this.emit('dragSelectBoundingBoxChange', null);
@@ -470,12 +499,20 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   /** Called by the renderer when the pointer enters the fill area of a shape. */
-  handleGeometryFillEnter(_id: Id): void {
+  handleGeometryFillEnter(id: Id): void {
+    if (this.entityPick) {
+      this.highlightGeometry(id);
+      return;
+    }
     this.scheduleTooltip('geometry-fill', GEOMETRY_FILL_TOOLTIP_TIMEOUT_MS);
   }
 
   /** Called by the renderer when the pointer leaves the fill area of a shape. */
   handleGeometryFillLeave(_id: Id): void {
+    if (this.entityPick) {
+      this.highlightGeometry(null);
+      return;
+    }
     this.cancelTooltip();
   }
 
@@ -510,6 +547,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Handles key down events for polygon drawing and select tool shortcuts. */
   handleKeyDown(event: KeyboardEvent): boolean {
+    // Escape cancels an in-progress entity pick.
+    if (event.key === 'Escape' && this.entityPick) {
+      this.endEntityPick();
+      return true;
+    }
+
     // Escape clears selection / active drag
     if (event.key === 'Escape') {
       if (this.activeDragListener) {
@@ -610,6 +653,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Handles mouse move to compute closest point on selected polygon edges for tooltip. */
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    if (this.entityPick) {
+      return;
+    }
+
     this.restartTooltip('geometry-fill', GEOMETRY_FILL_TOOLTIP_TIMEOUT_MS);
 
     const worldPos = screenPos.toWorld(viewport);
@@ -1645,6 +1692,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     viewportControls: ViewportControls,
     geometryId: Id,
   ): boolean {
+    // While picking an entity, a geometry click completes the pick and is consumed.
+    if (this.entityPick) {
+      const { onSelect } = this.entityPick;
+      this.endEntityPick();
+      onSelect(geometryId);
+      return true;
+    }
     return this.handleFillPointerDown(screenPos, viewportControls, geometryId);
   }
 
@@ -1653,6 +1707,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     viewportControls: ViewportControls,
     entityId: Entity['id'],
   ): boolean {
+    // In pick mode only geometry fills are interactive; ignore other entity clicks.
+    if (this.entityPick) {
+      return false;
+    }
+
     const shiftHeld = this.toolManager.getShiftHeld();
     const ctrlHeld = this.toolManager.getCtrlHeld();
     const altHeld = this.toolManager.getAltHeld();
@@ -2318,8 +2377,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                     geometry,
                     filters,
                     originalEntity as
-                      | Entity<GeometryComponent & Partial<FillColorComponent>>
-                      | undefined,
+                      Entity<GeometryComponent & Partial<FillColorComponent>> | undefined,
                   );
                   if (output !== geometry) {
                     for (const event of historyEvents) {

@@ -39,6 +39,7 @@ export default function Home() {
   useEffect(() => {
     actionManager.setToolManager(toolManager);
     sheet.selectionInspectorManager.setActionsManager(actionManager);
+    sheet.selectionInspectorManager.setToolManager(toolManager);
   }, [actionManager, toolManager, sheet.selectionInspectorManager]);
 
   // Wire up SerializationManager

@@ -21,6 +21,17 @@ export type FieldHandlers<Value> = {
   onKeyDown?: (key: string) => void;
 };
 
+/**
+ * Handlers for the {@link FieldLeaf} `entity-selector` variant. `onClick` begins an interactive
+ * pick session (hover highlights a geometry, click selects it); `onSelect` is invoked with the
+ * picked entity's id once a geometry is clicked; `onClear` clears the current value.
+ */
+export type EntitySelectorHandlers = {
+  onClick?: () => void;
+  onClear?: () => void;
+  onSelect?: (id: Entity['id']) => void;
+};
+
 /** Handlers for the {@link FieldLeaf} `polygon-points` variant. Superset of the handlers used by the
  * inline point editor rendered inside the selection inspector. */
 export type PolygonPointsHandlers = {
@@ -105,7 +116,7 @@ export type FieldLeaf =
       key: string;
       value: Entity['id'] | null;
       clearable: boolean;
-      handlers: { onClick?: () => void; onClear?: () => void; };
+      handlers: EntitySelectorHandlers;
     };
 
 /**
@@ -175,7 +186,7 @@ export type FieldOptions =
       key: string;
       value: Array<Entity['id'] | null>;
       clearable: boolean;
-      handlers: Array<{ onClick?: () => void; onClear?: () => void; }>;
+      handlers: Array<EntitySelectorHandlers>;
     };
 
 /** A labelled group of {@link FieldOptions}, produced by {@link Fields.labelled}. */
@@ -383,9 +394,15 @@ export namespace Fields {
     key: string,
     value: Entity['id'] | null,
     options?: { clearable?: boolean },
-    handlers?: { onClick?: () => void; onClear?: () => void; },
+    handlers?: EntitySelectorHandlers,
   ): FieldOptions {
-    return { type: 'entity-selector', key, value: [value], clearable: options?.clearable ?? false, handlers: [handlers ?? {}] };
+    return {
+      type: 'entity-selector',
+      key,
+      value: [value],
+      clearable: options?.clearable ?? false,
+      handlers: [handlers ?? {}],
+    };
   }
 
   /** Wrap field(s) under a text label. */

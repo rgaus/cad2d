@@ -18,6 +18,7 @@ import { PolygonData } from '../entity/geometry/polygon';
 import { HistoryManager } from '../history/HistoryManager';
 import { Sheet } from '../sheet/Sheet';
 import { SelectionManager } from '../tools/SelectionManager';
+import type { ToolManager } from '../tools/ToolManager';
 import { Angle } from '../units/angle';
 import { Length } from '../units/length';
 import { SheetPosition } from '../viewport/types';
@@ -27,6 +28,7 @@ import {
   type ShapePreviewState,
 } from './ShapePreviewManager';
 import {
+  type EntitySelectorHandlers,
   type Field,
   type FieldHandlers,
   type FieldLabel,
@@ -101,6 +103,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
   private geometryStore: GeometryStore;
   private historyManager: HistoryManager;
   private actionsManager: ActionsManager | null = null;
+  private toolManager: ToolManager | null = null;
 
   private shapePreviewManager: ShapePreviewManager;
 
@@ -152,6 +155,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
   setActionsManager(actionsManager: ActionsManager) {
     this.actionsManager = actionsManager;
+  }
+
+  /** Sets the ToolManager, enabling selection-inspector fields to drive interactive picks. */
+  setToolManager(toolManager: ToolManager) {
+    this.toolManager = toolManager;
   }
 
   private captureDragOriginal(entityId: Id): void {
@@ -229,6 +237,13 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         }
       },
       recomputeFields: () => this.recomputeFields(),
+      beginEntityPick: (onSelect) => {
+        if (!this.toolManager) {
+          return;
+        }
+        this.toolManager.setActiveTool('select');
+        this.toolManager.getTool('select').beginEntityPick(onSelect);
+      },
     };
   }
 
@@ -668,6 +683,14 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         };
       }
 
+      if ((handlers as Array<Partial<EntitySelectorHandlers>>).some((h) => h.onSelect)) {
+        result.onSelect = (id: Entity['id']) => {
+          for (const handler of handlers as Array<Partial<EntitySelectorHandlers>>) {
+            handler.onSelect?.(id);
+          }
+        };
+      }
+
       return result as FieldHandlers<T>;
     };
 
@@ -776,7 +799,9 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           key: fieldOptionsFirst.key,
           value: (newValue as any) ?? fieldOptionsFirst.value[0],
           clearable: fieldOptionsFirst.clearable,
-          handlers: combineHandlers(handlers as Array<FieldHandlers<Entity['id'] | null>>),
+          handlers: combineHandlers(
+            handlers as unknown as Array<FieldHandlers<Entity['id'] | null>>,
+          ) as EntitySelectorHandlers,
         };
       default:
         fieldOptionsFirst satisfies never;

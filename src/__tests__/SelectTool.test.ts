@@ -6171,3 +6171,154 @@ describe('SelectTool', () => {
     });
   });
 });
+
+describe('SelectTool entity picking', () => {
+  let geometryStore: GeometryStore;
+  let toolManager: ToolManager;
+  let selectionManager: SelectionManager;
+  let historyManager: HistoryManager;
+  let selectTool: SelectTool;
+  let viewportControls: ViewportControls;
+
+  beforeEach(() => {
+    const sheet = Sheet.a4();
+
+    historyManager = new HistoryManager();
+    geometryStore = new GeometryStore(historyManager);
+    historyManager.setGeometryStore(geometryStore);
+    selectionManager = new SelectionManager();
+    toolManager = new ToolManager(geometryStore, selectionManager, historyManager);
+    const actionsManager = new ActionsManager(
+      sheet,
+      geometryStore,
+      selectionManager,
+      historyManager,
+    );
+    const serializationManager = new SerializationManager(actionsManager, toolManager, sheet);
+    toolManager.setSerializationManager(serializationManager);
+    selectTool = toolManager.getTool('select') as SelectTool;
+
+    viewportControls = new ViewportControls({
+      canvasWidth: 800,
+      canvasHeight: 600,
+      sheet,
+    });
+  });
+
+  it('highlights the hovered geometry and clears it on leave while picking', async () => {
+    // Set up a polygon to hover over
+    const polygonId = 'pick-polygon';
+    geometryStore.addDirect(
+      makePolygon({
+        id: polygonId,
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'point' as const, point: new SheetPosition(2, 0) },
+          { type: 'point' as const, point: new SheetPosition(2, 2) },
+          { type: 'point' as const, point: new SheetPosition(0, 2) },
+        ],
+        closed: true,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 0,
+      }),
+    );
+
+    // Subscribe to the tool's highlight events
+    const events = subscribeToEvents(selectTool, ['geometryHighlightChanged']);
+
+    // Begin picking
+    selectTool.beginEntityPick(() => {});
+
+    // Hovering a geometry highlights it
+    selectTool.handleGeometryFillEnter(polygonId);
+    expect(await events.waitFor('geometryHighlightChanged')).toBe(polygonId);
+
+    // Leaving the geometry clears the highlight
+    selectTool.handleGeometryFillLeave(polygonId);
+    expect(await events.waitFor('geometryHighlightChanged')).toBeNull();
+  });
+
+  it('invokes onSelect with the clicked geometry id and does not select it', () => {
+    // Set up a polygon to click
+    const polygon = geometryStore.add(
+      ID_PREFIXES.polygon,
+      makePolygon({
+        id: 'click-polygon',
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'point' as const, point: new SheetPosition(2, 0) },
+          { type: 'point' as const, point: new SheetPosition(2, 2) },
+          { type: 'point' as const, point: new SheetPosition(0, 2) },
+        ],
+        closed: true,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 0,
+      }),
+    );
+
+    const onSelect = jest.fn();
+    selectTool.beginEntityPick(onSelect);
+
+    // Click the geometry
+    const consumed = selectTool.handleGeometryFillPointerDown(
+      new ScreenPosition(1 * SHEET_UNITS_TO_PIXELS, 1 * SHEET_UNITS_TO_PIXELS),
+      viewportControls,
+      polygon.id,
+    );
+
+    // The click is consumed and onSelect is called with the geometry id
+    expect(consumed).toBe(true);
+    expect(onSelect).toHaveBeenCalledWith(polygon.id);
+
+    // Normal selection handling is skipped while picking
+    expect(selectionManager.getSelectedIds()).toEqual([]);
+  });
+
+  it('cancels the pick on Escape without invoking onSelect', () => {
+    // Set up a polygon
+    const polygon = geometryStore.add(
+      ID_PREFIXES.polygon,
+      makePolygon({
+        id: 'escape-polygon',
+        points: [
+          { type: 'point' as const, point: new SheetPosition(0, 0) },
+          { type: 'point' as const, point: new SheetPosition(2, 0) },
+          { type: 'point' as const, point: new SheetPosition(2, 2) },
+          { type: 'point' as const, point: new SheetPosition(0, 2) },
+        ],
+        closed: true,
+        fillColor: null,
+        openAtIndex: 0,
+        renderOrder: 0,
+      }),
+    );
+
+    const onSelect = jest.fn();
+    selectTool.beginEntityPick(onSelect);
+
+    // Escape ends the pick
+    expect(selectTool.handleKeyDown({ key: 'Escape' } as KeyboardEvent)).toBe(true);
+
+    // A subsequent click falls through to normal handling, so onSelect is not called
+    selectTool.handleGeometryFillPointerDown(
+      new ScreenPosition(1 * SHEET_UNITS_TO_PIXELS, 1 * SHEET_UNITS_TO_PIXELS),
+      viewportControls,
+      polygon.id,
+    );
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('cancels the pick on a backdrop click without clearing the selection', () => {
+    // Begin picking with a pre-existing selection
+    selectTool.beginEntityPick(() => {});
+    selectionManager.select('some-geometry-id');
+
+    // Click the backdrop
+    selectTool.handleBackdropPointerDown(new ScreenPosition(10, 10), viewportControls);
+
+    // The existing selection is preserved (normal backdrop behavior is skipped)
+    expect(selectionManager.getSelectedIds()).toEqual(['some-geometry-id']);
+  });
+});

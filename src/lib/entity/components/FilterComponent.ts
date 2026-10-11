@@ -240,6 +240,23 @@ export namespace FilterComponent {
     switch (filterData.type) {
       case 'mirror': {
         const filterId = entity.id;
+
+        /** Commits a change of the geometry a mirror filter is attached to. */
+        const changeGeometryId = (afterGeometryId: Entity['id']) => {
+          const current = ctx.geometryStore.getByIdWithComponent(filterId, FilterComponent);
+          if (!current) {
+            return;
+          }
+          const currentFilter = FilterComponent.get(current);
+          if (currentFilter.type !== 'mirror') {
+            return;
+          }
+          ctx.historyManager.apply(
+            UndoEntry.filterChangeGeometryId(filterId, currentFilter.geometryId, afterGeometryId),
+          );
+          ctx.finishEdit(filterId);
+        };
+
         const pointField = (
           fieldKey: string,
           label: string,
@@ -383,10 +400,7 @@ export namespace FilterComponent {
                 { clearable: false },
                 {
                   onClick: () => {
-                    console.log('START PICKING GEOMETRY');
-                  },
-                  onClear: () => {
-                    console.log('CLEAR GEOMETRY');
+                    ctx.beginEntityPick((geometryId) => changeGeometryId(geometryId));
                   },
                 },
               ),
