@@ -1,7 +1,7 @@
 'use client';
 
 import fuzzy from 'fuzzy';
-import { Menu } from 'lucide-react';
+import { Menu, SearchIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -148,6 +148,7 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            leading={<SearchIcon size={16} />}
             placeholder="Search actions..."
             onKeyDown={handleKeyDownInput}
           />
@@ -171,7 +172,7 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
                 onClick={() => handleActionClick(action)}
                 disabled={action.disabled}
                 className={cn(
-                  'w-full flex items-center gap-3 cursor-default select-none rounded-[4px] py-1.5 px-1 text-sm outline-none',
+                  'w-full flex items-center gap-2.5 cursor-default select-none rounded-[4px] py-1.5 px-1 text-sm outline-none',
                   'border border-transparent',
                   'focus:bg-[var(--slate-4)] focus:text-[var(--slate-12)] focus:border-[var(--slate-8)]',
                   'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
@@ -179,7 +180,7 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
                 )}
                 style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
               >
-                <span style={{ color: 'var(--slate-11)' }}>{action.icon}</span>
+                <span style={{ color: 'var(--slate-11)' }} className="pl-1.5">{action.icon}</span>
                 <span className="flex-1 text-left" style={{ color: 'var(--slate-12)' }}>
                   {renderLabelWithHighlight(action.label)}
                 </span>
