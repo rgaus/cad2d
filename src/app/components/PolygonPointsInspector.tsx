@@ -8,7 +8,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/Select';
 import { type PolygonSegment } from '@/lib/entity';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { OpenAtIndexState } from '@/lib/selection/SelectionInspectorManager';
@@ -16,7 +16,7 @@ import { POINT_ROW_HEIGHT_PX_BY_TYPE } from '@/lib/selection/polygon-point-row';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { Length, type UnitType } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
-import LengthInput, { type LengthInputHandle } from './LengthInput';
+import LengthInput, { type LengthInputHandle } from '@/components/ui/LengthInput';
 import { type ShapePreviewHighlight } from './ShapePreview';
 
 export { POINT_ROW_HEIGHT_PX_BY_TYPE };

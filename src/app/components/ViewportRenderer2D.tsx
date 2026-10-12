@@ -72,8 +72,8 @@ import {
 import ConstraintLengthInput from './ConstraintLengthInput';
 import CornerOverlay from './CornerOverlay';
 import FitToScreenButton from './FitToScreenButton';
-import { HoverTooltip } from './HoverTooltip';
-import { KeyboardShortcut } from './KeyboardShortcut';
+import { HoverTooltip } from '@/components/ui/HoverTooltip';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 
 extend({
   Container,

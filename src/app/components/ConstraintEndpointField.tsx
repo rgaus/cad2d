@@ -1,13 +1,13 @@
 'use client';
 
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/Input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/Select';
 import { useEntities } from '@/hooks/useEntities';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { DatumComponent } from '@/lib/entity/components/DatumComponent';
@@ -19,8 +19,8 @@ import { Length, type UnitType } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
 import { SheetPosition } from '@/lib/viewport/types';
 import EntityInput from './EntityInput';
-import LabeledRow from './LabeledRow';
-import LengthInput from './LengthInput';
+import LabeledRow from '@/components/ui/LabeledRow';
+import LengthInput from '@/components/ui/LengthInput';
 
 const ENDPOINT_TYPE_OPTIONS = [
   { value: 'point', label: 'Point' },
@@ -211,7 +211,7 @@ const ConstraintEndpointField: React.FunctionComponent<ConstraintEndpointFieldPr
           {label}:
         </span>
         <Select value={endpoint.type} onValueChange={handleTypeChange}>
-          <SelectTrigger fieldSize="sm" className="w-28">
+          <SelectTrigger size="sm" className="w-28">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

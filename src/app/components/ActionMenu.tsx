@@ -3,14 +3,14 @@
 import fuzzy from 'fuzzy';
 import { Menu } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
 import { ActionType, ActionsManager } from '@/lib/actions/ActionsManager';
 import { ActionJson } from '@/lib/actions/BaseAction';
 import { cn } from '@/lib/utils';
 import { FLASH_DURATION_MS, PINNED_ACTION_TYPES } from './ActionPanel';
-import { KeyboardShortcut } from './KeyboardShortcut';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 
 type ActionMenuProps = {
   actionsManager: ActionsManager;
@@ -119,9 +119,9 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
       <Button
         asChild
         variant="ghost"
-        size="icon"
         title="Actions"
-        className={cn('relative', isFlashing ? 'bg-[var(--teal-5)]' : undefined)}
+        size="lg"
+        className={cn('w-10 px-0 relative', isFlashing ? 'bg-[var(--teal-5)]' : undefined)}
       >
         <PopoverTrigger
           onMouseEnter={() => setIsHovered(true)}
@@ -167,6 +167,7 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
                 key={action.type}
                 type="button"
                 variant="ghost"
+                size="lg"
                 onClick={() => handleActionClick(action)}
                 disabled={action.disabled}
                 className={cn(

@@ -2,20 +2,20 @@
 
 import { CheckIcon, XIcon } from 'lucide-react';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { round } from '@/lib/math';
 import { Length, UnitType } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
-import { HoverTooltip } from './HoverTooltip';
-import { KeyboardShortcut } from './KeyboardShortcut';
+import { HoverTooltip } from '@/components/ui/HoverTooltip';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 import {
   UNIT_OPTIONS,
   createLengthFromMagnitudeAndUnit,
   getUnitFromLength,
   parseLengthSuffix,
   parseSuffix,
-} from './LengthInput';
+} from '@/components/ui/LengthInput';
 
 type ConstraintLengthInputProps = {
   value: Length | null;
@@ -253,7 +253,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
           <Input
             ref={inputRef}
             type="text"
-            fieldSize="sm"
+            size="sm"
             placeholder={placeholder}
             value={inputValue}
             onChange={handleInputChange}

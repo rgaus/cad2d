@@ -1,11 +1,10 @@
 'use client';
 
-import { Link2Icon, Link2OffIcon, XIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import RenderOrderInput from '@/components/RenderOrderInput';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/ToggleGroup';
 import { type Id } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import {
@@ -19,12 +18,14 @@ import {
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { cn } from '@/lib/utils';
-import AngleInput from './AngleInput';
-import ColorInput from './ColorInput';
+import AngleInput from '@/components/ui/AngleInput';
+import ColorInput from '@/components/ui/ColorInput';
 import ConstraintEndpointField from './ConstraintEndpointField';
-import FloatingPanel from './FloatingPanel';
-import LabeledRow from './LabeledRow';
-import LengthInput from './LengthInput';
+import EntitySelectionInput from '@/components/ui/EntitySelectionInput';
+import FloatingPanel from '@/components/ui/FloatingPanel';
+import LabeledRow from '@/components/ui/LabeledRow';
+import LengthInput from '@/components/ui/LengthInput';
+import { LinkButton } from '@/components/ui/LinkButton';
 import PolygonPointsInspector from './PolygonPointsInspector';
 import ShapePreview from './ShapePreview';
 
@@ -33,26 +34,6 @@ type SelectionInspectorProps = {
   geometryStore: GeometryStore;
   selectionManager: SelectionManager;
 };
-
-function LinkButton({ linked, onToggle }: { linked: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className={cn(
-        'w-6 h-6 grow-0 shrink-0 flex items-center justify-center rounded-[4px] transition-colors border',
-        {
-          'bg-[var(--red-3)] text-[var(--red-10)] border-[var(--red-7)]': linked,
-          'bg-[var(--slate-3)] text-[var(--slate-11)] border-transparent hover:bg-[var(--slate-5)]':
-            !linked,
-        },
-      )}
-      title={linked ? 'Unlink dimensions' : 'Link dimensions'}
-    >
-      {linked ? <Link2Icon size={14} /> : <Link2OffIcon size={14} />}
-    </button>
-  );
-}
 
 const FieldLeafRenderer: React.FunctionComponent<{
   geometryStore: GeometryStore;
@@ -155,26 +136,25 @@ const FieldLeafRenderer: React.FunctionComponent<{
       return <div
         className={cn("grow-0 shrink-0", {
           "w-5 h-5": field.width === 'xs',
-          "w-5 h-6": field.width === 'sm',
+          "w-6 h-6": field.width === 'sm',
           "w-8 h-8": field.width === 'default',
           "w-10 h-10": field.width === 'lg',
         })}
       />;
     case 'link-dimensions-button':
-      return <LinkButton linked={field.value} onToggle={field.handlers.onClick ?? (() => {})} />;
+      return <LinkButton linked={field.value} onClick={field.handlers.onClick} />;
     case 'button':
       return (
-        <button
+        <Button
           type="button"
+          variant="secondary"
           onClick={field.handlers.onClick}
           onFocus={field.handlers.onFocus}
           onBlur={field.handlers.onBlur}
           onKeyDown={(e) => field.handlers.onKeyDown?.(e.key)}
-          className="px-3 py-1.5 bg-[var(--slate-5)] text-[var(--slate-12)] text-sm rounded-[4px] border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
-          style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
         >
           {typeof field.label === 'string' ? field.label : field.label.icon}
-        </button>
+        </Button>
       );
     case 'polygon-points':
       return (
@@ -253,42 +233,15 @@ const FieldLeafRenderer: React.FunctionComponent<{
         </ToggleGroup>
       );
     case 'entity-selector':
-      if (field.isPicking) {
-        return (
-          <button
-            type="button"
-            onClick={field.handlers.onCancel}
-            className="px-3 py-1.5 bg-[var(--slate-5)] text-[var(--slate-12)] text-sm rounded-[4px] border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
-            style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
-          >
-            <span className="font-bold text-xs">Cancel</span>
-          </button>
-        );
-      }
       return (
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={field.handlers.onClick}
-            className="px-3 py-1.5 bg-[var(--slate-5)] text-[var(--slate-12)] text-sm rounded-[4px] border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
-            style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
-          >
-            <span className="font-bold text-xs">
-              {field.value === null ? 'Select...' : `ID: ${field.value.slice(0, 8)}`}
-            </span>
-          </button>
-
-          {field.clearable ? (
-            <button
-              type="button"
-              onClick={() => field.handlers.onClear?.()}
-              className="w-8 h-8 px-1.5 py-1.5 bg-[var(--slate-5)] text-[var(--slate-12)] text-sm rounded-[4px] border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
-              style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
-            >
-              <XIcon size={16} />
-            </button>
-          ) : null}
-        </div>
+        <EntitySelectionInput
+          value={field.value}
+          isPicking={field.isPicking}
+          clearable={field.clearable}
+          onActivatePick={() => field.handlers.onClick?.()}
+          onCancel={() => field.handlers.onCancel?.()}
+          onClear={() => field.handlers.onClear?.()}
+        />
       );
     default:
       field satisfies never;

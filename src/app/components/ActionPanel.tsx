@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/Button';
 import { ActionType, ActionsManager } from '@/lib/actions/ActionsManager';
 import { cn } from '@/lib/utils';
 import { ActionMenu } from './ActionMenu';
-import { KeyboardShortcut } from './KeyboardShortcut';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 
 type ActionPanelProps = {
   actionsManager: ActionsManager;
@@ -80,11 +80,11 @@ export const ActionPanel: React.FunctionComponent<ActionPanelProps> = ({ actions
             <Button
               key={actionJson.type}
               variant="ghost"
-              size="icon"
               onClick={() => actionJson.execute()}
               disabled={actionJson.disabled}
+              size="lg"
               className={cn(
-                'relative',
+                'w-10 px-0 relative',
                 flashingActionType === actionJson.type ? 'bg-[var(--teal-5)]' : undefined,
               )}
               onMouseEnter={() => setHoveredAction(actionJson.type)}

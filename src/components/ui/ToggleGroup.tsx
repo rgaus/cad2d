@@ -20,7 +20,7 @@ const ToggleGroupItem = React.forwardRef<
     <ToggleGroupPrimitive.Item
       ref={ref}
       className={cn(
-        'w-10 h-10 rounded-[4px] flex items-center justify-center transition-colors',
+        'w-10 h-10 rounded-sm flex items-center justify-center transition-colors',
         'bg-transparent hover:bg-[var(--slate-5)] data-[state=on]:bg-[var(--slate-5)]',
         className,
       )}

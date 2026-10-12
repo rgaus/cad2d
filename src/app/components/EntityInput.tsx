@@ -6,7 +6,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/Select';
 import { Entity, type Id } from '@/lib/entity';
 
 type EntityInputProps = {
@@ -29,7 +29,7 @@ export default function EntityInput({
 }: EntityInputProps) {
   return (
     <Select value={value ?? undefined} onValueChange={(next) => onChange(next)}>
-      <SelectTrigger className="w-full" fieldSize="sm">
+      <SelectTrigger className="w-full" size="sm">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

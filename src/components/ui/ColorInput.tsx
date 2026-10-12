@@ -1,10 +1,13 @@
 'use client';
 
+/* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+
+
 import colorRgba from 'color-rgba';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
 import { PRESET_COLORS_BY_LABEL } from '@/lib/entity/colors';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +25,7 @@ export const PRESET_COLOR_GRID: Array<Array<null | 'none' | keyof typeof PRESET_
 type ColorInputProps = {
   value: number | null | 'non-homogeneous';
   openDirection?: 'up' | 'down';
+  size?: 'xs' | 'sm' | 'default' | 'lg';
   onChange: (color: number | null) => void;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -38,6 +42,7 @@ function hexToDisplay(hex: string): string {
 const ColorInput: React.FunctionComponent<ColorInputProps> = ({
   value,
   openDirection = 'down',
+  size = 'default',
   onChange,
   onFocus,
   onBlur,
@@ -114,10 +119,6 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({
     [onChange, isNonHomogeneous],
   );
 
-  const handleTriggerClick = useCallback(() => {
-    setIsOpen((prev) => !prev);
-  }, []);
-
   const handleInputBlur = useCallback(() => {
     commitValue(inputValue);
   }, [inputValue, commitValue]);
@@ -158,63 +159,75 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({
   const bgColor = value === null ? '#ffffff' : '#' + value.toString(16).padStart(6, '0');
   const textColor = value === null ? '#666666' : hexToDisplay(bgColor);
 
+  const pillClass = {
+    xs: 'text-[9px] px-1',
+    sm: 'text-[10px] px-1',
+    default: 'text-xs py-0.5 px-1.5',
+    lg: 'text-sm py-1 px-2',
+  }[size];
+  const labelClass = {
+    xs: 'text-xs',
+    sm: 'text-xs',
+    default: 'text-sm',
+    lg: 'text-sm',
+  }[size];
+
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <Button
-        type="button"
-        asChild
-        onClick={handleTriggerClick}
-        className={cn(
-          'w-full h-8 px-2 rounded-[4px] bg-[var(--slate-3)] hover:bg-[var(--slate-4)] border border-[var(--slate-5)] cursor-text transition-colors justify-start gap-2',
-          {
-            'border-[var(--slate-8)] hover:bg-[var(--slate-3)]': isOpen,
-            'border-[#e74c3c]': isInvalid,
-            'cursor-pointer': value === 'non-homogeneous',
-          },
-        )}
-        style={{ color: value === null ? 'var(--slate-7)' : textColor }}
-      >
-        <PopoverTrigger>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          size={size}
+          className={cn(
+            'w-full justify-start bg-[var(--slate-1)] border border-[var(--slate-6)] hover:bg-[var(--slate-1)] hover:border-[var(--slate-6)] text-[var(--slate-12)] cursor-text',
+            'ring-offset-[var(--slate-1)]',
+            {
+              'h-5 px-1': size === 'xs',
+              'h-6 px-2': size === 'sm',
+              'h-8 px-3': size === 'default',
+              'h-10 px-3': size === 'lg',
+              'outline-none': isOpen,
+              'border-[var(--red-9)] hover:border-[var(--red-9)]': isInvalid,
+              'cursor-pointer': value === 'non-homogeneous',
+            },
+          )}
+          style={{ color: value === null ? 'var(--slate-7)' : textColor }}
+        >
           {value === null ? (
-            <span
-              className="text-sm font-bold"
-              style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
-            >
-              None
-            </span>
+            <span className={cn('font-bold', labelClass)}>None</span>
           ) : null}
           {value === 'non-homogeneous' ? (
-            <span
-              className="text-sm text-[var(--slate-11)]"
-              style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
-            >
-              Many values
-            </span>
+            <span className={cn('text-[var(--slate-11)]', labelClass)}>Many values</span>
           ) : null}
           {typeof value === 'number' ? (
             <span
-              className="text-sm font-mono font-bold px-1 py-0.5 rounded-md"
-              style={{
-                fontFamily: 'var(--font-roboto-mono), monospace',
-                color: textColor,
-                backgroundColor: value === null ? '#ffffff' : bgColor,
-              }}
+              className={cn(
+                'inline-flex items-center justify-center rounded-sm font-mono font-bold',
+                pillClass,
+              )}
+              style={{ color: textColor, backgroundColor: bgColor }}
             >
               {inputValue}
             </span>
           ) : null}
-        </PopoverTrigger>
-      </Button>
+        </Button>
+      </PopoverTrigger>
       <PopoverContent
-        className="p-1"
-        align="end"
+        className={cn("w-auto", {
+          "p-3": size === "default" || size === "lg",
+          "p-2": size === "xs" || size === "sm",
+        })}
+        align="start"
         side={openDirection === 'up' ? 'bottom' : 'top'}
         // Keep these events from propagating and effecting the viewport state at all
         onKeyDown={(e) => e.stopPropagation()} // (For color hex input box)
       >
-        <div className="flex gap-0.5 mb-3">
+        <div className="flex gap-0.5 mb-2">
           {PRESET_COLOR_GRID.map((row, colIndex) => {
-            const common = 'w-8 h-8 rounded border border-2';
+            const common = cn('rounded border border-2', {
+              'w-6 h-6': size === 'xs' || size === 'sm',
+              'w-8 h-8': size === 'default' || size === 'lg',
+            });
             return (
               <div key={colIndex} className="flex flex-col gap-1.5">
                 {row.map((label, rowIndex) => {
@@ -275,16 +288,12 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({
         </div>
 
         <div className="flex items-center gap-1">
-          <span
-            className="text-[var(--slate-12)] text-sm"
-            style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
-          >
-            #
-          </span>
           <Input
             ref={inputRef}
             type="text"
+            size={size === 'default' || size === 'lg' ? 'default' : 'sm'}
             value={inputValue.replace(/^#/, '')}
+            leading="#"
             onChange={(e) => setInputValue(e.target.value)}
             onBlur={handleInputBlur}
             onKeyDown={handleInputKeyDown}

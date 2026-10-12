@@ -1,14 +1,17 @@
 'use client';
 
+/* eslint-disable react-hooks/exhaustive-deps */
+
+
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/Input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/Select';
 import { PLATFORM_ALT_KEY_STRING } from '@/lib/detection';
 import { round } from '@/lib/math';
 import {
@@ -20,8 +23,8 @@ import {
   MillimetersLength,
   UnitType,
 } from '@/lib/units/length';
-import { HoverTooltip } from './HoverTooltip';
-import { KeyboardShortcut } from './KeyboardShortcut';
+import { HoverTooltip } from '@/components/ui/HoverTooltip';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 
 export const UNIT_OPTIONS: Array<{ value: UnitType; label: string }> = [
   { value: 'in', label: 'in' },
@@ -151,6 +154,7 @@ type LengthInputProps = {
    * decimals due to floating point math errors. */
   roundPlaces?: number;
   readOnlyUnit?: boolean;
+  size?: 'xs' | 'sm' | 'default' | 'lg';
   onFocus?: () => void;
   onBlur?: () => void;
 };
@@ -162,7 +166,7 @@ export type LengthInputHandle = {
 };
 
 export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthInput(
-  { value, onChange, onFocus, onBlur, roundPlaces = 5, readOnlyUnit = false },
+  { value, onChange, onFocus, onBlur, roundPlaces = 5, readOnlyUnit = false, size = 'default' },
   ref,
 ) {
   const [inputDefaultValue, setInputDefaultValue] = useState(() =>
@@ -312,24 +316,23 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
       <Input
         ref={inputRef}
         type="text"
+        size={size}
         defaultValue={inputDefaultValue}
         onChange={handleInputChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
+        trailing={readOnlyUnit ? UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label : null}
         className="grow shrink w-0 min-w-[64px]"
       />
-      {readOnlyUnit ? (
-        <div className="flex items-center text-sm select-none pl-1">
-          <span>{UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label}</span>
-        </div>
-      ) : (
+
+      {!readOnlyUnit ? (
         <Select value={selectedUnit} onValueChange={(value) => handleUnitChange(value as UnitType)}>
-          <SelectTrigger className="w-14">
+          <SelectTrigger size={size} className="w-15">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent align="end">
             {UNIT_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
@@ -337,11 +340,11 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
             ))}
           </SelectContent>
         </Select>
-      )}
+      ) : null}
 
       {inputFocused ? (
         <div className="absolute -bottom-7 z-30">
-          <HoverTooltip>
+          <HoverTooltip size={size}>
             <div className="flex items-center gap-2">
               <KeyboardShortcut
                 disabled={shiftHeld}

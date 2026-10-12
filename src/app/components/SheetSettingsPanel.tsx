@@ -1,15 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/Input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+} from '@/components/ui/Select';
+import { Switch } from '@/components/ui/Switch';
 import {
   SHEET_SIZE_PRESETS,
   Sheet,
@@ -18,9 +18,9 @@ import {
 } from '@/lib/sheet/Sheet';
 import { UNITS, type UnitType } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
-import FloatingPanel from './FloatingPanel';
-import LabeledRow from './LabeledRow';
-import LengthInput from './LengthInput';
+import FloatingPanel from '@/components/ui/FloatingPanel';
+import LabeledRow from '@/components/ui/LabeledRow';
+import LengthInput from '@/components/ui/LengthInput';
 
 type SheetSettingsPanelProps = {
   sheet: Sheet;

@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Input } from '@/components/ui/Input';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/ToggleGroup';
 import { useEntities } from '@/hooks/useEntities';
 import { Entity, type Id } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
@@ -21,8 +21,8 @@ import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
 import { Length, type UnitType } from '@/lib/units/length';
 import ConstraintEndpointField from './ConstraintEndpointField';
-import LabeledRow from './LabeledRow';
-import LengthInput from './LengthInput';
+import LabeledRow from '@/components/ui/LabeledRow';
+import LengthInput from '@/components/ui/LengthInput';
 
 type ConstraintInspectorProps = {
   constraintId: Id;

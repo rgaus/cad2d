@@ -9,15 +9,16 @@ export const KeyboardShortcut: React.FunctionComponent<{
     <kbd
       className="rounded-sm px-1"
       style={{
-        // Deeper blue when active so it reads as a deliberate state, not just
-        // the raw accent color. Border shifts to match rather than staying grey.
-        backgroundColor: active ? '#1a6fa8' : '#333',
-        border: `1px solid ${active ? '#2980b9' : '#666'}`,
-        color: active ? '#ffffff' : '#cccccc',
+        // Deeper teal when active so it reads as a deliberate state, not just
+        // the raw accent. Border shifts to match rather than staying grey.
+        backgroundColor: active ? 'var(--teal-9)' : 'var(--slate-4)',
+        border: `1px solid ${active ? 'var(--teal-8)' : 'var(--slate-7)'}`,
+        color: active ? 'var(--slate-12)' : 'var(--slate-10)',
         fontSize: 9,
         opacity: disabled ? 0.5 : 1,
         // Subtle shadow gives the badge a bit more presence at small sizes
-        boxShadow: active ? '0 0 0 2px rgba(52, 152, 219, 0.25)' : 'none',
+        boxShadow: active ? '0 0 0 2px color-mix(in oklab, var(--teal-9) 25%, transparent)' : 'none',
+        fontFamily: 'var(--font-roboto-mono), monospace',
       }}
     >
       {children}

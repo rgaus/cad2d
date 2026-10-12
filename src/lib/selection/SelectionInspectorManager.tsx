@@ -114,10 +114,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
   private sheetDefaultUnit: Sheet['defaultUnit'];
 
-  /** Stable facade handed to component field builders so they can drive edits without importing
-   * (and coupling to) this manager class. */
-  private context: SelectionInspectorContext;
-
   constructor(
     sheet: Sheet,
     selectionManager: SelectionManager,
@@ -138,8 +134,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     this.selectionManager.on('selectionChange', this.handleSelectionChange);
     this.sheet.on('defaultUnitChange', this.handleDefaultUnitChange);
     this.geometryStore.on('geometryUpdated', this.handleGeometryUpdate);
-
-    this.context = this.makeContext();
   }
 
   destructor() {
@@ -959,43 +953,43 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         if (!Entity.hasComponent(entity, GeometryComponent)) {
           return [];
         }
-        return GeometryComponent.computeSelectionInspectorFields(entity, this.context);
+        return GeometryComponent.computeSelectionInspectorFields(entity, this.makeContext());
       }
       case FillColorComponent.key: {
         if (!Entity.hasComponent(entity, FillColorComponent)) {
           return [];
         }
-        return FillColorComponent.computeSelectionInspectorFields(entity, this.context);
+        return FillColorComponent.computeSelectionInspectorFields(entity, this.makeContext());
       }
       case RenderOrderComponent.key: {
         if (!Entity.hasComponent(entity, RenderOrderComponent)) {
           return [];
         }
-        return RenderOrderComponent.computeSelectionInspectorFields(entity, this.context);
+        return RenderOrderComponent.computeSelectionInspectorFields(entity, this.makeContext());
       }
       case FrameComponent.key: {
         if (!Entity.hasComponent(entity, FrameComponent)) {
           return [];
         }
-        return FrameComponent.computeSelectionInspectorFields(entity, this.context);
+        return FrameComponent.computeSelectionInspectorFields(entity, this.makeContext());
       }
       case DatumComponent.key: {
         if (!Entity.hasComponent(entity, DatumComponent)) {
           return [];
         }
-        return DatumComponent.computeSelectionInspectorFields(entity, this.context);
+        return DatumComponent.computeSelectionInspectorFields(entity, this.makeContext());
       }
       case FilterComponent.key: {
         if (!Entity.hasComponent(entity, FilterComponent)) {
           return [];
         }
-        return FilterComponent.computeSelectionInspectorFields(entity, this.context);
+        return FilterComponent.computeSelectionInspectorFields(entity, this.makeContext());
       }
       case ConstraintComponent.key: {
         if (!Entity.hasComponent(entity, ConstraintComponent)) {
           return [];
         }
-        return ConstraintComponent.computeSelectionInspectorFields(entity, this.context);
+        return ConstraintComponent.computeSelectionInspectorFields(entity, this.makeContext());
       }
       case LinkDimensionsComponent.key: {
         // LinkDimensionsComponent is consumed within GeometryComponent to conditionally show the

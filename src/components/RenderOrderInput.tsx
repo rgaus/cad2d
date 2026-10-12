@@ -1,8 +1,8 @@
 import * as SliderPrimitive from '@radix-ui/react-slider';
 import debounce from 'lodash.debounce';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { HoverTooltip } from '@/app/components/HoverTooltip';
-import { KeyboardShortcut } from '@/app/components/KeyboardShortcut';
+import { HoverTooltip } from '@/components/ui/HoverTooltip';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 import { Entity, FillColorComponent, Id, Polygon, RenderOrderComponent } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { BoundingBox } from '@/lib/math';

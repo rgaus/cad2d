@@ -1,21 +1,24 @@
 'use client';
 
+/* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
+
+
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/Input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/Select';
 import { PLATFORM_ALT_KEY_STRING } from '@/lib/detection';
 import { round } from '@/lib/math';
 import { Angle, AngleType, DegreesAngle, RadiansAngle } from '@/lib/units/angle';
 import { cn } from '@/lib/utils';
-import { HoverTooltip } from './HoverTooltip';
-import { KeyboardShortcut } from './KeyboardShortcut';
-import { parseSuffix } from './LengthInput';
+import { HoverTooltip } from '@/components/ui/HoverTooltip';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
+import { parseSuffix } from '@/components/ui/LengthInput';
 
 export const UNIT_OPTIONS: Array<{ value: AngleType; label: string }> = [
   { value: 'degrees', label: 'deg' },
@@ -61,9 +64,10 @@ export function createAngleFromMagnitudeAndUnit(magnitude: number, unit: AngleTy
 
 const AngleSpinner: React.FunctionComponent<{
   angle: Angle;
+  size?: 'xs' | 'sm' | 'default' | 'lg';
   onScrubAngle: (angle: Angle) => void;
   onBlur: () => void;
-}> = ({ angle, onScrubAngle, onBlur }) => {
+}> = ({ angle, size = 'default', onScrubAngle, onBlur }) => {
   const [hover, setHover] = useState(false);
   const [dragging, setDragging] = useState(false);
 
@@ -138,18 +142,22 @@ const AngleSpinner: React.FunctionComponent<{
   );
 
   return (
-    <div className="flex justify-center items-center w-8 h-8">
+    <div className="flex justify-center items-center">
       {/* Backdrop to apply `cursor: ns-resize;` while dragging. */}
       {dragging ? <div className="fixed inset-0 cursor-ns-resize" /> : null}
 
       <button
         className={cn(
-          'relative bg-[var(--slate-4)] border border-[var(--slate-5)] rounded-full w-6 h-6 cursor-ns-resize',
+          'relative bg-[var(--slate-4)] border border-[var(--slate-5)] rounded-full cursor-ns-resize',
           {
             'border-[var(--slate-8)]': hover,
             'border-[var(--slate-10)]': dragging,
           },
         )}
+        style={{
+          width: { xs: 14, sm: 18, default: 22, lg: 30 }[size],
+          height: { xs: 14, sm: 18, default: 22, lg: 30 }[size],
+        }}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         onMouseDown={onMouseDown}
@@ -168,7 +176,7 @@ const AngleSpinner: React.FunctionComponent<{
 
       {dragging ? (
         <div className="absolute -bottom-7 left-0 z-30">
-          <HoverTooltip>
+          <HoverTooltip size={size}>
             <div className="flex items-center gap-2">
               <KeyboardShortcut disabled={shiftHeld} label="No snap">
                 shift
@@ -188,6 +196,7 @@ type AngleInputProps = {
    * decimals due to floating point math errors. */
   roundPlaces?: number;
   readOnlyUnit?: boolean;
+  size?: 'xs' | 'sm' | 'default' | 'lg';
   onFocus?: () => void;
   onBlur?: () => void;
 };
@@ -198,8 +207,8 @@ export type AngleInputHandle = {
   setDisplayValue: (angle: Angle) => void;
 };
 
-export default forwardRef<AngleInputHandle, AngleInputProps>(function LengthInput(
-  { value, onChange, onFocus, onBlur, roundPlaces = 5, readOnlyUnit = false },
+export default forwardRef<AngleInputHandle, AngleInputProps>(function AngleInput(
+  { value, onChange, onFocus, onBlur, roundPlaces = 5, readOnlyUnit = false, size = 'default' },
   ref,
 ) {
   const [inputDefaultValue, setInputDefaultValue] = useState(() =>
@@ -345,13 +354,16 @@ export default forwardRef<AngleInputHandle, AngleInputProps>(function LengthInpu
 
   return (
     <div className="flex relative gap-1">
-      {value ? (
-        <AngleSpinner angle={value} onScrubAngle={console.log} onBlur={console.log} />
-      ) : null}
-
       <Input
         ref={inputRef}
         type="text"
+        size={size}
+        leading={
+          value ? (
+            <AngleSpinner angle={value} size={size} onScrubAngle={console.log} onBlur={handleBlur} />
+          ) : undefined
+        }
+        trailing={readOnlyUnit ? UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label : null}
         defaultValue={inputDefaultValue}
         onChange={handleInputChange}
         onFocus={handleFocus}
@@ -360,19 +372,16 @@ export default forwardRef<AngleInputHandle, AngleInputProps>(function LengthInpu
         onKeyUp={handleKeyUp}
         className="grow shrink w-0 min-w-[64px]"
       />
-      {readOnlyUnit ? (
-        <div className="flex items-center text-sm select-none pl-1">
-          <span>{UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label}</span>
-        </div>
-      ) : (
+
+      {!readOnlyUnit ? (
         <Select
           value={selectedUnit}
           onValueChange={(value) => handleUnitChange(value as AngleType)}
         >
-          <SelectTrigger className="w-18">
+          <SelectTrigger size={size} className="w-18">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent align="end">
             {UNIT_OPTIONS.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
@@ -380,11 +389,11 @@ export default forwardRef<AngleInputHandle, AngleInputProps>(function LengthInpu
             ))}
           </SelectContent>
         </Select>
-      )}
+      ) : null}
 
       {inputFocused ? (
-        <div className="absolute -bottom-7 left-9 z-30">
-          <HoverTooltip>
+        <div className="absolute -bottom-7 z-30">
+          <HoverTooltip size={size}>
             <div className="flex items-center gap-2">
               <KeyboardShortcut
                 disabled={shiftHeld}
