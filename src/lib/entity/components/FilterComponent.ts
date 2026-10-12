@@ -237,25 +237,46 @@ export namespace FilterComponent {
     ctx: SelectionInspectorContext,
   ): FieldOptionsList {
     const filterData = FilterComponent.get(entity);
+
+    /** Changes the geometry a mirror filter is attached to. */
+    const changeGeometryField = (
+      Fields.row('geometry', [
+        Fields.labelled(
+          'geometry',
+          'Geometry',
+          Fields.entity(
+            'geometry-id',
+            filterData.geometryId,
+            { clearable: false },
+            {
+              onClick: () => {
+                ctx.beginEntityPick('geometry-id', (afterGeometryId) => {
+                  const current = ctx.geometryStore.getByIdWithComponent(entity.id, FilterComponent);
+                  if (!current) {
+                    return;
+                  }
+                  const currentFilter = FilterComponent.get(current);
+                  if (currentFilter.type !== 'mirror') {
+                    return;
+                  }
+                  ctx.historyManager.apply(
+                    UndoEntry.filterChangeGeometryId(entity.id, currentFilter.geometryId, afterGeometryId),
+                  );
+                  ctx.finishEdit(entity.id);
+                });
+              },
+              onCancel: () => {
+                ctx.endEntityPick();
+              },
+            },
+          ),
+        ),
+      ])
+    );
+
     switch (filterData.type) {
       case 'mirror': {
         const filterId = entity.id;
-
-        /** Commits a change of the geometry a mirror filter is attached to. */
-        const changeGeometryId = (afterGeometryId: Entity['id']) => {
-          const current = ctx.geometryStore.getByIdWithComponent(filterId, FilterComponent);
-          if (!current) {
-            return;
-          }
-          const currentFilter = FilterComponent.get(current);
-          if (currentFilter.type !== 'mirror') {
-            return;
-          }
-          ctx.historyManager.apply(
-            UndoEntry.filterChangeGeometryId(filterId, currentFilter.geometryId, afterGeometryId),
-          );
-          ctx.finishEdit(filterId);
-        };
 
         const pointField = (
           fieldKey: string,
@@ -390,27 +411,7 @@ export namespace FilterComponent {
                 ),
             ),
           ]),
-          Fields.row('geometry', [
-            Fields.labelled(
-              'geometry',
-              'Geometry',
-              Fields.entity(
-                'geometry-id',
-                filterData.geometryId,
-                { clearable: false },
-                {
-                  onClick: () => {
-                    ctx.beginEntityPick('geometry-id', (geometryId) =>
-                      changeGeometryId(geometryId),
-                    );
-                  },
-                  onCancel: () => {
-                    ctx.endEntityPick();
-                  },
-                },
-              ),
-            ),
-          ]),
+          changeGeometryField,
           Fields.button('apply-filter', 'Apply filter...', {
             onClick: () => {
               ctx.actionsManager?.execute('apply-filter-to-geometry');
@@ -513,6 +514,7 @@ export namespace FilterComponent {
               numberField('c', 'C:', 'pointCenterIndex'),
               numberField('b', 'B:', 'pointBIndex'),
             ]),
+            changeGeometryField,
             Fields.button('apply-filter', 'Apply filter...', {
               onClick: () => {
                 ctx.actionsManager?.execute('apply-filter-to-geometry');
@@ -555,6 +557,7 @@ export namespace FilterComponent {
               keypointChoices('c', 'C:', 'pointCenterKeyPoint', filterData.pointCenterKeyPoint),
               keypointChoices('b', 'B:', 'pointBKeyPoint', filterData.pointBKeyPoint),
             ]),
+            changeGeometryField,
             Fields.button('apply-filter', 'Apply filter...', {
               onClick: () => {
                 ctx.actionsManager?.execute('apply-filter-to-geometry');
@@ -626,6 +629,7 @@ export namespace FilterComponent {
                   }),
                 ]),
               ]),
+              changeGeometryField,
               Fields.button('apply-filter', 'Apply filter...', {
                 onClick: () => {
                   ctx.actionsManager?.execute('apply-filter-to-geometry');
@@ -759,6 +763,7 @@ export namespace FilterComponent {
                   ),
                 ),
               ]),
+              changeGeometryField,
               Fields.button('apply-filter', 'Apply filter...', {
                 onClick: () => {
                   ctx.actionsManager?.execute('apply-filter-to-geometry');
