@@ -36,6 +36,7 @@ import { POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR } from '@/lib/selection/ShapePrevi
 import { POINT_ROW_HEIGHT_PX_BY_TYPE, computeOpenAtIndex } from '@/lib/selection/polygon-point-row';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
+import { ToolManager } from '@/lib/tools/ToolManager';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 
@@ -1276,6 +1277,79 @@ describe('SelectionInspectorManager', () => {
       // AX stays committed and AY is reverted.
       expect(filterData.pointA.x).toBeCloseTo(10);
       expect(filterData.pointA.y).toBeCloseTo(2);
+    });
+  });
+
+  describe('entity-selector field isPicking', () => {
+    let toolManager: ToolManager;
+
+    beforeEach(() => {
+      // Set up a selected mirror filter so its fields include an entity-selector
+      const rect = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const mirror = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(rect.id, new SheetPosition(1, 2), new SheetPosition(3, 4)),
+      );
+      sheet.selectionManager.select(mirror.id);
+
+      // Wire the inspector manager up to the tool so pick sessions reach it
+      toolManager = new ToolManager(geometryStore, sheet.selectionManager, sheet.historyManager);
+      sheet.selectionInspectorManager.setToolManager(toolManager);
+    });
+
+    function getEntitySelectorField() {
+      const leaf = getLeafFromRowLabel(
+        sheet.selectionInspectorManager.fields,
+        'geometry',
+        'geometry',
+      );
+      if (leaf.type !== 'entity-selector') {
+        throw new Error('expected an entity-selector field');
+      }
+      return leaf;
+    }
+
+    it('is not picking to start with', () => {
+      expect(getEntitySelectorField().isPicking).toBe(false);
+    });
+
+    it('becomes picking when its onClick begins a pick', () => {
+      // Interact with the Select button
+      getEntitySelectorField().handlers.onClick?.();
+
+      // The field now shows the Cancel affordance
+      expect(getEntitySelectorField().isPicking).toBe(true);
+    });
+
+    it('resets after onCancel is invoked', () => {
+      // Begin a pick, then hit the Cancel button
+      getEntitySelectorField().handlers.onClick?.();
+      getEntitySelectorField().handlers.onCancel?.();
+
+      // The field is back to showing the Select affordance
+      expect(getEntitySelectorField().isPicking).toBe(false);
+    });
+
+    it('resets when the pick is ended via Escape', () => {
+      // Begin a pick, then cancel it from the canvas
+      getEntitySelectorField().handlers.onClick?.();
+      expect(toolManager.getTool('select').handleKeyDown({ key: 'Escape' } as KeyboardEvent)).toBe(
+        true,
+      );
+
+      // The field is back to showing the Select affordance
+      expect(getEntitySelectorField().isPicking).toBe(false);
+    });
+
+    it('stays not picking for a pick that was not started from this field', () => {
+      // Start a pick directly on the tool (no field key was recorded)
+      toolManager.getTool('select').beginEntityPick(() => {});
+
+      // The field did not initiate it, so it keeps the Select affordance
+      expect(getEntitySelectorField().isPicking).toBe(false);
     });
   });
 

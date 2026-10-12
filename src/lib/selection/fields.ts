@@ -117,6 +117,8 @@ export type FieldLeaf =
       key: string;
       value: Entity['id'] | null;
       clearable: boolean;
+      /** Whether an interactive pick session is active for this field. */
+      isPicking: boolean;
       handlers: EntitySelectorHandlers;
     };
 

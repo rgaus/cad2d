@@ -106,9 +106,10 @@ export interface SelectionInspectorContext {
 
   /**
    * Begins an interactive entity pick session on the select tool. While active, hovering a
-   * geometry highlights it and clicking one invokes `onSelect` with its id.
+   * geometry highlights it and clicking one invokes `onSelect` with its id. `fieldKey` is the key
+   * of the entity-selector field initiating the pick, used to scope the "Cancel" affordance.
    */
-  beginEntityPick(onSelect: (id: Entity['id']) => void): void;
+  beginEntityPick(fieldKey: string, onSelect: (id: Entity['id']) => void): void;
 
   endEntityPick(): void;
 }

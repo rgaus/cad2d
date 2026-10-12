@@ -17,6 +17,7 @@ import { FilterComponent } from '../entity/components/FilterComponent';
 import { PolygonData } from '../entity/geometry/polygon';
 import { HistoryManager } from '../history/HistoryManager';
 import { Sheet } from '../sheet/Sheet';
+import { type SelectTool } from '../tools/SelectTool';
 import { SelectionManager } from '../tools/SelectionManager';
 import type { ToolManager } from '../tools/ToolManager';
 import { Angle } from '../units/angle';
@@ -148,19 +149,50 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
     this.geometryStore.off('geometryUpdated', this.handleGeometryUpdate);
     this.sheet.off('defaultUnitChange', this.handleDefaultUnitChange);
     this.selectionManager.off('selectionChange', this.handleSelectionChange);
+    this.selectTool?.off('entityPickBegin', this.handleEntityPickBegin);
+    this.selectTool?.off('entityPickEnd', this.handleEntityPickEnd);
+    this.selectTool = null;
     this.actionsManager = null;
     this.geometryStore = null as any;
     this.selectionManager = null as any;
+    this.toolManager = null;
   }
 
   setActionsManager(actionsManager: ActionsManager) {
     this.actionsManager = actionsManager;
   }
 
+  /** The select tool, re-read from the ToolManager so we can subscribe to its pick events. */
+  private selectTool: SelectTool | null = null;
+
+  /** Whether an interactive entity pick session is currently active. */
+  private entityPickActive: boolean = false;
+
+  /** The field key which initiated the current pick session, or null when not picking. */
+  private entityPickFieldKey: string | null = null;
+
   /** Sets the ToolManager, enabling selection-inspector fields to drive interactive picks. */
   setToolManager(toolManager: ToolManager) {
     this.toolManager = toolManager;
+
+    // Subscribe to the select tool's pick session events so the inspector can reflect its state.
+    this.selectTool?.off('entityPickBegin', this.handleEntityPickBegin);
+    this.selectTool?.off('entityPickEnd', this.handleEntityPickEnd);
+    this.selectTool = toolManager.getTool('select');
+    this.selectTool.on('entityPickBegin', this.handleEntityPickBegin);
+    this.selectTool.on('entityPickEnd', this.handleEntityPickEnd);
   }
+
+  private handleEntityPickBegin = () => {
+    this.entityPickActive = true;
+    this.recomputeFields();
+  };
+
+  private handleEntityPickEnd = () => {
+    this.entityPickActive = false;
+    this.entityPickFieldKey = null;
+    this.recomputeFields();
+  };
 
   private captureDragOriginal(entityId: Id): void {
     if (this.dragOriginals.has(entityId)) {
@@ -237,10 +269,11 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         }
       },
       recomputeFields: () => this.recomputeFields(),
-      beginEntityPick: (onSelect) => {
+      beginEntityPick: (fieldKey, onSelect) => {
         if (!this.toolManager) {
           return;
         }
+        this.entityPickFieldKey = fieldKey;
         this.toolManager.setActiveTool('select');
         this.toolManager.getTool('select').beginEntityPick(onSelect);
       },
@@ -250,7 +283,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         }
         this.toolManager.setActiveTool('select');
         this.toolManager.getTool('select').endEntityPick();
-      }
+      },
     };
   }
 
@@ -698,6 +731,14 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         };
       }
 
+      if ((handlers as Array<Partial<EntitySelectorHandlers>>).some((h) => h.onCancel)) {
+        result.onCancel = () => {
+          for (const handler of handlers as Array<Partial<EntitySelectorHandlers>>) {
+            handler.onCancel?.();
+          }
+        };
+      }
+
       return result as FieldHandlers<T>;
     };
 
@@ -806,6 +847,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           key: fieldOptionsFirst.key,
           value: (newValue as any) ?? fieldOptionsFirst.value[0],
           clearable: fieldOptionsFirst.clearable,
+          isPicking: this.entityPickActive && fieldOptionsFirst.key === this.entityPickFieldKey,
           handlers: combineHandlers(
             handlers as unknown as Array<FieldHandlers<Entity['id'] | null>>,
           ) as EntitySelectorHandlers,

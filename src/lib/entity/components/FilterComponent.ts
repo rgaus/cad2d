@@ -400,7 +400,9 @@ export namespace FilterComponent {
                 { clearable: false },
                 {
                   onClick: () => {
-                    ctx.beginEntityPick((geometryId) => changeGeometryId(geometryId));
+                    ctx.beginEntityPick('geometry-id', (geometryId) =>
+                      changeGeometryId(geometryId),
+                    );
                   },
                   onCancel: () => {
                     ctx.endEntityPick();

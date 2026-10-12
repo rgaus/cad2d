@@ -410,12 +410,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   handleToolBlur(): void {
+    this.endEntityPick();
     this.getSelectionManager().clearSelection();
     this.emit('hoveringPolygonSegmentChange', false);
     this.emit('hoveringConstraintLabelChange', null);
     this.cancelTooltip();
     this.highlightGeometry(null);
-    this.entityPick = null;
   }
 
   dragSelectBoundingBox: Rect<SheetPosition> | null = null;
@@ -2381,7 +2381,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                     geometry,
                     filters,
                     originalEntity as
-                      Entity<GeometryComponent & Partial<FillColorComponent>> | undefined,
+                      | Entity<GeometryComponent & Partial<FillColorComponent>>
+                      | undefined,
                   );
                   if (output !== geometry) {
                     for (const event of historyEvents) {

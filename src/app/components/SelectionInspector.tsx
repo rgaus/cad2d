@@ -244,6 +244,18 @@ const FieldLeafRenderer: React.FunctionComponent<{
         </ToggleGroup>
       );
     case 'entity-selector':
+      if (field.isPicking) {
+        return (
+          <button
+            type="button"
+            onClick={field.handlers.onCancel}
+            className="px-3 py-1.5 bg-[var(--slate-5)] text-[var(--slate-12)] text-sm rounded-[4px] border border-[var(--slate-5)] hover:border-[var(--slate-8)] transition-colors"
+            style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+          >
+            <span className="font-bold text-xs">Cancel</span>
+          </button>
+        );
+      }
       return (
         <div className="flex items-center gap-2">
           <button
@@ -256,6 +268,7 @@ const FieldLeafRenderer: React.FunctionComponent<{
               {field.value === null ? 'Select...' : `ID: ${field.value.slice(0, 8)}`}
             </span>
           </button>
+
           {field.clearable ? (
             <button
               type="button"
