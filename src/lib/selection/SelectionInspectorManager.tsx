@@ -755,6 +755,13 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
           value: (newValue as any) ?? fieldOptionsFirst.value[0],
           handlers: combineHandlers(handlers as unknown as Array<FieldHandlers<string>>),
         };
+      case 'spacing':
+        return {
+          type: 'spacing',
+          key: fieldOptionsFirst.key,
+          width: fieldOptionsFirst.width,
+          handlers: combineHandlers(handlers as unknown as Array<FieldHandlers<void>>),
+        };
       case 'number':
         return {
           type: 'number',
@@ -926,6 +933,7 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         case 'button':
         case 'row':
         case 'label':
+        case 'spacing':
           return acc;
         default:
           e satisfies never;

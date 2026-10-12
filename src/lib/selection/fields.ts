@@ -72,6 +72,7 @@ export type FieldIcon = { type: 'icon'; icon: ReactNode };
  */
 export type FieldLeaf =
   | { type: 'read-only'; key: string; value: string; handlers: FieldHandlers<string> }
+  | { type: 'spacing'; key: string; width: 'xs' | 'sm' | 'default' | 'lg'; handlers: FieldHandlers<void> }
   | { type: 'number'; key: string; value: string; handlers: FieldHandlers<string> }
   | {
       type: 'length';
@@ -129,6 +130,7 @@ export type FieldLeaf =
  */
 export type FieldOptions =
   | { type: 'read-only'; key: string; value: Array<string>; handlers: Array<FieldHandlers<string>> }
+  | { type: 'spacing'; key: string; width: 'xs' | 'sm' | 'default' | 'lg'; handlers: Array<FieldHandlers<void>> }
   | { type: 'number'; key: string; value: Array<string>; handlers: Array<FieldHandlers<string>> }
   | {
       type: 'length';
@@ -281,6 +283,15 @@ export namespace Fields {
     handlers?: FieldHandlers<string>,
   ): FieldOptions {
     return { type: 'read-only', key, value: [text], handlers: [handlers ?? {}] };
+  }
+
+  /** Build a horizontal spacer which is square and of the provided form control size. */
+  export function spacing(
+    key: string,
+    width: 'xs' | 'sm' | 'default' | 'lg',
+    handlers?: FieldHandlers<void>,
+  ): FieldOptions {
+    return { type: 'spacing', key, width, handlers: [handlers ?? {}] };
   }
 
   /** Build a numeric text-input field. */

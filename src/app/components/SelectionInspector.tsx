@@ -151,6 +151,15 @@ const FieldLeafRenderer: React.FunctionComponent<{
       );
     case 'read-only':
       return <span>{field.value[0]}</span>;
+    case 'spacing':
+      return <div
+        className={cn("grow-0 shrink-0", {
+          "w-5 h-5": field.width === 'xs',
+          "w-5 h-6": field.width === 'sm',
+          "w-8 h-8": field.width === 'default',
+          "w-10 h-10": field.width === 'lg',
+        })}
+      />;
     case 'link-dimensions-button':
       return <LinkButton linked={field.value} onToggle={field.handlers.onClick ?? (() => {})} />;
     case 'button':

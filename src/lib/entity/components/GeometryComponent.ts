@@ -576,6 +576,7 @@ export namespace GeometryComponent {
                 ),
               ),
             ),
+            Fields.spacing('link-spacer', 'sm'),
             Fields.labelled(
               'y',
               'Y:',
