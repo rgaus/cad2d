@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import RenderOrderInput from '@/components/RenderOrderInput';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/ToggleGroup';
 import { type Id } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import {
@@ -28,6 +27,7 @@ import LengthInput from '@/components/ui/LengthInput';
 import { LinkButton } from '@/components/ui/LinkButton';
 import PolygonPointsInspector from './PolygonPointsInspector';
 import ShapePreview from './ShapePreview';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select';
 
 type SelectionInspectorProps = {
   sheet: Sheet;
@@ -215,22 +215,26 @@ const FieldLeafRenderer: React.FunctionComponent<{
       );
     case 'choices':
       return (
-        <ToggleGroup
-          type="single"
+
+        <Select
           value={field.value}
           onValueChange={(next) => {
             if (next) {
               field.handlers.onChange?.(next);
             }
           }}
-          className="flex-wrap"
         >
-          {field.options.map((opt) => (
-            <ToggleGroupItem key={opt.value} value={opt.value} className="w-auto px-2 h-6 text-xs">
-              {opt.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {field.options.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       );
     case 'entity-selector':
       return (
