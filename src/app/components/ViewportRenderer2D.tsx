@@ -41,6 +41,7 @@ import {
 import { SHEET_UNITS_TO_PIXELS, type Sheet } from '@/lib/sheet/Sheet';
 import { type KeyPointSnapInfo } from '@/lib/snapping';
 import {
+  HIGHLIGHT_COLOR_STROKE,
   IntersectionVertexHandleTexture,
   SPRITE_SCALE_FACTOR,
   VertexHandleTexture,
@@ -74,6 +75,7 @@ import CornerOverlay from './CornerOverlay';
 import FitToScreenButton from './FitToScreenButton';
 import { HoverTooltip } from '@/components/ui/HoverTooltip';
 import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
+import { Button } from '@/components/ui/Button';
 
 extend({
   Container,
@@ -341,6 +343,7 @@ export default function ViewportRenderer2D({
   const [snapHintsVisibility, setSnapHintsVisibility] = useState<SnapHintsVisibility | null>(null);
   const [pendingCornerState, setPendingCornerState] = useState<CornerState | null>(null);
   const [activeCornerState, setActiveCornerState] = useState<CornerState | null>(null);
+  const [entityPickActive, setEntityPickActive] = useState(false);
 
   const [altHeld, setAltHeld] = useState(false);
   const [shiftHeld, setShiftHeld] = useState(false);
@@ -470,10 +473,17 @@ export default function ViewportRenderer2D({
         activeTool.on('dragStateChange', setDraggingShapeState);
         activeTool.on('closestPointToSegmentChange', setClosestPointToSegment);
         activeTool.on('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
+        const onEntityPickBegin = () => setEntityPickActive(true);
+        activeTool.on('entityPickBegin', onEntityPickBegin);
+        const onEntityPickEnd = () => setEntityPickActive(false);
+        activeTool.on('entityPickEnd', onEntityPickEnd);
+
         return () => {
           activeTool.off('dragStateChange', setDraggingShapeState);
           activeTool.off('closestPointToSegmentChange', setClosestPointToSegment);
           activeTool.off('hoveringPolygonSegmentChange', setIsHoveringPolygonEdge);
+          activeTool.off('entityPickBegin', onEntityPickBegin);
+          activeTool.off('entityPickEnd', onEntityPickEnd);
           allToolsCleanup();
         };
       }
@@ -1394,6 +1404,33 @@ export default function ViewportRenderer2D({
               </div>
             </div>
           </HoverTooltip>
+        ) : null}
+
+        {/* Shows entity pick overlay when entity picking is active */}
+        {entityPickActive ? (
+          <>
+            <div
+              className="absolute inset-0 border border-4 pointer-events-none"
+              style={{ borderColor: `#${HIGHLIGHT_COLOR_STROKE.toString(16)}` }}
+            />
+            <div className="absolute top-4 left-1/2 -translate-x-1/2">
+              <HoverTooltip color="var(--jade-3)">
+                <div className="flex items-center gap-6 pointer-events-auto">
+                  <span className="select-none">Click to select entity</span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      if (activeTool.type !== 'select') {
+                        return;
+                      }
+                      activeTool.endEntityPick();
+                    }}
+                  >Cancel</Button>
+                </div>
+              </HoverTooltip>
+            </div>
+          </>
         ) : null}
 
         <FitToScreenButton onClick={() => viewportControlsRef.current?.fitToViewport()} />

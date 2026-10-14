@@ -393,7 +393,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.emit('entityPickBegin');
   }
 
-  /** Leaves entity-pick mode and clears any highlight. Safe to call when not picking. */
+  /** Leaves entity-pick mode and clears any highlight. When called without an entity id, cancels
+   * the currently active entity pick operation. */
   endEntityPick(entityId?: Entity['id']): void {
     if (!this.entityPick) {
       return;
