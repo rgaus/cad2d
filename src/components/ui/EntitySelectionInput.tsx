@@ -76,7 +76,7 @@ const EntitySelectionInput: React.FunctionComponent<EntitySelectionInputProps> =
             'pl-1': size === 'sm',
             'pl-2': size === 'default' || size === 'lg',
           })}>
-            Selecting...
+            Picking
           </span>
           <Button
             onClick={onCancel}

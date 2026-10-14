@@ -204,7 +204,7 @@ export type FieldOptionsRow = Row<FieldOptionsLabel | FieldOptions>;
  * The complete list of options a single component contributes for a single entity. This is the
  * return type of every `computeSelectionInspectorFields` implementation.
  */
-export type FieldOptionsList = Array<FieldOptions | FieldOptionsRow>;
+export type FieldOptionsList = Array<FieldOptions | FieldOptionsRow | FieldOptionsLabel>;
 
 /**
  * A heterogeneous placeholder — emitted by the manager when the selected entities disagree on a

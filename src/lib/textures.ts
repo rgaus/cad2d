@@ -14,9 +14,9 @@ export const SELECTION_COLOR = 0x3498db;
 export const SELECTION_HINT_WIDTH_PX = 3;
 
 /** Stroke color used to indicate when a tool calls BaseTool.highlightGeometry */
-export const HIGHLIGHT_COLOR_STROKE = 0x114837;
+export const HIGHLIGHT_COLOR_STROKE = 0x1c3e32; // var(--jade-3)
 /** Fill color used to indicate when a tool calls BaseTool.highlightGeometry */
-export const HIGHLIGHT_COLOR_FILL = 0xb1f1cb;
+export const HIGHLIGHT_COLOR_FILL = 0x7ed9b0; // var(--jade-11)
 /** Stroke width in screen pixels used when highlighting a geometry */
 export const HIGHLIGHT_STROKE_WIDTH = 3;
 

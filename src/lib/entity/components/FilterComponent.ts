@@ -552,11 +552,9 @@ export namespace FilterComponent {
 
           return [
             offsetField(),
-            Fields.row('keypoints', [
-              keypointChoices('a', 'A:', 'pointAKeyPoint', filterData.pointAKeyPoint),
-              keypointChoices('c', 'C:', 'pointCenterKeyPoint', filterData.pointCenterKeyPoint),
-              keypointChoices('b', 'B:', 'pointBKeyPoint', filterData.pointBKeyPoint),
-            ]),
+            keypointChoices('a', 'A:', 'pointAKeyPoint', filterData.pointAKeyPoint),
+            keypointChoices('c', 'C:', 'pointCenterKeyPoint', filterData.pointCenterKeyPoint),
+            keypointChoices('b', 'B:', 'pointBKeyPoint', filterData.pointBKeyPoint),
             changeGeometryField,
             Fields.button('apply-filter', 'Apply filter...', {
               onClick: () => {

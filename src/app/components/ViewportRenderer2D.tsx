@@ -1414,7 +1414,7 @@ export default function ViewportRenderer2D({
               style={{ borderColor: `#${HIGHLIGHT_COLOR_STROKE.toString(16)}` }}
             />
             <div className="absolute top-4 left-1/2 -translate-x-1/2">
-              <HoverTooltip color="var(--jade-3)">
+              <HoverTooltip variant="secondary">
                 <div className="flex items-center gap-6 pointer-events-auto">
                   <span className="select-none">Click to select entity</span>
                   <Button

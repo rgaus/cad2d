@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 type FloatingPanelProps = {
   title?: string;
   children: React.ReactNode;
-  noXPadding?: boolean;
+  noPadding?: boolean;
   className?: string;
   /** When provided, renders a close ("x") button in the header corner. */
   onClose?: () => void;
@@ -16,7 +16,7 @@ type FloatingPanelProps = {
 export default function FloatingPanel({
   title,
   children,
-  noXPadding = false,
+  noPadding = false,
   className = '',
   onClose,
 }: FloatingPanelProps) {
@@ -42,7 +42,7 @@ export default function FloatingPanel({
           ) : null}
         </CardHeader>
       ) : null}
-      <CardContent className={cn({ 'px-0': noXPadding })}>{children}</CardContent>
+      <CardContent className={cn({ 'p-0': noPadding })}>{children}</CardContent>
     </Card>
   );
 }
