@@ -28,7 +28,7 @@ export const KeyboardShortcut: React.FunctionComponent<{
     return (
       <div className="flex gap-1 items-center">
         {kbdElement}
-        <span style={{ fontSize: 10, opacity: disabled ? 0.5 : 1 }}>{label}</span>
+        <span style={{ opacity: disabled ? 0.5 : 1 }}>{label}</span>
       </div>
     );
   } else {

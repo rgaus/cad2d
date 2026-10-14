@@ -1006,7 +1006,7 @@ export default function ViewportRenderer2D({
           ? previewSegmentIntersections.map((inters, index) => {
               const position = inters.point.toWorld().toScreen(viewportControlsState.viewport);
               return (
-                <HoverTooltip variant="secondary" position={position} key={index}>
+                <HoverTooltip variant="secondary" size="sm" position={position} key={index}>
                   <KeyboardShortcut
                     active={previewSegmentIntersectionsEnabled.has(inters.keyCombo)}
                     label="Split here?"
