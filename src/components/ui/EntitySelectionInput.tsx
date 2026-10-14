@@ -1,9 +1,11 @@
 'use client';
 
+import { useCallback, useState } from 'react';
 import { XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Id } from '@/lib/entity';
+import { type Id } from '@/lib/entity';
 import { Button } from './Button';
+import { HoverTooltip } from './HoverTooltip';
 
 type EntitySelectionInputProps = {
   value: Id | null;
@@ -53,6 +55,13 @@ const EntitySelectionInput: React.FunctionComponent<EntitySelectionInputProps> =
     lg: 'h-10',
   }[size];
 
+  const [isHovering, setIsHovering] = useState(false);
+
+  const handleClick = useCallback(() => {
+    setIsHovering(false);
+    onActivatePick();
+  }, [onActivatePick]);
+
   const mainButtonClass = cn(
     'flex-1 rounded-sm flex items-center justify-start px-2 font-sans text-[var(--slate-12)] hover:bg-[var(--slate-3)] cursor-pointer',
     FONT[size],
@@ -66,17 +75,17 @@ const EntitySelectionInput: React.FunctionComponent<EntitySelectionInputProps> =
     <div
       className={cn(
         'border-[var(--slate-6)] bg-[var(--slate-1)] flex gap-1 w-full items-center rounded-sm border px-1',
-        'ring-offset-[var(--slate-1)]',
+        'ring-offset-[var(--slate-1)] relative',
         height,
       )}
     >
       {isPicking ? (
         <div className="flex flex-row items-center justify-between w-full">
-          <span className={cn("text-[var(--slate-11)] select-none", FONT[size], {
+          <span className={cn("text-[var(--slate-11)] font-sans select-none", FONT[size], {
             'pl-1': size === 'sm',
             'pl-2': size === 'default' || size === 'lg',
           })}>
-            Picking
+            ...
           </span>
           <Button
             onClick={onCancel}
@@ -93,7 +102,13 @@ const EntitySelectionInput: React.FunctionComponent<EntitySelectionInputProps> =
           </Button>
         </div>
       ) : (
-        <button type="button" onClick={onActivatePick} className={cn(mainButtonClass, "w-0 shrink-1 grow-1")}>
+        <button
+          type="button"
+          onClick={handleClick}
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
+          className={cn(mainButtonClass, "w-0 shrink-1 grow-1")}
+        >
           {value === null ? (
             <span className="text-[var(--slate-11)]">Click to select...</span>
           ) : (
@@ -115,6 +130,14 @@ const EntitySelectionInput: React.FunctionComponent<EntitySelectionInputProps> =
             xs: "xs" as const,
           }[size]}
         />
+      ) : null}
+
+      {isHovering ? (
+        <div className="absolute -bottom-7 z-30">
+          <HoverTooltip size={size}>
+            Click to change
+          </HoverTooltip>
+        </div>
       ) : null}
     </div>
   );
