@@ -1353,6 +1353,133 @@ describe('SelectionInspectorManager', () => {
     });
   });
 
+  describe('filter geometry retargeting', () => {
+    let toolManager: ToolManager;
+
+    beforeEach(() => {
+      toolManager = new ToolManager(geometryStore, sheet.selectionManager, sheet.historyManager);
+      sheet.selectionInspectorManager.setToolManager(toolManager);
+    });
+
+    /** Simulates picking `geometryId` through the filter's "Geometry" entity selector. */
+    function pickGeometry(geometryId: string) {
+      const field = getLeafFromRowLabel(
+        sheet.selectionInspectorManager.fields,
+        'geometry',
+        'geometry',
+      );
+      if (field.type !== 'entity-selector') {
+        throw new Error('expected an entity-selector field');
+      }
+      field.handlers.onClick?.();
+      toolManager.getTool('select').endEntityPick(geometryId);
+    }
+
+    it('retargets a fillet filter from one rectangle to another', () => {
+      const rectA = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const rectB = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(20, 0), new SheetPosition(30, 10)),
+      );
+      const fillet = geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnRectangle(
+          rectA.id,
+          'upperLeft',
+          'upperRight',
+          'lowerRight',
+          Length.centimeters(5),
+        ),
+      );
+      sheet.selectionManager.select(fillet.id);
+
+      pickGeometry(rectB.id);
+
+      const filterData = FilterComponent.get(
+        geometryStore.getById(fillet.id) as unknown as Entity<FilterComponent>,
+      );
+      expect(filterData.geometryId).toBe(rectB.id);
+    });
+
+    it('retargets a fillet filter from one polygon to another', () => {
+      const polyA = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], { closed: true }),
+      );
+      const polyB = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(20, 0), makePoint(30, 0), makePoint(30, 10)], { closed: true }),
+      );
+      const fillet = geometryStore.add(
+        ID_PREFIXES.filter,
+        FilletFilter.createOnPolygon(polyA.id, 0, 1, 2, Length.centimeters(5)),
+      );
+      sheet.selectionManager.select(fillet.id);
+
+      pickGeometry(polyB.id);
+
+      const filterData = FilterComponent.get(
+        geometryStore.getById(fillet.id) as unknown as Entity<FilterComponent>,
+      );
+      expect(filterData.geometryId).toBe(polyB.id);
+    });
+
+    it('retargets a chamfer filter from one rectangle to another', () => {
+      const rectA = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const rectB = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(20, 0), new SheetPosition(30, 10)),
+      );
+      const chamfer = geometryStore.add(
+        ID_PREFIXES.filter,
+        ChamferFilter.createOnRectangle(
+          rectA.id,
+          'upperLeft',
+          'upperRight',
+          'lowerRight',
+          Length.centimeters(5),
+        ),
+      );
+      sheet.selectionManager.select(chamfer.id);
+
+      pickGeometry(rectB.id);
+
+      const filterData = FilterComponent.get(
+        geometryStore.getById(chamfer.id) as unknown as Entity<FilterComponent>,
+      );
+      expect(filterData.geometryId).toBe(rectB.id);
+    });
+
+    it('retargets a pattern filter from one rectangle to another', () => {
+      const rectA = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      const rectB = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(20, 0), new SheetPosition(30, 10)),
+      );
+      const pattern = geometryStore.add(
+        ID_PREFIXES.filter,
+        PatternFilter.createGrid(rectA.id, new SheetPosition(0, 0), new SheetPosition(10, 10)),
+      );
+      sheet.selectionManager.select(pattern.id);
+
+      pickGeometry(rectB.id);
+
+      const filterData = FilterComponent.get(
+        geometryStore.getById(pattern.id) as unknown as Entity<FilterComponent>,
+      );
+      expect(filterData.geometryId).toBe(rectB.id);
+    });
+  });
+
   describe('fillet filter (polygon)', () => {
     beforeEach(() => {
       const poly = geometryStore.addOrdered(

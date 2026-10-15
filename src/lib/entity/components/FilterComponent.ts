@@ -238,41 +238,40 @@ export namespace FilterComponent {
   ): FieldOptionsList {
     const filterData = FilterComponent.get(entity);
 
-    /** Changes the geometry a mirror filter is attached to. */
-    const changeGeometryField = (
-      Fields.row('geometry', [
-        Fields.labelled(
-          'geometry',
-          'Geometry',
-          Fields.entity(
-            'geometry-id',
-            filterData.geometryId,
-            { clearable: false },
-            {
-              onClick: () => {
-                ctx.beginEntityPick('geometry-id', (afterGeometryId) => {
-                  const current = ctx.geometryStore.getByIdWithComponent(entity.id, FilterComponent);
-                  if (!current) {
-                    return;
-                  }
-                  const currentFilter = FilterComponent.get(current);
-                  if (currentFilter.type !== 'mirror') {
-                    return;
-                  }
-                  ctx.historyManager.apply(
-                    UndoEntry.filterChangeGeometryId(entity.id, currentFilter.geometryId, afterGeometryId),
-                  );
-                  ctx.finishEdit(entity.id);
-                });
-              },
-              onCancel: () => {
-                ctx.endEntityPick();
-              },
+    /** Changes the geometry a filter is attached to. */
+    const changeGeometryField = Fields.row('geometry', [
+      Fields.labelled(
+        'geometry',
+        'Geometry',
+        Fields.entity(
+          'geometry-id',
+          filterData.geometryId,
+          { clearable: false },
+          {
+            onClick: () => {
+              ctx.beginEntityPick('geometry-id', (afterGeometryId) => {
+                const current = ctx.geometryStore.getByIdWithComponent(entity.id, FilterComponent);
+                if (!current) {
+                  return;
+                }
+                const currentFilter = FilterComponent.get(current);
+                ctx.historyManager.apply(
+                  UndoEntry.filterChangeGeometryId(
+                    entity.id,
+                    currentFilter.geometryId,
+                    afterGeometryId,
+                  ),
+                );
+                ctx.finishEdit(entity.id);
+              });
             },
-          ),
+            onCancel: () => {
+              ctx.endEntityPick();
+            },
+          },
         ),
-      ])
-    );
+      ),
+    ]);
 
     switch (filterData.type) {
       case 'mirror': {
