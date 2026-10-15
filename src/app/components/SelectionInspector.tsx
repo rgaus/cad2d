@@ -2,8 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import RenderOrderInput from '@/components/RenderOrderInput';
+import AngleInput from '@/components/ui/AngleInput';
 import { Button } from '@/components/ui/Button';
+import ColorInput from '@/components/ui/ColorInput';
+import EntitySelectionInput from '@/components/ui/EntitySelectionInput';
+import FloatingPanel from '@/components/ui/FloatingPanel';
 import { Input } from '@/components/ui/Input';
+import LabeledRow from '@/components/ui/LabeledRow';
+import LengthInput from '@/components/ui/LengthInput';
+import { LinkButton } from '@/components/ui/LinkButton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
 import { type Id } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import {
@@ -17,17 +31,9 @@ import {
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { cn } from '@/lib/utils';
-import AngleInput from '@/components/ui/AngleInput';
-import ColorInput from '@/components/ui/ColorInput';
 import ConstraintEndpointField from './ConstraintEndpointField';
-import EntitySelectionInput from '@/components/ui/EntitySelectionInput';
-import FloatingPanel from '@/components/ui/FloatingPanel';
-import LabeledRow from '@/components/ui/LabeledRow';
-import LengthInput from '@/components/ui/LengthInput';
-import { LinkButton } from '@/components/ui/LinkButton';
 import PolygonPointsInspector from './PolygonPointsInspector';
 import ShapePreview from './ShapePreview';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/Select';
 
 type SelectionInspectorProps = {
   sheet: Sheet;
@@ -133,14 +139,16 @@ const FieldLeafRenderer: React.FunctionComponent<{
     case 'read-only':
       return <span>{field.value[0]}</span>;
     case 'spacing':
-      return <div
-        className={cn("grow-0 shrink-0", {
-          "w-5 h-5": field.width === 'xs',
-          "w-6 h-6": field.width === 'sm',
-          "w-8 h-8": field.width === 'default',
-          "w-10 h-10": field.width === 'lg',
-        })}
-      />;
+      return (
+        <div
+          className={cn('grow-0 shrink-0', {
+            'w-5 h-5': field.width === 'xs',
+            'w-6 h-6': field.width === 'sm',
+            'w-8 h-8': field.width === 'default',
+            'w-10 h-10': field.width === 'lg',
+          })}
+        />
+      );
     case 'link-dimensions-button':
       return <LinkButton linked={field.value} onClick={field.handlers.onClick} />;
     case 'button':
@@ -215,7 +223,6 @@ const FieldLeafRenderer: React.FunctionComponent<{
       );
     case 'choices':
       return (
-
         <Select
           value={field.value}
           onValueChange={(next) => {

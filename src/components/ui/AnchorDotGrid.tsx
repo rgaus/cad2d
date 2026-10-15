@@ -60,11 +60,7 @@ type AnchorDotGridProps<V extends string> = {
 /** A compact 3x3 dot grid for picking a keypoint / anchor on a shape, similar to InDesign's
  *  reference point picker. Cells without a dot render as empty spacers so the active dots sit at
  *  their intended positions (e.g. corners for a rectangle, cardinals for an ellipse). */
-export function AnchorDotGrid<V extends string>({
-  value,
-  dots,
-  onChange,
-}: AnchorDotGridProps<V>) {
+export function AnchorDotGrid<V extends string>({ value, dots, onChange }: AnchorDotGridProps<V>) {
   return (
     <div className="grid grid-cols-3 gap-1">
       {ANCHOR_GRID_POSITIONS.map((position) => {

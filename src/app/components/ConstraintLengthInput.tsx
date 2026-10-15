@@ -3,11 +3,8 @@
 import { CheckIcon, XIcon } from 'lucide-react';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { round } from '@/lib/math';
-import { Length, UnitType } from '@/lib/units/length';
-import { cn } from '@/lib/utils';
 import { HoverTooltip } from '@/components/ui/HoverTooltip';
+import { Input } from '@/components/ui/Input';
 import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 import {
   UNIT_OPTIONS,
@@ -16,6 +13,9 @@ import {
   parseLengthSuffix,
   parseSuffix,
 } from '@/components/ui/LengthInput';
+import { round } from '@/lib/math';
+import { Length, UnitType } from '@/lib/units/length';
+import { cn } from '@/lib/utils';
 
 type ConstraintLengthInputProps = {
   value: Length | null;

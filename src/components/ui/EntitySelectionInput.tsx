@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useState } from 'react';
 import { XIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useCallback, useState } from 'react';
 import { type Id } from '@/lib/entity';
+import { cn } from '@/lib/utils';
 import { Button } from './Button';
 import { HoverTooltip } from './HoverTooltip';
 
@@ -81,22 +81,26 @@ const EntitySelectionInput: React.FunctionComponent<EntitySelectionInputProps> =
     >
       {isPicking ? (
         <div className="flex flex-row items-center justify-between w-full">
-          <span className={cn("text-[var(--slate-11)] font-sans select-none", FONT[size], {
-            'pl-1': size === 'sm',
-            'pl-2': size === 'default' || size === 'lg',
-          })}>
+          <span
+            className={cn('text-[var(--slate-11)] font-sans select-none', FONT[size], {
+              'pl-1': size === 'sm',
+              'pl-2': size === 'default' || size === 'lg',
+            })}
+          >
             ...
           </span>
           <Button
             onClick={onCancel}
             aria-label="Clear entity selection"
             variant="secondary"
-            size={{
-              lg: "sm" as const,
-              default: "sm" as const,
-              sm: "xs" as const,
-              xs: "xs" as const,
-            }[size]}
+            size={
+              {
+                lg: 'sm' as const,
+                default: 'sm' as const,
+                sm: 'xs' as const,
+                xs: 'xs' as const,
+              }[size]
+            }
           >
             Cancel
           </Button>
@@ -107,12 +111,14 @@ const EntitySelectionInput: React.FunctionComponent<EntitySelectionInputProps> =
           onClick={handleClick}
           onMouseEnter={() => setIsHovering(true)}
           onMouseLeave={() => setIsHovering(false)}
-          className={cn(mainButtonClass, "w-0 shrink-1 grow-1")}
+          className={cn(mainButtonClass, 'w-0 shrink-1 grow-1')}
         >
           {value === null ? (
             <span className="text-[var(--slate-11)]">Click to select...</span>
           ) : (
-            <span className="font-bold whitespace-nowrap overflow-hidden overflow-ellipsis">{value}</span>
+            <span className="font-bold whitespace-nowrap overflow-hidden overflow-ellipsis">
+              {value}
+            </span>
           )}
         </button>
       )}
@@ -123,20 +129,20 @@ const EntitySelectionInput: React.FunctionComponent<EntitySelectionInputProps> =
           aria-label="Clear entity selection"
           leadingIcon={<XIcon size={ICON_PX[size]} />}
           variant="ghost"
-          size={{
-            lg: "sm" as const,
-            default: "sm" as const,
-            sm: "xs" as const,
-            xs: "xs" as const,
-          }[size]}
+          size={
+            {
+              lg: 'sm' as const,
+              default: 'sm' as const,
+              sm: 'xs' as const,
+              xs: 'xs' as const,
+            }[size]
+          }
         />
       ) : null}
 
       {isHovering ? (
         <div className="absolute -bottom-7 z-30">
-          <HoverTooltip size={size}>
-            Click to change
-          </HoverTooltip>
+          <HoverTooltip size={size}>Click to change</HoverTooltip>
         </div>
       ) : null}
     </div>

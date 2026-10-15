@@ -2,6 +2,7 @@
 
 import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { Fragment, createRef, memo, useRef, useState } from 'react';
+import LengthInput, { type LengthInputHandle } from '@/components/ui/LengthInput';
 import {
   Select,
   SelectContent,
@@ -16,7 +17,6 @@ import { POINT_ROW_HEIGHT_PX_BY_TYPE } from '@/lib/selection/polygon-point-row';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { Length, type UnitType } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
-import LengthInput, { type LengthInputHandle } from '@/components/ui/LengthInput';
 import { type ShapePreviewHighlight } from './ShapePreview';
 
 export { POINT_ROW_HEIGHT_PX_BY_TYPE };

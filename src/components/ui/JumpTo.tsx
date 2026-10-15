@@ -1,8 +1,9 @@
-import * as React from "react";
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
-import { cn } from "@/lib/utils";
-
-const JumpToContext = React.createContext<{ parentRef: React.RefObject<HTMLDivElement | null> | null }>({
+const JumpToContext = React.createContext<{
+  parentRef: React.RefObject<HTMLDivElement | null> | null;
+}>({
   parentRef: null,
 });
 
@@ -10,7 +11,7 @@ function JumpTo({ className, children }: React.HTMLAttributes<HTMLDivElement>) {
   const parentRef = React.useRef<HTMLDivElement | null>(null);
   return (
     <JumpToContext.Provider value={{ parentRef }}>
-      <div className={cn("sticky top-6 flex w-[256px] flex-col gap-3", className)} ref={parentRef}>
+      <div className={cn('sticky top-6 flex w-[256px] flex-col gap-3', className)} ref={parentRef}>
         <span className="font-sans text-base text-[var(--slate-11)] whitespace-nowrap font-normal">
           Jump to...
         </span>
@@ -27,7 +28,7 @@ function JumpToItem({
   className,
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { selected?: boolean }) {
   const { parentRef } = React.useContext(JumpToContext);
-  if (!parentRef) throw new Error("Cannot render JumpToItem outside of JumpTo!");
+  if (!parentRef) throw new Error('Cannot render JumpToItem outside of JumpTo!');
 
   const selfRef = React.useRef<HTMLButtonElement | null>(null);
   React.useEffect(() => {
@@ -42,11 +43,11 @@ function JumpToItem({
     <button
       ref={selfRef}
       className={cn(
-        "font-sans text-base text-[var(--slate-11)] shrink-0 grow-0 border-l border-l-2 border-l-transparent pl-3 text-left",
-        "overflow-hidden text-ellipsis whitespace-nowrap",
+        'font-sans text-base text-[var(--slate-11)] shrink-0 grow-0 border-l border-l-2 border-l-transparent pl-3 text-left',
+        'overflow-hidden text-ellipsis whitespace-nowrap',
         {
-          "border-l-primary text-[var(--slate-12)]": selected,
-          "hover:opacity-80 active:opacity-60": !selected,
+          'border-l-primary text-[var(--slate-12)]': selected,
+          'hover:opacity-80 active:opacity-60': !selected,
         },
         className,
       )}

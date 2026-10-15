@@ -1,8 +1,6 @@
 'use client';
 
 /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
-
-
 import colorRgba from 'color-rgba';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
@@ -193,9 +191,7 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({
           )}
           style={{ color: value === null ? 'var(--slate-7)' : textColor }}
         >
-          {value === null ? (
-            <span className={cn('font-bold', labelClass)}>None</span>
-          ) : null}
+          {value === null ? <span className={cn('font-bold', labelClass)}>None</span> : null}
           {value === 'non-homogeneous' ? (
             <span className={cn('text-[var(--slate-11)]', labelClass)}>Many values</span>
           ) : null}
@@ -213,9 +209,9 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className={cn("w-auto", {
-          "p-3": size === "default" || size === "lg",
-          "p-2": size === "xs" || size === "sm",
+        className={cn('w-auto', {
+          'p-3': size === 'default' || size === 'lg',
+          'p-2': size === 'xs' || size === 'sm',
         })}
         align="start"
         side={openDirection === 'up' ? 'bottom' : 'top'}

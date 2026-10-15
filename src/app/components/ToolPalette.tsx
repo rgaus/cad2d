@@ -2,12 +2,12 @@
 
 import { CheckIcon, ChevronDownIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/Popover';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/ToggleGroup';
 import { Tool, ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
 import { cn } from '@/lib/utils';
-import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 
 type ToolPaletteProps = {
   toolManager: ToolManager;

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/Input';
+import LabeledRow from '@/components/ui/LabeledRow';
+import LengthInput from '@/components/ui/LengthInput';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/ToggleGroup';
 import { useEntities } from '@/hooks/useEntities';
 import { Entity, type Id } from '@/lib/entity';
@@ -21,8 +23,6 @@ import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
 import { Length, type UnitType } from '@/lib/units/length';
 import ConstraintEndpointField from './ConstraintEndpointField';
-import LabeledRow from '@/components/ui/LabeledRow';
-import LengthInput from '@/components/ui/LengthInput';
 
 type ConstraintInspectorProps = {
   constraintId: Id;

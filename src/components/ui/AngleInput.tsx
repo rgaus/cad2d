@@ -1,10 +1,11 @@
 'use client';
 
 /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
-
-
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { HoverTooltip } from '@/components/ui/HoverTooltip';
 import { Input } from '@/components/ui/Input';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
+import { parseSuffix } from '@/components/ui/LengthInput';
 import {
   Select,
   SelectContent,
@@ -16,9 +17,6 @@ import { PLATFORM_ALT_KEY_STRING } from '@/lib/detection';
 import { round } from '@/lib/math';
 import { Angle, AngleType, DegreesAngle, RadiansAngle } from '@/lib/units/angle';
 import { cn } from '@/lib/utils';
-import { HoverTooltip } from '@/components/ui/HoverTooltip';
-import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
-import { parseSuffix } from '@/components/ui/LengthInput';
 
 export const UNIT_OPTIONS: Array<{ value: AngleType; label: string }> = [
   { value: 'degrees', label: 'deg' },
@@ -360,10 +358,17 @@ export default forwardRef<AngleInputHandle, AngleInputProps>(function AngleInput
         size={size}
         leading={
           value ? (
-            <AngleSpinner angle={value} size={size} onScrubAngle={console.log} onBlur={handleBlur} />
+            <AngleSpinner
+              angle={value}
+              size={size}
+              onScrubAngle={console.log}
+              onBlur={handleBlur}
+            />
           ) : undefined
         }
-        trailing={readOnlyUnit ? UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label : null}
+        trailing={
+          readOnlyUnit ? UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label : null
+        }
         defaultValue={inputDefaultValue}
         onChange={handleInputChange}
         onFocus={handleFocus}

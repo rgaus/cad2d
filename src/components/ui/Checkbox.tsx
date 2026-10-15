@@ -1,8 +1,7 @@
-import * as React from "react";
-import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
-import { CheckIcon } from "lucide-react";
-
-import { cn } from "@/lib/utils";
+import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
+import { CheckIcon } from 'lucide-react';
+import * as React from 'react';
+import { cn } from '@/lib/utils';
 
 const Checkbox = React.forwardRef<
   React.ElementRef<typeof CheckboxPrimitive.Root>,
@@ -11,13 +10,15 @@ const Checkbox = React.forwardRef<
   <CheckboxPrimitive.Root
     ref={ref}
     className={cn(
-      "border-[var(--slate-6)] ring-offset-[var(--slate-1)] focus-visible:ring-ring bg-[var(--slate-3)] data-[state=checked]:bg-primary data-[state=checked]:text-[var(--slate-12)] peer h-5 w-5 shrink-0 translate-y-[2px] rounded-sm border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=indeterminate]:border-dashed data-[state=indeterminate]:bg-transparent",
+      'border-[var(--slate-6)] ring-offset-[var(--slate-1)] focus-visible:ring-ring bg-[var(--slate-3)] data-[state=checked]:bg-primary data-[state=checked]:text-[var(--slate-12)] peer h-5 w-5 shrink-0 translate-y-[2px] rounded-sm border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=indeterminate]:border-dashed data-[state=indeterminate]:bg-transparent',
       className,
     )}
     {...props}
   >
     <CheckboxPrimitive.Indicator
-      className={cn("flex items-center justify-center text-current data-[state=indeterminate]:invisible")}
+      className={cn(
+        'flex items-center justify-center text-current data-[state=indeterminate]:invisible',
+      )}
     >
       <CheckIcon className="h-4 w-4" />
     </CheckboxPrimitive.Indicator>

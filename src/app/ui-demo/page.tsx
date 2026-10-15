@@ -1,26 +1,27 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { useState, useRef } from "react";
 import {
   ActivityIcon,
+  BoxIcon,
   ChevronDownIcon,
   ChevronsLeftRightIcon,
-  BoxIcon,
   DownloadIcon,
   SearchIcon,
   SquareDashedMousePointerIcon,
-} from "lucide-react";
-
-import { Button } from "@/components/ui/Button";
+} from 'lucide-react';
+import * as React from 'react';
+import { useRef, useState } from 'react';
 import {
   AnchorDotGrid,
   ELLIPSE_ANCHOR_DOTS,
   RECTANGLE_ANCHOR_DOTS,
-} from "@/components/ui/AnchorDotGrid";
-import { LinkButton } from "@/components/ui/LinkButton";
-import { Chip } from "@/components/ui/Chip";
-import { Checkbox } from "@/components/ui/Checkbox";
+} from '@/components/ui/AnchorDotGrid';
+import AngleInput from '@/components/ui/AngleInput';
+import { Button } from '@/components/ui/Button';
+import { Checkbox } from '@/components/ui/Checkbox';
+import { Chip } from '@/components/ui/Chip';
+import ColorInput from '@/components/ui/ColorInput';
+import ConstraintEndpointInput from '@/components/ui/ConstraintEndpointInput';
 import {
   Dialog,
   DialogBody,
@@ -29,18 +30,24 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/Dialog";
-import { Input } from "@/components/ui/Input";
-import { JumpTo, JumpToController, JumpToItem } from "@/components/ui/JumpTo";
+} from '@/components/ui/Dialog';
+import EntitySelectionInput from '@/components/ui/EntitySelectionInput';
+import { HoverTooltip } from '@/components/ui/HoverTooltip';
+import { Input } from '@/components/ui/Input';
+import { JumpTo, JumpToController, JumpToItem } from '@/components/ui/JumpTo';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
+import LabeledRow from '@/components/ui/LabeledRow';
+import LengthInput from '@/components/ui/LengthInput';
+import { LinkButton } from '@/components/ui/LinkButton';
 import {
   Select,
   SelectContent,
-  SelectItem,
   SelectGroup,
+  SelectItem,
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/Select";
+} from '@/components/ui/Select';
 import {
   Sheet,
   SheetBody,
@@ -51,8 +58,9 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/Sheet";
-import { Statistics, StatisticsItem } from "@/components/ui/Statistics";
+} from '@/components/ui/Sheet';
+import { Statistics, StatisticsItem } from '@/components/ui/Statistics';
+import { Switch } from '@/components/ui/Switch';
 import {
   Table,
   TableBody,
@@ -62,26 +70,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/Table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+} from '@/components/ui/Table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/ToggleGroup';
+import { type Id } from '@/lib/entity';
+import { Angle } from '@/lib/units/angle';
+import { Length } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
 
-import AngleInput from "@/components/ui/AngleInput";
-import ColorInput from "@/components/ui/ColorInput";
-import ConstraintEndpointInput from "@/components/ui/ConstraintEndpointInput";
-import EntitySelectionInput from "@/components/ui/EntitySelectionInput";
-import { HoverTooltip } from "@/components/ui/HoverTooltip";
-import { KeyboardShortcut } from "@/components/ui/KeyboardShortcut";
-import LabeledRow from "@/components/ui/LabeledRow";
-import LengthInput from "@/components/ui/LengthInput";
-import { Switch } from "@/components/ui/Switch";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/ToggleGroup";
-
-import { type Id } from "@/lib/entity";
-import { Angle } from "@/lib/units/angle";
-import { Length } from "@/lib/units/length";
-
-const FRUITS = ["apple", "banana", "blueberry", "grapes", "pineapple"];
+const FRUITS = ['apple', 'banana', 'blueberry', 'grapes', 'pineapple'];
 
 function FigmaGroup({
   name,
@@ -145,8 +142,8 @@ function FigmaGroupVariant({
         ) : (
           <div
             className={cn(
-              "inline-flex gap-2 flex-wrap rounded-sm border border-dashed border-[var(--violet-12)] p-2",
-              { "bg-[#fff]": background === 'light' },
+              'inline-flex gap-2 flex-wrap rounded-sm border border-dashed border-[var(--violet-12)] p-2',
+              { 'bg-[#fff]': background === 'light' },
             )}
             style={{ alignItems }}
           >
@@ -158,13 +155,13 @@ function FigmaGroupVariant({
   );
 }
 
-const SIZES = ["xs", "sm", "default", "lg"] as const;
+const SIZES = ['xs', 'sm', 'default', 'lg'] as const;
 
 const DEMO_ENTITIES: Array<{ id: Id }> = [
-  { id: "ply_9f3a1c2e9f3a1c2e9f3a1c2e9f3a1c2e" },
-  { id: "rct_1e4b7d921e4b7d921e4b7d921e4b7d92" },
-  { id: "elp_a03f51c8a03f51c8a03f51c8a03f51c8" },
-  { id: "dtm_77d2e9b477d2e9b477d2e9b477d2e9b4" },
+  { id: 'ply_9f3a1c2e9f3a1c2e9f3a1c2e9f3a1c2e' },
+  { id: 'rct_1e4b7d921e4b7d921e4b7d921e4b7d92' },
+  { id: 'elp_a03f51c8a03f51c8a03f51c8a03f51c8' },
+  { id: 'dtm_77d2e9b477d2e9b477d2e9b477d2e9b4' },
 ];
 
 function JumpToDemo() {
@@ -175,28 +172,28 @@ function JumpToDemo() {
     <div className="flex h-[300px] w-full">
       <JumpTo>
         <JumpToItem
-          selected={selected === "a"}
+          selected={selected === 'a'}
           onClick={() => {
-            sectionToWrapperMapping.current.get("a")?.scrollIntoView();
-            setSelected("a");
+            sectionToWrapperMapping.current.get('a')?.scrollIntoView();
+            setSelected('a');
           }}
         >
           A
         </JumpToItem>
         <JumpToItem
-          selected={selected === "b"}
+          selected={selected === 'b'}
           onClick={() => {
-            sectionToWrapperMapping.current.get("b")?.scrollIntoView();
-            setSelected("b");
+            sectionToWrapperMapping.current.get('b')?.scrollIntoView();
+            setSelected('b');
           }}
         >
           B
         </JumpToItem>
         <JumpToItem
-          selected={selected === "c"}
+          selected={selected === 'c'}
           onClick={() => {
-            sectionToWrapperMapping.current.get("c")?.scrollIntoView();
-            setSelected("c");
+            sectionToWrapperMapping.current.get('c')?.scrollIntoView();
+            setSelected('c');
           }}
         >
           C
@@ -208,30 +205,30 @@ function JumpToDemo() {
       >
         <div
           className="h-[500px] text-white"
-          style={{ background: "red" }}
+          style={{ background: 'red' }}
           ref={(node) => {
-            if (node) sectionToWrapperMapping.current.set("a", node);
-            else sectionToWrapperMapping.current.delete("a");
+            if (node) sectionToWrapperMapping.current.set('a', node);
+            else sectionToWrapperMapping.current.delete('a');
           }}
         >
           A
         </div>
         <div
           className="h-[500px] text-white"
-          style={{ background: "green" }}
+          style={{ background: 'green' }}
           ref={(node) => {
-            if (node) sectionToWrapperMapping.current.set("b", node);
-            else sectionToWrapperMapping.current.delete("b");
+            if (node) sectionToWrapperMapping.current.set('b', node);
+            else sectionToWrapperMapping.current.delete('b');
           }}
         >
           B
         </div>
         <div
           className="h-[500px] text-white"
-          style={{ background: "blue" }}
+          style={{ background: 'blue' }}
           ref={(node) => {
-            if (node) sectionToWrapperMapping.current.set("c", node);
-            else sectionToWrapperMapping.current.delete("c");
+            if (node) sectionToWrapperMapping.current.set('c', node);
+            else sectionToWrapperMapping.current.delete('c');
           }}
         >
           C
@@ -242,7 +239,7 @@ function JumpToDemo() {
 }
 
 export default function UiDemo() {
-  const [colorValue, setColorValue] = useState<number | null | "non-homogeneous">(0x3e63dd);
+  const [colorValue, setColorValue] = useState<number | null | 'non-homogeneous'>(0x3e63dd);
   const [colorEmpty, setColorEmpty] = useState<number | null>(null);
 
   const [angleValue, setAngleValue] = useState<Angle>(Angle.degrees(45));
@@ -255,8 +252,8 @@ export default function UiDemo() {
   const [picking, setPicking] = useState(false);
   const [emptyPicking, setEmptyPicking] = useState(false);
 
-  const [rectAnchor, setRectAnchor] = useState("center");
-  const [ellipseAnchor, setEllipseAnchor] = useState("top");
+  const [rectAnchor, setRectAnchor] = useState('center');
+  const [ellipseAnchor, setEllipseAnchor] = useState('top');
   const [linked, setLinked] = useState(false);
 
   return (
@@ -267,37 +264,65 @@ export default function UiDemo() {
             <Button size={size} variant="primary">
               Download JSON
             </Button>
-            <Button size={size} variant="primary" leadingIcon={<DownloadIcon size={size === "xs" ? 12 : 16} />}>
+            <Button
+              size={size}
+              variant="primary"
+              leadingIcon={<DownloadIcon size={size === 'xs' ? 12 : 16} />}
+            >
               Download JSON
             </Button>
             <Button size={size} variant="primary" disabled>
               Download JSON
             </Button>
-            <Button size={size} variant="primary" leadingIcon={<DownloadIcon size={size === "xs" ? 12 : 16} />} />
+            <Button
+              size={size}
+              variant="primary"
+              leadingIcon={<DownloadIcon size={size === 'xs' ? 12 : 16} />}
+            />
 
             <Button size={size} variant="secondary">
               Download JSON
             </Button>
-            <Button size={size} variant="secondary" leadingIcon={<DownloadIcon size={size === "xs" ? 12 : 16} />}>
+            <Button
+              size={size}
+              variant="secondary"
+              leadingIcon={<DownloadIcon size={size === 'xs' ? 12 : 16} />}
+            >
               Download JSON
             </Button>
             <Button size={size} variant="secondary" disabled>
               Download JSON
             </Button>
-            <Button size={size} variant="secondary" leadingIcon={<DownloadIcon size={size === "xs" ? 12 : 16} />} />
-            <Button size={size} variant="secondary" trailingIcon={<ChevronDownIcon size={size === "xs" ? 12 : 16} />}>
+            <Button
+              size={size}
+              variant="secondary"
+              leadingIcon={<DownloadIcon size={size === 'xs' ? 12 : 16} />}
+            />
+            <Button
+              size={size}
+              variant="secondary"
+              trailingIcon={<ChevronDownIcon size={size === 'xs' ? 12 : 16} />}
+            >
               Download JSON
             </Button>
             <Button size={size} variant="ghost">
               Download JSON
             </Button>
-            <Button size={size} variant="ghost" leadingIcon={<DownloadIcon size={size === "xs" ? 12 : 16} />}>
+            <Button
+              size={size}
+              variant="ghost"
+              leadingIcon={<DownloadIcon size={size === 'xs' ? 12 : 16} />}
+            >
               Download JSON
             </Button>
             <Button size={size} variant="ghost" disabled>
               Download JSON
             </Button>
-            <Button size={size} variant="ghost" leadingIcon={<DownloadIcon size={size === "xs" ? 12 : 16} />} />
+            <Button
+              size={size}
+              variant="ghost"
+              leadingIcon={<DownloadIcon size={size === 'xs' ? 12 : 16} />}
+            />
           </FigmaGroupVariant>
         ))}
       </FigmaGroup>
@@ -403,8 +428,12 @@ export default function UiDemo() {
         {SIZES.map((size) => (
           <FigmaGroupVariant key={size} name={size}>
             <Chip size={size}>1</Chip>
-            <Chip size={size} variant="secondary">7h ago</Chip>
-            <Chip size={size} variant="tertiary">7h ago</Chip>
+            <Chip size={size} variant="secondary">
+              7h ago
+            </Chip>
+            <Chip size={size} variant="tertiary">
+              7h ago
+            </Chip>
           </FigmaGroupVariant>
         ))}
       </FigmaGroup>
@@ -444,7 +473,9 @@ export default function UiDemo() {
                 </div>
               </div>
             </HoverTooltip>
-            <HoverTooltip size={size} variant="secondary">8.5cm</HoverTooltip>
+            <HoverTooltip size={size} variant="secondary">
+              8.5cm
+            </HoverTooltip>
           </FigmaGroupVariant>
         ))}
       </FigmaGroup>
@@ -463,7 +494,12 @@ export default function UiDemo() {
         {SIZES.map((size) => (
           <FigmaGroupVariant key={size} name={size} width={280}>
             <AngleInput size={size} value={angleValue} onChange={setAngleValue} />
-            <AngleInput size={size} value={angleReadOnly} onChange={setAngleReadOnly} readOnlyUnit />
+            <AngleInput
+              size={size}
+              value={angleReadOnly}
+              onChange={setAngleReadOnly}
+              readOnlyUnit
+            />
           </FigmaGroupVariant>
         ))}
       </FigmaGroup>
@@ -472,7 +508,12 @@ export default function UiDemo() {
         {SIZES.map((size) => (
           <FigmaGroupVariant key={size} name={size} width={280}>
             <LengthInput size={size} value={lengthValue} onChange={setLengthValue} />
-            <LengthInput size={size} value={lengthReadOnly} onChange={setLengthReadOnly} readOnlyUnit />
+            <LengthInput
+              size={size}
+              value={lengthReadOnly}
+              onChange={setLengthReadOnly}
+              readOnlyUnit
+            />
           </FigmaGroupVariant>
         ))}
       </FigmaGroup>
@@ -505,11 +546,19 @@ export default function UiDemo() {
         <div className="flex w-[120px] flex-col gap-3">
           <div className="flex items-center gap-3">
             <span className="w-12 text-xs text-[var(--slate-11)] select-none">rect</span>
-            <AnchorDotGrid value={rectAnchor} dots={RECTANGLE_ANCHOR_DOTS} onChange={setRectAnchor} />
+            <AnchorDotGrid
+              value={rectAnchor}
+              dots={RECTANGLE_ANCHOR_DOTS}
+              onChange={setRectAnchor}
+            />
           </div>
           <div className="flex items-center gap-3">
             <span className="w-12 text-xs text-[var(--slate-11)] select-none">ellipse</span>
-            <AnchorDotGrid value={ellipseAnchor} dots={ELLIPSE_ANCHOR_DOTS} onChange={setEllipseAnchor} />
+            <AnchorDotGrid
+              value={ellipseAnchor}
+              dots={ELLIPSE_ANCHOR_DOTS}
+              onChange={setEllipseAnchor}
+            />
           </div>
         </div>
       </FigmaGroup>
@@ -534,7 +583,7 @@ export default function UiDemo() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {["in", "ft", "mm", "cm", "m"].map((u) => (
+                {['in', 'ft', 'mm', 'cm', 'm'].map((u) => (
                   <SelectItem key={u} value={u}>
                     {u}
                   </SelectItem>
@@ -593,7 +642,6 @@ export default function UiDemo() {
           <LinkButton linked />
         </div>
       </FigmaGroup>
-
 
       <FigmaGroup name="Tabs">
         <Tabs defaultValue="one">
@@ -762,13 +810,13 @@ export default function UiDemo() {
             </TableHeader>
             <TableBody>
               {[
-                { part: "P-001", qty: "1", finish: "Anodized", length: "120 mm" },
-                { part: "P-002", qty: "2", finish: "Powder coat", length: "80 mm" },
-                { part: "P-003", qty: "4", finish: "Raw", length: "45 mm" },
-                { part: "P-004", qty: "1", finish: "Anodized", length: "200 mm" },
-                { part: "P-005", qty: "6", finish: "Powder coat", length: "60 mm" },
-                { part: "P-006", qty: "2", finish: "Raw", length: "90 mm" },
-                { part: "P-007", qty: "8", finish: "Anodized", length: "30 mm" },
+                { part: 'P-001', qty: '1', finish: 'Anodized', length: '120 mm' },
+                { part: 'P-002', qty: '2', finish: 'Powder coat', length: '80 mm' },
+                { part: 'P-003', qty: '4', finish: 'Raw', length: '45 mm' },
+                { part: 'P-004', qty: '1', finish: 'Anodized', length: '200 mm' },
+                { part: 'P-005', qty: '6', finish: 'Powder coat', length: '60 mm' },
+                { part: 'P-006', qty: '2', finish: 'Raw', length: '90 mm' },
+                { part: 'P-007', qty: '8', finish: 'Anodized', length: '30 mm' },
               ].map((e) => (
                 <TableRow key={e.part}>
                   <TableCell className="font-medium">{e.part}</TableCell>
@@ -816,11 +864,11 @@ export default function UiDemo() {
           </TableHeader>
           <TableBody>
             {[
-              { key: 0, name: "Coincident", expression: "P1 = P2" },
-              { key: 1, name: "Parallel", expression: "L1 // L2" },
-              { key: 2, name: "Perpendicular", expression: "L1 |_ L2" },
-              { key: 3, name: "Horizontal", expression: "dy = 0" },
-              { key: 4, name: "Equal", expression: "d1 = d2" },
+              { key: 0, name: 'Coincident', expression: 'P1 = P2' },
+              { key: 1, name: 'Parallel', expression: 'L1 // L2' },
+              { key: 2, name: 'Perpendicular', expression: 'L1 |_ L2' },
+              { key: 3, name: 'Horizontal', expression: 'dy = 0' },
+              { key: 4, name: 'Equal', expression: 'd1 = d2' },
             ].map((e) => (
               <TableRow key={e.key}>
                 <TableCell>
@@ -890,7 +938,7 @@ export default function UiDemo() {
               </SheetDescription>
             </SheetHeader>
             <SheetBody>
-              {["Outline", "Pattern", "Dimension"].map((method) => (
+              {['Outline', 'Pattern', 'Dimension'].map((method) => (
                 <div key={method} className="flex flex-col gap-3 pb-5">
                   <span className="font-sans text-base font-medium">{method}</span>
                 </div>

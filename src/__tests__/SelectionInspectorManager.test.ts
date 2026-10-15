@@ -21,6 +21,7 @@ import {
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { FrameComponent } from '@/lib/entity/components/FrameComponent';
+import { ChamferFilter } from '@/lib/entity/filters/chamfer';
 import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { PatternFilter } from '@/lib/entity/filters/pattern';

@@ -17,7 +17,9 @@ export const KeyboardShortcut: React.FunctionComponent<{
         fontSize: 9,
         opacity: disabled ? 0.5 : 1,
         // Subtle shadow gives the badge a bit more presence at small sizes
-        boxShadow: active ? '0 0 0 2px color-mix(in oklab, var(--teal-9) 25%, transparent)' : 'none',
+        boxShadow: active
+          ? '0 0 0 2px color-mix(in oklab, var(--teal-9) 25%, transparent)'
+          : 'none',
         fontFamily: 'var(--font-roboto-mono), monospace',
       }}
     >

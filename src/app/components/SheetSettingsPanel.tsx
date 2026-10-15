@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import FloatingPanel from '@/components/ui/FloatingPanel';
 import { Input } from '@/components/ui/Input';
+import LabeledRow from '@/components/ui/LabeledRow';
+import LengthInput from '@/components/ui/LengthInput';
 import {
   Select,
   SelectContent,
@@ -18,9 +21,6 @@ import {
 } from '@/lib/sheet/Sheet';
 import { UNITS, type UnitType } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
-import FloatingPanel from '@/components/ui/FloatingPanel';
-import LabeledRow from '@/components/ui/LabeledRow';
-import LengthInput from '@/components/ui/LengthInput';
 
 type SheetSettingsPanelProps = {
   sheet: Sheet;

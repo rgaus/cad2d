@@ -72,7 +72,12 @@ export type FieldIcon = { type: 'icon'; icon: ReactNode };
  */
 export type FieldLeaf =
   | { type: 'read-only'; key: string; value: string; handlers: FieldHandlers<string> }
-  | { type: 'spacing'; key: string; width: 'xs' | 'sm' | 'default' | 'lg'; handlers: FieldHandlers<void> }
+  | {
+      type: 'spacing';
+      key: string;
+      width: 'xs' | 'sm' | 'default' | 'lg';
+      handlers: FieldHandlers<void>;
+    }
   | { type: 'number'; key: string; value: string; handlers: FieldHandlers<string> }
   | {
       type: 'length';
@@ -130,7 +135,12 @@ export type FieldLeaf =
  */
 export type FieldOptions =
   | { type: 'read-only'; key: string; value: Array<string>; handlers: Array<FieldHandlers<string>> }
-  | { type: 'spacing'; key: string; width: 'xs' | 'sm' | 'default' | 'lg'; handlers: Array<FieldHandlers<void>> }
+  | {
+      type: 'spacing';
+      key: string;
+      width: 'xs' | 'sm' | 'default' | 'lg';
+      handlers: Array<FieldHandlers<void>>;
+    }
   | { type: 'number'; key: string; value: Array<string>; handlers: Array<FieldHandlers<string>> }
   | {
       type: 'length';

@@ -1,7 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  AnchorDotGrid,
+  ELLIPSE_ANCHOR_DOTS,
+  RECTANGLE_ANCHOR_DOTS,
+} from '@/components/ui/AnchorDotGrid';
 import { Input } from '@/components/ui/Input';
+import LabeledRow from '@/components/ui/LabeledRow';
+import LengthInput from '@/components/ui/LengthInput';
 import {
   Select,
   SelectContent,
@@ -9,15 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/Select';
-import {
-  AnchorDotGrid,
-  ELLIPSE_ANCHOR_DOTS,
-  RECTANGLE_ANCHOR_DOTS,
-} from '@/components/ui/AnchorDotGrid';
-import EntitySelectionInput from './EntitySelectionInput';
-import LabeledRow from '@/components/ui/LabeledRow';
-import LengthInput from '@/components/ui/LengthInput';
 import { Length } from '@/lib/units/length';
+import EntitySelectionInput from './EntitySelectionInput';
 
 const MONO_STYLE = {
   fontFamily: 'var(--font-roboto-mono), monospace',

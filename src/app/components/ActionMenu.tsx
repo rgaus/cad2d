@@ -5,12 +5,12 @@ import { Menu, SearchIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
 import { ActionType, ActionsManager } from '@/lib/actions/ActionsManager';
 import { ActionJson } from '@/lib/actions/BaseAction';
 import { cn } from '@/lib/utils';
 import { FLASH_DURATION_MS, PINNED_ACTION_TYPES } from './ActionPanel';
-import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 
 type ActionMenuProps = {
   actionsManager: ActionsManager;
@@ -180,7 +180,9 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
                 )}
                 style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
               >
-                <span style={{ color: 'var(--slate-11)' }} className="pl-1.5">{action.icon}</span>
+                <span style={{ color: 'var(--slate-11)' }} className="pl-1.5">
+                  {action.icon}
+                </span>
                 <span className="flex-1 text-left" style={{ color: 'var(--slate-12)' }}>
                   {renderLabelWithHighlight(action.label)}
                 </span>

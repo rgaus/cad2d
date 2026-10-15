@@ -16,6 +16,9 @@ import { SnapsHintLayers } from '@/components/SnapHintsLayers';
 import { WorkingEllipseLayers } from '@/components/WorkingEllipseRenderer';
 import { WorkingPolygonLayers } from '@/components/WorkingPolygonRenderer';
 import { WorkingRectangleLayers } from '@/components/WorkingRectangleRenderer';
+import { Button } from '@/components/ui/Button';
+import { HoverTooltip } from '@/components/ui/HoverTooltip';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 import { ViewportContextData, ViewportContextProvider } from '@/contexts/viewport-context';
 import { useDevicePixelRatio } from '@/hooks';
 import { ActionsManager } from '@/lib/actions/ActionsManager';
@@ -73,9 +76,6 @@ import {
 import ConstraintLengthInput from './ConstraintLengthInput';
 import CornerOverlay from './CornerOverlay';
 import FitToScreenButton from './FitToScreenButton';
-import { HoverTooltip } from '@/components/ui/HoverTooltip';
-import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
-import { Button } from '@/components/ui/Button';
 
 extend({
   Container,
@@ -1426,7 +1426,9 @@ export default function ViewportRenderer2D({
                       }
                       activeTool.endEntityPick();
                     }}
-                  >Cancel</Button>
+                  >
+                    Cancel
+                  </Button>
                 </div>
               </HoverTooltip>
             </div>

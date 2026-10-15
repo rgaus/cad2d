@@ -8,11 +8,9 @@ export function LinkButton({ linked, ...props }: ButtonProps & { linked: boolean
   return (
     <Button
       variant="ghost"
-      leadingIcon={linked ? (
-        <Link2Icon size={14} color="var(--red-10)" />
-      ) : (
-        <Link2OffIcon size={14} />
-      )}
+      leadingIcon={
+        linked ? <Link2Icon size={14} color="var(--red-10)" /> : <Link2OffIcon size={14} />
+      }
       {...props}
     />
   );

@@ -1,10 +1,10 @@
 'use client';
 
 /* eslint-disable react-hooks/exhaustive-deps */
-
-
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { HoverTooltip } from '@/components/ui/HoverTooltip';
 import { Input } from '@/components/ui/Input';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 import {
   Select,
   SelectContent,
@@ -23,8 +23,6 @@ import {
   MillimetersLength,
   UnitType,
 } from '@/lib/units/length';
-import { HoverTooltip } from '@/components/ui/HoverTooltip';
-import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 
 export const UNIT_OPTIONS: Array<{ value: UnitType; label: string }> = [
   { value: 'in', label: 'in' },
@@ -323,7 +321,9 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
-        trailing={readOnlyUnit ? UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label : null}
+        trailing={
+          readOnlyUnit ? UNIT_OPTIONS.find((opt) => opt.value === selectedUnit)?.label : null
+        }
         className="grow shrink w-0 min-w-[64px]"
       />
 

@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 import { ActionType, ActionsManager } from '@/lib/actions/ActionsManager';
 import { cn } from '@/lib/utils';
 import { ActionMenu } from './ActionMenu';
-import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 
 type ActionPanelProps = {
   actionsManager: ActionsManager;

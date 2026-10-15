@@ -1,4 +1,4 @@
-import * as React from "react";
+import * as React from 'react';
 
 export function Statistics({ children }: { children: React.ReactNode }) {
   return (
@@ -8,13 +8,7 @@ export function Statistics({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function StatisticsItem({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+export function StatisticsItem({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
       <span className="font-sans text-sm text-[var(--slate-11)] font-normal">{label}</span>
