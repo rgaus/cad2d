@@ -11,7 +11,6 @@ import {
   createLengthFromMagnitudeAndUnit,
   getUnitFromLength,
   parseLengthSuffix,
-  parseSuffix,
 } from '@/components/ui/LengthInput';
 import { round } from '@/lib/math';
 import { Length, UnitType } from '@/lib/units/length';
@@ -254,6 +253,7 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
             ref={inputRef}
             type="text"
             size="sm"
+            variant="light"
             placeholder={placeholder}
             value={inputValue}
             onChange={handleInputChange}
@@ -265,23 +265,17 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
               'min-w-[72px] grow shrink w-0 placeholder-[var(--slate-2)]',
               'border-0 outline-none',
               'bg-white hover:bg-[var(--slate-12)] focus:bg-[var(--slate-12)] text-[var(--slate-3)]',
-              { 'min-w-[48px]': defaultUnitVisible },
             )}
             tabIndex={0}
             disabled={disabled}
+            trailing={defaultUnitVisible ? (
+              UNIT_OPTIONS.find((opt) => opt.value === defaultUnit)?.label
+            ) : null}
           />
-          {defaultUnitVisible ? (
-            <div
-              className="flex w-[24px] h-6 items-center justify-between py-1 text-sm text-[var(--slate-8)]"
-              style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
-            >
-              {UNIT_OPTIONS.find((opt) => opt.value === defaultUnit)?.label}
-            </div>
-          ) : null}
 
           {inputFocused && !disabled && onTabPress ? (
-            <div className="absolute -bottom-6 -left-0.5 z-30">
-              <HoverTooltip variant="secondary">
+            <div className="absolute -bottom-7 left-1.5 z-30">
+              <HoverTooltip variant="secondary" size="sm">
                 <div className="flex items-center gap-2">
                   <KeyboardShortcut label="Next">tab</KeyboardShortcut>
                 </div>

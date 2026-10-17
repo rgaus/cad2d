@@ -10,6 +10,7 @@ export interface InputProps extends Omit<
   leading?: React.ReactNode;
   trailing?: React.ReactNode;
   invalid?: boolean;
+  variant?: 'light' | 'dark';
   onFocus?: React.FocusEventHandler<HTMLInputElement>;
   onBlur?: React.FocusEventHandler<HTMLInputElement>;
 }
@@ -28,6 +29,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       leading,
       trailing,
       invalid = false,
+      variant = 'dark',
       ...props
     },
     ref,
@@ -78,6 +80,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
               'px-2': size == 'sm',
               'text-sm px-3': size == 'default',
               'text-md px-3': size == 'lg',
+              'text-[var(--slate-1)]': variant === 'light',
             },
           )}
           onFocus={(e) => {
@@ -95,6 +98,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             className={cn('font-sans text-xs text-[var(--slate-11)] mr-3 select-none font-normal', {
               'text-sm': size == 'default',
               'text-md': size == 'lg',
+              'text-[var(--slate-8)]': variant === 'light',
             })}
           >
             {trailing}
