@@ -16,7 +16,9 @@ export default function LabeledRow({ label, children, fullWidth = true }: Labele
       >
         {label}
       </span>
-      <div className={cn('max-w-[160px]', { 'grow shrink': fullWidth })}>{children}</div>
+      <div className={cn('w-full max-w-[160px] flex gap-1', { 'grow shrink': fullWidth })}>
+        {children}
+      </div>
     </div>
   );
 }
