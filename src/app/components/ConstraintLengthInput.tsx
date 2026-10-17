@@ -268,9 +268,11 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
             )}
             tabIndex={0}
             disabled={disabled}
-            trailing={defaultUnitVisible ? (
-              UNIT_OPTIONS.find((opt) => opt.value === defaultUnit)?.label
-            ) : null}
+            trailing={
+              defaultUnitVisible
+                ? UNIT_OPTIONS.find((opt) => opt.value === defaultUnit)?.label
+                : null
+            }
           />
 
           {inputFocused && !disabled && onTabPress ? (
