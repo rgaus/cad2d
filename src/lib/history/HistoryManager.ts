@@ -13,6 +13,7 @@ import {
 } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -264,6 +265,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'link-dimensions':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, LinkDimensionsComponent, (old) =>
           LinkDimensionsComponent.update(old, entry.afterLink),
+        );
+        break;
+      case 'anchor-point-move':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, AnchorPointComponent, (old) =>
+          AnchorPointComponent.update(old, entry.afterAnchorPoint),
         );
         break;
       case 'polygon-insert-point':
@@ -899,6 +905,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'link-dimensions':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, LinkDimensionsComponent, (old) =>
           LinkDimensionsComponent.update(old, entry.beforeLink),
+        );
+        break;
+      case 'anchor-point-move':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, AnchorPointComponent, (old) =>
+          AnchorPointComponent.update(old, entry.beforeAnchorPoint),
         );
         break;
       case 'fill-color':

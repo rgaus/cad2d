@@ -21,6 +21,7 @@ import {
   type ResizeParams,
 } from '@/lib/entity';
 import { ID_PREFIXES, getPrefixFromId } from '@/lib/entity/GeometryStore';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { FrameComponent } from '@/lib/entity/components/FrameComponent';
 import {
@@ -1185,6 +1186,82 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
         this.activeDragListener = null;
         this.clearDragState();
+      },
+    });
+  }
+
+  /**
+   * Starts dragging a geometry's anchor point handle. The anchor point is stored as an offset (in
+   * sheet units) from the geometry's natural origin, so the handle is moved by updating the
+   * {@link AnchorPointComponent} rather than the underlying geometry.
+   */
+  onAnchorPointPointerDown(
+    _screenPos: ScreenPosition,
+    viewportControls: ViewportControls,
+    geometryId: Id,
+  ) {
+    const geometry = this.getGeometryStore().getByIdWithComponents(
+      geometryId,
+      GeometryComponent,
+      AnchorPointComponent,
+    );
+    if (!geometry) {
+      return;
+    }
+
+    // Natural origin stays fixed while dragging the handle.
+    const origin = GeometryComponent.getOrigin(geometry);
+    const beforeAnchorPoint = AnchorPointComponent.get(geometry);
+    const before = new SheetPosition(beforeAnchorPoint.x, beforeAnchorPoint.y);
+    const filters = this.getGeometryStore().findFiltersByGeometryId(geometryId);
+
+    this.activeDragListener = createDragListener({
+      viewportControls,
+      onMove: (sp) => {
+        const liveViewport = viewportControls.getState().viewport;
+        const snapped = applySnapping(sp.toWorld(liveViewport).toSheet(), {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          ctrlHeld: this.toolManager.getCtrlHeld(),
+          superHeld: false,
+          selectedGeometryFilters: filters,
+          viewportScale: liveViewport.scale,
+        });
+
+        this.getGeometryStore().updateByIdWithComponentDirect(
+          geometryId,
+          AnchorPointComponent,
+          (g) =>
+            AnchorPointComponent.update(
+              g,
+              new SheetPosition(snapped.x - origin.x, snapped.y - origin.y),
+            ),
+        );
+      },
+      onCommit: (sp) => {
+        const liveViewport = viewportControls.getState().viewport;
+        const snapped = applySnapping(sp.toWorld(liveViewport).toSheet(), {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          ctrlHeld: this.toolManager.getCtrlHeld(),
+          superHeld: false,
+          selectedGeometryFilters: filters,
+          viewportScale: liveViewport.scale,
+        });
+        const after = new SheetPosition(snapped.x - origin.x, snapped.y - origin.y);
+
+        if (before.x !== after.x || before.y !== after.y) {
+          this.getHistoryManager().push(UndoEntry.anchorPointMove(geometryId, before, after));
+        }
+        this.activeDragListener = null;
+      },
+      onCancel: () => {
+        this.getGeometryStore().updateByIdWithComponentDirect(
+          geometryId,
+          AnchorPointComponent,
+          (g) => AnchorPointComponent.update(g, before),
+        );
+        this.activeDragListener = null;
       },
     });
   }

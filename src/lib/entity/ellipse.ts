@@ -1,5 +1,6 @@
-import { type KeyPointKeys, type SheetPosition } from '@/lib/viewport/types';
+import { type KeyPointKeys, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
+import { AnchorPointComponent } from './components/AnchorPointComponent';
 import { FillColorComponent } from './components/FillColorComponent';
 import { GeometryComponent } from './components/GeometryComponent';
 import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
@@ -14,7 +15,8 @@ export type Ellipse = Entity<
   GeometryComponent<EllipseData> &
     FillColorComponent &
     LinkDimensionsComponent &
-    RenderOrderComponent
+    RenderOrderComponent &
+    AnchorPointComponent
 >;
 
 /** A ellipse without params that will be added by the {@link GeometryStore#addEllipse} method */
@@ -54,6 +56,7 @@ export namespace Ellipse {
         }),
         ...LinkDimensionsComponent.create(args?.linkDimensions ?? false),
         ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
+        ...AnchorPointComponent.create(),
       },
     };
   }

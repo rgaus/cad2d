@@ -7,6 +7,7 @@ export * from './components/BoundingBoxVisibleComponent';
 export * from './components/ConstraintComponent';
 export * from './components/FrameComponent';
 export * from './components/GeometryComponent';
+export * from './components/AnchorPointComponent';
 export * from './ellipse';
 export * from './rectangle';
 export * from './polygon';

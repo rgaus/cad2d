@@ -1,12 +1,12 @@
-import { SheetPosition, type KeyPointKeys } from '@/lib/viewport/types';
+import { type KeyPointKeys, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
+import { AnchorPointComponent } from './components/AnchorPointComponent';
 import { FillColorComponent } from './components/FillColorComponent';
 import { GeometryComponent } from './components/GeometryComponent';
 import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
 import { RectangleData } from './geometry/rectangle';
 import { Entity, EntityOmitComponents } from './types';
-import { AnchorPointComponent } from './components/AnchorPointComponent';
 
 /** A rectangle defined by its upper-left and lower-right corners. Axis-aligned. */
 export type Rectangle = Entity<
@@ -73,7 +73,7 @@ export namespace Rectangle {
         ...GeometryComponent.createRectangle(upperLeft, lowerRight),
         ...LinkDimensionsComponent.create(options?.linkDimensions ?? false),
         ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
-        ...AnchorPointComponent.create(new SheetPosition(0, 0)),
+        ...AnchorPointComponent.create(),
       },
     };
   }

@@ -13,6 +13,7 @@ import {
   RenderOrderComponent,
 } from '../entity';
 import { GeometryStore } from '../entity/GeometryStore';
+import { AnchorPointComponent } from '../entity/components/AnchorPointComponent';
 import { FilterComponent } from '../entity/components/FilterComponent';
 import { PolygonData } from '../entity/geometry/polygon';
 import { HistoryManager } from '../history/HistoryManager';
@@ -46,7 +47,6 @@ import {
   type WorkingFieldData,
 } from './fields';
 import type { SelectionInspectorContext } from './selection-inspector-context';
-import { AnchorPointComponent } from '../entity/components/AnchorPointComponent';
 
 export type {
   Field,

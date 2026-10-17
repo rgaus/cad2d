@@ -1,8 +1,9 @@
 import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
-import { Entity, EntityComponent, EntityOmitComponents } from '../types';
-import { SheetPosition } from '@/lib/viewport/types';
 import { Length } from '@/lib/units/length';
+import { SheetPosition } from '@/lib/viewport/types';
+import { Entity, EntityComponent, EntityOmitComponents } from '../types';
+import { GeometryComponent } from './GeometryComponent';
 
 /** Controls the x/y coordinate that acts as the origin for drawing the geometry. */
 export type AnchorPointComponent = EntityComponent<'anchorPoint', SheetPosition>;
@@ -10,8 +11,8 @@ export type AnchorPointComponent = EntityComponent<'anchorPoint', SheetPosition>
 export namespace AnchorPointComponent {
   export const key: keyof AnchorPointComponent = 'anchorPoint';
 
-  export function create(anchorPoint: SheetPosition): AnchorPointComponent {
-    return { anchorPoint };
+  export function create(anchorPoint?: SheetPosition): AnchorPointComponent {
+    return { anchorPoint: anchorPoint ?? new SheetPosition(0, 0) };
   }
   export function get(geometry: Entity<AnchorPointComponent>): SheetPosition {
     return geometry.components.anchorPoint;
@@ -31,6 +32,19 @@ export namespace AnchorPointComponent {
     return { ...geometry, components };
   }
 
+  /**
+   * Computes the sheet position where the anchor point handle should render: the geometry's
+   * natural origin (upper-left corner for polygons / rectangles, center for ellipses) offset by
+   * the anchor point value, in sheet units.
+   */
+  export function getHandlePosition(
+    geometry: Entity<AnchorPointComponent & GeometryComponent>,
+  ): SheetPosition {
+    const anchorPoint = AnchorPointComponent.get(geometry);
+    const origin = GeometryComponent.getOrigin(geometry);
+    return new SheetPosition(origin.x + anchorPoint.x, origin.y + anchorPoint.y);
+  }
+
   /** Builds the render-order row shown in the selection inspector for this entity. */
   export function computeSelectionInspectorFields(
     entity: Entity<AnchorPointComponent>,
@@ -40,54 +54,70 @@ export namespace AnchorPointComponent {
     const id = entity.id;
     return [
       Fields.labelled('anchor', 'Anchor:', [
-        Fields.length('anchorPointX', Length.fromSheetUnits(ctx.sheetDefaultUnit, anchorPoint.x), { readOnlyUnit: true }, {
-          onChange: (value) => {
-            ctx.captureDragOriginal(id);
-            ctx.setWorkingFieldData('anchorPointX', { type: 'length', value });
+        Fields.length(
+          'anchorPointX',
+          Length.fromSheetUnits(ctx.sheetDefaultUnit, anchorPoint.x),
+          { readOnlyUnit: true },
+          {
+            onChange: (value) => {
+              ctx.captureDragOriginal(id);
+              ctx.setWorkingFieldData('anchorPointX', { type: 'length', value });
+            },
+            onKeyDown: (k) => {
+              if (k === 'Escape' && ctx.hasDragOriginal(id)) {
+                ctx.restoreDragOriginal(id);
+                ctx.clearWorkingFieldData();
+                ctx.recomputeFields();
+              }
+            },
+            onBlur: () => {
+              const fieldData = ctx.getWorkingFieldData('anchorPointX');
+              if (!fieldData || fieldData.type !== 'length') {
+                return;
+              }
+              const val = fieldData.value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+              ctx.geometryStore.updateByIdWithComponent(id, AnchorPointComponent, (g) =>
+                AnchorPointComponent.update(
+                  g,
+                  new SheetPosition(val, AnchorPointComponent.get(g).y),
+                ),
+              );
+              ctx.finishEdit(id);
+            },
           },
-          onKeyDown: (k) => {
-            if (k === 'Escape' && ctx.hasDragOriginal(id)) {
-              ctx.restoreDragOriginal(id);
-              ctx.clearWorkingFieldData();
-              ctx.recomputeFields();
-            }
+        ),
+        Fields.length(
+          'anchorPointY',
+          Length.fromSheetUnits(ctx.sheetDefaultUnit, anchorPoint.y),
+          { readOnlyUnit: true },
+          {
+            onChange: (value) => {
+              ctx.captureDragOriginal(id);
+              ctx.setWorkingFieldData('anchorPointY', { type: 'length', value });
+            },
+            onKeyDown: (k) => {
+              if (k === 'Escape' && ctx.hasDragOriginal(id)) {
+                ctx.restoreDragOriginal(id);
+                ctx.clearWorkingFieldData();
+                ctx.recomputeFields();
+              }
+            },
+            onBlur: () => {
+              const fieldData = ctx.getWorkingFieldData('anchorPointY');
+              if (!fieldData || fieldData.type !== 'length') {
+                return;
+              }
+              const val = fieldData.value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+              ctx.geometryStore.updateByIdWithComponent(id, AnchorPointComponent, (g) =>
+                AnchorPointComponent.update(
+                  g,
+                  new SheetPosition(val, AnchorPointComponent.get(g).y),
+                ),
+              );
+              ctx.finishEdit(id);
+            },
           },
-          onBlur: () => {
-            const fieldData = ctx.getWorkingFieldData('anchorPointX');
-            if (!fieldData || fieldData.type !== 'length') {
-              return;
-            }
-            const val = fieldData.value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
-            ctx.geometryStore.updateByIdWithComponent(id, AnchorPointComponent, (g) =>
-              AnchorPointComponent.update(g, new SheetPosition(val, AnchorPointComponent.get(g).y)),
-            );
-            ctx.finishEdit(id);
-          },
-        }),
-        Fields.length('anchorPointY', Length.fromSheetUnits(ctx.sheetDefaultUnit, anchorPoint.y), { readOnlyUnit: true }, {
-          onChange: (value) => {
-            ctx.captureDragOriginal(id);
-            ctx.setWorkingFieldData('anchorPointY', { type: 'length', value });
-          },
-          onKeyDown: (k) => {
-            if (k === 'Escape' && ctx.hasDragOriginal(id)) {
-              ctx.restoreDragOriginal(id);
-              ctx.clearWorkingFieldData();
-              ctx.recomputeFields();
-            }
-          },
-          onBlur: () => {
-            const fieldData = ctx.getWorkingFieldData('anchorPointY');
-            if (!fieldData || fieldData.type !== 'length') {
-              return;
-            }
-            const val = fieldData.value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
-            ctx.geometryStore.updateByIdWithComponent(id, AnchorPointComponent, (g) =>
-              AnchorPointComponent.update(g, new SheetPosition(val, AnchorPointComponent.get(g).y)),
-            );
-            ctx.finishEdit(id);
-          },
-        }),
+        ),
       ]),
     ];
   }

@@ -73,6 +73,14 @@ export type LinkDimensionsEntry = {
   afterLink: boolean;
 };
 
+/** Recorded when a geometry's anchor point is moved. */
+export type AnchorPointMoveEntry = {
+  type: 'anchor-point-move';
+  id: Id;
+  beforeAnchorPoint: SheetPosition;
+  afterAnchorPoint: SheetPosition;
+};
+
 /** Recorded when a polygon is moved (all vertices shifted). */
 export type PolygonMoveEntry = {
   type: 'polygon-move';
@@ -385,6 +393,7 @@ export type UndoEntry =
   | FillColorRemoveEntry
   | RenderOrderEntry
   | LinkDimensionsEntry
+  | AnchorPointMoveEntry
   | PolygonMoveEntry
   | RectangleMoveEntry
   | EllipseMoveEntry
@@ -592,6 +601,15 @@ export namespace UndoEntry {
     afterLink: boolean,
   ): LinkDimensionsEntry {
     return { type: 'link-dimensions', id, beforeLink, afterLink };
+  }
+
+  /** Creates an entry for moving a geometry's anchor point. */
+  export function anchorPointMove(
+    id: Id,
+    beforeAnchorPoint: SheetPosition,
+    afterAnchorPoint: SheetPosition,
+  ): AnchorPointMoveEntry {
+    return { type: 'anchor-point-move', id, beforeAnchorPoint, afterAnchorPoint };
   }
 
   /** Creates an entry for converting a rectangle to a polygon. */
