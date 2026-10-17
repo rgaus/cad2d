@@ -46,6 +46,7 @@ import {
   type WorkingFieldData,
 } from './fields';
 import type { SelectionInspectorContext } from './selection-inspector-context';
+import { AnchorPointComponent } from '../entity/components/AnchorPointComponent';
 
 export type {
   Field,
@@ -70,6 +71,7 @@ function getComponentKeyOrdering(key: string): number {
     // Fill color + render order at the bottom
     FillColorComponent.key,
     RenderOrderComponent.key,
+    AnchorPointComponent.key,
   ].indexOf(key as any);
 }
 
@@ -83,6 +85,7 @@ function getComponentByKey(key: string) {
     FrameComponent,
     LinkDimensionsComponent,
     RenderOrderComponent,
+    AnchorPointComponent,
   ]) {
     if (component.key === key) {
       return component;
@@ -995,6 +998,12 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         // LinkDimensionsComponent is consumed within GeometryComponent to conditionally show the
         // link button. It does not render its own standalone fields.
         return [];
+      }
+      case AnchorPointComponent.key: {
+        if (!Entity.hasComponent(entity, AnchorPointComponent)) {
+          return [];
+        }
+        return AnchorPointComponent.computeSelectionInspectorFields(entity, this.makeContext());
       }
       default:
         Component satisfies never;
