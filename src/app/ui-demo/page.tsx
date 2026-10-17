@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 import { useRef, useState } from 'react';
+import RenderOrderInput from '@/components/RenderOrderInput';
 import {
   AnchorDotGrid,
   ELLIPSE_ANCHOR_DOTS,
@@ -73,10 +74,14 @@ import {
 } from '@/components/ui/Table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/ToggleGroup';
-import { type Id } from '@/lib/entity';
+import { type Id, Rectangle, RenderOrderComponent } from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { PRESET_COLORS_BY_LABEL } from '@/lib/entity/colors';
+import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Angle } from '@/lib/units/angle';
 import { Length } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
+import { SheetPosition } from '@/lib/viewport/types';
 
 const FRUITS = ['apple', 'banana', 'blueberry', 'grapes', 'pineapple'];
 
@@ -163,6 +168,79 @@ const DEMO_ENTITIES: Array<{ id: Id }> = [
   { id: 'elp_a03f51c8a03f51c8a03f51c8a03f51c8' },
   { id: 'dtm_77d2e9b477d2e9b477d2e9b477d2e9b4' },
 ];
+
+const RENDER_ORDER_DEMO_GEOMETRY_ID = 'rct_00000000000000000000000000000001';
+
+function makeRenderOrderDemoStore() {
+  const store = new GeometryStore(new HistoryManager());
+
+  const addRectangle = (
+    id: string,
+    upperLeft: [number, number],
+    lowerRight: [number, number],
+    fillColor: number,
+    renderOrder: number,
+  ) => {
+    const template = Rectangle.create(
+      new SheetPosition(...upperLeft),
+      new SheetPosition(...lowerRight),
+      { fillColor },
+    );
+    store.addDirect({
+      id,
+      components: {
+        ...template.components,
+        ...RenderOrderComponent.create(renderOrder),
+      },
+    });
+  };
+
+  addRectangle(
+    RENDER_ORDER_DEMO_GEOMETRY_ID,
+    [0, 0],
+    [10, 10],
+    PRESET_COLORS_BY_LABEL['blue-mid'],
+    2,
+  );
+  addRectangle(
+    'rct_00000000000000000000000000000002',
+    [2, 2],
+    [8, 8],
+    PRESET_COLORS_BY_LABEL['red-mid'],
+    5,
+  );
+  addRectangle(
+    'rct_00000000000000000000000000000003',
+    [-1, 3],
+    [6, 7],
+    PRESET_COLORS_BY_LABEL['green-mid'],
+    0,
+  );
+  addRectangle(
+    'rct_00000000000000000000000000000004',
+    [3, -1],
+    [7, 6],
+    PRESET_COLORS_BY_LABEL['purple-mid'],
+    7,
+  );
+
+  return store;
+}
+
+function RenderOrderDemo({ size }: { size: (typeof SIZES)[number] }) {
+  const [store] = useState(makeRenderOrderDemoStore);
+  const [value, setValue] = useState(2);
+
+  return (
+    <RenderOrderInput
+      size={size}
+      value={value}
+      onChange={setValue}
+      geometryStore={store}
+      geometryId={RENDER_ORDER_DEMO_GEOMETRY_ID}
+    />
+  );
+}
 
 function JumpToDemo() {
   const sectionToWrapperMapping = useRef(new Map<string, HTMLElement>());
@@ -514,6 +592,14 @@ export default function UiDemo() {
               onChange={setLengthReadOnly}
               readOnlyUnit
             />
+          </FigmaGroupVariant>
+        ))}
+      </FigmaGroup>
+
+      <FigmaGroup name="Render Order">
+        {SIZES.map((size) => (
+          <FigmaGroupVariant key={size} name={size} width={280}>
+            <RenderOrderDemo size={size} />
           </FigmaGroupVariant>
         ))}
       </FigmaGroup>
