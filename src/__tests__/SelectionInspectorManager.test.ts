@@ -1554,12 +1554,7 @@ describe('SelectionInspectorManager', () => {
 
   describe('fillet filter (rectangle)', () => {
     function getKeypointChoicesField(fields: Array<Field>, labelKey: string) {
-      const kpRow = fields.find((f) => f.type === 'row' && f.key === 'keypoints');
-      expect(kpRow).toBeDefined();
-      if (!kpRow || kpRow.type !== 'row') {
-        throw new Error('keypoints row not found');
-      }
-      const label = kpRow.fields.find((f) => f.type === 'label' && f.key === labelKey);
+      const label = fields.find((f) => f.type === 'label' && f.key === labelKey);
       expect(label).toBeDefined();
       if (!label || label.type !== 'label') {
         throw new Error(`label "${labelKey}" not found in keypoints row`);
