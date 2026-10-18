@@ -1,4 +1,5 @@
 import type {
+  AnchorPointData,
   ConstraintEndpoint,
   Entity,
   GeometryComponent,
@@ -73,12 +74,12 @@ export type LinkDimensionsEntry = {
   afterLink: boolean;
 };
 
-/** Recorded when a geometry's anchor point is moved. */
+/** Recorded when a geometry's anchor point is changed. */
 export type AnchorPointMoveEntry = {
   type: 'anchor-point-move';
   id: Id;
-  beforeAnchorPoint: SheetPosition;
-  afterAnchorPoint: SheetPosition;
+  beforeAnchorPoint: AnchorPointData;
+  afterAnchorPoint: AnchorPointData;
 };
 
 /** Recorded when a polygon is moved (all vertices shifted). */
@@ -603,11 +604,11 @@ export namespace UndoEntry {
     return { type: 'link-dimensions', id, beforeLink, afterLink };
   }
 
-  /** Creates an entry for moving a geometry's anchor point. */
+  /** Creates an entry for changing a geometry's anchor point. */
   export function anchorPointMove(
     id: Id,
-    beforeAnchorPoint: SheetPosition,
-    afterAnchorPoint: SheetPosition,
+    beforeAnchorPoint: AnchorPointData,
+    afterAnchorPoint: AnchorPointData,
   ): AnchorPointMoveEntry {
     return { type: 'anchor-point-move', id, beforeAnchorPoint, afterAnchorPoint };
   }

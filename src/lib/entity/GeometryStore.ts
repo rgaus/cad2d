@@ -41,6 +41,7 @@ import { EllipseData } from './geometry/ellipse';
 import { PolygonData } from './geometry/polygon';
 import { RectangleData } from './geometry/rectangle';
 import {
+  AnchorPointComponent,
   ConstraintComponent,
   DatumComponent,
   Entity,
@@ -877,6 +878,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, afterColor));
       }
     }
+
+    // Track anchor point changes.
+    if (
+      Entity.hasComponent(before, AnchorPointComponent) &&
+      Entity.hasComponent(after, AnchorPointComponent)
+    ) {
+      const beforeAnchor = AnchorPointComponent.get(before);
+      const afterAnchor = AnchorPointComponent.get(after);
+      if (beforeAnchor !== afterAnchor) {
+        this.historyManager.apply(UndoEntry.anchorPointMove(id, beforeAnchor, afterAnchor));
+      }
+    }
   }
 
   /** Sets the fill color of a {@link Entity<FillColorComponent>}, recording the change to history. */
@@ -1173,6 +1186,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       GeometryComponent,
       FillColorComponent,
       RenderOrderComponent,
+      AnchorPointComponent,
     );
     if (!geometry) {
       throw new Error(
@@ -1200,6 +1214,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       components: {
         ...polygonTemplate.components,
         ...RenderOrderComponent.create(RenderOrderComponent.get(geometry)),
+        ...AnchorPointComponent.create(AnchorPointComponent.get(geometry)),
       },
     };
 
@@ -1288,6 +1303,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       GeometryComponent,
       FillColorComponent,
       RenderOrderComponent,
+      AnchorPointComponent,
     ) as Ellipse | null;
     if (!geometry) {
       throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find geometry ${ellipseId}`);
@@ -1312,6 +1328,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       components: {
         ...polygonTemplate.components,
         ...RenderOrderComponent.create(RenderOrderComponent.get(geometry)),
+        ...AnchorPointComponent.create(AnchorPointComponent.get(geometry)),
       },
     };
 

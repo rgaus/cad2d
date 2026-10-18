@@ -56,7 +56,10 @@ export namespace Ellipse {
         }),
         ...LinkDimensionsComponent.create(args?.linkDimensions ?? false),
         ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
-        ...AnchorPointComponent.create(),
+        ...AnchorPointComponent.create({
+          keyPoint: 'center',
+          offset: new SheetPosition(0, 0),
+        }),
       },
     };
   }

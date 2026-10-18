@@ -1,6 +1,7 @@
 import { MousePointer2Icon } from 'lucide-react';
 import { type DragListener, createDragListener } from '@/lib/drag/create-drag-listener';
 import {
+  type AnchorPointData,
   Constraint,
   ConstraintComponent,
   type CubicBezierSegment,
@@ -1209,10 +1210,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    // Natural origin stays fixed while dragging the handle.
-    const origin = GeometryComponent.getOrigin(geometry);
+    // The key point stays fixed while dragging the handle - only the offset changes.
+    const keyPointPosition = AnchorPointComponent.getKeyPointPosition(geometry);
     const beforeAnchorPoint = AnchorPointComponent.get(geometry);
-    const before = new SheetPosition(beforeAnchorPoint.x, beforeAnchorPoint.y);
+    const before: AnchorPointData = {
+      keyPoint: beforeAnchorPoint.keyPoint,
+      offset: new SheetPosition(beforeAnchorPoint.offset.x, beforeAnchorPoint.offset.y),
+    };
     const filters = this.getGeometryStore().findFiltersByGeometryId(geometryId);
 
     this.activeDragListener = createDragListener({
@@ -1232,10 +1236,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           geometryId,
           AnchorPointComponent,
           (g) =>
-            AnchorPointComponent.update(
-              g,
-              new SheetPosition(snapped.x - origin.x, snapped.y - origin.y),
-            ),
+            AnchorPointComponent.update(g, {
+              keyPoint: before.keyPoint,
+              offset: new SheetPosition(
+                snapped.x - keyPointPosition.x,
+                snapped.y - keyPointPosition.y,
+              ),
+            }),
         );
       },
       onCommit: (sp) => {
@@ -1248,9 +1255,12 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           selectedGeometryFilters: filters,
           viewportScale: liveViewport.scale,
         });
-        const after = new SheetPosition(snapped.x - origin.x, snapped.y - origin.y);
+        const after: AnchorPointData = {
+          keyPoint: before.keyPoint,
+          offset: new SheetPosition(snapped.x - keyPointPosition.x, snapped.y - keyPointPosition.y),
+        };
 
-        if (before.x !== after.x || before.y !== after.y) {
+        if (before.offset.x !== after.offset.x || before.offset.y !== after.offset.y) {
           this.getHistoryManager().push(UndoEntry.anchorPointMove(geometryId, before, after));
         }
         this.activeDragListener = null;

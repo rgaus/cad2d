@@ -69,7 +69,7 @@ export type PolygonData = {
 export namespace PolygonData {
   export function keyPoints(
     geometry: Entity<GeometryComponent<PolygonData>>,
-  ): KeyPoints<SheetPosition, never> {
+  ): KeyPoints<SheetPosition, 'boundingBoxUpperLeft' | 'centroid', `Point ${number}`> {
     const polygonData = GeometryComponent.get(geometry);
     const points = polygonData.points.map((p) => p.point);
 
@@ -78,10 +78,19 @@ export namespace PolygonData {
       points.reverse();
     }
 
+    const totalX = polygonData.points.reduce((acc, p) => acc + p.point.x, 0);
+    const totalY = polygonData.points.reduce((acc, p) => acc + p.point.y, 0);
+
     return {
       perimeter: points,
-      perimeterLabels: points.map(() => null),
-      extras: {},
+      perimeterLabels: points.map((_, index) => `Point ${index+1}` as const),
+      extras: {
+        boundingBoxUpperLeft: PolygonData.boundingBox(geometry).position,
+        centroid: new SheetPosition(
+          totalX / polygonData.points.length,
+          totalY / polygonData.points.length,
+        ),
+      },
     };
   }
 

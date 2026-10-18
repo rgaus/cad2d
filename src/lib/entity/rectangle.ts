@@ -73,7 +73,10 @@ export namespace Rectangle {
         ...GeometryComponent.createRectangle(upperLeft, lowerRight),
         ...LinkDimensionsComponent.create(options?.linkDimensions ?? false),
         ...FillColorComponent.create(typeof fillColor !== 'undefined' ? fillColor : DEFAULT_COLOR),
-        ...AnchorPointComponent.create(),
+        ...AnchorPointComponent.create({
+          keyPoint: 'upperLeft',
+          offset: new SheetPosition(0, 0),
+        }),
       },
     };
   }

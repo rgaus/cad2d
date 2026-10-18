@@ -1,3 +1,4 @@
+import { SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
 import { AnchorPointComponent } from './components/AnchorPointComponent';
 import { FillColorComponent } from './components/FillColorComponent';
@@ -48,7 +49,10 @@ export namespace Polygon {
           closed,
           openAtIndex,
         }),
-        ...AnchorPointComponent.create(),
+        ...AnchorPointComponent.create({
+          keyPoint: 'boundingBoxUpperLeft',
+          offset: new SheetPosition(0, 0),
+        }),
       },
     };
   }
