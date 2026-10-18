@@ -6,6 +6,7 @@ import {
   closestPointOnCubicCurve,
   closestPointOnQuadraticCurve,
   convexPolygonWindOrder,
+  centroid as mathCentroid,
 } from '@/lib/math';
 import {
   CubicCurve,
@@ -78,20 +79,28 @@ export namespace PolygonData {
       points.reverse();
     }
 
-    const totalX = polygonData.points.reduce((acc, p) => acc + p.point.x, 0);
-    const totalY = polygonData.points.reduce((acc, p) => acc + p.point.y, 0);
-
     return {
       perimeter: points,
-      perimeterLabels: points.map((_, index) => `Point ${index+1}` as const),
+      perimeterLabels: points.map((_, index) => `Point ${index + 1}` as const),
       extras: {
         boundingBoxUpperLeft: PolygonData.boundingBox(geometry).position,
-        centroid: new SheetPosition(
-          totalX / polygonData.points.length,
-          totalY / polygonData.points.length,
-        ),
+        centroid: PolygonData.centroid(geometry),
       },
     };
+  }
+
+  /**
+   * Computes the area centroid (center of mass) of the polygon's boundary, treating each segment
+   * as a straight line between its endpoint vertices. For open polygons the ring is implicitly
+   * closed from the last point back to the first. Degenerate polygons with ~zero enclosed area
+   * (eg. a single point or collinear points) fall back to the average of the vertices.
+   */
+  export function centroid(geometry: Entity<GeometryComponent<PolygonData>>): SheetPosition {
+    const { points } = GeometryComponent.get(geometry);
+    if (points.length === 0) {
+      throw new Error('PolygonData.centroid: cannot compute centroid of polygon with 0 points!');
+    }
+    return mathCentroid(points.map((p) => p.point));
   }
 
   export function boundingBox(

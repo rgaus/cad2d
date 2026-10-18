@@ -8,6 +8,7 @@ export { Intersection } from './intersection';
 export { Angle } from './angle';
 export { Vector2 } from './vector';
 export { BoundingBox } from './bounding-box';
+export { centroid } from './centroid';
 export { type CohenSutherlandOutcode, CohenSutherland } from './cohen-sutherland';
 export { DeCasteljau, cubicBezierAt } from './bezier';
 export {
