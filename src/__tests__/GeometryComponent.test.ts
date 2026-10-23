@@ -11,6 +11,7 @@ import {
   RenderShapeRectangle,
 } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { PolygonSegment } from '@/lib/entity/geometry/polygon';
@@ -558,6 +559,129 @@ describe('GeometryComponent', () => {
 
       // line reverse: from P1(10,0) to P0(0,0)
       expect(result[3]).toEqual({ type: 'point', point: new SheetPosition(0, 0) });
+    });
+  });
+
+  describe('anchor point offset', () => {
+    it('applies the anchor offset to rectangles in world-space accessors', () => {
+      const rectangle = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(11, 15), new SheetPosition(16, 17)),
+      );
+      geometryStore.updateByIdWithComponent(rectangle.id, AnchorPointComponent, (g) =>
+        AnchorPointComponent.update(g, {
+          keyPoint: 'lowerRight',
+          offset: new SheetPosition(-2, -3),
+        }),
+      );
+      const geometry = geometryStore.getByIdWithComponents(
+        rectangle.id,
+        GeometryComponent,
+        AnchorPointComponent,
+      )!;
+
+      // rendered = raw - ((keyPoint - origin) + offset) = raw - (5, 2) - (-2, -3)
+      expect(GeometryComponent.getOrigin(geometry).x).toBe(8);
+      expect(GeometryComponent.getOrigin(geometry).y).toBe(16);
+
+      const bbox = GeometryComponent.boundingBox(geometry);
+      expect(bbox.position.x).toBe(8);
+      expect(bbox.position.y).toBe(16);
+      expect(bbox.width).toBe(5);
+      expect(bbox.height).toBe(2);
+
+      const keyPoints = GeometryComponent.keyPoints(geometry);
+      expect(keyPoints.perimeter.map((p) => `${p.x},${p.y}`)).toEqual([
+        '8,16',
+        '13,16',
+        '13,18',
+        '8,18',
+      ]);
+
+      const [shape] = GeometryComponent.getRenderShapes(geometry, sheet.defaultUnit);
+      expect(shape).toMatchObject({
+        shape: 'rectangle',
+        upperLeft: { x: 8, y: 16 },
+        lowerRight: { x: 13, y: 18 },
+      });
+    });
+
+    it('applies the anchor offset to ellipse and polygon world-space accessors', () => {
+      const ellipse = geometryStore.addOrdered(
+        ID_PREFIXES.ellipse,
+        Ellipse.create(new SheetPosition(6, 7), { radiusX: 2, radiusY: 4 }),
+      );
+      geometryStore.updateByIdWithComponent(ellipse.id, AnchorPointComponent, (g) =>
+        AnchorPointComponent.update(g, {
+          keyPoint: 'center',
+          offset: new SheetPosition(2, 3),
+        }),
+      );
+      const ellipseGeometry = geometryStore.getByIdWithComponents(
+        ellipse.id,
+        GeometryComponent,
+        AnchorPointComponent,
+      )!;
+      expect(GeometryComponent.getOrigin(ellipseGeometry).x).toBe(4);
+      expect(GeometryComponent.getOrigin(ellipseGeometry).y).toBe(4);
+
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(2, 3), makePoint(8, 3), makePoint(5, 9)], { closed: true }),
+      );
+      geometryStore.updateByIdWithComponent(polygon.id, AnchorPointComponent, (g) =>
+        AnchorPointComponent.update(g, {
+          keyPoint: 'boundingBoxUpperLeft',
+          offset: new SheetPosition(2, 3),
+        }),
+      );
+      const polygonGeometry = geometryStore.getByIdWithComponents(
+        polygon.id,
+        GeometryComponent,
+        AnchorPointComponent,
+      )!;
+      const world = GeometryComponent.getWorld(polygonGeometry);
+      expect(world.type).toBe('polygon');
+      if (world.type === 'polygon') {
+        expect(world.points.map((p: PolygonSegment) => `${p.point.x},${p.point.y}`)).toEqual([
+          '0,0',
+          '6,0',
+          '3,6',
+        ]);
+      }
+    });
+
+    it('leaves geometry unchanged when it has no anchor point component', () => {
+      const rectangle = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(11, 15), new SheetPosition(16, 17)),
+      );
+      geometryStore.updateByIdWithComponent(rectangle.id, AnchorPointComponent, (g) =>
+        AnchorPointComponent.update(g, {
+          keyPoint: 'lowerRight',
+          offset: new SheetPosition(-2, -3),
+        }),
+      );
+      const withAnchor = geometryStore.getByIdWithComponents(
+        rectangle.id,
+        GeometryComponent,
+        AnchorPointComponent,
+      )!;
+      const withoutAnchor = AnchorPointComponent.remove(withAnchor);
+
+      expect(GeometryComponent.getOrigin(withoutAnchor).x).toBe(11);
+      expect(GeometryComponent.getOrigin(withoutAnchor).y).toBe(15);
+
+      const bbox = GeometryComponent.boundingBox(withoutAnchor);
+      expect(bbox.position.x).toBe(11);
+      expect(bbox.position.y).toBe(15);
+
+      const [shape] = GeometryComponent.getRenderShapes(withoutAnchor, sheet.defaultUnit);
+      expect(shape).toMatchObject({
+        shape: 'rectangle',
+        upperLeft: { x: 11, y: 15 },
+        lowerRight: { x: 16, y: 17 },
+      });
     });
   });
 });

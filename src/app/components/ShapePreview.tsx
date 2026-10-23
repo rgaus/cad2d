@@ -134,7 +134,7 @@ export default function ShapePreview({
   const points = useMemo(() => {
     let points: Array<{ x: number; y: number }> = [];
 
-    const geometryData = GeometryComponent.get(geometry);
+    const geometryData = GeometryComponent.getWorld(geometry);
     switch (geometryData.type) {
       case 'polygon':
         points = geometryData.points.map((s: PolygonSegment) => ({ x: s.point.x, y: s.point.y }));
@@ -400,8 +400,8 @@ export default function ShapePreview({
       {editingDimension === 'radiusX' && GeometryComponent.isEllipse(geometry) ? (
         <polyline
           points={[
-            [toSvgX(GeometryComponent.get(geometry).center.x), toSvgY(bounds.minY) - 2],
-            [toSvgX(GeometryComponent.get(geometry).center.x), toSvgY(bounds.minY) - 5],
+            [toSvgX(GeometryComponent.getWorld(geometry).center.x), toSvgY(bounds.minY) - 2],
+            [toSvgX(GeometryComponent.getWorld(geometry).center.x), toSvgY(bounds.minY) - 5],
             [toSvgX(bounds.minX), toSvgY(bounds.minY) - 5],
             [toSvgX(bounds.minX), toSvgY(bounds.minY) - 2],
           ]
@@ -442,8 +442,8 @@ export default function ShapePreview({
       {editingDimension === 'radiusY' && GeometryComponent.isEllipse(geometry) ? (
         <polyline
           points={[
-            [toSvgX(bounds.minX) - 2, toSvgY(GeometryComponent.get(geometry).center.y)],
-            [toSvgX(bounds.minX) - 5, toSvgY(GeometryComponent.get(geometry).center.y)],
+            [toSvgX(bounds.minX) - 2, toSvgY(GeometryComponent.getWorld(geometry).center.y)],
+            [toSvgX(bounds.minX) - 5, toSvgY(GeometryComponent.getWorld(geometry).center.y)],
             [toSvgX(bounds.minX) - 5, toSvgY(bounds.minY)],
             [toSvgX(bounds.minX) - 2, toSvgY(bounds.minY)],
           ]
@@ -457,24 +457,24 @@ export default function ShapePreview({
       {editingDimension === 'origin' && GeometryComponent.isEllipse(geometry) ? (
         <>
           <line
-            x1={toSvgX(GeometryComponent.get(geometry).center.x)}
+            x1={toSvgX(GeometryComponent.getWorld(geometry).center.x)}
             y1={toSvgY(bounds.minY)}
-            x2={toSvgX(GeometryComponent.get(geometry).center.x)}
+            x2={toSvgX(GeometryComponent.getWorld(geometry).center.x)}
             y2={toSvgY(bounds.maxY)}
             stroke="rgba(0,0,0,0.2)"
             strokeWidth={1}
           />
           <line
             x1={toSvgX(bounds.minX)}
-            y1={toSvgY(GeometryComponent.get(geometry).center.y)}
+            y1={toSvgY(GeometryComponent.getWorld(geometry).center.y)}
             x2={toSvgX(bounds.maxX)}
-            y2={toSvgY(GeometryComponent.get(geometry).center.y)}
+            y2={toSvgY(GeometryComponent.getWorld(geometry).center.y)}
             stroke="rgba(0,0,0,0.2)"
             strokeWidth={1}
           />
           <rect
-            x={toSvgX(GeometryComponent.get(geometry).center.x) - vertexSizeInPx / 2}
-            y={toSvgY(GeometryComponent.get(geometry).center.y) - vertexSizeInPx / 2}
+            x={toSvgX(GeometryComponent.getWorld(geometry).center.x) - vertexSizeInPx / 2}
+            y={toSvgY(GeometryComponent.getWorld(geometry).center.y) - vertexSizeInPx / 2}
             width={vertexSizeInPx}
             height={vertexSizeInPx}
             fill="white"

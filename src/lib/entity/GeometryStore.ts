@@ -323,7 +323,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }> = [];
     for (const g of this.geometryById.values()) {
       if (Entity.hasComponent(g, GeometryComponent)) {
-        const geomData = GeometryComponent.get(g);
+        const geomData = GeometryComponent.getWorld(g);
         switch (geomData.type) {
           case 'polygon':
             result.push({
@@ -1200,7 +1200,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       );
     }
 
-    const points = rectangleToPolygon(rectangleData.upperLeft, rectangleData.lowerRight);
+    // The converted polygon is created in world space with a default anchor, so the rendered
+    // position of the rectangle is preserved.
+    const offset = GeometryComponent.getAnchorPointOffset(geometry);
+    const points = rectangleToPolygon(
+      new SheetPosition(rectangleData.upperLeft.x - offset.x, rectangleData.upperLeft.y - offset.y),
+      new SheetPosition(
+        rectangleData.lowerRight.x - offset.x,
+        rectangleData.lowerRight.y - offset.y,
+      ),
+    );
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
 
     const polygonTemplate = Polygon.create(points, {
@@ -1214,7 +1223,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       components: {
         ...polygonTemplate.components,
         ...RenderOrderComponent.create(RenderOrderComponent.get(geometry)),
-        ...AnchorPointComponent.create(AnchorPointComponent.get(geometry)),
       },
     };
 
@@ -1314,7 +1322,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         `GeometryStore.convertEllipseToPolygon: GeometryComponent data for geoemtry ${ellipseId} is not of type ellipse, found ${ellipseData.type}`,
       );
     }
-    const points = ellipseToPolygon(ellipseData.center, ellipseData.radiusX, ellipseData.radiusY);
+    // The converted polygon is created in world space with a default anchor, so the rendered
+    // position of the ellipse is preserved.
+    const offset = GeometryComponent.getAnchorPointOffset(geometry);
+    const points = ellipseToPolygon(
+      new SheetPosition(ellipseData.center.x - offset.x, ellipseData.center.y - offset.y),
+      ellipseData.radiusX,
+      ellipseData.radiusY,
+    );
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
 
     const polygonTemplate = Polygon.create(points, {
@@ -1328,7 +1343,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       components: {
         ...polygonTemplate.components,
         ...RenderOrderComponent.create(RenderOrderComponent.get(geometry)),
-        ...AnchorPointComponent.create(AnchorPointComponent.get(geometry)),
       },
     };
 
@@ -1430,7 +1444,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (pointIndex >= polygonData.points.length) {
       return null;
     }
-    return polygonData.points[pointIndex].point;
+    const offset = GeometryComponent.getAnchorPointOffset(polygon);
+    const point = polygonData.points[pointIndex].point;
+    return new SheetPosition(point.x - offset.x, point.y - offset.y);
   }
 
   setWorkingConstraints(
@@ -1639,12 +1655,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               if (geomData.type !== 'polygon') {
                 return old;
               }
+              // The DCEL works in world space; convert back to raw stored coordinates.
+              const offset = GeometryComponent.getAnchorPointOffset(old);
+              const toRaw = (position: SheetPosition) =>
+                new SheetPosition(position.x + offset.x, position.y + offset.y);
               const points = geomData.points.slice();
               for (const { update, position } of updates) {
                 // FIXME: address typing, make shape update a proper enum
                 points[(update as any).pointIndex] = {
                   ...points[(update as any).pointIndex],
-                  point: position,
+                  point: toRaw(position),
                 };
               }
               // When the constraint solver moves the first vertex of a closed
@@ -1672,28 +1692,39 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               if (geomData.type !== 'rectangle') {
                 return old;
               }
+              // The DCEL works in world space; convert back to raw stored coordinates.
+              const offset = GeometryComponent.getAnchorPointOffset(old);
+              const toRaw = (position: SheetPosition) =>
+                new SheetPosition(position.x + offset.x, position.y + offset.y);
               let working: Entity<GeometryComponent<RectangleData>> = old as Entity<
                 GeometryComponent<RectangleData>
               >;
               for (const { update, position } of updates) {
+                const rawPosition = toRaw(position);
                 switch (update.point) {
                   case 'upperLeft':
-                    working = GeometryComponent.update(working, { upperLeft: position });
+                    working = GeometryComponent.update(working, { upperLeft: rawPosition });
                     break;
                   case 'lowerRight':
-                    working = GeometryComponent.update(working, { lowerRight: position });
+                    working = GeometryComponent.update(working, { lowerRight: rawPosition });
                     break;
                   case 'upperRight': {
                     const workingRectData = GeometryComponent.get(working);
-                    const upperLeft = new SheetPosition(workingRectData.upperLeft.x, position.y);
-                    const lowerRight = new SheetPosition(position.x, workingRectData.lowerRight.y);
+                    const upperLeft = new SheetPosition(workingRectData.upperLeft.x, rawPosition.y);
+                    const lowerRight = new SheetPosition(
+                      rawPosition.x,
+                      workingRectData.lowerRight.y,
+                    );
                     working = GeometryComponent.update(working, { upperLeft, lowerRight });
                     break;
                   }
                   case 'lowerLeft': {
                     const workingRectData = GeometryComponent.get(working);
-                    const upperLeft = new SheetPosition(position.x, workingRectData.upperLeft.y);
-                    const lowerRight = new SheetPosition(workingRectData.lowerRight.x, position.y);
+                    const upperLeft = new SheetPosition(rawPosition.x, workingRectData.upperLeft.y);
+                    const lowerRight = new SheetPosition(
+                      workingRectData.lowerRight.x,
+                      rawPosition.y,
+                    );
                     working = GeometryComponent.update(working, { upperLeft, lowerRight });
                     break;
                   }
@@ -1713,6 +1744,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               if (geomData.type !== 'ellipse') {
                 return old;
               }
+              // The DCEL works in world space; convert back to raw stored coordinates.
+              const offset = GeometryComponent.getAnchorPointOffset(old);
+              const toRaw = (position: SheetPosition) =>
+                new SheetPosition(position.x + offset.x, position.y + offset.y);
               // NOTE: the ordering here is really important.
               // The center has to be dealt with first
               // And then the perimeter positions subtracted from the up to date center
@@ -1720,26 +1755,26 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               // If you subtract the perimeter positions against the out of date center, then the
               // results of the constraint cannot be expressed faithfully
               const foundCenter = updates.findLast((u) => u.update.point === 'center');
-              const center = foundCenter ? foundCenter.position : geomData.center;
+              const center = foundCenter ? toRaw(foundCenter.position) : geomData.center;
 
               let radiusX = geomData.radiusX;
               const foundLeft = updates.findLast((u) => u.update.point === 'left');
               if (foundLeft) {
-                radiusX = center.x - foundLeft.position.x;
+                radiusX = center.x - toRaw(foundLeft.position).x;
               }
               const foundRight = updates.findLast((u) => u.update.point === 'right');
               if (foundRight) {
-                radiusX = foundRight.position.x - center.x;
+                radiusX = toRaw(foundRight.position).x - center.x;
               }
 
               let radiusY = geomData.radiusY;
               const foundTop = updates.findLast((u) => u.update.point === 'top');
               if (foundTop) {
-                radiusY = center.y - foundTop.position.y;
+                radiusY = center.y - toRaw(foundTop.position).y;
               }
               const foundBottom = updates.findLast((u) => u.update.point === 'bottom');
               if (foundBottom) {
-                radiusY = foundBottom.position.y - center.y;
+                radiusY = toRaw(foundBottom.position).y - center.y;
               }
 
               return GeometryComponent.update(old as Entity<GeometryComponent<EllipseData>>, {

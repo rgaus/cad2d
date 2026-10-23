@@ -24,8 +24,7 @@ import { type ChamferFilterData } from '@/lib/entity/filters/chamfer';
 import { type FilletFilterData } from '@/lib/entity/filters/fillet';
 import { type MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { type PatternFilterData } from '@/lib/entity/filters/pattern';
-import { PolygonData } from '@/lib/entity/geometry/polygon';
-import { PolygonSegment } from '@/lib/entity/polygon';
+import { PolygonData, PolygonSegment } from '@/lib/entity/geometry/polygon';
 import { type RectangleEndpoint } from '@/lib/entity/rectangle';
 import { CornerReplacement, type CornerSegmentFactory, Vector2, mod } from '@/lib/math';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
@@ -386,8 +385,19 @@ export class ApplyFilterToGeometryAction extends BaseAction {
         return g;
       }
       const polygon = g as Entity<GeometryComponent<PolygonData>>;
+      // Render shapes are world-space; convert back to raw stored coordinates.
+      const offset = GeometryComponent.getAnchorPointOffset(g);
+      const points =
+        offset.x === 0 && offset.y === 0
+          ? merged.points
+          : merged.points.map((segment) =>
+              PolygonSegment.transform(
+                segment,
+                (position) => new SheetPosition(position.x + offset.x, position.y + offset.y),
+              ),
+            );
       const withMergedPoints = GeometryComponent.update(polygon, {
-        points: merged.points,
+        points,
         closed: true,
         openAtIndex: 0,
       });

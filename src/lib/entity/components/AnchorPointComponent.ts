@@ -44,19 +44,20 @@ export namespace AnchorPointComponent {
 
   /** All named key points available on the geometry (named perimeter labels plus extras keys). */
   export function getAvailableKeyPoints(geometry: Entity<GeometryComponent>): Array<string> {
-    const keyPoints = GeometryComponent.keyPoints(geometry);
+    const keyPoints = GeometryComponent.keyPointsRaw(geometry);
     const perimeterLabels = keyPoints.perimeterLabels.filter(
       (label): label is string => label !== null,
     );
     return [...perimeterLabels, ...Object.keys(keyPoints.extras)];
   }
 
-  /** Resolves a named key point to its position on the geometry, or null if it does not exist. */
+  /** Resolves a named key point to its position on the raw (unanchored) geometry, or null if it
+   * does not exist. */
   export function resolveKeyPointPosition(
     geometry: Entity<GeometryComponent>,
     keyPoint: string,
   ): SheetPosition | null {
-    const keyPoints = GeometryComponent.keyPoints(geometry);
+    const keyPoints = GeometryComponent.keyPointsRaw(geometry);
     const index = keyPoints.perimeterLabels.indexOf(keyPoint);
     if (index !== -1) {
       return keyPoints.perimeter[index] ?? null;
@@ -75,21 +76,22 @@ export namespace AnchorPointComponent {
     if (!keyPointPosition) {
       return new SheetPosition(0, 0);
     }
-    const origin = GeometryComponent.getOrigin(geometry);
+    const origin = GeometryComponent.getOriginRaw(geometry);
 
     return new SheetPosition(
-      (keyPointPosition.x - origin.x) + offset.x,
-      (keyPointPosition.y - origin.y) + offset.y,
+      keyPointPosition.x - origin.x + offset.x,
+      keyPointPosition.y - origin.y + offset.y,
     );
   }
 
   /**
    * Computes the position that the anchor point should be rendered, in absolute sheet coordinates.
+   * The handle always sits at the geometry's (raw) natural origin.
    */
   export function getHandlePosition(
     geometry: Entity<AnchorPointComponent & GeometryComponent>,
   ): SheetPosition {
-    return GeometryComponent.getOrigin(geometry);
+    return GeometryComponent.getOriginRaw(geometry);
   }
 
   /** Human readable label for a key point name, eg `upperLeft` -> `Upper left`. */

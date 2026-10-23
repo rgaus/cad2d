@@ -12,6 +12,7 @@ import {
 } from '@/lib/entity';
 import { DCELShapeIndex } from '@/lib/entity/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { ConstraintEndpoint, LinearConstraint } from '@/lib/entity/constraints';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -1447,5 +1448,46 @@ describe('DCELShapeIndex', () => {
         }
       }
     });
+  });
+});
+
+describe('DCELShapeIndex anchor point offset', () => {
+  it('registers rectangle vertices in world space', () => {
+    const index = new DCELShapeIndex();
+    const raw = makeRect('a', 11, 15, 16, 17);
+    const rect = AnchorPointComponent.update(raw, {
+      keyPoint: 'lowerRight',
+      offset: new SheetPosition(-2, -3),
+    });
+
+    index.addRectangle(rect);
+
+    // rendered = raw - ((lowerRight - upperLeft) + offset; the world corners are offset by (3, -1).
+    expect(index.dcel.getVertexId(new SheetPosition(8, 16))).toBeDefined();
+    expect(index.dcel.getVertexId(new SheetPosition(13, 16))).toBeDefined();
+    expect(index.dcel.getVertexId(new SheetPosition(13, 18))).toBeDefined();
+    expect(index.dcel.getVertexId(new SheetPosition(8, 18))).toBeDefined();
+  });
+
+  it('registers polygon vertices in world space', () => {
+    const index = new DCELShapeIndex();
+    const template = Polygon.create(
+      [
+        { type: 'point', point: new SheetPosition(2, 3) },
+        { type: 'point', point: new SheetPosition(8, 3) },
+        { type: 'point', point: new SheetPosition(5, 9) },
+      ],
+      { closed: true },
+    );
+    const polygon = AnchorPointComponent.update(
+      { id: 'p', ...template, components: { ...template.components } },
+      { keyPoint: 'boundingBoxUpperLeft', offset: new SheetPosition(2, 3) },
+    );
+
+    index.addPolygon(polygon);
+
+    expect(index.dcel.getVertexId(new SheetPosition(0, 0))).toBeDefined();
+    expect(index.dcel.getVertexId(new SheetPosition(6, 0))).toBeDefined();
+    expect(index.dcel.getVertexId(new SheetPosition(3, 6))).toBeDefined();
   });
 });

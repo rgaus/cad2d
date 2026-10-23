@@ -53,7 +53,7 @@ export class UnionAction extends BaseAction {
       const geometry = geometryStore.getById(id);
       if (!geometry) continue;
       if (Entity.hasComponent(geometry, GeometryComponent)) {
-        const geomData = GeometryComponent.get(geometry as Entity<GeometryComponent>);
+        const geomData = GeometryComponent.getWorld(geometry);
         if (geomData.type === 'polygon') {
           const points = this.extractPointsFromSegments(geomData.points);
           extractedPolygons.push(points);

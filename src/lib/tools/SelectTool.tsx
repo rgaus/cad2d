@@ -178,7 +178,7 @@ function isEndpointOnEdge(
 /** A representation of all entities which can be moved. The type is a union, and the associated
  * namespace has utility functions for computing metrics about the given entity in a generic way. */
 type DragState =
-  | { state: 'geometry'; geometry: Entity<GeometryComponent> }
+  | { state: 'geometry'; geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>> }
   | { state: 'datum'; entity: Entity<DatumComponent> }
   | { state: 'filter'; entity: Entity<FilterComponent> }
   | { state: 'frame'; entity: Entity<FrameComponent> };
@@ -187,7 +187,22 @@ namespace DragState {
   /** Extracts the {@link DragState} from the passed {@link Entity}, or null if nothing could be computed. */
   export function get(entity: Entity): DragState | null {
     if (Entity.hasComponent(entity, GeometryComponent)) {
-      return { state: 'geometry', geometry: Entity.pickComponent(entity, GeometryComponent) };
+      const geometry = Entity.pickComponent(entity, GeometryComponent);
+      // Preserve the anchor point component so world-space metrics (origin / bbox / resize) take
+      // the anchor offset into account.
+      if (Entity.hasComponent(entity, AnchorPointComponent)) {
+        return {
+          state: 'geometry',
+          geometry: {
+            id: geometry.id,
+            components: {
+              ...geometry.components,
+              anchorPoint: entity.components.anchorPoint,
+            },
+          },
+        };
+      }
+      return { state: 'geometry', geometry };
     } else if (Entity.hasComponent(entity, DatumComponent)) {
       return { state: 'datum', entity };
     } else if (Entity.hasComponent(entity, FrameComponent)) {
@@ -683,7 +698,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       const geom = this.getGeometryStore().getByIdWithComponent(id, GeometryComponent);
       if (!geom || !GeometryComponent.isPolygon(geom)) continue;
 
-      const polygonData = GeometryComponent.get(geom);
+      const polygonData = GeometryComponent.getWorld(geom);
       const pointCount = polygonData.points.length;
       if (pointCount < 2) continue;
 
@@ -752,7 +767,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
     const polygonData = GeometryComponent.get(polygonGeom);
+    const worldPolygonData = GeometryComponent.getWorld(polygonGeom);
+    // The anchor offset stays fixed during a vertex drag. Snapping happens in world space, but
+    // geometry is stored raw, so translate between the two.
+    const anchorOffset = GeometryComponent.getAnchorPointOffset(polygonGeom);
+    const toRaw = (position: SheetPosition) =>
+      new SheetPosition(position.x + anchorOffset.x, position.y + anchorOffset.y);
     const beforePoint = polygonData.points[segmentIndex].point;
+    const worldBeforePoint = worldPolygonData.points[segmentIndex].point;
 
     this.draggingPolygonId = polygonId;
     this.draggingSegmentIndex = segmentIndex;
@@ -789,7 +811,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     if (matchedConstraints.length > 0 && sheetConfig) {
       const result = Constraint.computeConstrainedTracksForPoints(
         matchedConstraints,
-        [beforePoint],
+        [worldBeforePoint],
         sheetConfig.defaultUnit,
         (ep) => this.getGeometryStore().resolveConstraintEndpoint(ep),
         sheetConfig.epsilon,
@@ -824,6 +846,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           },
           this.getSheet()?.epsilon ?? 0.001,
         );
+        const snappedRaw = toRaw(snapped);
 
         this.getGeometryStore().updateByIdWithComponentDirect(
           this.draggingPolygonId,
@@ -841,7 +864,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
             points[this.draggingSegmentIndex] = {
               ...points[this.draggingSegmentIndex],
-              point: snapped,
+              point: snappedRaw,
             };
 
             // If dragging the furst point, also drag the last point too, if the last point is at the
@@ -849,7 +872,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             // point at the same position as the first point) can be moved properly without the last
             // point getting "stuck.
             if (isFirstPointAndAtSamePositionAslastPoint) {
-              points[points.length - 1] = { ...points[points.length - 1], point: snapped };
+              points[points.length - 1] = { ...points[points.length - 1], point: snappedRaw };
             }
 
             const updated = GeometryComponent.update(prev, { points });
@@ -883,11 +906,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
             points[locked.segmentIndex] = {
               ...points[locked.segmentIndex],
-              point: snapped,
+              point: snappedRaw,
             };
 
             if (isFirstPointAndAtSamePositionAsLastPoint) {
-              points[points.length - 1] = { ...points[points.length - 1], point: snapped };
+              points[points.length - 1] = { ...points[points.length - 1], point: snappedRaw };
             }
 
             return GeometryComponent.update(prev, { points }) as Entity;
@@ -897,7 +920,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
-        const afterPoint = applySnappingOnConstrainedTrack(
+        const afterPointWorld = applySnappingOnConstrainedTrack(
           world.toSheet(),
           this.draggingConstrainedTrackResult,
           {
@@ -910,6 +933,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           },
           this.getSheet()?.epsilon ?? 0.001,
         );
+        const afterPoint = toRaw(afterPointWorld);
 
         if (
           this.draggingPolygonId &&
@@ -1093,6 +1117,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
     const ctrlPolygonData = GeometryComponent.get(geom);
+    const anchorOffset = GeometryComponent.getAnchorPointOffset(geom);
+    const toRaw = (position: SheetPosition) =>
+      new SheetPosition(position.x + anchorOffset.x, position.y + anchorOffset.y);
     let beforePoint: SheetPosition;
     if (pointKey === 'controlPoint') {
       beforePoint = (ctrlPolygonData.points[segmentIndex] as QuadraticBezierSegment).controlPoint;
@@ -1132,12 +1159,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
           const prevData = GeometryComponent.get(prev);
           const segments = prevData.points.slice();
+          const snappedRaw = toRaw(snapped);
           if (this.draggingPointKey === 'controlPoint') {
             const seg = segments[this.draggingSegmentIndex] as QuadraticBezierSegment;
-            segments[this.draggingSegmentIndex] = { ...seg, controlPoint: snapped };
+            segments[this.draggingSegmentIndex] = { ...seg, controlPoint: snappedRaw };
           } else {
             const seg = segments[this.draggingSegmentIndex] as CubicBezierSegment;
-            segments[this.draggingSegmentIndex] = { ...seg, [this.draggingPointKey]: snapped };
+            segments[this.draggingSegmentIndex] = { ...seg, [this.draggingPointKey]: snappedRaw };
           }
           return GeometryComponent.update(prev, { points: segments }) as Entity;
         });
@@ -1145,14 +1173,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
-        const afterPoint = applySnapping(world.toSheet(), {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          ctrlHeld: this.toolManager.getCtrlHeld(),
-          superHeld: false,
-          selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(polygonId),
-          viewportScale: liveViewport.scale,
-        });
+        const afterPoint = toRaw(
+          applySnapping(world.toSheet(), {
+            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+            ctrlHeld: this.toolManager.getCtrlHeld(),
+            superHeld: false,
+            selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(polygonId),
+            viewportScale: liveViewport.scale,
+          }),
+        );
         if (
           this.draggingPolygonId &&
           (beforePoint.x !== afterPoint.x || beforePoint.y !== afterPoint.y)
@@ -2797,7 +2827,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Adds a point on the specified line segment edge of a polygon at the given click position. */
   addPointOnLineSegmentEdge(polygonId: Id, segmentIndex: number, sheetPos: SheetPosition): void {
-    this.getGeometryStore().addPointOnLineSegmentEdge(polygonId, segmentIndex, sheetPos);
+    // The renderer reports the closest point in world space; store geometry is raw.
+    const geom = this.getGeometryStore().getByIdWithComponent(polygonId, GeometryComponent);
+    const offset = geom ? GeometryComponent.getAnchorPointOffset(geom) : new SheetPosition(0, 0);
+    this.getGeometryStore().addPointOnLineSegmentEdge(
+      polygonId,
+      segmentIndex,
+      new SheetPosition(sheetPos.x + offset.x, sheetPos.y + offset.y),
+    );
   }
 
   /** Adds a point on the specified quadratic arc edge of a polygon at the given click position.
@@ -2808,7 +2845,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const quadPolygonData = GeometryComponent.get(geom);
+    const quadPolygonData = GeometryComponent.getWorld(geom);
     const pointSegment = quadPolygonData.points[segmentIndex];
     const arcSegment = quadPolygonData.points[segmentIndex + 1];
     if (
@@ -2839,7 +2876,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const cubicPolygonData = GeometryComponent.get(geom);
+    const cubicPolygonData = GeometryComponent.getWorld(geom);
     const pointSegment = cubicPolygonData.points[segmentIndex];
     const arcSegment = cubicPolygonData.points[segmentIndex + 1];
     if (

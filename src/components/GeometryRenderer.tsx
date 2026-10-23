@@ -800,7 +800,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
   const idPolygonDataPairs = useMemo(
     () =>
       geometries.flatMap((g) => {
-        const data = GeometryComponent.get<GeometryData>(g);
+        const data = GeometryComponent.getWorld<GeometryData>(g);
         if (data.type === 'polygon') {
           return [[g.id, data] as const];
         } else {

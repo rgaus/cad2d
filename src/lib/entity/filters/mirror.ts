@@ -137,7 +137,7 @@ export namespace MirrorFilter {
     geometry: Entity<GeometryComponent>,
     filterData: MirrorFilterData,
   ): 'unchanged' | 'filled' {
-    const polyData = GeometryComponent.get(geometry);
+    const polyData = GeometryComponent.getWorld(geometry);
     if (polyData.type !== 'polygon' || polyData.closed) {
       return 'unchanged';
     }

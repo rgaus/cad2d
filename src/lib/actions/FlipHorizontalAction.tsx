@@ -63,11 +63,13 @@ export class FlipHorizontalAction extends BaseAction {
         const polyGeom = geometryStore.getByIdWithComponent(id, GeometryComponent);
         if (polyGeom) {
           const polyData = GeometryComponent.get(polyGeom);
+          // The selection center is in world space; geometry is stored raw.
+          const rawCenterX = centerX + GeometryComponent.getAnchorPointOffset(polyGeom).x;
           if (polyData.type === 'polygon') {
             geometryStore.updateById(id, (old) => {
               const data = GeometryComponent.get(old as Entity<GeometryComponent<PolygonData>>);
               return GeometryComponent.update(old as Entity<GeometryComponent<PolygonData>>, {
-                points: flipPolygonPoints(data.points, centerX),
+                points: flipPolygonPoints(data.points, rawCenterX),
               });
             });
             continue;
@@ -75,15 +77,15 @@ export class FlipHorizontalAction extends BaseAction {
 
           if (polyData.type === 'rectangle') {
             const rect = polyData;
-            const flippedUl = Flip.horizontal(rect.upperLeft, centerX);
+            const flippedUl = Flip.horizontal(rect.upperLeft, rawCenterX);
             const flippedUr = Flip.horizontal(
               new SheetPosition(rect.lowerRight.x, rect.upperLeft.y),
-              centerX,
+              rawCenterX,
             );
-            const flippedLr = Flip.horizontal(rect.lowerRight, centerX);
+            const flippedLr = Flip.horizontal(rect.lowerRight, rawCenterX);
             const flippedLl = Flip.horizontal(
               new SheetPosition(rect.upperLeft.x, rect.lowerRight.y),
-              centerX,
+              rawCenterX,
             );
 
             const xs = [flippedUl.x, flippedUr.x, flippedLr.x, flippedLl.x];
@@ -102,7 +104,7 @@ export class FlipHorizontalAction extends BaseAction {
 
           if (polyData.type === 'ellipse') {
             const ellipse = polyData;
-            const newCenter = Flip.horizontal(ellipse.center, centerX);
+            const newCenter = Flip.horizontal(ellipse.center, rawCenterX);
 
             geometryStore.updateById(id, (old) =>
               GeometryComponent.update(old as Entity<GeometryComponent<EllipseData>>, {

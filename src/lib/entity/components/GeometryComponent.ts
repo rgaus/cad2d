@@ -15,11 +15,11 @@ import { PolygonData, PolygonSegment } from '../geometry/polygon';
 import { RectangleData } from '../geometry/rectangle';
 import { RectangleEndpoint } from '../rectangle';
 import { Entity, type EntityComponent, ResizeParams } from '../types';
+import { AnchorPointComponent } from './AnchorPointComponent';
 import { ConstraintComponent } from './ConstraintComponent';
 import { FilterComponent } from './FilterComponent';
 import { FrameComponent } from './FrameComponent';
 import { LinkDimensionsComponent } from './LinkDimensionsComponent';
-import { AnchorPointComponent } from './AnchorPointComponent';
 
 export type RenderShapePolygon = {
   shape: 'polygon';
@@ -234,10 +234,49 @@ export namespace GeometryComponent {
   }
 
   /**
+   * The offset by which the rendered (world) geometry is shifted from the raw stored geometry.
+   * Returns `(0, 0)` when the geometry has no anchor point component.
+   */
+  export function getAnchorPointOffset(
+    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  ): SheetPosition {
+    if (!Entity.hasComponent(geometry, AnchorPointComponent)) {
+      return new SheetPosition(0, 0);
+    }
+    return AnchorPointComponent.computeAssociatedGeometryOffset(geometry);
+  }
+
+  /**
+   * Returns a copy of the entity with its geometry translated into "world" (rendered) space by
+   * applying the anchor point offset. Entities without an anchor point are returned unchanged.
+   */
+  export function toWorld<G extends Entity<GeometryComponent & Partial<AnchorPointComponent>>>(
+    geometry: G,
+  ): G {
+    const offset = GeometryComponent.getAnchorPointOffset(geometry);
+    if (offset.x === 0 && offset.y === 0) {
+      return geometry;
+    }
+    return GeometryComponent.translate(
+      geometry,
+      (position) => new SheetPosition(position.x - offset.x, position.y - offset.y),
+    ) as G;
+  }
+
+  /** Returns the geometry data in "world" (rendered) space, applying the anchor point offset. */
+  export function getWorld<D extends GeometryData = GeometryData>(
+    geometry: Entity<GeometryComponent<D> & Partial<AnchorPointComponent>>,
+  ): D {
+    return GeometryComponent.get<D>(GeometryComponent.toWorld(geometry));
+  }
+
+  /**
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(geometry: Entity<GeometryComponent>): KeyPoints<SheetPosition, string> {
+  export function keyPointsRaw(
+    geometry: Entity<GeometryComponent>,
+  ): KeyPoints<SheetPosition, string> {
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
@@ -249,12 +288,22 @@ export namespace GeometryComponent {
       default:
         state satisfies never;
         throw new Error(
-          `GeometryComponent.keyPoints: Unknown geometry data type ${(state as any).type}`,
+          `GeometryComponent.keyPointsRaw: Unknown geometry data type ${(state as any).type}`,
         );
     }
   }
 
-  export function boundingBox(geometry: Entity<GeometryComponent>): Rect<SheetPosition> {
+  /**
+   * Key points in "world" (rendered) space, with the anchor point offset applied. Use this when
+   * snapping, constraining, or otherwise comparing against positions the user sees.
+   */
+  export function keyPoints(
+    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  ): KeyPoints<SheetPosition, string> {
+    return GeometryComponent.keyPointsRaw(GeometryComponent.toWorld(geometry));
+  }
+
+  export function boundingBoxRaw(geometry: Entity<GeometryComponent>): Rect<SheetPosition> {
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
@@ -266,9 +315,16 @@ export namespace GeometryComponent {
       default:
         state satisfies never;
         throw new Error(
-          `GeometryComponent.boundingBox: Unknown geometry data type ${(state as any).type}`,
+          `GeometryComponent.boundingBoxRaw: Unknown geometry data type ${(state as any).type}`,
         );
     }
+  }
+
+  /** Bounding box in "world" (rendered) space, with the anchor point offset applied. */
+  export function boundingBox(
+    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  ): Rect<SheetPosition> {
+    return GeometryComponent.boundingBoxRaw(GeometryComponent.toWorld(geometry));
   }
 
   export function translate<E extends Entity<GeometryComponent>>(
@@ -300,7 +356,7 @@ export namespace GeometryComponent {
     }
   }
 
-  export function getOrigin(geometry: Entity<GeometryComponent>): SheetPosition {
+  export function getOriginRaw(geometry: Entity<GeometryComponent>): SheetPosition {
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
@@ -312,9 +368,16 @@ export namespace GeometryComponent {
       default:
         state satisfies never;
         throw new Error(
-          `GeometryComponent.getOrigin: Unknown geometry data type ${(state as any).type}`,
+          `GeometryComponent.getOriginRaw: Unknown geometry data type ${(state as any).type}`,
         );
     }
+  }
+
+  /** Origin in "world" (rendered) space, with the anchor point offset applied. */
+  export function getOrigin(
+    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  ): SheetPosition {
+    return GeometryComponent.getOriginRaw(GeometryComponent.toWorld(geometry));
   }
 
   export function equals(a: Entity<GeometryComponent>, b: Entity<GeometryComponent>): boolean {
@@ -346,7 +409,7 @@ export namespace GeometryComponent {
     geometry: Entity<GeometryComponent>,
     renderShape: RenderShape,
   ): boolean {
-    const data = GeometryComponent.get(geometry);
+    const data = GeometryComponent.getWorld(geometry);
     switch (data.type) {
       case 'polygon':
         if (renderShape.shape !== 'polygon') {
@@ -379,30 +442,48 @@ export namespace GeometryComponent {
     }
   }
 
-  export function resize<E extends Entity<GeometryComponent>>(
+  export function resize<E extends Entity<GeometryComponent & Partial<AnchorPointComponent>>>(
     geometry: E,
     params: ResizeParams,
     originalBBox?: Rect<SheetPosition>,
   ): E {
+    // Resize math happens in world (rendered) space, but the stored geometry is raw. Translate the
+    // inputs back into raw space before dispatching to the raw resize implementations.
+    const offset = GeometryComponent.getAnchorPointOffset(geometry);
+    const rawParams =
+      offset.x === 0 && offset.y === 0
+        ? params
+        : { ...params, to: new SheetPosition(params.to.x + offset.x, params.to.y + offset.y) };
+    const rawBBox =
+      originalBBox && (offset.x !== 0 || offset.y !== 0)
+        ? {
+            ...originalBBox,
+            position: new SheetPosition(
+              originalBBox.position.x + offset.x,
+              originalBBox.position.y + offset.y,
+            ),
+          }
+        : originalBBox;
+
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
         return PolygonData.resize(
           geometry as Entity<GeometryComponent<PolygonData>>,
-          params,
-          originalBBox,
+          rawParams,
+          rawBBox,
         ) as E;
       case 'rectangle':
         return RectangleData.resize(
           geometry as Entity<GeometryComponent<RectangleData>>,
-          params,
-          originalBBox,
+          rawParams,
+          rawBBox,
         ) as E;
       case 'ellipse':
         return EllipseData.resize(
           geometry as Entity<GeometryComponent<EllipseData>>,
-          params,
-          originalBBox,
+          rawParams,
+          rawBBox,
         ) as E;
       default:
         state satisfies never;
@@ -445,22 +526,16 @@ export namespace GeometryComponent {
   ): Array<RenderShape> {
     let shapes;
 
-    const offset = Entity.hasComponent(geometry, AnchorPointComponent) ? (
-      AnchorPointComponent.computeAssociatedGeometryOffset(geometry)
-    ) : new SheetPosition(0, 0);
-    const applyAnchorPointOffset = (prev: SheetPosition) => new SheetPosition(prev.x - offset.x, prev.y - offset.y);
+    // Render shapes are always expressed in "world" (rendered) space.
+    const worldGeometry = GeometryComponent.toWorld(geometry);
 
     const mapping =
       options.destinationPointMapping as GetRenderShapesOptions<GeometryData>['destinationPointMapping'];
-    const state = GeometryComponent.get(geometry);
+    const state = GeometryComponent.get(worldGeometry);
     switch (state.type) {
       case 'polygon':
         shapes = [
-          RenderShape.polygon(
-            geometry.id,
-            state.points.map((point) => PolygonSegment.transform(point, applyAnchorPointOffset)),
-            { closed: state.closed, primary: true },
-          ),
+          RenderShape.polygon(geometry.id, state.points, { closed: state.closed, primary: true }),
         ];
         if (mapping) {
           for (let i = 0; i < state.points.length; i += 1) {
@@ -470,12 +545,7 @@ export namespace GeometryComponent {
         break;
       case 'rectangle':
         shapes = [
-          RenderShape.rectangle(
-            geometry.id,
-            applyAnchorPointOffset(state.upperLeft),
-            applyAnchorPointOffset(state.lowerRight),
-            { primary: true },
-          ),
+          RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight, { primary: true }),
         ];
         if (mapping) {
           for (const corner of RectangleEndpoint.LIST) {
@@ -485,7 +555,7 @@ export namespace GeometryComponent {
         break;
       case 'ellipse':
         shapes = [
-          RenderShape.ellipse(geometry.id, applyAnchorPointOffset(state.center), {
+          RenderShape.ellipse(geometry.id, state.center, {
             radiusX: state.radiusX,
             radiusY: state.radiusY,
             primary: true,

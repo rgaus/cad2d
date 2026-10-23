@@ -604,13 +604,20 @@ export namespace PolygonSegment {
   }
 
   /** Apply the given transform function to all {@link SheetPosition}s contained within the
-    * passed {@link PolygonSegment. */
-  export function transform(segment: PolygonSegment, apply: (old: SheetPosition) => SheetPosition): PolygonSegment {
+   * passed {@link PolygonSegment. */
+  export function transform(
+    segment: PolygonSegment,
+    apply: (old: SheetPosition) => SheetPosition,
+  ): PolygonSegment {
     switch (segment.type) {
       case 'point':
         return { ...segment, point: apply(segment.point) };
       case 'arc-quadratic':
-        return { ...segment, point: apply(segment.point), controlPoint: apply(segment.controlPoint)  };
+        return {
+          ...segment,
+          point: apply(segment.point),
+          controlPoint: apply(segment.controlPoint),
+        };
       case 'arc-cubic':
         return {
           ...segment,
