@@ -1278,7 +1278,22 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         };
 
         if (before.offset.x !== after.offset.x || before.offset.y !== after.offset.y) {
-          this.getHistoryManager().push(UndoEntry.anchorPointMove(geometryId, before, after));
+          const forwardsActions: Array<UndoEntry> = [
+            UndoEntry.anchorPointMove(geometryId, before, after),
+          ];
+
+          const afterGeometry = this.getGeometryStore().getByIdWithComponent(
+            geometryId,
+            GeometryComponent,
+          );
+          if (afterGeometry) {
+            const move = this.buildMoveUndoEntry(geometry, afterGeometry);
+            if (move) {
+              forwardsActions.push(move);
+            }
+          }
+
+          this.getHistoryManager().push(UndoEntry.transaction('anchor-point-drag', forwardsActions));
         }
         this.activeDragListener = null;
       },
@@ -1811,6 +1826,105 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
   }
 
+  private buildMoveUndoEntry(before: Entity, after: Entity): UndoEntry | null {
+    if (before.id !== after.id) {
+      console.warn(`SelectTool.buildMoveUndoEntry: before.id (${before.id}) is not after.id (${after.id}), returning null...`);
+      return null;
+    }
+
+    if (
+      Entity.hasComponent(before, GeometryComponent) &&
+      Entity.hasComponent(after, GeometryComponent)
+    ) {
+      if (
+        GeometryComponent.isPolygon(before) &&
+        GeometryComponent.isPolygon(after)
+      ) {
+        const beforeState = GeometryComponent.get(before);
+        const afterState = GeometryComponent.get(after);
+        return UndoEntry.polygonMove(before.id, beforeState.points, afterState.points);
+      } else if (
+        GeometryComponent.isEllipse(before) &&
+        GeometryComponent.isEllipse(after)
+      ) {
+        const beforeState = GeometryComponent.get(before);
+        const afterState = GeometryComponent.get(after);
+        return UndoEntry.ellipseMove(before.id, beforeState, afterState);
+      } else if (
+        GeometryComponent.isRectangle(before) &&
+        GeometryComponent.isRectangle(after)
+      ) {
+        const beforeState = GeometryComponent.get(before);
+        const afterState = GeometryComponent.get(after);
+        return UndoEntry.rectangleMove(before.id, beforeState, afterState);
+      }
+    }
+
+    if (
+      Entity.hasComponent(before, DatumComponent) &&
+      Entity.hasComponent(after, DatumComponent)
+    ) {
+      const beforeState = DatumComponent.get(before);
+      const afterState = DatumComponent.get(after);
+      // FIXME: make this history entry take just before / after, not wrapped in the object
+      return UndoEntry.datumMove(before.id, { position: beforeState }, { position: afterState });
+    }
+
+    if (
+      Entity.hasComponent(before, FilterComponent) &&
+      Entity.hasComponent(after, FilterComponent)
+    ) {
+      const beforeState = FilterComponent.get(before);
+      const afterState = FilterComponent.get(after);
+      switch (beforeState.type) {
+        case 'fillet':
+        case 'chamfer':
+          return null;
+        case 'mirror':
+          return UndoEntry.mirrorFilterMoveEndpoints(
+            before.id,
+            beforeState.pointA,
+            beforeState.pointB,
+            (afterState as typeof beforeState).pointA,
+            (afterState as typeof beforeState).pointB,
+          );
+        case 'pattern':
+          switch (beforeState.mode) {
+            case 'grid':
+              // This case should be a no-op, a grid filter will be moved as a frame.
+              return null;
+            case 'radial':
+              return UndoEntry.patternRadialFilterMoveCenter(
+                before.id,
+                beforeState.center,
+                (afterState as typeof beforeState).center,
+              );
+            default:
+              beforeState satisfies never;
+              break;
+          }
+          break;
+        default:
+          beforeState satisfies never;
+          break;
+      }
+    }
+
+    if (Entity.hasComponent(before, FrameComponent) && Entity.hasComponent(after, FrameComponent)) {
+      const beforeState = FrameComponent.get(before);
+      const afterState = FrameComponent.get(after);
+      return UndoEntry.frameMove(
+        before.id,
+        beforeState.upperLeft,
+        beforeState.lowerRight,
+        afterState.upperLeft,
+        afterState.lowerRight,
+      );
+    }
+
+    return null;
+  }
+
   // ==================== COMMON GEOMETEY  HANDLERS ====================
 
   handleGeometryFillPointerDown(
@@ -2048,110 +2162,32 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           if (!DragState.equals(state, newState)) {
             // FIXME: replace with one single event
             switch (state.state) {
-              case 'geometry':
-                if (!Entity.hasComponent(entity, GeometryComponent)) {
-                  // FIXME: add log
-                  return;
-                }
-                if (
-                  GeometryComponent.isPolygon(state.geometry) &&
-                  GeometryComponent.isPolygon(entity)
-                ) {
-                  const before = GeometryComponent.get(state.geometry);
-                  const after = GeometryComponent.get(entity);
-                  forwardsActions.push(UndoEntry.polygonMove(id, before.points, after.points));
-                } else if (
-                  GeometryComponent.isEllipse(state.geometry) &&
-                  GeometryComponent.isEllipse(entity)
-                ) {
-                  const before = GeometryComponent.get(state.geometry);
-                  const after = GeometryComponent.get(entity);
-                  forwardsActions.push(UndoEntry.ellipseMove(id, before, after));
-                } else if (
-                  GeometryComponent.isRectangle(state.geometry) &&
-                  GeometryComponent.isRectangle(entity)
-                ) {
-                  const before = GeometryComponent.get(state.geometry);
-                  const after = GeometryComponent.get(entity);
-                  forwardsActions.push(UndoEntry.rectangleMove(id, before, after));
+              case 'geometry': {
+                const move = this.buildMoveUndoEntry(state.geometry, entity);
+                if (move) {
+                  forwardsActions.push(move);
                 }
                 break;
+              }
               case 'datum': {
-                if (!Entity.hasComponent(entity, DatumComponent)) {
-                  // FIXME: add log
-                  return;
+                const move = this.buildMoveUndoEntry(state.entity, entity);
+                if (move) {
+                  forwardsActions.push(move);
                 }
-                const before = DatumComponent.get(state.entity);
-                const after = DatumComponent.get(entity);
-                // FIXME: make this history entry take just before / after, not wrapped in the object
-                forwardsActions.push(
-                  UndoEntry.datumMove(id, { position: before }, { position: after }),
-                );
                 break;
               }
               case 'filter': {
-                if (!Entity.hasComponent(entity, FilterComponent)) {
-                  // FIXME: add log
-                  return;
-                }
-                const before = FilterComponent.get(state.entity);
-                const after = FilterComponent.get(entity);
-                switch (before.type) {
-                  case 'fillet':
-                  case 'chamfer':
-                    break;
-                  case 'mirror':
-                    forwardsActions.push(
-                      UndoEntry.mirrorFilterMoveEndpoints(
-                        id,
-                        before.pointA,
-                        before.pointB,
-                        (after as typeof before).pointA,
-                        (after as typeof before).pointB,
-                      ),
-                    );
-                    break;
-                  case 'pattern':
-                    switch (before.mode) {
-                      case 'grid':
-                        // This case shouldn't get hit, a grid filter will be moved as a frame.
-                        break;
-                      case 'radial':
-                        forwardsActions.push(
-                          UndoEntry.patternRadialFilterMoveCenter(
-                            id,
-                            before.center,
-                            (after as typeof before).center,
-                          ),
-                        );
-                        break;
-                      default:
-                        before satisfies never;
-                        break;
-                    }
-                    break;
-                  default:
-                    before satisfies never;
-                    break;
+                const move = this.buildMoveUndoEntry(state.entity, entity);
+                if (move) {
+                  forwardsActions.push(move);
                 }
                 break;
               }
               case 'frame': {
-                if (!Entity.hasComponent(entity, FrameComponent)) {
-                  // FIXME: add log
-                  return;
+                const move = this.buildMoveUndoEntry(state.entity, entity);
+                if (move) {
+                  forwardsActions.push(move);
                 }
-                const before = FrameComponent.get(state.entity);
-                const after = FrameComponent.get(entity);
-                forwardsActions.push(
-                  UndoEntry.frameMove(
-                    id,
-                    before.upperLeft,
-                    before.lowerRight,
-                    after.upperLeft,
-                    after.lowerRight,
-                  ),
-                );
                 break;
               }
               default:
@@ -2412,36 +2448,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
               // FIXME: replace with one single event
               switch (originalState.state) {
-                case 'geometry':
-                  if (!Entity.hasComponent(afterEntity, GeometryComponent)) {
-                    // FIXME: add log
-                    return;
-                  }
-                  if (
-                    GeometryComponent.isPolygon(originalState.geometry) &&
-                    GeometryComponent.isPolygon(afterEntity)
-                  ) {
-                    const before = GeometryComponent.get(originalState.geometry);
-                    const after = GeometryComponent.get(afterEntity);
-                    this.getHistoryManager().push(
-                      UndoEntry.polygonMove(id, before.points, after.points),
-                    );
-                  } else if (
-                    GeometryComponent.isEllipse(originalState.geometry) &&
-                    GeometryComponent.isEllipse(afterEntity)
-                  ) {
-                    const before = GeometryComponent.get(originalState.geometry);
-                    const after = GeometryComponent.get(afterEntity);
-                    this.getHistoryManager().push(UndoEntry.ellipseMove(id, before, after));
-                  } else if (
-                    GeometryComponent.isRectangle(originalState.geometry) &&
-                    GeometryComponent.isRectangle(afterEntity)
-                  ) {
-                    const before = GeometryComponent.get(originalState.geometry);
-                    const after = GeometryComponent.get(afterEntity);
-                    this.getHistoryManager().push(UndoEntry.rectangleMove(id, before, after));
+                case 'geometry': {
+                  const move = this.buildMoveUndoEntry(originalState.geometry, afterEntity);
+                  if (move) {
+                    this.getHistoryManager().push(move);
                   }
                   break;
+                }
                 case 'datum':
                   console.warn(
                     'SelectTool.onCommit: Datum was resized, but this should not be possible. Doing nothing.',
@@ -2452,23 +2465,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                     'SelectTool.onCommit: Filter was resized, but this should not be possible. Doing nothing.',
                   );
                   break;
-                case 'frame':
-                  if (!Entity.hasComponent(afterEntity, FrameComponent)) {
-                    // FIXME: add log
-                    return;
+                case 'frame': {
+                  const move = this.buildMoveUndoEntry(originalState.entity, afterEntity);
+                  if (move) {
+                    this.getHistoryManager().push(move);
                   }
-                  const before = FrameComponent.get(originalState.entity);
-                  const after = FrameComponent.get(afterEntity);
-                  this.getHistoryManager().push(
-                    UndoEntry.frameMove(
-                      id,
-                      before.upperLeft,
-                      before.lowerRight,
-                      after.upperLeft,
-                      after.lowerRight,
-                    ),
-                  );
                   break;
+                }
                 default:
                   originalState satisfies never;
                   console.warn(
