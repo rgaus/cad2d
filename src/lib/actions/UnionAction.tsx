@@ -9,6 +9,7 @@ import {
   type PolygonSegment,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
@@ -53,7 +54,12 @@ export class UnionAction extends BaseAction {
       const geometry = geometryStore.getById(id);
       if (!geometry) continue;
       if (Entity.hasComponent(geometry, GeometryComponent)) {
-        const geomData = GeometryComponent.getWorld(geometry);
+        const geomData = GeometryComponent.get(
+          GeometryComponent.translate(
+            geometry,
+            AnchorPointComponent.generateTranslationFunction(geometry),
+          ),
+        );
         if (geomData.type === 'polygon') {
           const points = this.extractPointsFromSegments(geomData.points);
           extractedPolygons.push(points);

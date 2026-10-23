@@ -44,20 +44,19 @@ export namespace AnchorPointComponent {
 
   /** All named key points available on the geometry (named perimeter labels plus extras keys). */
   export function getAvailableKeyPoints(geometry: Entity<GeometryComponent>): Array<string> {
-    const keyPoints = GeometryComponent.keyPointsRaw(geometry);
+    const keyPoints = GeometryComponent.keyPoints(geometry);
     const perimeterLabels = keyPoints.perimeterLabels.filter(
       (label): label is string => label !== null,
     );
     return [...perimeterLabels, ...Object.keys(keyPoints.extras)];
   }
 
-  /** Resolves a named key point to its position on the raw (unanchored) geometry, or null if it
-   * does not exist. */
+  /** Resolves a named key point to its position on the geometry, or null if it does not exist. */
   export function resolveKeyPointPosition(
     geometry: Entity<GeometryComponent>,
     keyPoint: string,
   ): SheetPosition | null {
-    const keyPoints = GeometryComponent.keyPointsRaw(geometry);
+    const keyPoints = GeometryComponent.keyPoints(geometry);
     const index = keyPoints.perimeterLabels.indexOf(keyPoint);
     if (index !== -1) {
       return keyPoints.perimeter[index] ?? null;
@@ -72,16 +71,35 @@ export namespace AnchorPointComponent {
     geometry: Entity<AnchorPointComponent & GeometryComponent>,
   ): SheetPosition {
     const { keyPoint, offset } = AnchorPointComponent.get(geometry);
-    const keyPointPosition = resolveKeyPointPosition(geometry, keyPoint);
+    // Resolve the key point against the geometry without its own anchor applied, so both the key
+    // point and the origin are in the same (raw) space and the anchor does not cancel itself out.
+    const withoutAnchor = AnchorPointComponent.remove(geometry);
+    const keyPointPosition = resolveKeyPointPosition(withoutAnchor, keyPoint);
     if (!keyPointPosition) {
       return new SheetPosition(0, 0);
     }
-    const origin = GeometryComponent.getOriginRaw(geometry);
+    const origin = GeometryComponent.getOrigin(withoutAnchor);
 
     return new SheetPosition(
       keyPointPosition.x - origin.x + offset.x,
       keyPointPosition.y - origin.y + offset.y,
     );
+  }
+
+  /**
+   * Builds the translation function which maps raw stored geometry positions into their rendered
+   * ("anchored") positions. Pass it to {@link GeometryComponent.translate} to render geometry, or
+   * invert it to convert rendered positions back into raw positions. Geometries without an anchor
+   * point are translated by zero.
+   */
+  export function generateTranslationFunction(
+    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  ): (position: SheetPosition) => SheetPosition {
+    if (!Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
+      return (position) => new SheetPosition(position.x, position.y);
+    }
+    const offset = AnchorPointComponent.computeAssociatedGeometryOffset(geometry);
+    return (position) => new SheetPosition(position.x - offset.x, position.y - offset.y);
   }
 
   /**
@@ -91,7 +109,7 @@ export namespace AnchorPointComponent {
   export function getHandlePosition(
     geometry: Entity<AnchorPointComponent & GeometryComponent>,
   ): SheetPosition {
-    return GeometryComponent.getOriginRaw(geometry);
+    return GeometryComponent.getOrigin(AnchorPointComponent.remove(geometry));
   }
 
   /** Human readable label for a key point name, eg `upperLeft` -> `Upper left`. */

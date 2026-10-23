@@ -385,7 +385,7 @@ export class ApplyFilterToGeometryAction extends BaseAction {
         return g;
       }
       const polygon = g as Entity<GeometryComponent<PolygonData>>;
-      // Render shapes are world-space; convert back to raw stored coordinates.
+      // Render shapes are anchored-space; convert back to raw stored coordinates.
       const offset = GeometryComponent.getAnchorPointOffset(g);
       const points =
         offset.x === 0 && offset.y === 0

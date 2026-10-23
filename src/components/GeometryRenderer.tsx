@@ -6,6 +6,7 @@ import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useGeometries } from '@/hooks/useEntities';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { FillColorComponent, GeometryComponent, PolygonSegment } from '@/lib/entity';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { type Geometry, GeometryData } from '@/lib/entity/geometry';
 import { BoundingBox, CohenSutherland } from '@/lib/math';
 import { ListLayers, RendererLayers } from '@/lib/renderer';
@@ -800,7 +801,9 @@ const PolygonOverlay: React.FunctionComponent = () => {
   const idPolygonDataPairs = useMemo(
     () =>
       geometries.flatMap((g) => {
-        const data = GeometryComponent.getWorld<GeometryData>(g);
+        const data = GeometryComponent.get<GeometryData>(
+          GeometryComponent.translate(g, AnchorPointComponent.generateTranslationFunction(g)),
+        );
         if (data.type === 'polygon') {
           return [[g.id, data] as const];
         } else {

@@ -63,7 +63,7 @@ export class FlipHorizontalAction extends BaseAction {
         const polyGeom = geometryStore.getByIdWithComponent(id, GeometryComponent);
         if (polyGeom) {
           const polyData = GeometryComponent.get(polyGeom);
-          // The selection center is in world space; geometry is stored raw.
+          // The selection center is in anchored space; geometry is stored raw.
           const rawCenterX = centerX + GeometryComponent.getAnchorPointOffset(polyGeom).x;
           if (polyData.type === 'polygon') {
             geometryStore.updateById(id, (old) => {

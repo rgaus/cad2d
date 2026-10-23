@@ -188,7 +188,7 @@ namespace DragState {
   export function get(entity: Entity): DragState | null {
     if (Entity.hasComponent(entity, GeometryComponent)) {
       const geometry = Entity.pickComponent(entity, GeometryComponent);
-      // Preserve the anchor point component so world-space metrics (origin / bbox / resize) take
+      // Preserve the anchor point component so anchored-space metrics (origin / bbox / resize) take
       // the anchor offset into account.
       if (Entity.hasComponent(entity, AnchorPointComponent)) {
         return {
@@ -698,7 +698,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       const geom = this.getGeometryStore().getByIdWithComponent(id, GeometryComponent);
       if (!geom || !GeometryComponent.isPolygon(geom)) continue;
 
-      const polygonData = GeometryComponent.getWorld(geom);
+      const polygonData = GeometryComponent.get(
+        GeometryComponent.translate(geom, AnchorPointComponent.generateTranslationFunction(geom)),
+      );
       const pointCount = polygonData.points.length;
       if (pointCount < 2) continue;
 
@@ -767,8 +769,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
     const polygonData = GeometryComponent.get(polygonGeom);
-    const worldPolygonData = GeometryComponent.getWorld(polygonGeom);
-    // The anchor offset stays fixed during a vertex drag. Snapping happens in world space, but
+    const worldPolygonData = GeometryComponent.get(
+      GeometryComponent.translate(
+        polygonGeom,
+        AnchorPointComponent.generateTranslationFunction(polygonGeom),
+      ),
+    );
+    // The anchor offset stays fixed during a vertex drag. Snapping happens in anchored space, but
     // geometry is stored raw, so translate between the two.
     const anchorOffset = GeometryComponent.getAnchorPointOffset(polygonGeom);
     const toRaw = (position: SheetPosition) =>
@@ -2827,7 +2834,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Adds a point on the specified line segment edge of a polygon at the given click position. */
   addPointOnLineSegmentEdge(polygonId: Id, segmentIndex: number, sheetPos: SheetPosition): void {
-    // The renderer reports the closest point in world space; store geometry is raw.
+    // The renderer reports the closest point in anchored space; store geometry is raw.
     const geom = this.getGeometryStore().getByIdWithComponent(polygonId, GeometryComponent);
     const offset = geom ? GeometryComponent.getAnchorPointOffset(geom) : new SheetPosition(0, 0);
     this.getGeometryStore().addPointOnLineSegmentEdge(
@@ -2845,7 +2852,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const quadPolygonData = GeometryComponent.getWorld(geom);
+    const quadPolygonData = GeometryComponent.get(
+      GeometryComponent.translate(geom, AnchorPointComponent.generateTranslationFunction(geom)),
+    );
     const pointSegment = quadPolygonData.points[segmentIndex];
     const arcSegment = quadPolygonData.points[segmentIndex + 1];
     if (
@@ -2876,7 +2885,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const cubicPolygonData = GeometryComponent.getWorld(geom);
+    const cubicPolygonData = GeometryComponent.get(
+      GeometryComponent.translate(geom, AnchorPointComponent.generateTranslationFunction(geom)),
+    );
     const pointSegment = cubicPolygonData.points[segmentIndex];
     const arcSegment = cubicPolygonData.points[segmentIndex + 1];
     if (

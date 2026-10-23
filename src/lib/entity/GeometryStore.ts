@@ -323,7 +323,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }> = [];
     for (const g of this.geometryById.values()) {
       if (Entity.hasComponent(g, GeometryComponent)) {
-        const geomData = GeometryComponent.getWorld(g);
+        const geomData = GeometryComponent.get(
+          GeometryComponent.translate(g, AnchorPointComponent.generateTranslationFunction(g)),
+        );
         switch (geomData.type) {
           case 'polygon':
             result.push({
@@ -1200,7 +1202,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       );
     }
 
-    // The converted polygon is created in world space with a default anchor, so the rendered
+    // The converted polygon is created in anchored (rendered) space with a default anchor, so the rendered
     // position of the rectangle is preserved.
     const offset = GeometryComponent.getAnchorPointOffset(geometry);
     const points = rectangleToPolygon(
@@ -1322,7 +1324,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         `GeometryStore.convertEllipseToPolygon: GeometryComponent data for geoemtry ${ellipseId} is not of type ellipse, found ${ellipseData.type}`,
       );
     }
-    // The converted polygon is created in world space with a default anchor, so the rendered
+    // The converted polygon is created in anchored (rendered) space with a default anchor, so the rendered
     // position of the ellipse is preserved.
     const offset = GeometryComponent.getAnchorPointOffset(geometry);
     const points = ellipseToPolygon(
@@ -1655,7 +1657,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               if (geomData.type !== 'polygon') {
                 return old;
               }
-              // The DCEL works in world space; convert back to raw stored coordinates.
+              // The DCEL works in anchored space; convert back to raw stored coordinates.
               const offset = GeometryComponent.getAnchorPointOffset(old);
               const toRaw = (position: SheetPosition) =>
                 new SheetPosition(position.x + offset.x, position.y + offset.y);
@@ -1692,7 +1694,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               if (geomData.type !== 'rectangle') {
                 return old;
               }
-              // The DCEL works in world space; convert back to raw stored coordinates.
+              // The DCEL works in anchored space; convert back to raw stored coordinates.
               const offset = GeometryComponent.getAnchorPointOffset(old);
               const toRaw = (position: SheetPosition) =>
                 new SheetPosition(position.x + offset.x, position.y + offset.y);
@@ -1744,7 +1746,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               if (geomData.type !== 'ellipse') {
                 return old;
               }
-              // The DCEL works in world space; convert back to raw stored coordinates.
+              // The DCEL works in anchored space; convert back to raw stored coordinates.
               const offset = GeometryComponent.getAnchorPointOffset(old);
               const toRaw = (position: SheetPosition) =>
                 new SheetPosition(position.x + offset.x, position.y + offset.y);
