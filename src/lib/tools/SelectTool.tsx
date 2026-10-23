@@ -1211,13 +1211,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     // The key point stays fixed while dragging the handle - only the offset changes.
-    const keyPointPosition = AnchorPointComponent.getKeyPointPosition(geometry);
-    const beforeAnchorPoint = AnchorPointComponent.get(geometry);
-    const before: AnchorPointData = {
-      keyPoint: beforeAnchorPoint.keyPoint,
-      offset: new SheetPosition(beforeAnchorPoint.offset.x, beforeAnchorPoint.offset.y),
-    };
+    const beforeHandlePosition = AnchorPointComponent.getHandlePosition(geometry);
+    const before = AnchorPointComponent.get(geometry);
     const filters = this.getGeometryStore().findFiltersByGeometryId(geometryId);
+
+    let lastDeltaX = 0, lastDeltaY = 0;
 
     this.activeDragListener = createDragListener({
       viewportControls,
@@ -1235,14 +1233,30 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.getGeometryStore().updateByIdWithComponentDirect(
           geometryId,
           AnchorPointComponent,
-          (g) =>
-            AnchorPointComponent.update(g, {
+          (g) => {
+            const deltaX = snapped.x - beforeHandlePosition.x;
+            const deltaY = snapped.y - beforeHandlePosition.y;
+
+            const updated = AnchorPointComponent.update(g, {
               keyPoint: before.keyPoint,
-              offset: new SheetPosition(
-                snapped.x - keyPointPosition.x,
-                snapped.y - keyPointPosition.y,
-              ),
-            }),
+              offset: new SheetPosition(before.offset.x + deltaX, before.offset.y + deltaY),
+            });
+
+            if (Entity.hasComponent(updated, GeometryComponent)) {
+              const output = GeometryComponent.translate(
+                updated,
+                (prev) => new SheetPosition(
+                  prev.x - lastDeltaX + deltaX,
+                  prev.y - lastDeltaY + deltaY,
+                ),
+              );
+              lastDeltaX = deltaX;
+              lastDeltaY = deltaY;
+              return output;
+            } else {
+              return updated;
+            }
+          },
         );
       },
       onCommit: (sp) => {
@@ -1257,7 +1271,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         });
         const after: AnchorPointData = {
           keyPoint: before.keyPoint,
-          offset: new SheetPosition(snapped.x - keyPointPosition.x, snapped.y - keyPointPosition.y),
+          offset: new SheetPosition(
+            snapped.x - beforeHandlePosition.x,
+            snapped.y - beforeHandlePosition.y,
+          ),
         };
 
         if (before.offset.x !== after.offset.x || before.offset.y !== after.offset.y) {
@@ -1269,7 +1286,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         this.getGeometryStore().updateByIdWithComponentDirect(
           geometryId,
           AnchorPointComponent,
-          (g) => AnchorPointComponent.update(g, before),
+          (g) => {
+            const updated = AnchorPointComponent.update(g, before);
+
+            if (Entity.hasComponent(updated, GeometryComponent)) {
+              return GeometryComponent.translate(
+                updated,
+                (prev) => new SheetPosition(prev.x - lastDeltaX, prev.y - lastDeltaY),
+              );
+            } else {
+              return updated;
+            }
+          },
         );
         this.activeDragListener = null;
       },

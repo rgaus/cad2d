@@ -65,25 +65,31 @@ export namespace AnchorPointComponent {
     return extras[keyPoint] ?? null;
   }
 
-  /** The position of this geometry's anchor key point, ignoring the offset. Falls back to the
-   * geometry's natural origin if the key point can no longer be resolved. */
-  export function getKeyPointPosition(
+  /** The offset that the associated geometry should be rendered at from it's natural origin, given
+   * the anchor point position */
+  export function computeAssociatedGeometryOffset(
     geometry: Entity<AnchorPointComponent & GeometryComponent>,
   ): SheetPosition {
-    const { keyPoint } = AnchorPointComponent.get(geometry);
-    return resolveKeyPointPosition(geometry, keyPoint) ?? GeometryComponent.getOrigin(geometry);
+    const { keyPoint, offset } = AnchorPointComponent.get(geometry);
+    const keyPointPosition = resolveKeyPointPosition(geometry, keyPoint);
+    if (!keyPointPosition) {
+      return new SheetPosition(0, 0);
+    }
+    const origin = GeometryComponent.getOrigin(geometry);
+
+    return new SheetPosition(
+      (keyPointPosition.x - origin.x) + offset.x,
+      (keyPointPosition.y - origin.y) + offset.y,
+    );
   }
 
   /**
-   * Computes the sheet position where the anchor point handle should render: the position of the
-   * anchor's key point offset by the anchor offset, in sheet units.
+   * Computes the position that the anchor point should be rendered, in absolute sheet coordinates.
    */
   export function getHandlePosition(
     geometry: Entity<AnchorPointComponent & GeometryComponent>,
   ): SheetPosition {
-    const base = AnchorPointComponent.getKeyPointPosition(geometry);
-    const { offset } = AnchorPointComponent.get(geometry);
-    return new SheetPosition(base.x + offset.x, base.y + offset.y);
+    return GeometryComponent.getOrigin(geometry);
   }
 
   /** Human readable label for a key point name, eg `upperLeft` -> `Upper left`. */

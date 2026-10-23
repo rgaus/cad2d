@@ -14,11 +14,12 @@ import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
 import { RectangleData } from '../geometry/rectangle';
 import { RectangleEndpoint } from '../rectangle';
-import { type Entity, type EntityComponent, ResizeParams } from '../types';
+import { Entity, type EntityComponent, ResizeParams } from '../types';
 import { ConstraintComponent } from './ConstraintComponent';
 import { FilterComponent } from './FilterComponent';
 import { FrameComponent } from './FrameComponent';
 import { LinkDimensionsComponent } from './LinkDimensionsComponent';
+import { AnchorPointComponent } from './AnchorPointComponent';
 
 export type RenderShapePolygon = {
   shape: 'polygon';
@@ -437,12 +438,17 @@ export namespace GeometryComponent {
   };
 
   export function getRenderShapes<D extends GeometryData = GeometryData>(
-    geometry: Entity<GeometryComponent<D>>,
+    geometry: Entity<GeometryComponent<D> & Partial<AnchorPointComponent>>,
     sheetDefaultUnit: UnitType,
     filters: Array<Filter> = [],
     options: GetRenderShapesOptions<D> = { combineNonClosedPolygons: true },
   ): Array<RenderShape> {
     let shapes;
+
+    const offset = Entity.hasComponent(geometry, AnchorPointComponent) ? (
+      AnchorPointComponent.computeAssociatedGeometryOffset(geometry)
+    ) : new SheetPosition(0, 0);
+    const applyAnchorPointOffset = (prev: SheetPosition) => new SheetPosition(prev.x - offset.x, prev.y - offset.y);
 
     const mapping =
       options.destinationPointMapping as GetRenderShapesOptions<GeometryData>['destinationPointMapping'];
@@ -450,7 +456,11 @@ export namespace GeometryComponent {
     switch (state.type) {
       case 'polygon':
         shapes = [
-          RenderShape.polygon(geometry.id, state.points, { closed: state.closed, primary: true }),
+          RenderShape.polygon(
+            geometry.id,
+            state.points.map((point) => PolygonSegment.transform(point, applyAnchorPointOffset)),
+            { closed: state.closed, primary: true },
+          ),
         ];
         if (mapping) {
           for (let i = 0; i < state.points.length; i += 1) {
@@ -460,7 +470,12 @@ export namespace GeometryComponent {
         break;
       case 'rectangle':
         shapes = [
-          RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight, { primary: true }),
+          RenderShape.rectangle(
+            geometry.id,
+            applyAnchorPointOffset(state.upperLeft),
+            applyAnchorPointOffset(state.lowerRight),
+            { primary: true },
+          ),
         ];
         if (mapping) {
           for (const corner of RectangleEndpoint.LIST) {
@@ -470,7 +485,7 @@ export namespace GeometryComponent {
         break;
       case 'ellipse':
         shapes = [
-          RenderShape.ellipse(geometry.id, state.center, {
+          RenderShape.ellipse(geometry.id, applyAnchorPointOffset(state.center), {
             radiusX: state.radiusX,
             radiusY: state.radiusY,
             primary: true,

@@ -577,6 +577,7 @@ export namespace PolygonSegment {
     }
   }
 
+  /** Are two {@link PolygonSegment}s 100% equal? */
   export function equals(a: PolygonSegment, b: PolygonSegment): boolean {
     if (a.type !== b.type) {
       return false;
@@ -599,6 +600,24 @@ export namespace PolygonSegment {
           a.controlPointB.x === (b as CubicBezierSegment).controlPointB.x &&
           a.controlPointB.y === (b as CubicBezierSegment).controlPointB.y
         );
+    }
+  }
+
+  /** Apply the given transform function to all {@link SheetPosition}s contained within the
+    * passed {@link PolygonSegment. */
+  export function transform(segment: PolygonSegment, apply: (old: SheetPosition) => SheetPosition): PolygonSegment {
+    switch (segment.type) {
+      case 'point':
+        return { ...segment, point: apply(segment.point) };
+      case 'arc-quadratic':
+        return { ...segment, point: apply(segment.point), controlPoint: apply(segment.controlPoint)  };
+      case 'arc-cubic':
+        return {
+          ...segment,
+          point: apply(segment.point),
+          controlPointA: apply(segment.controlPointA),
+          controlPointB: apply(segment.controlPointB),
+        };
     }
   }
 
