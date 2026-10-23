@@ -30,7 +30,7 @@ describe('AnchorPointComponent', () => {
         Rectangle.create(new SheetPosition(1, 2), new SheetPosition(5, 6)),
       );
       const anchor = AnchorPointComponent.get(
-        geometryStore.getByIdWithComponents(rectangle.id, GeometryComponent, AnchorPointComponent)!
+        geometryStore.getByIdWithComponents(rectangle.id, GeometryComponent, AnchorPointComponent)!,
       );
       expect(anchor.keyPoint).toBe('upperLeft');
       expect(anchor.offset.x).toBe(0);
@@ -43,7 +43,7 @@ describe('AnchorPointComponent', () => {
         Polygon.create([makePoint(2, 3), makePoint(8, 3), makePoint(5, 9)], { closed: true }),
       );
       const anchor = AnchorPointComponent.get(
-        geometryStore.getByIdWithComponents(polygon.id, GeometryComponent, AnchorPointComponent)!
+        geometryStore.getByIdWithComponents(polygon.id, GeometryComponent, AnchorPointComponent)!,
       );
       expect(anchor.keyPoint).toBe('boundingBoxUpperLeft');
     });
@@ -59,55 +59,7 @@ describe('AnchorPointComponent', () => {
   });
 
   describe('getHandlePosition', () => {
-    it('renders at the key point for a zero offset', () => {
-      const rectangle = geometryStore.addOrdered(
-        ID_PREFIXES.rectangle,
-        Rectangle.create(new SheetPosition(1, 2), new SheetPosition(5, 6)),
-      );
-      const pos = AnchorPointComponent.getHandlePosition(
-        geometryStore.getByIdWithComponents(rectangle.id, GeometryComponent, AnchorPointComponent)!
-      );
-      expect(pos.x).toBe(1);
-      expect(pos.y).toBe(2);
-    });
-
-    it('offsets the handle from the key point by the offset value', () => {
-      const rectangle = geometryStore.addOrdered(
-        ID_PREFIXES.rectangle,
-        Rectangle.create(new SheetPosition(1, 2), new SheetPosition(5, 6)),
-      );
-      geometryStore.updateByIdWithComponent(rectangle.id, AnchorPointComponent, (g) =>
-        AnchorPointComponent.update(g, {
-          keyPoint: 'upperLeft',
-          offset: new SheetPosition(10, 20),
-        }),
-      );
-      const pos = AnchorPointComponent.getHandlePosition(
-        geometryStore.getByIdWithComponents(rectangle.id, GeometryComponent, AnchorPointComponent)!
-      );
-      expect(pos.x).toBe(11);
-      expect(pos.y).toBe(22);
-    });
-
-    it('renders at the selected key point', () => {
-      const rectangle = geometryStore.addOrdered(
-        ID_PREFIXES.rectangle,
-        Rectangle.create(new SheetPosition(1, 2), new SheetPosition(5, 6)),
-      );
-      geometryStore.updateByIdWithComponent(rectangle.id, AnchorPointComponent, (g) =>
-        AnchorPointComponent.update(g, {
-          keyPoint: 'upperRight',
-          offset: new SheetPosition(0, 0),
-        }),
-      );
-      const pos = AnchorPointComponent.getHandlePosition(
-        geometryStore.getByIdWithComponents(rectangle.id, GeometryComponent, AnchorPointComponent)!
-      );
-      expect(pos.x).toBe(5);
-      expect(pos.y).toBe(2);
-    });
-
-    it('applies negative offsets relative to the selected key point', () => {
+    it('renders at the geometry origin regardless of the key point and offset', () => {
       const rectangle = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(1, 2), new SheetPosition(5, 6)),
@@ -119,10 +71,10 @@ describe('AnchorPointComponent', () => {
         }),
       );
       const pos = AnchorPointComponent.getHandlePosition(
-        geometryStore.getByIdWithComponents(rectangle.id, GeometryComponent, AnchorPointComponent)!
+        geometryStore.getByIdWithComponents(rectangle.id, GeometryComponent, AnchorPointComponent)!,
       );
-      expect(pos.x).toBe(-5);
-      expect(pos.y).toBe(-18);
+      expect(pos.x).toBe(1);
+      expect(pos.y).toBe(2);
     });
 
     it('renders at the center for an ellipse', () => {
@@ -131,7 +83,7 @@ describe('AnchorPointComponent', () => {
         Ellipse.create(new SheetPosition(6, 7), { radiusX: 2, radiusY: 4 }),
       );
       const pos = AnchorPointComponent.getHandlePosition(
-        geometryStore.getByIdWithComponents(ellipse.id, GeometryComponent, AnchorPointComponent)!
+        geometryStore.getByIdWithComponents(ellipse.id, GeometryComponent, AnchorPointComponent)!,
       );
       expect(pos.x).toBe(6);
       expect(pos.y).toBe(7);
@@ -144,13 +96,11 @@ describe('AnchorPointComponent', () => {
         ID_PREFIXES.rectangle,
         Rectangle.create(new SheetPosition(1, 2), new SheetPosition(5, 6)),
       );
-      expect(AnchorPointComponent.getAvailableKeyPoints(geometryStore.getByIdWithComponent(rectangle.id, GeometryComponent)!)).toEqual([
-        'upperLeft',
-        'upperRight',
-        'lowerRight',
-        'lowerLeft',
-        'center',
-      ]);
+      expect(
+        AnchorPointComponent.getAvailableKeyPoints(
+          geometryStore.getByIdWithComponent(rectangle.id, GeometryComponent)!,
+        ),
+      ).toEqual(['upperLeft', 'upperRight', 'lowerRight', 'lowerLeft', 'center']);
     });
 
     it('lists the polygon vertices, bounding box upper-left, and centroid', () => {
@@ -158,13 +108,11 @@ describe('AnchorPointComponent', () => {
         ID_PREFIXES.polygon,
         Polygon.create([makePoint(2, 3), makePoint(8, 3), makePoint(5, 9)], { closed: true }),
       );
-      expect(AnchorPointComponent.getAvailableKeyPoints(geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!)).toEqual([
-        'Point 1',
-        'Point 2',
-        'Point 3',
-        'boundingBoxUpperLeft',
-        'centroid',
-      ]);
+      expect(
+        AnchorPointComponent.getAvailableKeyPoints(
+          geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!,
+        ),
+      ).toEqual(['Point 1', 'Point 2', 'Point 3', 'boundingBoxUpperLeft', 'centroid']);
     });
   });
 

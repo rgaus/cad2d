@@ -1,7 +1,6 @@
 import { MousePointer2Icon } from 'lucide-react';
 import { type DragListener, createDragListener } from '@/lib/drag/create-drag-listener';
 import {
-  type AnchorPointData,
   Constraint,
   ConstraintComponent,
   type CubicBezierSegment,
@@ -1215,7 +1214,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const before = AnchorPointComponent.get(geometry);
     const filters = this.getGeometryStore().findFiltersByGeometryId(geometryId);
 
-    let lastDeltaX = 0, lastDeltaY = 0;
+    let lastDeltaX = 0,
+      lastDeltaY = 0;
 
     this.activeDragListener = createDragListener({
       viewportControls,
@@ -1245,10 +1245,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             if (Entity.hasComponent(updated, GeometryComponent)) {
               const output = GeometryComponent.translate(
                 updated,
-                (prev) => new SheetPosition(
-                  prev.x - lastDeltaX + deltaX,
-                  prev.y - lastDeltaY + deltaY,
-                ),
+                (prev) =>
+                  new SheetPosition(prev.x - lastDeltaX + deltaX, prev.y - lastDeltaY + deltaY),
               );
               lastDeltaX = deltaX;
               lastDeltaY = deltaY;
@@ -1259,41 +1257,34 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           },
         );
       },
-      onCommit: (sp) => {
-        const liveViewport = viewportControls.getState().viewport;
-        const snapped = applySnapping(sp.toWorld(liveViewport).toSheet(), {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          ctrlHeld: this.toolManager.getCtrlHeld(),
-          superHeld: false,
-          selectedGeometryFilters: filters,
-          viewportScale: liveViewport.scale,
-        });
-        const after: AnchorPointData = {
-          keyPoint: before.keyPoint,
-          offset: new SheetPosition(
-            snapped.x - beforeHandlePosition.x,
-            snapped.y - beforeHandlePosition.y,
-          ),
-        };
+      onCommit: () => {
+        // Read the post-drag state from the store rather than recomputing it from the mouseup
+        // position: onMove is the source of truth for the live state (and onCommit can be called
+        // without a matching onMove, eg. a click without dragging).
+        const afterGeometry = this.getGeometryStore().getByIdWithComponents(
+          geometryId,
+          GeometryComponent,
+          AnchorPointComponent,
+        );
+        if (!afterGeometry) {
+          this.activeDragListener = null;
+          return;
+        }
+        const after = AnchorPointComponent.get(afterGeometry);
 
         if (before.offset.x !== after.offset.x || before.offset.y !== after.offset.y) {
           const forwardsActions: Array<UndoEntry> = [
             UndoEntry.anchorPointMove(geometryId, before, after),
           ];
 
-          const afterGeometry = this.getGeometryStore().getByIdWithComponent(
-            geometryId,
-            GeometryComponent,
-          );
-          if (afterGeometry) {
-            const move = this.buildMoveUndoEntry(geometry, afterGeometry);
-            if (move) {
-              forwardsActions.push(move);
-            }
+          const move = this.buildMoveUndoEntry(geometry, afterGeometry);
+          if (move) {
+            forwardsActions.push(move);
           }
 
-          this.getHistoryManager().push(UndoEntry.transaction('anchor-point-drag', forwardsActions));
+          this.getHistoryManager().push(
+            UndoEntry.transaction('anchor-point-drag', forwardsActions),
+          );
         }
         this.activeDragListener = null;
       },
@@ -1828,7 +1819,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   private buildMoveUndoEntry(before: Entity, after: Entity): UndoEntry | null {
     if (before.id !== after.id) {
-      console.warn(`SelectTool.buildMoveUndoEntry: before.id (${before.id}) is not after.id (${after.id}), returning null...`);
+      console.warn(
+        `SelectTool.buildMoveUndoEntry: before.id (${before.id}) is not after.id (${after.id}), returning null...`,
+      );
       return null;
     }
 
@@ -1836,34 +1829,22 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       Entity.hasComponent(before, GeometryComponent) &&
       Entity.hasComponent(after, GeometryComponent)
     ) {
-      if (
-        GeometryComponent.isPolygon(before) &&
-        GeometryComponent.isPolygon(after)
-      ) {
+      if (GeometryComponent.isPolygon(before) && GeometryComponent.isPolygon(after)) {
         const beforeState = GeometryComponent.get(before);
         const afterState = GeometryComponent.get(after);
         return UndoEntry.polygonMove(before.id, beforeState.points, afterState.points);
-      } else if (
-        GeometryComponent.isEllipse(before) &&
-        GeometryComponent.isEllipse(after)
-      ) {
+      } else if (GeometryComponent.isEllipse(before) && GeometryComponent.isEllipse(after)) {
         const beforeState = GeometryComponent.get(before);
         const afterState = GeometryComponent.get(after);
         return UndoEntry.ellipseMove(before.id, beforeState, afterState);
-      } else if (
-        GeometryComponent.isRectangle(before) &&
-        GeometryComponent.isRectangle(after)
-      ) {
+      } else if (GeometryComponent.isRectangle(before) && GeometryComponent.isRectangle(after)) {
         const beforeState = GeometryComponent.get(before);
         const afterState = GeometryComponent.get(after);
         return UndoEntry.rectangleMove(before.id, beforeState, afterState);
       }
     }
 
-    if (
-      Entity.hasComponent(before, DatumComponent) &&
-      Entity.hasComponent(after, DatumComponent)
-    ) {
+    if (Entity.hasComponent(before, DatumComponent) && Entity.hasComponent(after, DatumComponent)) {
       const beforeState = DatumComponent.get(before);
       const afterState = DatumComponent.get(after);
       // FIXME: make this history entry take just before / after, not wrapped in the object
