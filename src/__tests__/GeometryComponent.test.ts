@@ -640,12 +640,7 @@ describe('GeometryComponent', () => {
         GeometryComponent,
         AnchorPointComponent,
       )!;
-      const world = GeometryComponent.get(
-        GeometryComponent.transform(
-          polygonGeometry,
-          AnchorPointComponent.generateTranslationFunction(polygonGeometry),
-        ),
-      );
+      const world = GeometryComponent.getRendered(polygonGeometry);
       expect(world.type).toBe('polygon');
       if (world.type === 'polygon') {
         expect(world.points.map((p: PolygonSegment) => `${p.point.x},${p.point.y}`)).toEqual([

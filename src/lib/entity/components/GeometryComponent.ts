@@ -202,6 +202,13 @@ export namespace GeometryComponent {
     return geometry.components.geometry;
   }
 
+  /** Returns the geometry data after the entity's render transforms have been applied. */
+  export function getRendered<D extends GeometryData = GeometryData>(
+    geometry: Entity<GeometryComponent<D> & Partial<AnchorPointComponent>>,
+  ): D {
+    return get(transform(geometry, AnchorPointComponent.generateTranslationFunction(geometry)));
+  }
+
   export function isPolygon(
     geometry: Geometry,
   ): geometry is Entity<GeometryComponent<PolygonData>> {
@@ -393,12 +400,7 @@ export namespace GeometryComponent {
     geometry: Entity<GeometryComponent>,
     renderShape: RenderShape,
   ): boolean {
-    const data = GeometryComponent.get(
-      GeometryComponent.transform(
-        geometry,
-        AnchorPointComponent.generateTranslationFunction(geometry),
-      ),
-    );
+    const data = GeometryComponent.getRendered(geometry);
     switch (data.type) {
       case 'polygon':
         if (renderShape.shape !== 'polygon') {
@@ -516,14 +518,9 @@ export namespace GeometryComponent {
     let shapes;
 
     // Render shapes are always expressed in anchored (rendered) space.
-    const anchoredGeometry = GeometryComponent.transform(
-      geometry,
-      AnchorPointComponent.generateTranslationFunction(geometry),
-    );
-
     const mapping =
       options.destinationPointMapping as GetRenderShapesOptions<GeometryData>['destinationPointMapping'];
-    const state = GeometryComponent.get(anchoredGeometry);
+    const state = GeometryComponent.getRendered(geometry);
     switch (state.type) {
       case 'polygon':
         shapes = [

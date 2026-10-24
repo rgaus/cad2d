@@ -698,9 +698,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       const geom = this.getGeometryStore().getByIdWithComponent(id, GeometryComponent);
       if (!geom || !GeometryComponent.isPolygon(geom)) continue;
 
-      const polygonData = GeometryComponent.get(
-        GeometryComponent.transform(geom, AnchorPointComponent.generateTranslationFunction(geom)),
-      );
+      const polygonData = GeometryComponent.getRendered(geom);
       const pointCount = polygonData.points.length;
       if (pointCount < 2) continue;
 
@@ -769,12 +767,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
     const polygonData = GeometryComponent.get(polygonGeom);
-    const worldPolygonData = GeometryComponent.get(
-      GeometryComponent.transform(
-        polygonGeom,
-        AnchorPointComponent.generateTranslationFunction(polygonGeom),
-      ),
-    );
+    const worldPolygonData = GeometryComponent.getRendered(polygonGeom);
     // The anchor offset stays fixed during a vertex drag. Snapping happens in anchored space, but
     // geometry is stored raw, so translate between the two.
     const anchorOffset = GeometryComponent.getAnchorPointOffset(polygonGeom);
@@ -2852,9 +2845,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const quadPolygonData = GeometryComponent.get(
-      GeometryComponent.transform(geom, AnchorPointComponent.generateTranslationFunction(geom)),
-    );
+    const quadPolygonData = GeometryComponent.getRendered(geom);
     const pointSegment = quadPolygonData.points[segmentIndex];
     const arcSegment = quadPolygonData.points[segmentIndex + 1];
     if (
@@ -2885,9 +2876,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const cubicPolygonData = GeometryComponent.get(
-      GeometryComponent.transform(geom, AnchorPointComponent.generateTranslationFunction(geom)),
-    );
+    const cubicPolygonData = GeometryComponent.getRendered(geom);
     const pointSegment = cubicPolygonData.points[segmentIndex];
     const arcSegment = cubicPolygonData.points[segmentIndex + 1];
     if (

@@ -17,7 +17,6 @@ import {
 import { type DCELShapeIndex } from '@/lib/entity/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
-import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { UndoEntry } from '@/lib/history/types';
 import {
@@ -427,12 +426,9 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
           if (!GeometryComponent.isPolygon(geometry)) {
             return false;
           }
-          return GeometryComponent.get(
-            GeometryComponent.transform(
-              geometry,
-              AnchorPointComponent.generateTranslationFunction(geometry),
-            ),
-          ).points.every((p, i) => PolygonSegment.equals(p, mainPoints[i]));
+          return GeometryComponent.getRendered(geometry).points.every((p, i) =>
+            PolygonSegment.equals(p, mainPoints[i]),
+          );
         });
       let mainPolygonId: Id | undefined;
       if (
@@ -960,12 +956,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
       // ── Polygon ──────────────────────────────────────────────
       const polygon = geometryStore.getByIdWithComponent(sid, GeometryComponent);
       if (polygon !== null && GeometryComponent.isPolygon(polygon)) {
-        const points = GeometryComponent.get(
-          GeometryComponent.transform(
-            polygon,
-            AnchorPointComponent.generateTranslationFunction(polygon),
-          ),
-        ).points;
+        const points = GeometryComponent.getRendered(polygon).points;
         const len = points.length;
 
         for (let i = 0; i < len; i += 1) {

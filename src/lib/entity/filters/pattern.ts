@@ -1,4 +1,3 @@
-import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { BoundingBox, closestPointOnSegment } from '@/lib/math';
 import { lineLineIntersection } from '@/lib/math/intersection';
 import { Angle } from '@/lib/units/angle';
@@ -322,12 +321,7 @@ export namespace PatternFilter {
     geometry: Entity<GeometryComponent>,
     filterData: PatternFilterData,
   ): 'unchanged' | 'filled' {
-    const polyData = GeometryComponent.get(
-      GeometryComponent.transform(
-        geometry,
-        AnchorPointComponent.generateTranslationFunction(geometry),
-      ),
-    );
+    const polyData = GeometryComponent.getRendered(geometry);
     if (polyData.type !== 'polygon' || polyData.closed) {
       return 'unchanged';
     }

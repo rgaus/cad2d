@@ -1,4 +1,3 @@
-import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { BoundingBox, closestPointOnSegment } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Entity, type Polygon, PolygonSegment, RectangleEndpoint } from '..';
@@ -138,12 +137,7 @@ export namespace MirrorFilter {
     geometry: Entity<GeometryComponent>,
     filterData: MirrorFilterData,
   ): 'unchanged' | 'filled' {
-    const polyData = GeometryComponent.get(
-      GeometryComponent.transform(
-        geometry,
-        AnchorPointComponent.generateTranslationFunction(geometry),
-      ),
-    );
+    const polyData = GeometryComponent.getRendered(geometry);
     if (polyData.type !== 'polygon' || polyData.closed) {
       return 'unchanged';
     }

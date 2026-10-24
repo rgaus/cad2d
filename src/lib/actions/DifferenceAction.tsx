@@ -9,7 +9,6 @@ import {
   type PolygonSegment,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
-import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
@@ -53,12 +52,7 @@ export class DifferenceAction extends BaseAction {
       const geometry = geometryStore.getById(id);
       if (!geometry) continue;
       if (Entity.hasComponent(geometry, GeometryComponent)) {
-        const geomData = GeometryComponent.get(
-          GeometryComponent.transform(
-            geometry,
-            AnchorPointComponent.generateTranslationFunction(geometry),
-          ),
-        );
+        const geomData = GeometryComponent.getRendered(geometry);
         if (geomData.type === 'polygon') {
           const points = this.extractPointsFromSegments(geomData.points);
           extractedPolygons.push(points);
