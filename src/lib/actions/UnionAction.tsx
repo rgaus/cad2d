@@ -55,7 +55,7 @@ export class UnionAction extends BaseAction {
       if (!geometry) continue;
       if (Entity.hasComponent(geometry, GeometryComponent)) {
         const geomData = GeometryComponent.get(
-          GeometryComponent.translate(
+          GeometryComponent.transform(
             geometry,
             AnchorPointComponent.generateTranslationFunction(geometry),
           ),

@@ -428,7 +428,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
             return false;
           }
           return GeometryComponent.get(
-            GeometryComponent.translate(
+            GeometryComponent.transform(
               geometry,
               AnchorPointComponent.generateTranslationFunction(geometry),
             ),
@@ -961,7 +961,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
       const polygon = geometryStore.getByIdWithComponent(sid, GeometryComponent);
       if (polygon !== null && GeometryComponent.isPolygon(polygon)) {
         const points = GeometryComponent.get(
-          GeometryComponent.translate(
+          GeometryComponent.transform(
             polygon,
             AnchorPointComponent.generateTranslationFunction(polygon),
           ),

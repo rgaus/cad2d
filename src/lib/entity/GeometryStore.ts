@@ -324,7 +324,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     for (const g of this.geometryById.values()) {
       if (Entity.hasComponent(g, GeometryComponent)) {
         const geomData = GeometryComponent.get(
-          GeometryComponent.translate(g, AnchorPointComponent.generateTranslationFunction(g)),
+          GeometryComponent.transform(g, AnchorPointComponent.generateTranslationFunction(g)),
         );
         switch (geomData.type) {
           case 'polygon':

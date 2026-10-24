@@ -88,7 +88,7 @@ export namespace AnchorPointComponent {
 
   /**
    * Builds the translation function which maps raw stored geometry positions into their rendered
-   * ("anchored") positions. Pass it to {@link GeometryComponent.translate} to render geometry, or
+   * ("anchored") positions. Pass it to {@link GeometryComponent.transform} to render geometry, or
    * invert it to convert rendered positions back into raw positions. Geometries without an anchor
    * point are translated by zero.
    */

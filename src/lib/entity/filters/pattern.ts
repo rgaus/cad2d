@@ -323,7 +323,7 @@ export namespace PatternFilter {
     filterData: PatternFilterData,
   ): 'unchanged' | 'filled' {
     const polyData = GeometryComponent.get(
-      GeometryComponent.translate(
+      GeometryComponent.transform(
         geometry,
         AnchorPointComponent.generateTranslationFunction(geometry),
       ),

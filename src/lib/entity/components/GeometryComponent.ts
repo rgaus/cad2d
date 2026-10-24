@@ -256,7 +256,7 @@ export namespace GeometryComponent {
     if (Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
       // Translate the geometry into anchored space, then drop the anchor so the recursive call
       // below reads plain (unanchored) geometry.
-      const translated = GeometryComponent.translate(
+      const translated = GeometryComponent.transform(
         geometry,
         AnchorPointComponent.generateTranslationFunction(geometry),
       );
@@ -284,7 +284,7 @@ export namespace GeometryComponent {
     geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
   ): Rect<SheetPosition> {
     if (Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
-      const translated = GeometryComponent.translate(
+      const translated = GeometryComponent.transform(
         geometry,
         AnchorPointComponent.generateTranslationFunction(geometry),
       );
@@ -307,7 +307,7 @@ export namespace GeometryComponent {
     }
   }
 
-  export function translate<E extends Entity<GeometryComponent>>(
+  export function transform<E extends Entity<GeometryComponent>>(
     geometry: E,
     transform: (input: SheetPosition) => SheetPosition,
   ): E {
@@ -341,7 +341,7 @@ export namespace GeometryComponent {
     geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
   ): SheetPosition {
     if (Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
-      const translated = GeometryComponent.translate(
+      const translated = GeometryComponent.transform(
         geometry,
         AnchorPointComponent.generateTranslationFunction(geometry),
       );
@@ -394,7 +394,7 @@ export namespace GeometryComponent {
     renderShape: RenderShape,
   ): boolean {
     const data = GeometryComponent.get(
-      GeometryComponent.translate(
+      GeometryComponent.transform(
         geometry,
         AnchorPointComponent.generateTranslationFunction(geometry),
       ),
@@ -516,7 +516,7 @@ export namespace GeometryComponent {
     let shapes;
 
     // Render shapes are always expressed in anchored (rendered) space.
-    const anchoredGeometry = GeometryComponent.translate(
+    const anchoredGeometry = GeometryComponent.transform(
       geometry,
       AnchorPointComponent.generateTranslationFunction(geometry),
     );

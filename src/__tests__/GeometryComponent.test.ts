@@ -641,7 +641,7 @@ describe('GeometryComponent', () => {
         AnchorPointComponent,
       )!;
       const world = GeometryComponent.get(
-        GeometryComponent.translate(
+        GeometryComponent.transform(
           polygonGeometry,
           AnchorPointComponent.generateTranslationFunction(polygonGeometry),
         ),

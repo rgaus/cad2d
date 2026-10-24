@@ -239,7 +239,7 @@ namespace DragState {
   ): DragState {
     switch (state.state) {
       case 'geometry':
-        return { ...state, geometry: GeometryComponent.translate(state.geometry, transform) };
+        return { ...state, geometry: GeometryComponent.transform(state.geometry, transform) };
       case 'datum':
         return { ...state, entity: DatumComponent.translate(state.entity, transform) };
       case 'filter':
@@ -699,7 +699,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       if (!geom || !GeometryComponent.isPolygon(geom)) continue;
 
       const polygonData = GeometryComponent.get(
-        GeometryComponent.translate(geom, AnchorPointComponent.generateTranslationFunction(geom)),
+        GeometryComponent.transform(geom, AnchorPointComponent.generateTranslationFunction(geom)),
       );
       const pointCount = polygonData.points.length;
       if (pointCount < 2) continue;
@@ -770,7 +770,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const sheetPos = worldPos.toSheet();
     const polygonData = GeometryComponent.get(polygonGeom);
     const worldPolygonData = GeometryComponent.get(
-      GeometryComponent.translate(
+      GeometryComponent.transform(
         polygonGeom,
         AnchorPointComponent.generateTranslationFunction(polygonGeom),
       ),
@@ -1280,7 +1280,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             });
 
             if (Entity.hasComponent(updated, GeometryComponent)) {
-              const output = GeometryComponent.translate(
+              const output = GeometryComponent.transform(
                 updated,
                 (prev) =>
                   new SheetPosition(prev.x - lastDeltaX + deltaX, prev.y - lastDeltaY + deltaY),
@@ -1333,7 +1333,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             const updated = AnchorPointComponent.update(g, before);
 
             if (Entity.hasComponent(updated, GeometryComponent)) {
-              return GeometryComponent.translate(
+              return GeometryComponent.transform(
                 updated,
                 (prev) => new SheetPosition(prev.x - lastDeltaX, prev.y - lastDeltaY),
               );
@@ -2853,7 +2853,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     const quadPolygonData = GeometryComponent.get(
-      GeometryComponent.translate(geom, AnchorPointComponent.generateTranslationFunction(geom)),
+      GeometryComponent.transform(geom, AnchorPointComponent.generateTranslationFunction(geom)),
     );
     const pointSegment = quadPolygonData.points[segmentIndex];
     const arcSegment = quadPolygonData.points[segmentIndex + 1];
@@ -2886,7 +2886,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     const cubicPolygonData = GeometryComponent.get(
-      GeometryComponent.translate(geom, AnchorPointComponent.generateTranslationFunction(geom)),
+      GeometryComponent.transform(geom, AnchorPointComponent.generateTranslationFunction(geom)),
     );
     const pointSegment = cubicPolygonData.points[segmentIndex];
     const arcSegment = cubicPolygonData.points[segmentIndex + 1];

@@ -135,7 +135,7 @@ export default function ShapePreview({
     let points: Array<{ x: number; y: number }> = [];
 
     const geometryData = GeometryComponent.get(
-      GeometryComponent.translate(
+      GeometryComponent.transform(
         geometry,
         AnchorPointComponent.generateTranslationFunction(geometry),
       ),
@@ -408,7 +408,7 @@ export default function ShapePreview({
             [
               toSvgX(
                 GeometryComponent.get(
-                  GeometryComponent.translate(
+                  GeometryComponent.transform(
                     geometry,
                     AnchorPointComponent.generateTranslationFunction(geometry),
                   ),
@@ -419,7 +419,7 @@ export default function ShapePreview({
             [
               toSvgX(
                 GeometryComponent.get(
-                  GeometryComponent.translate(
+                  GeometryComponent.transform(
                     geometry,
                     AnchorPointComponent.generateTranslationFunction(geometry),
                   ),
@@ -471,7 +471,7 @@ export default function ShapePreview({
               toSvgX(bounds.minX) - 2,
               toSvgY(
                 GeometryComponent.get(
-                  GeometryComponent.translate(
+                  GeometryComponent.transform(
                     geometry,
                     AnchorPointComponent.generateTranslationFunction(geometry),
                   ),
@@ -482,7 +482,7 @@ export default function ShapePreview({
               toSvgX(bounds.minX) - 5,
               toSvgY(
                 GeometryComponent.get(
-                  GeometryComponent.translate(
+                  GeometryComponent.transform(
                     geometry,
                     AnchorPointComponent.generateTranslationFunction(geometry),
                   ),
@@ -504,7 +504,7 @@ export default function ShapePreview({
           <line
             x1={toSvgX(
               GeometryComponent.get(
-                GeometryComponent.translate(
+                GeometryComponent.transform(
                   geometry,
                   AnchorPointComponent.generateTranslationFunction(geometry),
                 ),
@@ -513,7 +513,7 @@ export default function ShapePreview({
             y1={toSvgY(bounds.minY)}
             x2={toSvgX(
               GeometryComponent.get(
-                GeometryComponent.translate(
+                GeometryComponent.transform(
                   geometry,
                   AnchorPointComponent.generateTranslationFunction(geometry),
                 ),
@@ -527,7 +527,7 @@ export default function ShapePreview({
             x1={toSvgX(bounds.minX)}
             y1={toSvgY(
               GeometryComponent.get(
-                GeometryComponent.translate(
+                GeometryComponent.transform(
                   geometry,
                   AnchorPointComponent.generateTranslationFunction(geometry),
                 ),
@@ -536,7 +536,7 @@ export default function ShapePreview({
             x2={toSvgX(bounds.maxX)}
             y2={toSvgY(
               GeometryComponent.get(
-                GeometryComponent.translate(
+                GeometryComponent.transform(
                   geometry,
                   AnchorPointComponent.generateTranslationFunction(geometry),
                 ),
@@ -549,7 +549,7 @@ export default function ShapePreview({
             x={
               toSvgX(
                 GeometryComponent.get(
-                  GeometryComponent.translate(
+                  GeometryComponent.transform(
                     geometry,
                     AnchorPointComponent.generateTranslationFunction(geometry),
                   ),
@@ -560,7 +560,7 @@ export default function ShapePreview({
             y={
               toSvgY(
                 GeometryComponent.get(
-                  GeometryComponent.translate(
+                  GeometryComponent.transform(
                     geometry,
                     AnchorPointComponent.generateTranslationFunction(geometry),
                   ),

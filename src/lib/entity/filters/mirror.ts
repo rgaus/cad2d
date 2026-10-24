@@ -139,7 +139,7 @@ export namespace MirrorFilter {
     filterData: MirrorFilterData,
   ): 'unchanged' | 'filled' {
     const polyData = GeometryComponent.get(
-      GeometryComponent.translate(
+      GeometryComponent.transform(
         geometry,
         AnchorPointComponent.generateTranslationFunction(geometry),
       ),

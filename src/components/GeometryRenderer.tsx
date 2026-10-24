@@ -802,7 +802,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
     () =>
       geometries.flatMap((g) => {
         const data = GeometryComponent.get<GeometryData>(
-          GeometryComponent.translate(g, AnchorPointComponent.generateTranslationFunction(g)),
+          GeometryComponent.transform(g, AnchorPointComponent.generateTranslationFunction(g)),
         );
         if (data.type === 'polygon') {
           return [[g.id, data] as const];
