@@ -1,6 +1,3 @@
-import { type AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
-import { GeometryComponent } from '@/lib/entity/components/GeometryComponent';
-import { type Entity } from '@/lib/entity/types';
 import { BoundingBox } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
@@ -12,8 +9,6 @@ export const WorldPositionType = Symbol('world-position');
 export const ScreenPositionType = Symbol('screen-position');
 /** Runtime type symbol for SheetPosition. */
 export const SheetPositionType = Symbol('sheet-position');
-/** Runtime type symbol for GeometryPosition. */
-export const GeometryPositionType = Symbol('geometry-position');
 
 /** Current viewport transform state. */
 export type ViewportState = {
@@ -233,35 +228,6 @@ export class SheetPosition extends Position {
 
   toScreen(state: ViewportState): ScreenPosition {
     return this.toWorld().toScreen(state);
-  }
-
-  /**
-   * Converts this sheet position into the local coordinate space of the given geometry. The
-   * geometry's origin and anchor point offset determine the result, so the entity is required.
-   */
-  toGeometry(
-    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
-  ): GeometryPosition {
-    const origin = GeometryComponent.getOrigin(geometry);
-    return new GeometryPosition(this.x - origin.x, this.y - origin.y);
-  }
-}
-
-/**
- * Position in a geometry's local coordinate space. Same scale as sheet coordinates, but with the
- * origin at the geometry's (anchored) natural origin. Converting to/from sheet coordinates
- * requires the associated geometry, since the transform depends on its origin and anchor point.
- */
-export class GeometryPosition extends Position {
-  readonly type = GeometryPositionType;
-
-  /**
-   * Converts this local position into a sheet position for the given geometry, applying the
-   * geometry's origin and anchor point offset.
-   */
-  toSheet(geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>): SheetPosition {
-    const origin = GeometryComponent.getOrigin(geometry);
-    return new SheetPosition(origin.x + this.x, origin.y + this.y);
   }
 }
 
