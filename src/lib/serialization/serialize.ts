@@ -29,19 +29,19 @@ import {
   CONSTRAINT_LINE_WIDTH_PX,
   computeDimensionLinePoints,
 } from '@/lib/viewport/dimension-line-utils';
-import { GeometryData } from '../entity/geometry';
-import { RectangleData } from '../entity/geometry/rectangle';
-import { type Sheet } from '../sheet/Sheet';
-import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
-import { type UnitType } from '../units/length';
+import { GeometryData } from '@/lib/entity/geometry';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
+import { type Sheet } from '@/lib/sheet/Sheet';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { type UnitType } from '@/lib/units/length';
 import {
   CentimetersType,
   FeetType,
   InchesType,
   MetersType,
   MillimetersType,
-} from '../units/length';
-import { type SheetPosition } from '../viewport/types';
+} from '@/lib/units/length';
+import { type SheetPosition } from '@/lib/viewport/types';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION, type SerializedState } from './versions';
 
 /** Converts a SheetPosition to pixels (world coordinates). */

@@ -323,7 +323,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }> = [];
     for (const g of this.geometryById.values()) {
       if (Entity.hasComponent(g, GeometryComponent)) {
-        const geomData = GeometryComponent.getRendered(g);
+        const geomData = GeometryComponent.getRendered<GeometryData>(g);
         switch (geomData.type) {
           case 'polygon':
             result.push({
@@ -333,11 +333,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
             });
             break;
           case 'rectangle': {
-            const corners = RectangleData.corners(geomData);
             result.push({
               type: 'rectangle',
               id: g.id,
-              segments: pointsToSegments(rectangleToPolygon(corners.upperLeft, corners.lowerRight)),
+              segments: pointsToSegments(rectangleToPolygon(geomData.origin, geomData.width, geomData.height)),
             });
             break;
           }
@@ -1203,8 +1202,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     // The converted polygon is created in anchored (rendered) space with a default anchor, so the rendered
     // position of the rectangle is preserved.
-    const corners = RectangleData.corners(rectangleData);
-    const points = rectangleToPolygon(corners.upperLeft, corners.lowerRight);
+    const points = rectangleToPolygon(rectangleData.origin, rectangleData.width, rectangleData.height);
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
 
     const polygonTemplate = Polygon.create(points, {

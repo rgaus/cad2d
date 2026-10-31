@@ -1,9 +1,9 @@
 import { EventEmitter } from 'eventemitter3';
-import { Entity, GeometryComponent, type Id } from '../entity';
-import { GeometryStore } from '../entity/GeometryStore';
-import { FilterComponent } from '../entity/components/FilterComponent';
-import { Filter } from '../entity/filters';
-import { Sheet } from '../sheet/Sheet';
+import { Entity, GeometryComponent, type Id } from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { Filter } from '@/lib/entity/filters';
+import { Sheet } from '@/lib/sheet/Sheet';
 import { POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR } from './constants';
 
 export { POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR };

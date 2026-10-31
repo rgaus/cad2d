@@ -18,7 +18,6 @@ import {
   LinearConstraint,
 } from '@/lib/entity/constraints';
 import { LinearConstraintData } from '@/lib/entity/constraints/linear';
-import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
 import { DeCasteljau, Vector2, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import {
@@ -41,9 +40,10 @@ import {
   SheetPosition,
   type ViewportState,
 } from '@/lib/viewport/types';
-import { FilterComponent } from '../entity/components/FilterComponent';
-import { getGridAtScale } from '../viewport/grid';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { getGridAtScale } from '@/lib/viewport/grid';
 import { BaseTool } from './BaseTool';
+import { GeometryData } from '@/lib/entity/geometry';
 
 export type PolygonToolEndpoint = {
   polygonId: Id;
@@ -1529,21 +1529,20 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             continue;
           }
 
-          const geoData = GeometryComponent.get(geometry);
+          const geomData = GeometryComponent.get<GeometryData>(geometry);
           let polygonPoints: Array<PolygonSegment>;
           let polygonClosed = true;
-          switch (geoData.type) {
+          switch (geomData.type) {
             case 'ellipse':
-              polygonPoints = ellipseToPolygon(geoData.center, geoData.radiusX, geoData.radiusY);
+              polygonPoints = ellipseToPolygon(geomData.center, geomData.radiusX, geomData.radiusY);
               break;
             case 'rectangle': {
-              const corners = RectangleData.corners(geoData);
-              polygonPoints = rectangleToPolygon(corners.upperLeft, corners.lowerRight);
+              polygonPoints = rectangleToPolygon(geomData.origin, geomData.width, geomData.height);
               break;
             }
             case 'polygon':
-              polygonPoints = geoData.points;
-              polygonClosed = geoData.closed;
+              polygonPoints = geomData.points;
+              polygonClosed = geomData.closed;
               break;
             default:
               continue;

@@ -15,7 +15,7 @@ import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
-import { GeometryData } from '../entity/geometry';
+import { GeometryData } from '@/lib/entity/geometry';
 import { UndoEntry } from '../history/types';
 import { ParseSvgWarningError } from './ParseSvgWarningError';
 import { canLoad as canLoadSvg, parseSvg } from './deserialize';

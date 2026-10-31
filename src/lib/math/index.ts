@@ -342,18 +342,20 @@ export function ellipseToPolygon(
  * Returns 3 PointSegments in order: upperLeft, upperRight, lowerRight.
  * The polygon is NOT closed - caller should add closing point if needed. */
 export function rectangleToPolygon(
-  upperLeft: SheetPosition,
-  lowerRight: SheetPosition,
+  origin: SheetPosition,
+  width: number,
+  height: number,
 ): Array<PointSegment> {
-  const upperRight = new SheetPosition(lowerRight.x, upperLeft.y);
-  const lowerLeft = new SheetPosition(upperLeft.x, lowerRight.y);
+  const upperRight = new SheetPosition(origin.x + width, origin.y);
+  const lowerRight = new SheetPosition(origin.x + width, origin.y + height);
+  const lowerLeft = new SheetPosition(origin.x, origin.y + height);
 
   return [
-    { type: 'point', point: upperLeft },
+    { type: 'point', point: origin },
     { type: 'point', point: upperRight },
     { type: 'point', point: lowerRight },
     { type: 'point', point: lowerLeft },
-    { type: 'point', point: upperLeft },
+    { type: 'point', point: origin },
   ];
 }
 

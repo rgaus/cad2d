@@ -1,5 +1,5 @@
 import { EventEmitter } from 'eventemitter3';
-import { ActionsManager } from '../actions/ActionsManager';
+import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   ConstraintComponent,
   type ConstraintEndpoint,
@@ -11,19 +11,19 @@ import {
   type Id,
   LinkDimensionsComponent,
   RenderOrderComponent,
-} from '../entity';
-import { GeometryStore } from '../entity/GeometryStore';
-import { AnchorPointComponent } from '../entity/components/AnchorPointComponent';
-import { FilterComponent } from '../entity/components/FilterComponent';
-import { PolygonData } from '../entity/geometry/polygon';
-import { HistoryManager } from '../history/HistoryManager';
-import { Sheet } from '../sheet/Sheet';
-import { type SelectTool } from '../tools/SelectTool';
-import { SelectionManager } from '../tools/SelectionManager';
-import type { ToolManager } from '../tools/ToolManager';
-import { Angle } from '../units/angle';
-import { Length } from '../units/length';
-import { SheetPosition } from '../viewport/types';
+} from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { Sheet } from '@/lib/sheet/Sheet';
+import { type SelectTool } from '@/lib/tools/SelectTool';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import type { ToolManager } from '@/lib/tools/ToolManager';
+import { Angle } from '@/lib/units/angle';
+import { Length } from '@/lib/units/length';
+import { SheetPosition } from '@/lib/viewport/types';
 import {
   type ShapePreviewEditingDimension,
   ShapePreviewManager,

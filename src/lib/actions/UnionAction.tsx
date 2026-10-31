@@ -9,11 +9,11 @@ import {
   type PolygonSegment,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
-import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
+import { GeometryData } from '../entity/geometry';
 
 export class UnionAction extends BaseAction {
   type = 'union' as const;
@@ -54,7 +54,7 @@ export class UnionAction extends BaseAction {
       const geometry = geometryStore.getById(id);
       if (!geometry) continue;
       if (Entity.hasComponent(geometry, GeometryComponent)) {
-        const geomData = GeometryComponent.getRendered(geometry);
+        const geomData = GeometryComponent.getRendered<GeometryData>(geometry);
         if (geomData.type === 'polygon') {
           const points = this.extractPointsFromSegments(geomData.points);
           extractedPolygons.push(points);
@@ -62,9 +62,8 @@ export class UnionAction extends BaseAction {
             firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
           }
         } else if (geomData.type === 'rectangle') {
-          const corners = RectangleData.corners(geomData);
           const points = this.extractPointsFromSegments(
-            rectangleToPolygon(corners.upperLeft, corners.lowerRight),
+            rectangleToPolygon(geomData.origin, geomData.width, geomData.height),
           );
           extractedPolygons.push(points);
           if (firstFillColor === null) {
@@ -98,7 +97,7 @@ export class UnionAction extends BaseAction {
 
     selectionManager.clearSelection();
 
-    const newPolygonIds: Array<string> = await historyManager.applyTransaction(
+    const newPolygonIds = historyManager.applyTransaction(
       'boolean-union',
       () => {
         // 1. Delete old geometries
