@@ -350,18 +350,9 @@ export namespace GeometryComponent {
     }
   }
 
-  /** Origin in anchored (rendered) space. */
   export function getOrigin(
     geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
   ): SheetPosition {
-    if (Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
-      const translated = GeometryComponent.transform(
-        geometry,
-        AnchorPointComponent.generateTranslationFunction(geometry),
-      );
-      return GeometryComponent.getOrigin(AnchorPointComponent.remove(translated));
-    }
-
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
@@ -376,6 +367,22 @@ export namespace GeometryComponent {
           `GeometryComponent.getOrigin: Unknown geometry data type ${(state as any).type}`,
         );
     }
+  }
+
+  /** Origin in anchored (rendered) space. */
+  export function getRenderOrigin(
+    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  ): SheetPosition {
+    let working = geometry;
+    if (Entity.hasComponents(working, GeometryComponent, AnchorPointComponent)) {
+      const translated = GeometryComponent.transform(
+        working,
+        AnchorPointComponent.generateTranslationFunction(working),
+      );
+      working = AnchorPointComponent.remove(translated);
+    }
+
+    return getOrigin(working);
   }
 
   export function equals(a: Entity<GeometryComponent>, b: Entity<GeometryComponent>): boolean {

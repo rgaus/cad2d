@@ -78,7 +78,7 @@ export namespace AnchorPointComponent {
     if (!keyPointPosition) {
       return new SheetPosition(0, 0);
     }
-    const origin = GeometryComponent.getOrigin(withoutAnchor);
+    const origin = GeometryComponent.getRenderOrigin(withoutAnchor);
 
     return new SheetPosition(
       keyPointPosition.x - origin.x + offset.x,
@@ -109,7 +109,7 @@ export namespace AnchorPointComponent {
   export function getHandlePosition(
     geometry: Entity<AnchorPointComponent & GeometryComponent>,
   ): SheetPosition {
-    return GeometryComponent.getOrigin(AnchorPointComponent.remove(geometry));
+    return GeometryComponent.getRenderOrigin(AnchorPointComponent.remove(geometry));
   }
 
   /** Human readable label for a key point name, eg `upperLeft` -> `Upper left`. */

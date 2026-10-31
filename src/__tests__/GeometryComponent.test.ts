@@ -581,8 +581,8 @@ describe('GeometryComponent', () => {
       )!;
 
       // rendered = raw - ((keyPoint - origin) + offset) = raw - (5, 2) - (-2, -3)
-      expect(GeometryComponent.getOrigin(geometry).x).toBe(8);
-      expect(GeometryComponent.getOrigin(geometry).y).toBe(16);
+      expect(GeometryComponent.getRenderOrigin(geometry).x).toBe(8);
+      expect(GeometryComponent.getRenderOrigin(geometry).y).toBe(16);
 
       const bbox = GeometryComponent.boundingBox(geometry);
       expect(bbox.position.x).toBe(8);
@@ -622,8 +622,8 @@ describe('GeometryComponent', () => {
         GeometryComponent,
         AnchorPointComponent,
       )!;
-      expect(GeometryComponent.getOrigin(ellipseGeometry).x).toBe(4);
-      expect(GeometryComponent.getOrigin(ellipseGeometry).y).toBe(4);
+      expect(GeometryComponent.getRenderOrigin(ellipseGeometry).x).toBe(4);
+      expect(GeometryComponent.getRenderOrigin(ellipseGeometry).y).toBe(4);
 
       const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
@@ -669,8 +669,8 @@ describe('GeometryComponent', () => {
       )!;
       const withoutAnchor = AnchorPointComponent.remove(withAnchor);
 
-      expect(GeometryComponent.getOrigin(withoutAnchor).x).toBe(11);
-      expect(GeometryComponent.getOrigin(withoutAnchor).y).toBe(15);
+      expect(GeometryComponent.getRenderOrigin(withoutAnchor).x).toBe(11);
+      expect(GeometryComponent.getRenderOrigin(withoutAnchor).y).toBe(15);
 
       const bbox = GeometryComponent.boundingBox(withoutAnchor);
       expect(bbox.position.x).toBe(11);

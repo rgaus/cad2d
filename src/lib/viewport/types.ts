@@ -236,7 +236,7 @@ export class SheetPosition extends Position {
   toGeometryRelativeSheetPosition(
     geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
   ): GeometryRelativeSheetPosition {
-    const origin = GeometryComponent.getOrigin(geometry);
+    const origin = GeometryComponent.getRenderOrigin(geometry);
     return new GeometryRelativeSheetPosition(this.x - origin.x, this.y - origin.y);
   }
 }
@@ -248,7 +248,7 @@ export class GeometryRelativeSheetPosition extends Position {
   toSheetPosition(
     geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
   ): SheetPosition {
-    const origin = GeometryComponent.getOrigin(geometry);
+    const origin = GeometryComponent.getRenderOrigin(geometry);
     return new SheetPosition(origin.x + this.x, origin.y + this.y);
   }
 }

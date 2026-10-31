@@ -290,7 +290,7 @@ namespace DragState {
   export function getOrigin(state: DragState): SheetPosition | null {
     switch (state.state) {
       case 'geometry':
-        return GeometryComponent.getOrigin(state.geometry);
+        return GeometryComponent.getRenderOrigin(state.geometry);
       case 'datum':
         return DatumComponent.getOrigin(state.entity);
       case 'filter':
