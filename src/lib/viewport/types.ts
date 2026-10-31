@@ -1,6 +1,6 @@
 import { BoundingBox } from '@/lib/math';
+import { AnchorPointComponent, Entity, GeometryComponent } from '../entity';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
-import { AnchorPointComponent, GeometryComponent, Entity } from '../entity';
 
 /** Runtime type symbol for ViewportPosition. */
 export const ViewportPositionType = Symbol('viewport-position');
@@ -245,7 +245,9 @@ export class SheetPosition extends Position {
 export class GeometryRelativeSheetPosition extends Position {
   readonly type = GeometryRelativeSheetPositionType;
 
-  toSheetPosition(geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>): SheetPosition {
+  toSheetPosition(
+    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  ): SheetPosition {
     const origin = GeometryComponent.getOrigin(geometry);
     return new SheetPosition(origin.x + this.x, origin.y + this.y);
   }

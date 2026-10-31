@@ -24,8 +24,8 @@ import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { PatternFilter, PatternRadialFilterData } from '@/lib/entity/filters/pattern';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { HistoryManager } from '@/lib/history/HistoryManager';
-import { BoundingBox } from '@/lib/math';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { KeyPointSnapInfo } from '@/lib/snapping';
@@ -3918,7 +3918,7 @@ describe('SelectTool', () => {
         geometryStore.getByIdsWithComponent(selectionManager.getSelectedIds(), GeometryComponent),
       ).filter(GeometryComponent.isRectangle);
       const selectedCorners = selectedRectangles.map((geometry) =>
-        BoundingBox.corners(GeometryComponent.boundingBox(geometry)),
+        RectangleData.corners(GeometryComponent.get(geometry)),
       );
       const selectedUpperLeftXValues = new Set(
         selectedCorners.map((corners) => corners.upperLeft.x),

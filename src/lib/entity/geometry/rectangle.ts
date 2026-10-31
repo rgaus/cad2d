@@ -1,5 +1,5 @@
 import { BoundingBox } from '@/lib/math';
-import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
+import { KeyPoints, Rect, RectCorners, SheetPosition } from '@/lib/viewport/types';
 import { GeometryComponent } from '../components/GeometryComponent';
 import { Entity, type ResizeParams } from '../types';
 
@@ -23,7 +23,7 @@ export namespace RectangleData {
     return {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
       // expects.
-      perimeter: BoundingBox.cornersToArray(BoundingBox.corners(rect)),
+      perimeter: cornersArray(GeometryComponent.get(geometry)),
       perimeterLabels: ['upperLeft', 'upperRight', 'lowerRight', 'lowerLeft'] as const,
       extras: {
         center: new SheetPosition(
@@ -43,6 +43,18 @@ export namespace RectangleData {
       width: rectangle.width,
       height: rectangle.height,
     };
+  }
+
+  export function corners(data: RectangleData): RectCorners<SheetPosition> {
+    return BoundingBox.corners({
+      position: data.origin,
+      width: data.width,
+      height: data.height,
+    });
+  }
+
+  export function cornersArray(data: RectangleData): Array<SheetPosition> {
+    return BoundingBox.cornersToArray(corners(data));
   }
 
   export function translate<E extends Entity<GeometryComponent<RectangleData>>>(

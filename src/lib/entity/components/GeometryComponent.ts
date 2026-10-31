@@ -418,7 +418,7 @@ export namespace GeometryComponent {
         if (renderShape.shape !== 'rectangle') {
           return false;
         }
-        const corners = BoundingBox.corners(GeometryComponent.boundingBox(geometry));
+        const corners = RectangleData.corners(data);
         return (
           corners.upperLeft.x === renderShape.upperLeft.x &&
           corners.upperLeft.y === renderShape.upperLeft.y &&
@@ -542,11 +542,7 @@ export namespace GeometryComponent {
         }
         break;
       case 'rectangle': {
-        const corners = BoundingBox.corners({
-          position: state.origin,
-          width: state.width,
-          height: state.height,
-        });
+        const corners = RectangleData.corners(state);
         shapes = [
           RenderShape.rectangle(geometry.id, corners.upperLeft, corners.lowerRight, {
             primary: true,

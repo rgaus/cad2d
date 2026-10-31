@@ -11,7 +11,7 @@ import {
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { Filter } from '@/lib/entity/filters';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
-import { BoundingBox } from '@/lib/math';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import {
   type ShapePreviewEditingDimension,
   type ShapePreviewHighlight,
@@ -140,13 +140,10 @@ export default function ShapePreview({
         points = geometryData.points.map((s: PolygonSegment) => ({ x: s.point.x, y: s.point.y }));
         break;
       case 'rectangle':
-        points = BoundingBox.cornersToArray(
-          BoundingBox.corners({
-            position: geometryData.origin,
-            width: geometryData.width,
-            height: geometryData.height,
-          }),
-        ).map((position) => ({ x: position.x, y: position.y }));
+        points = RectangleData.cornersArray(geometryData).map((position) => ({
+          x: position.x,
+          y: position.y,
+        }));
         break;
       case 'ellipse':
         break;

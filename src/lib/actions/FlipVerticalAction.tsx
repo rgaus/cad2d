@@ -4,7 +4,7 @@ import { Entity, GeometryComponent, type PolygonSegment } from '@/lib/entity';
 import { EllipseData } from '@/lib/entity/geometry/ellipse';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
-import { BoundingBox, Flip } from '@/lib/math';
+import { Flip } from '@/lib/math';
 import { type Rect, SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
@@ -76,9 +76,7 @@ export class FlipVerticalAction extends BaseAction {
           }
 
           if (polyData.type === 'rectangle') {
-            const corners = BoundingBox.corners(
-              RectangleData.boundingBox(polyGeom as Entity<GeometryComponent<RectangleData>>),
-            );
+            const corners = RectangleData.corners(polyData);
             const flippedUl = Flip.vertical(corners.upperLeft, rawCenterY);
             const flippedUr = Flip.vertical(corners.upperRight, rawCenterY);
             const flippedLr = Flip.vertical(corners.lowerRight, rawCenterY);

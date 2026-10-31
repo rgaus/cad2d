@@ -11,8 +11,8 @@ import {
 import { ConstraintComponent } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { ConstraintEndpoint, LinearConstraint } from '@/lib/entity/constraints';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { HistoryManager } from '@/lib/history/HistoryManager';
-import { BoundingBox } from '@/lib/math';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -928,11 +928,7 @@ describe('GeometryStore', () => {
       const postData = GeometryComponent.get(
         store.getByIdWithComponent(rect.id, GeometryComponent)!,
       );
-      const postUpperRight = BoundingBox.corners({
-        position: postData.origin,
-        width: postData.width,
-        height: postData.height,
-      }).upperRight;
+      const postUpperRight = RectangleData.corners(postData).upperRight;
       // The constraint moved the geometry — distance should have changed from its starting value
       const startDy = Math.abs(0 - 8); // upperRight.y=0, datum.y=8
       const endDy = Math.abs(postUpperRight.y - 8);

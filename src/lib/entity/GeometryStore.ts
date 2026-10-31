@@ -24,7 +24,7 @@ import {
 import { VertexId } from '../dcel';
 import { HistoryManager } from '../history/HistoryManager';
 import { UndoEntry } from '../history/types';
-import { BoundingBox, ellipseToPolygon, rectangleToPolygon } from '../math';
+import { ellipseToPolygon, rectangleToPolygon } from '../math';
 import { UnitType } from '../units/length';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 import { DCELShapeIndex } from './DCELShapeIndex';
@@ -333,11 +333,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
             });
             break;
           case 'rectangle': {
-            const corners = BoundingBox.corners({
-              position: geomData.origin,
-              width: geomData.width,
-              height: geomData.height,
-            });
+            const corners = RectangleData.corners(geomData);
             result.push({
               type: 'rectangle',
               id: g.id,
@@ -1198,7 +1194,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         `GeometryStore.convertRectangleToPolygon: Cannot find geometry ${rectangleId}`,
       );
     }
-    const rectangleData = GeometryComponent.get<GeometryData>(geometry);
+    const rectangleData = GeometryComponent.getRendered<GeometryData>(geometry);
     if (rectangleData.type !== 'rectangle') {
       throw new Error(
         `GeometryStore.convertRectangleToPolygon: GeometryComponent data for geometry ${rectangleId} is not of type rectangle, found ${rectangleData.type}`,
@@ -1207,7 +1203,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     // The converted polygon is created in anchored (rendered) space with a default anchor, so the rendered
     // position of the rectangle is preserved.
-    const corners = BoundingBox.corners(GeometryComponent.boundingBox(geometry));
+    const corners = RectangleData.corners(rectangleData);
     const points = rectangleToPolygon(corners.upperLeft, corners.lowerRight);
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
 
@@ -1700,7 +1696,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               >;
               for (const { update, position } of updates) {
                 const rawPosition = toRaw(position);
-                const corners = BoundingBox.corners(RectangleData.boundingBox(working));
+                const corners = RectangleData.corners(GeometryComponent.get(working));
                 switch (update.point) {
                   case 'upperLeft':
                     working = GeometryComponent.update(working, {
