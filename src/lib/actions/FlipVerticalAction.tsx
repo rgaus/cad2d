@@ -4,7 +4,7 @@ import { Entity, GeometryComponent, type PolygonSegment } from '@/lib/entity';
 import { EllipseData } from '@/lib/entity/geometry/ellipse';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
-import { Flip } from '@/lib/math';
+import { BoundingBox, Flip } from '@/lib/math';
 import { type Rect, SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
@@ -76,17 +76,13 @@ export class FlipVerticalAction extends BaseAction {
           }
 
           if (polyData.type === 'rectangle') {
-            const rect = polyData;
-            const flippedUl = Flip.vertical(rect.upperLeft, rawCenterY);
-            const flippedUr = Flip.vertical(
-              new SheetPosition(rect.lowerRight.x, rect.upperLeft.y),
-              rawCenterY,
+            const corners = BoundingBox.corners(
+              RectangleData.boundingBox(polyGeom as Entity<GeometryComponent<RectangleData>>),
             );
-            const flippedLr = Flip.vertical(rect.lowerRight, rawCenterY);
-            const flippedLl = Flip.vertical(
-              new SheetPosition(rect.upperLeft.x, rect.lowerRight.y),
-              rawCenterY,
-            );
+            const flippedUl = Flip.vertical(corners.upperLeft, rawCenterY);
+            const flippedUr = Flip.vertical(corners.upperRight, rawCenterY);
+            const flippedLr = Flip.vertical(corners.lowerRight, rawCenterY);
+            const flippedLl = Flip.vertical(corners.lowerLeft, rawCenterY);
 
             const xs = [flippedUl.x, flippedUr.x, flippedLr.x, flippedLl.x];
             const ys = [flippedUl.y, flippedUr.y, flippedLr.y, flippedLl.y];
@@ -95,8 +91,9 @@ export class FlipVerticalAction extends BaseAction {
 
             geometryStore.updateById(id, (old) =>
               GeometryComponent.update(old as Entity<GeometryComponent<RectangleData>>, {
-                upperLeft: newUl,
-                lowerRight: newLr,
+                origin: newUl,
+                width: newLr.x - newUl.x,
+                height: newLr.y - newUl.y,
               }),
             );
             continue;

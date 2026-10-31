@@ -176,7 +176,14 @@ export namespace GeometryComponent {
     upperLeft: SheetPosition,
     lowerRight: SheetPosition,
   ): GeometryComponent<RectangleData> {
-    return { geometry: { type: 'rectangle', upperLeft, lowerRight } };
+    return {
+      geometry: {
+        type: 'rectangle',
+        origin: upperLeft,
+        width: lowerRight.x - upperLeft.x,
+        height: lowerRight.y - upperLeft.y,
+      },
+    };
   }
 
   export function createEllipse(
@@ -407,16 +414,18 @@ export namespace GeometryComponent {
           return false;
         }
         return PolygonData.isGeometricallyEqualToRenderShape(data.points, data.closed, renderShape);
-      case 'rectangle':
+      case 'rectangle': {
         if (renderShape.shape !== 'rectangle') {
           return false;
         }
+        const corners = BoundingBox.corners(GeometryComponent.boundingBox(geometry));
         return (
-          data.upperLeft.x === renderShape.upperLeft.x &&
-          data.upperLeft.y === renderShape.upperLeft.y &&
-          data.lowerRight.x === renderShape.lowerRight.x &&
-          data.lowerRight.y === renderShape.lowerRight.y
+          corners.upperLeft.x === renderShape.upperLeft.x &&
+          corners.upperLeft.y === renderShape.upperLeft.y &&
+          corners.lowerRight.x === renderShape.lowerRight.x &&
+          corners.lowerRight.y === renderShape.lowerRight.y
         );
+      }
       case 'ellipse':
         if (renderShape.shape !== 'ellipse') {
           return false;
@@ -532,9 +541,16 @@ export namespace GeometryComponent {
           }
         }
         break;
-      case 'rectangle':
+      case 'rectangle': {
+        const corners = BoundingBox.corners({
+          position: state.origin,
+          width: state.width,
+          height: state.height,
+        });
         shapes = [
-          RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight, { primary: true }),
+          RenderShape.rectangle(geometry.id, corners.upperLeft, corners.lowerRight, {
+            primary: true,
+          }),
         ];
         if (mapping) {
           for (const corner of RectangleEndpoint.LIST) {
@@ -542,6 +558,7 @@ export namespace GeometryComponent {
           }
         }
         break;
+      }
       case 'ellipse':
         shapes = [
           RenderShape.ellipse(geometry.id, state.center, {
@@ -622,7 +639,7 @@ export namespace GeometryComponent {
               'X:',
               Fields.length(
                 'x',
-                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.upperLeft.x),
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.origin.x),
                 { readOnlyUnit: true },
                 ctx.makeLengthHandlers(
                   id,
@@ -638,13 +655,8 @@ export namespace GeometryComponent {
                       return null;
                     }
                     const newX = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
-                    const deltaX = newX - currentGeom.upperLeft.x;
-                    const upperLeft = new SheetPosition(newX, currentGeom.upperLeft.y);
-                    const lowerRight = new SheetPosition(
-                      currentGeom.lowerRight.x + deltaX,
-                      currentGeom.lowerRight.y,
-                    );
-                    return { upperLeft, lowerRight };
+                    const origin = new SheetPosition(newX, currentGeom.origin.y);
+                    return { origin };
                   },
                   'origin',
                 ),
@@ -656,7 +668,7 @@ export namespace GeometryComponent {
               'Y:',
               Fields.length(
                 'y',
-                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.upperLeft.y),
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.origin.y),
                 { readOnlyUnit: true },
                 ctx.makeLengthHandlers(
                   id,
@@ -672,13 +684,8 @@ export namespace GeometryComponent {
                       return null;
                     }
                     const newY = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
-                    const deltaY = newY - currentGeom.upperLeft.y;
-                    const upperLeft = new SheetPosition(currentGeom.upperLeft.x, newY);
-                    const lowerRight = new SheetPosition(
-                      currentGeom.lowerRight.x,
-                      currentGeom.lowerRight.y + deltaY,
-                    );
-                    return { upperLeft, lowerRight };
+                    const origin = new SheetPosition(currentGeom.origin.x, newY);
+                    return { origin };
                   },
                   'origin',
                 ),
@@ -691,10 +698,7 @@ export namespace GeometryComponent {
               'W:',
               Fields.length(
                 'width',
-                Length.fromSheetUnits(
-                  ctx.sheetDefaultUnit,
-                  geometryData.lowerRight.x - geometryData.upperLeft.x,
-                ),
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.width),
                 { readOnlyUnit: true },
                 ctx.makeLengthHandlers(
                   id,
@@ -712,10 +716,8 @@ export namespace GeometryComponent {
                     const isLinkedNow = LinkDimensionsComponent.getOptional(current) ?? false;
                     const w = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
                     return {
-                      lowerRight: new SheetPosition(
-                        currentGeom.upperLeft.x + w,
-                        isLinkedNow ? currentGeom.upperLeft.y + w : currentGeom.lowerRight.y,
-                      ),
+                      width: w,
+                      height: isLinkedNow ? w : currentGeom.height,
                     };
                   },
                   'width',
@@ -732,10 +734,7 @@ export namespace GeometryComponent {
               'H:',
               Fields.length(
                 'height',
-                Length.fromSheetUnits(
-                  ctx.sheetDefaultUnit,
-                  geometryData.lowerRight.y - geometryData.upperLeft.y,
-                ),
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.height),
                 { readOnlyUnit: true },
                 ctx.makeLengthHandlers(
                   id,
@@ -753,10 +752,8 @@ export namespace GeometryComponent {
                     const isLinkedNow = LinkDimensionsComponent.getOptional(current) ?? false;
                     const h = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
                     return {
-                      lowerRight: new SheetPosition(
-                        isLinkedNow ? currentGeom.upperLeft.x + h : currentGeom.lowerRight.x,
-                        currentGeom.upperLeft.y + h,
-                      ),
+                      width: isLinkedNow ? h : currentGeom.width,
+                      height: h,
                     };
                   },
                   'height',

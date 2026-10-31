@@ -18,8 +18,15 @@ import {
   LinearConstraint,
 } from '@/lib/entity/constraints';
 import { LinearConstraintData } from '@/lib/entity/constraints/linear';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
-import { DeCasteljau, Vector2, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
+import {
+  BoundingBox,
+  DeCasteljau,
+  Vector2,
+  ellipseToPolygon,
+  rectangleToPolygon,
+} from '@/lib/math';
 import {
   type SnappingLineSeriesOptions,
   type SnappingOptions,
@@ -1535,9 +1542,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             case 'ellipse':
               polygonPoints = ellipseToPolygon(geoData.center, geoData.radiusX, geoData.radiusY);
               break;
-            case 'rectangle':
-              polygonPoints = rectangleToPolygon(geoData.upperLeft, geoData.lowerRight);
+            case 'rectangle': {
+              const corners = BoundingBox.corners(
+                RectangleData.boundingBox(geometry as Entity<GeometryComponent<RectangleData>>),
+              );
+              polygonPoints = rectangleToPolygon(corners.upperLeft, corners.lowerRight);
               break;
+            }
             case 'polygon':
               polygonPoints = geoData.points;
               polygonClosed = geoData.closed;

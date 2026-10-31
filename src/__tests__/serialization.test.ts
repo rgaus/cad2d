@@ -120,8 +120,9 @@ function comparePolygons(a: Polygon, b: Polygon): boolean {
 function compareRectangles(a: Rectangle, b: Rectangle): boolean {
   const aRectangle = GeometryComponent.get(a),
     bRectangle = GeometryComponent.get(b);
-  if (!comparePositions(aRectangle.upperLeft, bRectangle.upperLeft)) return false;
-  if (!comparePositions(aRectangle.lowerRight, bRectangle.lowerRight)) return false;
+  if (!comparePositions(aRectangle.origin, bRectangle.origin)) return false;
+  if (aRectangle.width !== bRectangle.width) return false;
+  if (aRectangle.height !== bRectangle.height) return false;
   if (FillColorComponent.get(a) !== FillColorComponent.get(b)) return false;
   if (LinkDimensionsComponent.get(a) !== LinkDimensionsComponent.get(b)) return false;
   return true;
@@ -513,12 +514,11 @@ describe('parseSvg', () => {
       expect(result.rectangles).toHaveLength(1);
       const rect = result.rectangles[0];
       expect(rect.id).toBe('r1');
-      expect(comparePositions(GeometryComponent.get(rect).upperLeft, new SheetPosition(0, 0))).toBe(
+      expect(comparePositions(GeometryComponent.get(rect).origin, new SheetPosition(0, 0))).toBe(
         true,
       );
-      expect(
-        comparePositions(GeometryComponent.get(rect).lowerRight, new SheetPosition(1, 0.5)),
-      ).toBe(true);
+      expect(GeometryComponent.get(rect).width).toBeCloseTo(1, 5);
+      expect(GeometryComponent.get(rect).height).toBeCloseTo(0.5, 5);
       expect(FillColorComponent.get(rect)).toBe(0xff0000);
       expect(LinkDimensionsComponent.get(rect)).toBe(true);
     });
@@ -1968,10 +1968,10 @@ describe('round-trip', () => {
     expect(FillColorComponent.getOptional(result.polygons[0])).toBe(0xff0000);
 
     const parsedRectData = GeometryComponent.get(result.rectangles[0]);
-    expect(parsedRectData.upperLeft.x).toBeCloseTo(0, 5);
-    expect(parsedRectData.upperLeft.y).toBeCloseTo(0, 5);
-    expect(parsedRectData.lowerRight.x).toBeCloseTo(1, 5);
-    expect(parsedRectData.lowerRight.y).toBeCloseTo(1, 5);
+    expect(parsedRectData.origin.x).toBeCloseTo(0, 5);
+    expect(parsedRectData.origin.y).toBeCloseTo(0, 5);
+    expect(parsedRectData.width).toBeCloseTo(1, 5);
+    expect(parsedRectData.height).toBeCloseTo(1, 5);
     expect(FillColorComponent.get(result.rectangles[0])).toBe(0x00ff00);
     expect(LinkDimensionsComponent.get(result.rectangles[0])).toBe(true);
 

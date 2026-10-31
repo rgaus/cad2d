@@ -12,6 +12,7 @@ import { ConstraintComponent } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { ConstraintEndpoint, LinearConstraint } from '@/lib/entity/constraints';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { BoundingBox } from '@/lib/math';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -738,12 +739,10 @@ describe('GeometryStore', () => {
       );
       expect(store.listWithComponent(GeometryComponent)).toHaveLength(1);
       expect(store.listWithComponent(GeometryComponent)[0].id).toBe(rectangle.id);
-      expect(
-        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).upperLeft,
-      ).toEqual(new SheetPosition(0, 0));
-      expect(
-        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).lowerRight,
-      ).toEqual(new SheetPosition(10, 10));
+      const storedRect = GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]);
+      expect(storedRect.origin).toEqual(new SheetPosition(0, 0));
+      expect(storedRect.width).toBe(10);
+      expect(storedRect.height).toBe(10);
     });
 
     it('generates a stable id for new rectangles', () => {
@@ -929,14 +928,18 @@ describe('GeometryStore', () => {
       const postData = GeometryComponent.get(
         store.getByIdWithComponent(rect.id, GeometryComponent)!,
       );
-      const postUpperRight = new SheetPosition(postData.lowerRight.x, postData.upperLeft.y);
+      const postUpperRight = BoundingBox.corners({
+        position: postData.origin,
+        width: postData.width,
+        height: postData.height,
+      }).upperRight;
       // The constraint moved the geometry — distance should have changed from its starting value
       const startDy = Math.abs(0 - 8); // upperRight.y=0, datum.y=8
       const endDy = Math.abs(postUpperRight.y - 8);
       expect(endDy).not.toBeCloseTo(startDy, 2);
 
       // Verify the geometry was actually mutated in the store
-      expect(postData.upperLeft.y).not.toBe(preData.upperLeft.y);
+      expect(postData.origin.y).not.toBe(preData.origin.y);
     });
   });
 
@@ -1009,10 +1012,10 @@ describe('GeometryStore', () => {
       const afterUndo = GeometryComponent.get(
         store.getByIdWithComponent(rect.id, GeometryComponent)!,
       );
-      expect(afterUndo.upperLeft.x).toBeCloseTo(preData.upperLeft.x, 2);
-      expect(afterUndo.upperLeft.y).toBeCloseTo(preData.upperLeft.y, 2);
-      expect(afterUndo.lowerRight.x).toBeCloseTo(preData.lowerRight.x, 2);
-      expect(afterUndo.lowerRight.y).toBeCloseTo(preData.lowerRight.y, 2);
+      expect(afterUndo.origin.x).toBeCloseTo(preData.origin.x, 2);
+      expect(afterUndo.origin.y).toBeCloseTo(preData.origin.y, 2);
+      expect(afterUndo.width).toBeCloseTo(preData.width, 2);
+      expect(afterUndo.height).toBeCloseTo(preData.height, 2);
 
       // Redo — geometry should go back to post-solve state
       expect(historyManager.canRedo()).toBe(true);
@@ -1024,11 +1027,9 @@ describe('GeometryStore', () => {
       // After redo, the constraint should have been re-applied (geometry
       // differs from the pre-solve state restored by undo).
       const beforeSolved =
-        preData.upperLeft.x === afterUndo.upperLeft.x &&
-        preData.upperLeft.y === afterUndo.upperLeft.y;
+        preData.origin.x === afterUndo.origin.x && preData.origin.y === afterUndo.origin.y;
       const afterRedoChanged =
-        afterRedo.upperLeft.x !== afterUndo.upperLeft.x ||
-        afterRedo.upperLeft.y !== afterUndo.upperLeft.y;
+        afterRedo.origin.x !== afterUndo.origin.x || afterRedo.origin.y !== afterUndo.origin.y;
       expect(beforeSolved).toBe(true);
       expect(afterRedoChanged).toBe(true);
     });

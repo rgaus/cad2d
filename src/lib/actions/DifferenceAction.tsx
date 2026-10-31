@@ -9,7 +9,8 @@ import {
   type PolygonSegment,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
-import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
+import { BoundingBox, arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
@@ -60,8 +61,11 @@ export class DifferenceAction extends BaseAction {
             firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
           }
         } else if (geomData.type === 'rectangle') {
+          const corners = BoundingBox.corners(
+            GeometryComponent.boundingBox(geometry as Entity<GeometryComponent<RectangleData>>),
+          );
           const points = this.extractPointsFromSegments(
-            rectangleToPolygon(geomData.upperLeft, geomData.lowerRight),
+            rectangleToPolygon(corners.upperLeft, corners.lowerRight),
           );
           extractedPolygons.push(points);
           if (firstFillColor === null) {

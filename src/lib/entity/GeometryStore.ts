@@ -24,7 +24,7 @@ import {
 import { VertexId } from '../dcel';
 import { HistoryManager } from '../history/HistoryManager';
 import { UndoEntry } from '../history/types';
-import { ellipseToPolygon, rectangleToPolygon } from '../math';
+import { BoundingBox, ellipseToPolygon, rectangleToPolygon } from '../math';
 import { UnitType } from '../units/length';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 import { DCELShapeIndex } from './DCELShapeIndex';
@@ -332,15 +332,19 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               segments: pointsToSegments(geomData.points),
             });
             break;
-          case 'rectangle':
+          case 'rectangle': {
+            const corners = BoundingBox.corners({
+              position: geomData.origin,
+              width: geomData.width,
+              height: geomData.height,
+            });
             result.push({
               type: 'rectangle',
               id: g.id,
-              segments: pointsToSegments(
-                rectangleToPolygon(geomData.upperLeft, geomData.lowerRight),
-              ),
+              segments: pointsToSegments(rectangleToPolygon(corners.upperLeft, corners.lowerRight)),
             });
             break;
+          }
           case 'ellipse':
             result.push({
               type: 'ellipse',
@@ -795,8 +799,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         case 'rectangle': {
           const afterRectData = afterData as typeof beforeData;
           if (
-            afterRectData.upperLeft !== beforeData.upperLeft ||
-            afterRectData.lowerRight !== beforeData.lowerRight
+            afterRectData.origin !== beforeData.origin ||
+            afterRectData.width !== beforeData.width ||
+            afterRectData.height !== beforeData.height
           ) {
             this.historyManager.push(UndoEntry.rectangleMove(id, beforeData, afterRectData));
           }
@@ -1202,14 +1207,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     // The converted polygon is created in anchored (rendered) space with a default anchor, so the rendered
     // position of the rectangle is preserved.
-    const offset = GeometryComponent.getAnchorPointOffset(geometry);
-    const points = rectangleToPolygon(
-      new SheetPosition(rectangleData.upperLeft.x - offset.x, rectangleData.upperLeft.y - offset.y),
-      new SheetPosition(
-        rectangleData.lowerRight.x - offset.x,
-        rectangleData.lowerRight.y - offset.y,
-      ),
-    );
+    const corners = BoundingBox.corners(GeometryComponent.boundingBox(geometry));
+    const points = rectangleToPolygon(corners.upperLeft, corners.lowerRight);
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
 
     const polygonTemplate = Polygon.create(points, {
@@ -1701,33 +1700,35 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               >;
               for (const { update, position } of updates) {
                 const rawPosition = toRaw(position);
+                const corners = BoundingBox.corners(RectangleData.boundingBox(working));
                 switch (update.point) {
                   case 'upperLeft':
-                    working = GeometryComponent.update(working, { upperLeft: rawPosition });
+                    working = GeometryComponent.update(working, {
+                      origin: rawPosition,
+                      width: corners.lowerRight.x - rawPosition.x,
+                      height: corners.lowerRight.y - rawPosition.y,
+                    });
                     break;
                   case 'lowerRight':
-                    working = GeometryComponent.update(working, { lowerRight: rawPosition });
+                    working = GeometryComponent.update(working, {
+                      width: rawPosition.x - corners.upperLeft.x,
+                      height: rawPosition.y - corners.upperLeft.y,
+                    });
                     break;
-                  case 'upperRight': {
-                    const workingRectData = GeometryComponent.get(working);
-                    const upperLeft = new SheetPosition(workingRectData.upperLeft.x, rawPosition.y);
-                    const lowerRight = new SheetPosition(
-                      rawPosition.x,
-                      workingRectData.lowerRight.y,
-                    );
-                    working = GeometryComponent.update(working, { upperLeft, lowerRight });
+                  case 'upperRight':
+                    working = GeometryComponent.update(working, {
+                      origin: new SheetPosition(corners.upperLeft.x, rawPosition.y),
+                      width: rawPosition.x - corners.upperLeft.x,
+                      height: corners.lowerRight.y - rawPosition.y,
+                    });
                     break;
-                  }
-                  case 'lowerLeft': {
-                    const workingRectData = GeometryComponent.get(working);
-                    const upperLeft = new SheetPosition(rawPosition.x, workingRectData.upperLeft.y);
-                    const lowerRight = new SheetPosition(
-                      workingRectData.lowerRight.x,
-                      rawPosition.y,
-                    );
-                    working = GeometryComponent.update(working, { upperLeft, lowerRight });
+                  case 'lowerLeft':
+                    working = GeometryComponent.update(working, {
+                      origin: new SheetPosition(rawPosition.x, corners.upperLeft.y),
+                      width: corners.lowerRight.x - rawPosition.x,
+                      height: rawPosition.y - corners.upperLeft.y,
+                    });
                     break;
-                  }
                 }
               }
               return working;

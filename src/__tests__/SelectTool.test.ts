@@ -25,6 +25,7 @@ import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { PatternFilter, PatternRadialFilterData } from '@/lib/entity/filters/pattern';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { BoundingBox } from '@/lib/math';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { KeyPointSnapInfo } from '@/lib/snapping';
@@ -2007,10 +2008,8 @@ describe('SelectTool', () => {
           .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
         // Due to coordinate conversion, we just verify the aspect ratio is preserved (width/height ~= 2)
-        const width =
-          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
-        const height =
-          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
+        const width = GeometryComponent.get(rect).width;
+        const height = GeometryComponent.get(rect).height;
         expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -2050,10 +2049,8 @@ describe('SelectTool', () => {
           .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
         // With linkDimensions, width/height should equal original ratio (2)
-        const width =
-          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
-        const height =
-          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
+        const width = GeometryComponent.get(rect).width;
+        const height = GeometryComponent.get(rect).height;
         expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -2090,10 +2087,8 @@ describe('SelectTool', () => {
         const rect = geometryStore
           .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
-        const width =
-          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
-        const height =
-          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
+        const width = GeometryComponent.get(rect).width;
+        const height = GeometryComponent.get(rect).height;
         expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -2130,10 +2125,8 @@ describe('SelectTool', () => {
         const rect = geometryStore
           .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
-        const width =
-          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
-        const height =
-          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
+        const width = GeometryComponent.get(rect).width;
+        const height = GeometryComponent.get(rect).height;
         expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -2173,10 +2166,8 @@ describe('SelectTool', () => {
           .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
         // With alt held and linkDimensions, width/height should equal original ratio (2)
-        const width =
-          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
-        const height =
-          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
+        const width = GeometryComponent.get(rect).width;
+        const height = GeometryComponent.get(rect).height;
         expect(width / height).toBeCloseTo(2, 1);
 
         upHandler!({
@@ -2213,10 +2204,8 @@ describe('SelectTool', () => {
         const rect = geometryStore
           .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
-        const width =
-          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
-        const height =
-          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
+        const width = GeometryComponent.get(rect).width;
+        const height = GeometryComponent.get(rect).height;
         // Original aspect ratio was 4:2 = 2:1. With linking, it should move toward 1:1
         // Check that height changed (proportional scaling happened)
         expect(height).not.toBeCloseTo(2, 1);
@@ -2249,8 +2238,7 @@ describe('SelectTool', () => {
         const rect = geometryStore
           .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
-        const height =
-          GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y;
+        const height = GeometryComponent.get(rect).height;
         // Original height was 2, with linking it should scale
         expect(height).not.toBeCloseTo(2, 1);
 
@@ -2282,8 +2270,7 @@ describe('SelectTool', () => {
         const rect = geometryStore
           .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
-        const width =
-          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
+        const width = GeometryComponent.get(rect).width;
         // Original width was 4, with linking it should scale
         expect(width).not.toBeCloseTo(4, 1);
 
@@ -2315,8 +2302,7 @@ describe('SelectTool', () => {
         const rect = geometryStore
           .listWithComponent(GeometryComponent)
           .find((r) => r.id === rectangleId)!;
-        const width =
-          GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x;
+        const width = GeometryComponent.get(rect).width;
         expect(width).not.toBeCloseTo(4, 1);
 
         upHandler!({ clientX: 200, clientY: moveScreen.y + SELECTED_OUTSET_PX } as MouseEvent);
@@ -2940,10 +2926,10 @@ describe('SelectTool', () => {
 
       expect(duplicate).toBeDefined();
       expect(original).toBeDefined();
-      expect(GeometryComponent.get(duplicate!).upperLeft.x).not.toBe(originalX);
-      expect(GeometryComponent.get(duplicate!).upperLeft.y).not.toBe(originalY);
-      expect(GeometryComponent.get(original!).upperLeft.x).toBe(originalX);
-      expect(GeometryComponent.get(original!).upperLeft.y).toBe(originalY);
+      expect(GeometryComponent.get(duplicate!).origin.x).not.toBe(originalX);
+      expect(GeometryComponent.get(duplicate!).origin.y).not.toBe(originalY);
+      expect(GeometryComponent.get(original!).origin.x).toBe(originalX);
+      expect(GeometryComponent.get(original!).origin.y).toBe(originalY);
     });
 
     it('duplicates ellipse on alt-drag and moves the duplicate', () => {
@@ -3748,14 +3734,10 @@ describe('SelectTool', () => {
       moveHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
 
       const rect = geometryStore.listWithComponent(GeometryComponent).find((r) => r.id === rectId)!;
-      expect(isOnGrid(GeometryComponent.get(rect).upperLeft.x)).toBe(true);
-      expect(isOnGrid(GeometryComponent.get(rect).upperLeft.y)).toBe(true);
-      expect(
-        GeometryComponent.get(rect).lowerRight.x - GeometryComponent.get(rect).upperLeft.x,
-      ).toBeCloseTo(origWidth, 5);
-      expect(
-        GeometryComponent.get(rect).lowerRight.y - GeometryComponent.get(rect).upperLeft.y,
-      ).toBeCloseTo(origHeight, 5);
+      expect(isOnGrid(GeometryComponent.get(rect).origin.x)).toBe(true);
+      expect(isOnGrid(GeometryComponent.get(rect).origin.y)).toBe(true);
+      expect(GeometryComponent.get(rect).width).toBeCloseTo(origWidth, 5);
+      expect(GeometryComponent.get(rect).height).toBeCloseTo(origHeight, 5);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -3867,16 +3849,16 @@ describe('SelectTool', () => {
       upHandler!({ clientX: 0, clientY: 0 } as MouseEvent);
 
       const one = geometryStore.getByIdWithComponent(oneId, GeometryComponent)!;
-      expect(GeometryComponent.get(one).upperLeft.x).toBeCloseTo(-5, 2);
-      expect(GeometryComponent.get(one).upperLeft.y).toBeCloseTo(-5, 2);
-      expect(GeometryComponent.get(one).lowerRight.x).toBeCloseTo(5, 2);
-      expect(GeometryComponent.get(one).lowerRight.y).toBeCloseTo(5, 2);
+      expect(GeometryComponent.get(one).origin.x).toBeCloseTo(-5, 2);
+      expect(GeometryComponent.get(one).origin.y).toBeCloseTo(-5, 2);
+      expect(GeometryComponent.get(one).width).toBeCloseTo(10, 2);
+      expect(GeometryComponent.get(one).height).toBeCloseTo(10, 2);
 
       const two = geometryStore.getByIdWithComponent(twoId, GeometryComponent)!;
-      expect(GeometryComponent.get(two).upperLeft.x).toBeCloseTo(15, 2);
-      expect(GeometryComponent.get(two).upperLeft.y).toBeCloseTo(15, 2);
-      expect(GeometryComponent.get(two).lowerRight.x).toBeCloseTo(25, 2);
-      expect(GeometryComponent.get(two).lowerRight.y).toBeCloseTo(25, 2);
+      expect(GeometryComponent.get(two).origin.x).toBeCloseTo(15, 2);
+      expect(GeometryComponent.get(two).origin.y).toBeCloseTo(15, 2);
+      expect(GeometryComponent.get(two).width).toBeCloseTo(10, 2);
+      expect(GeometryComponent.get(two).height).toBeCloseTo(10, 2);
     });
 
     it('should be able to select two geometries and alt drag to duplicate both', () => {
@@ -3935,17 +3917,20 @@ describe('SelectTool', () => {
       const selectedRectangles = Array.from(
         geometryStore.getByIdsWithComponent(selectionManager.getSelectedIds(), GeometryComponent),
       ).filter(GeometryComponent.isRectangle);
+      const selectedCorners = selectedRectangles.map((geometry) =>
+        BoundingBox.corners(GeometryComponent.boundingBox(geometry)),
+      );
       const selectedUpperLeftXValues = new Set(
-        selectedRectangles.map((geometry) => GeometryComponent.get(geometry).upperLeft.x),
+        selectedCorners.map((corners) => corners.upperLeft.x),
       );
       const selectedUpperLeftYValues = new Set(
-        selectedRectangles.map((geometry) => GeometryComponent.get(geometry).upperLeft.y),
+        selectedCorners.map((corners) => corners.upperLeft.y),
       );
       const selectedLowerRightXValues = new Set(
-        selectedRectangles.map((geometry) => GeometryComponent.get(geometry).lowerRight.x),
+        selectedCorners.map((corners) => corners.lowerRight.x),
       );
       const selectedLowerRightYValues = new Set(
-        selectedRectangles.map((geometry) => GeometryComponent.get(geometry).lowerRight.y),
+        selectedCorners.map((corners) => corners.lowerRight.y),
       );
 
       // Rectangle one
@@ -4081,21 +4066,21 @@ describe('SelectTool', () => {
       // Make sure that rectangle one and two actually moved, and weren't hung up by their
       // self-constraints
       expect(
-        GeometryComponent.get(geometryStore.getByIdWithComponent(oneId, GeometryComponent)!)
-          .upperLeft.x,
+        GeometryComponent.get(geometryStore.getByIdWithComponent(oneId, GeometryComponent)!).origin
+          .x,
       ).not.toStrictEqual(0);
       expect(
-        GeometryComponent.get(geometryStore.getByIdWithComponent(oneId, GeometryComponent)!)
-          .upperLeft.y,
+        GeometryComponent.get(geometryStore.getByIdWithComponent(oneId, GeometryComponent)!).origin
+          .y,
       ).not.toStrictEqual(0);
 
       expect(
-        GeometryComponent.get(geometryStore.getByIdWithComponent(twoId, GeometryComponent)!)
-          .upperLeft.x,
+        GeometryComponent.get(geometryStore.getByIdWithComponent(twoId, GeometryComponent)!).origin
+          .x,
       ).not.toStrictEqual(0);
       expect(
-        GeometryComponent.get(geometryStore.getByIdWithComponent(twoId, GeometryComponent)!)
-          .upperLeft.y,
+        GeometryComponent.get(geometryStore.getByIdWithComponent(twoId, GeometryComponent)!).origin
+          .y,
       ).not.toStrictEqual(20);
     });
 
@@ -4144,12 +4129,12 @@ describe('SelectTool', () => {
 
       // Make sure that rectangle one didn't actually get moved since it should be constrained
       expect(
-        GeometryComponent.get(geometryStore.getByIdWithComponent(oneId, GeometryComponent)!)
-          .upperLeft.x,
+        GeometryComponent.get(geometryStore.getByIdWithComponent(oneId, GeometryComponent)!).origin
+          .x,
       ).toBeCloseTo(0, 2);
       expect(
-        GeometryComponent.get(geometryStore.getByIdWithComponent(oneId, GeometryComponent)!)
-          .upperLeft.y,
+        GeometryComponent.get(geometryStore.getByIdWithComponent(oneId, GeometryComponent)!).origin
+          .y,
       ).toBeCloseTo(0, 2);
 
       // Note on this case generally - it's tricky because `draggingIds` needs to be updated later
@@ -4412,8 +4397,8 @@ describe('SelectTool', () => {
       const rect = geometryStore.listWithComponent(GeometryComponent).find((r) => r.id === rectId)!;
       const comp = GeometryComponent.get(rect);
       // The upperLeft corner should be near the circle: (3-3)^2 + (y-8)^2 = 25
-      const dx = comp.upperLeft.x - 3;
-      const dy = comp.upperLeft.y - 8;
+      const dx = comp.origin.x - 3;
+      const dy = comp.origin.y - 8;
       const dist = Math.sqrt(dx * dx + dy * dy);
       expect(dist).toBeCloseTo(5, 0);
 
@@ -4486,8 +4471,8 @@ describe('SelectTool', () => {
       const rect = geometryStore.listWithComponent(GeometryComponent).find((r) => r.id === rectId)!;
       const comp = GeometryComponent.get(rect);
       // The upperLeft y should be constrained to the circle intersection near y=3
-      const dy = comp.upperLeft.y - 8;
-      const distAtX3 = Math.sqrt((comp.upperLeft.x - 3) * (comp.upperLeft.x - 3) + dy * dy);
+      const dy = comp.origin.y - 8;
+      const distAtX3 = Math.sqrt((comp.origin.x - 3) * (comp.origin.x - 3) + dy * dy);
       expect(distAtX3).toBeCloseTo(5, 0);
 
       upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
@@ -4557,7 +4542,7 @@ describe('SelectTool', () => {
       // If grid snap were active, the origin would be near (0, 2) or similar integer value.
       // Instead the constrained position should be noticeably off-grid.
       const distFromOrigin = Math.sqrt(
-        comp.upperLeft.x * comp.upperLeft.x + comp.upperLeft.y * comp.upperLeft.y,
+        comp.origin.x * comp.origin.x + comp.origin.y * comp.origin.y,
       );
       expect(distFromOrigin).toBeGreaterThan(1);
 
@@ -4585,8 +4570,8 @@ describe('SelectTool', () => {
       const comp = GeometryComponent.get(rect);
       // Unconstrained geometry should snap origin to nearest grid point
       // Origin moves by (0.3, 0.3) and snaps to (0, 0), so no net movement
-      expect(comp.upperLeft.x).toBeCloseTo(0, 0);
-      expect(comp.upperLeft.y).toBeCloseTo(0, 0);
+      expect(comp.origin.x).toBeCloseTo(0, 0);
+      expect(comp.origin.y).toBeCloseTo(0, 0);
 
       upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
     });
@@ -4811,7 +4796,7 @@ describe('SelectTool', () => {
 
       const rectAfter = geometryStore.getByIdWithComponent(rectId, GeometryComponent);
       expect(rectAfter).not.toBeNull();
-      const ul = GeometryComponent.get(rectAfter!).upperLeft;
+      const ul = GeometryComponent.get(rectAfter!).origin;
       // If unconstrained, UL would be at roughly (20, 0).  The constraint should have
       // prevented that and induced some vertical movement.
       expect(ul.y).toBeGreaterThan(0);
@@ -4854,7 +4839,7 @@ describe('SelectTool', () => {
 
       const rectAfter = geometryStore.getByIdWithComponent(rectId, GeometryComponent);
       expect(rectAfter).not.toBeNull();
-      const ul = GeometryComponent.get(rectAfter!).upperLeft;
+      const ul = GeometryComponent.get(rectAfter!).origin;
       // upperLeft should be close to the line y = x
       expect(ul.y).toBeCloseTo(ul.x, -2);
 
@@ -4964,7 +4949,7 @@ describe('SelectTool', () => {
       const rect1 = geometryStore.getByIdWithComponent(rectId1, GeometryComponent);
       // The rectangle should have moved (constraint didn't lock it)
       expect(rect1).not.toBeNull();
-      const ul1 = GeometryComponent.get(rect1!).upperLeft;
+      const ul1 = GeometryComponent.get(rect1!).origin;
       // UpperLeft should have moved from (0, 0)
       expect(ul1.x).toBeGreaterThan(0);
       expect(ul1.y).toBeGreaterThan(0);

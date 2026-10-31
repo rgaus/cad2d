@@ -1368,29 +1368,29 @@ describe('HistoryManager', () => {
             geometryStore
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isRectangle)[0],
-          ).upperLeft.x,
+          ).origin.x,
         ).toBe(5);
         expect(
           GeometryComponent.get(
             geometryStore
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isRectangle)[0],
-          ).upperLeft.y,
+          ).origin.y,
         ).toBe(5);
         expect(
           GeometryComponent.get(
             geometryStore
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isRectangle)[0],
-          ).lowerRight.x,
-        ).toBe(15);
+          ).width,
+        ).toBe(10);
         expect(
           GeometryComponent.get(
             geometryStore
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isRectangle)[0],
-          ).lowerRight.y,
-        ).toBe(25);
+          ).height,
+        ).toBe(20);
 
         historyManager.undo();
 
@@ -1399,28 +1399,28 @@ describe('HistoryManager', () => {
             geometryStore
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isRectangle)[0],
-          ).upperLeft.x,
+          ).origin.x,
         ).toBe(0);
         expect(
           GeometryComponent.get(
             geometryStore
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isRectangle)[0],
-          ).upperLeft.y,
+          ).origin.y,
         ).toBe(0);
         expect(
           GeometryComponent.get(
             geometryStore
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isRectangle)[0],
-          ).lowerRight.x,
+          ).width,
         ).toBe(10);
         expect(
           GeometryComponent.get(
             geometryStore
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isRectangle)[0],
-          ).lowerRight.y,
+          ).height,
         ).toBe(20);
 
         historyManager.redo();
@@ -1430,29 +1430,29 @@ describe('HistoryManager', () => {
             geometryStore
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isRectangle)[0],
-          ).upperLeft.x,
+          ).origin.x,
         ).toBe(5);
         expect(
           GeometryComponent.get(
             geometryStore
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isRectangle)[0],
-          ).upperLeft.y,
+          ).origin.y,
         ).toBe(5);
         expect(
           GeometryComponent.get(
             geometryStore
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isRectangle)[0],
-          ).lowerRight.x,
-        ).toBe(15);
+          ).width,
+        ).toBe(10);
         expect(
           GeometryComponent.get(
             geometryStore
               .listWithComponent(GeometryComponent)
               .filter(GeometryComponent.isRectangle)[0],
-          ).lowerRight.y,
-        ).toBe(25);
+          ).height,
+        ).toBe(20);
       });
     });
 

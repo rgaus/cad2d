@@ -5,6 +5,7 @@ import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { Entity, GeometryComponent } from '@/lib/entity';
 import { type GeometryData } from '@/lib/entity/geometry';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { Vector2 } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { MirrorFilterIconTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
@@ -134,12 +135,10 @@ export default function MirrorFilterIndicator({
             break;
           }
           case 'rectangle': {
-            const x = geometryData.upperLeft.x * SHEET_UNITS_TO_PIXELS;
-            const y = geometryData.upperLeft.y * SHEET_UNITS_TO_PIXELS;
-            const w =
-              (geometryData.lowerRight.x - geometryData.upperLeft.x) * SHEET_UNITS_TO_PIXELS;
-            const h =
-              (geometryData.lowerRight.y - geometryData.upperLeft.y) * SHEET_UNITS_TO_PIXELS;
+            const x = geometryData.origin.x * SHEET_UNITS_TO_PIXELS;
+            const y = geometryData.origin.y * SHEET_UNITS_TO_PIXELS;
+            const w = geometryData.width * SHEET_UNITS_TO_PIXELS;
+            const h = geometryData.height * SHEET_UNITS_TO_PIXELS;
             graphics.rect(x, y, w, h);
             graphics.stroke();
             break;

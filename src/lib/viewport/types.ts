@@ -9,6 +9,8 @@ export const WorldPositionType = Symbol('world-position');
 export const ScreenPositionType = Symbol('screen-position');
 /** Runtime type symbol for SheetPosition. */
 export const SheetPositionType = Symbol('sheet-position');
+/** Runtime type symbol for GeometryPosition. */
+export const GeometryPositionType = Symbol('geometry-position');
 
 /** Current viewport transform state. */
 export type ViewportState = {
@@ -229,6 +231,11 @@ export class SheetPosition extends Position {
   toScreen(state: ViewportState): ScreenPosition {
     return this.toWorld().toScreen(state);
   }
+}
+
+/** Position in sheet coodrinates, relative to the associated geometry's origin */
+export class GeometryPosition extends Position {
+  readonly type = GeometryPositionType;
 }
 
 (globalThis as any).SheetPosition = SheetPosition;

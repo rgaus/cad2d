@@ -1044,12 +1044,12 @@ describe('TrimSplitTool', () => {
       expect(rectanglesAfterUndo.length).toBeGreaterThanOrEqual(2);
       const upperLeftRectangleAfterUndo = rectanglesAfterUndo.find((r) => {
         const rectangle = GeometryComponent.get(r);
-        return rectangle.upperLeft.x === 0 && rectangle.upperLeft.y === 0;
+        return rectangle.origin.x === 0 && rectangle.origin.y === 0;
       });
       expect(upperLeftRectangleAfterUndo).toBeDefined();
       const lowerRightRectangleAfterUndo = rectanglesAfterUndo.find((r) => {
         const rectangle = GeometryComponent.get(r);
-        return rectangle.upperLeft.x === 5 && rectangle.upperLeft.y === 5;
+        return rectangle.origin.x === 5 && rectangle.origin.y === 5;
       });
       expect(lowerRightRectangleAfterUndo).toBeDefined();
 

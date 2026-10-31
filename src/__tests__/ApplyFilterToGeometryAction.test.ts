@@ -730,7 +730,10 @@ describe('ApplyFilterToGeometryAction', () => {
 
       const upperLefts = shapes.map((g) => {
         const r = GeometryComponent.get(g);
-        return [r.upperLeft.x, r.upperLeft.y];
+        if (r.type !== 'rectangle') {
+          throw new Error('Expected rectangle geometry');
+        }
+        return [r.origin.x, r.origin.y];
       });
       expect(upperLefts).toContainEqual([0, 0]);
       expect(upperLefts).toContainEqual([10, 0]);

@@ -167,12 +167,8 @@ describe('ToggleLinkDimensionsAction', () => {
     );
     expect(rect).not.toBeNull();
     expect(LinkDimensionsComponent.get(rect!)).toBe(true);
-    expect(
-      GeometryComponent.get(rect!).lowerRight.x - GeometryComponent.get(rect!).upperLeft.x,
-    ).toBe(20);
-    expect(
-      GeometryComponent.get(rect!).lowerRight.y - GeometryComponent.get(rect!).upperLeft.y,
-    ).toBe(20);
+    expect(GeometryComponent.get(rect!).width).toBe(20);
+    expect(GeometryComponent.get(rect!).height).toBe(20);
   });
 
   it('supports undo/redo on a rectangle', async () => {
@@ -205,12 +201,12 @@ describe('ToggleLinkDimensionsAction', () => {
     expect(
       GeometryComponent.get(
         geometryStore.getByIdWithComponents(rectId, GeometryComponent, LinkDimensionsComponent)!,
-      ).lowerRight.x,
+      ).width,
     ).toBe(10);
     expect(
       GeometryComponent.get(
         geometryStore.getByIdWithComponents(rectId, GeometryComponent, LinkDimensionsComponent)!,
-      ).lowerRight.y,
+      ).height,
     ).toBe(20);
 
     historyManager.redo();
