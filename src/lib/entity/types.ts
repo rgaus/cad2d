@@ -137,11 +137,6 @@ export type EntityOmitComponents<G extends Entity, C> = Omit<G, 'components'> & 
   components: Omit<G['components'], keyof C>;
 };
 
-/** Ensure that the given set of components are assigned to `never`, so they cannot be passed in. */
-export type EntityNeverComponents<G extends Entity, C> = Omit<G, 'components'> & {
-  components: Omit<G['components'], keyof C> & { [key in keyof C]: never };
-};
-
 export type EntityComponent<Type extends string, Metadata> = { [key in Type]: Metadata };
 
 /** Corner being dragged during shape resize. */
