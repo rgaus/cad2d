@@ -1,7 +1,15 @@
+import { type FieldOptionsList } from '@/lib/selection/fields';
+import { type SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
+import { AnchorPointComponent } from './components/AnchorPointComponent';
+import { ConstraintComponent } from './components/ConstraintComponent';
 import { DatumComponent } from './components/DatumComponent';
+import { FillColorComponent } from './components/FillColorComponent';
+import { FilterComponent } from './components/FilterComponent';
 import { FrameComponent } from './components/FrameComponent';
 import { GeometryComponent } from './components/GeometryComponent';
+import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
+import { RenderOrderComponent } from './components/RenderOrderComponent';
 import { EllipseData } from './geometry/ellipse';
 import { PolygonData } from './geometry/polygon';
 import { RectangleData } from './geometry/rectangle';
@@ -130,6 +138,129 @@ export namespace Entity {
       return FrameComponent.boundingBox(entity);
     }
     throw new Error(`Entity.boundingBox: unknown geometry type for id=${entity.id}`);
+  }
+
+  /** The order of components in the selection inspector. If a component isn't in this list, it
+   * will be rendered at the bottom. */
+  function getComponentKeyOrdering(key: string): number {
+    return [
+      GeometryComponent.key,
+      ConstraintComponent.key,
+      DatumComponent.key,
+      FilterComponent.key,
+      FrameComponent.key,
+      LinkDimensionsComponent.key,
+
+      // Fill color + render order at the bottom
+      FillColorComponent.key,
+      RenderOrderComponent.key,
+      AnchorPointComponent.key,
+    ].indexOf(key as any);
+  }
+
+  function getComponentByKey(key: string) {
+    for (const component of [
+      GeometryComponent,
+      FillColorComponent,
+      ConstraintComponent,
+      DatumComponent,
+      FilterComponent,
+      FrameComponent,
+      LinkDimensionsComponent,
+      RenderOrderComponent,
+      AnchorPointComponent,
+    ]) {
+      if (component.key === key) {
+        return component;
+      }
+    }
+    return null;
+  }
+
+  /** Dispatches a single entity + component to that component's field builder. Each component owns
+   * the knowledge of which fields it contributes; this method only routes and guards. */
+  function computeFieldsForComponent(
+    entity: Entity,
+    Component: NonNullable<ReturnType<typeof getComponentByKey>>,
+    context: SelectionInspectorContext,
+  ): FieldOptionsList {
+    switch (Component.key) {
+      case GeometryComponent.key: {
+        if (!Entity.hasComponent(entity, GeometryComponent)) {
+          return [];
+        }
+        return GeometryComponent.computeSelectionInspectorFields(entity, context);
+      }
+      case FillColorComponent.key: {
+        if (!Entity.hasComponent(entity, FillColorComponent)) {
+          return [];
+        }
+        return FillColorComponent.computeSelectionInspectorFields(entity, context);
+      }
+      case RenderOrderComponent.key: {
+        if (!Entity.hasComponent(entity, RenderOrderComponent)) {
+          return [];
+        }
+        return RenderOrderComponent.computeSelectionInspectorFields(entity, context);
+      }
+      case FrameComponent.key: {
+        if (!Entity.hasComponent(entity, FrameComponent)) {
+          return [];
+        }
+        return FrameComponent.computeSelectionInspectorFields(entity, context);
+      }
+      case DatumComponent.key: {
+        if (!Entity.hasComponent(entity, DatumComponent)) {
+          return [];
+        }
+        return DatumComponent.computeSelectionInspectorFields(entity, context);
+      }
+      case FilterComponent.key: {
+        if (!Entity.hasComponent(entity, FilterComponent)) {
+          return [];
+        }
+        return FilterComponent.computeSelectionInspectorFields(entity, context);
+      }
+      case ConstraintComponent.key: {
+        if (!Entity.hasComponent(entity, ConstraintComponent)) {
+          return [];
+        }
+        return ConstraintComponent.computeSelectionInspectorFields(entity, context);
+      }
+      case LinkDimensionsComponent.key: {
+        // LinkDimensionsComponent is consumed within GeometryComponent to conditionally show the
+        // link button. It does not render its own standalone fields.
+        return [];
+      }
+      case AnchorPointComponent.key: {
+        if (!Entity.hasComponent(entity, AnchorPointComponent)) {
+          return [];
+        }
+        return AnchorPointComponent.computeSelectionInspectorFields(entity, context);
+      }
+      default:
+        Component satisfies never;
+        return [];
+    }
+  }
+
+  /** Builds the ordered list of selection-inspector fields contributed by a single entity's
+   * components. */
+  export function computeSelectionInspectorFields(
+    entity: Entity,
+    context: SelectionInspectorContext,
+  ): FieldOptionsList {
+    const componentKeys = Object.keys(entity.components).sort((a, b) => {
+      return getComponentKeyOrdering(a) - getComponentKeyOrdering(b);
+    });
+
+    return componentKeys.flatMap((key) => {
+      const Component = getComponentByKey(key);
+      if (!Component) {
+        return [];
+      }
+      return computeFieldsForComponent(entity, Component, context);
+    });
   }
 }
 
