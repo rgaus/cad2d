@@ -140,6 +140,16 @@ export namespace Entity {
     throw new Error(`Entity.boundingBox: unknown geometry type for id=${entity.id}`);
   }
 
+  export function generateRenderTransformFunction(entity: Entity) {
+    let previous = (position: SheetPosition) => position;
+
+    if (Entity.hasComponent(entity, AnchorPointComponent)) {
+      previous = (position: SheetPosition) => AnchorPointComponent.generateRenderTransformFunction(entity)(previous(position));
+    }
+
+    return previous;
+  }
+
   /** The order of components in the selection inspector. If a component isn't in this list, it
    * will be rendered at the bottom. */
   function getComponentKeyOrdering(key: string): number {

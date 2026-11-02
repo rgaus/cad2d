@@ -213,7 +213,7 @@ export namespace GeometryComponent {
   export function getRendered<D extends GeometryData = GeometryData>(
     geometry: Entity<GeometryComponent<D> & Partial<AnchorPointComponent>>,
   ): D {
-    return get(transform(geometry, AnchorPointComponent.generateTranslationFunction(geometry)));
+    return get(transform(geometry, AnchorPointComponent.generateRenderTransformFunction(geometry)));
   }
 
   export function isPolygon(
@@ -272,7 +272,7 @@ export namespace GeometryComponent {
       // below reads plain (unanchored) geometry.
       const translated = GeometryComponent.transform(
         geometry,
-        AnchorPointComponent.generateTranslationFunction(geometry),
+        AnchorPointComponent.generateRenderTransformFunction(geometry),
       );
       return GeometryComponent.keyPoints(AnchorPointComponent.remove(translated));
     }
@@ -300,7 +300,7 @@ export namespace GeometryComponent {
     if (Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
       const translated = GeometryComponent.transform(
         geometry,
-        AnchorPointComponent.generateTranslationFunction(geometry),
+        AnchorPointComponent.generateRenderTransformFunction(geometry),
       );
       return GeometryComponent.boundingBox(AnchorPointComponent.remove(translated));
     }
@@ -377,7 +377,7 @@ export namespace GeometryComponent {
     if (Entity.hasComponents(working, GeometryComponent, AnchorPointComponent)) {
       const translated = GeometryComponent.transform(
         working,
-        AnchorPointComponent.generateTranslationFunction(working),
+        AnchorPointComponent.generateRenderTransformFunction(working),
       );
       working = AnchorPointComponent.remove(translated);
     }

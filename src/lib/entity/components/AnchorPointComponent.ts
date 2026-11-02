@@ -92,14 +92,14 @@ export namespace AnchorPointComponent {
    * invert it to convert rendered positions back into raw positions. Geometries without an anchor
    * point are translated by zero.
    */
-  export function generateTranslationFunction(
-    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  export function generateRenderTransformFunction(
+    geometry: Entity<AnchorPointComponent>,
   ): (position: SheetPosition) => SheetPosition {
-    if (!Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
-      return (position) => new SheetPosition(position.x, position.y);
+    if (Entity.hasComponent(geometry, GeometryComponent)) {
+      const offset = AnchorPointComponent.computeAssociatedGeometryOffset(geometry);
+      return (position) => new SheetPosition(position.x - offset.x, position.y - offset.y);
     }
-    const offset = AnchorPointComponent.computeAssociatedGeometryOffset(geometry);
-    return (position) => new SheetPosition(position.x - offset.x, position.y - offset.y);
+    return (position) => new SheetPosition(position.x, position.y);
   }
 
   /**
