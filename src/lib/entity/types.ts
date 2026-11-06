@@ -1,3 +1,4 @@
+import { type Matrix, compose, identity } from 'transformation-matrix';
 import { RenderShape } from '@/lib/entity/render-shape';
 import { OrientedBoundingBox } from '@/lib/math';
 import { type FieldOptionsList } from '@/lib/selection/fields';
@@ -165,6 +166,25 @@ export namespace Entity {
     }
 
     return (position: SheetPosition) => position;
+  }
+
+  /** Given an {@link Entity}, compute the matrix to take the entity and project it into where it
+   * should be rendered, based on any transformations like anchor point, rotation, etc. */
+  export function generateRenderMatrix(entity: Entity): Matrix {
+    if (Entity.hasComponent(entity, AnchorPointComponent)) {
+      const anchor = AnchorPointComponent.generateRenderMatrix(entity);
+      if (Entity.hasComponent(entity, RotationComponent)) {
+        const rotate = RotationComponent.generateRenderMatrix(entity);
+        return compose(rotate, anchor);
+      }
+      return anchor;
+    }
+
+    if (Entity.hasComponent(entity, RotationComponent)) {
+      return RotationComponent.generateRenderMatrix(entity);
+    }
+
+    return identity();
   }
 
   export function getRenderShapes(entity: Entity, sheetDefaultUnit: UnitType): Array<RenderShape> {

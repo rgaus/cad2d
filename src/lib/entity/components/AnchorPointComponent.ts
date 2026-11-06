@@ -1,3 +1,4 @@
+import { type Matrix, identity, translate } from 'transformation-matrix';
 import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { Length } from '@/lib/units/length';
@@ -94,6 +95,18 @@ export namespace AnchorPointComponent {
       keyPointPosition.x - origin.x + offset.x,
       keyPointPosition.y - origin.y + offset.y,
     );
+  }
+
+  /**
+   * Builds the matrix which maps raw stored geometry positions into their rendered ("anchored")
+   * positions. Geometries without an anchor point are translated by zero.
+   */
+  export function generateRenderMatrix(geometry: Entity<AnchorPointComponent>): Matrix {
+    if (Entity.hasComponent(geometry, GeometryComponent)) {
+      const offset = AnchorPointComponent.computeAssociatedGeometryOffset(geometry);
+      return translate(-offset.x, -offset.y);
+    }
+    return identity();
   }
 
   /**

@@ -1,3 +1,4 @@
+import { applyToPoint, inverse } from 'transformation-matrix';
 import { BoundingBox } from '@/lib/math';
 import { AnchorPointComponent, Entity, GeometryComponent } from '../entity';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
@@ -239,23 +240,29 @@ export class SheetPosition extends Position {
     return this.toWorld().toScreen(state);
   }
 
+  /** Converts this rendered sheet position into the geometry's raw, origin-relative coordinate
+   * system. */
   toGeometryRelativeSheetPosition(
     geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
   ): GeometryRelativeSheetPosition {
-    const origin = GeometryComponent.getRenderOrigin(geometry);
-    return new GeometryRelativeSheetPosition(this.x - origin.x, this.y - origin.y);
+    const origin = GeometryComponent.getOrigin(geometry);
+    const raw = applyToPoint(inverse(Entity.generateRenderMatrix(geometry)), this);
+    return new GeometryRelativeSheetPosition(raw.x - origin.x, raw.y - origin.y);
   }
 }
 
-/** Position in sheet coodrinates, relative to the associated geometry's origin */
+/** Position in raw geometry coordinates, relative to the associated geometry's natural origin. */
 export class GeometryRelativeSheetPosition extends Position {
   readonly type = GeometryRelativeSheetPositionType;
 
-  toSheetPosition(
-    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
-  ): SheetPosition {
-    const origin = GeometryComponent.getRenderOrigin(geometry);
-    return new SheetPosition(origin.x + this.x, origin.y + this.y);
+  /** Converts this geometry-relative position into rendered sheet coordinates. */
+  toSheet(geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>): SheetPosition {
+    const origin = GeometryComponent.getOrigin(geometry);
+    const transformed = applyToPoint(
+      Entity.generateRenderMatrix(geometry),
+      new SheetPosition(origin.x + this.x, origin.y + this.y),
+    );
+    return new SheetPosition(transformed.x, transformed.y);
   }
 }
 

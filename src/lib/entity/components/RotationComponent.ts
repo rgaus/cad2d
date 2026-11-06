@@ -1,3 +1,4 @@
+import { type Matrix, identity, rotateDEG } from 'transformation-matrix';
 import { rotatePointAround } from '@/lib/math';
 import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import { type SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
@@ -42,6 +43,19 @@ export namespace RotationComponent {
     const components: Partial<E['components']> = { ...entity.components };
     delete components.rotation;
     return { ...entity, components };
+  }
+
+  /**
+   * Builds the matrix which maps raw stored geometry positions into their rendered ("rotated")
+   * positions.
+   */
+  export function generateRenderMatrix(entity: Entity<RotationComponent>): Matrix {
+    if (Entity.hasComponent(entity, GeometryComponent)) {
+      const { angle } = RotationComponent.get(entity);
+      const origin = GeometryComponent.getOrigin(entity);
+      return rotateDEG(angle.toDegrees().magnitude, origin.x, origin.y);
+    }
+    return identity();
   }
 
   /**
