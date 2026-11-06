@@ -15,6 +15,7 @@ import { PolygonData } from './geometry/polygon';
 import { RectangleData } from './geometry/rectangle';
 import { UnitType } from '@/lib/units/length';
 import { RenderShape } from '@/lib/entity/render-shape';
+import { RotationComponent } from './components/RotationComponent';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -146,7 +147,16 @@ export namespace Entity {
     * where it should be rendered, based on any transformations like anchor point, rotation, etc. */
   export function generateRenderTransformFunction(entity: Entity) {
     if (Entity.hasComponent(entity, AnchorPointComponent)) {
-      return (position: SheetPosition) => AnchorPointComponent.generateRenderTransformFunction(entity)(position);
+      const anchor = AnchorPointComponent.generateRenderTransformFunction(entity);
+      if (Entity.hasComponent(entity, RotationComponent)) {
+        const rotate = RotationComponent.generateRenderTransformFunction(entity);
+        return (position: SheetPosition) => rotate(anchor(position));
+      }
+      return anchor;
+    }
+
+    if (Entity.hasComponent(entity, RotationComponent)) {
+      return RotationComponent.generateRenderTransformFunction(entity);
     }
 
     return (position: SheetPosition) => position;
@@ -178,6 +188,7 @@ export namespace Entity {
       // Fill color + render order at the bottom
       FillColorComponent.key,
       RenderOrderComponent.key,
+      RotationComponent.key,
       AnchorPointComponent.key,
     ].indexOf(key as any);
   }
@@ -193,6 +204,7 @@ export namespace Entity {
       LinkDimensionsComponent,
       RenderOrderComponent,
       AnchorPointComponent,
+      RotationComponent,
     ]) {
       if (component.key === key) {
         return component;
@@ -261,6 +273,12 @@ export namespace Entity {
           return [];
         }
         return AnchorPointComponent.computeSelectionInspectorFields(entity, context);
+      }
+      case RotationComponent.key: {
+        if (!Entity.hasComponent(entity, RotationComponent)) {
+          return [];
+        }
+        return RotationComponent.computeSelectionInspectorFields(entity, context);
       }
       default:
         Component satisfies never;
