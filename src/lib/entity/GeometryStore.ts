@@ -1653,7 +1653,8 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               if (geomData.type !== 'polygon') {
                 return old;
               }
-              // The DCEL works in anchored space; convert back to raw stored coordinates.
+              // The DCEL works in anchored space; convert back to raw stored coordinates. This
+              // intentionally preserves the legacy anchor-only conversion (bug-for-bug parity).
               const offset = GeometryComponent.getAnchorPointOffset(old);
               const toRaw = (position: SheetPosition) =>
                 new SheetPosition(position.x + offset.x, position.y + offset.y);

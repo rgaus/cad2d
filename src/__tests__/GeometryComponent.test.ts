@@ -2,6 +2,7 @@ import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   CubicBezierSegment,
   Ellipse,
+  Entity,
   GeometryComponent,
   PointSegment,
   Polygon,
@@ -794,6 +795,98 @@ describe('GeometryComponent', () => {
       const center = keyPoints.extras.center.toSheet(geometry);
       expect(center.x).toBeCloseTo(9);
       expect(center.y).toBeCloseTo(14.5);
+    });
+  });
+
+  describe('projectToSheet', () => {
+    it('projects a rectangle by applying its render transform', () => {
+      const rectangle = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(11, 15), new SheetPosition(16, 17)),
+      );
+      geometryStore.updateByIdWithComponent(rectangle.id, AnchorPointComponent, (g) =>
+        AnchorPointComponent.update(g, {
+          keyPoint: 'lowerRight',
+          offset: new SheetPosition(-2, -3),
+        }),
+      );
+      geometryStore.updateByIdWithComponent(rectangle.id, RotationComponent, (g) =>
+        RotationComponent.update(g, { angle: Angle.degrees(90) }),
+      );
+      const geometry = geometryStore.getByIdWithComponents(
+        rectangle.id,
+        GeometryComponent,
+        AnchorPointComponent,
+      )!;
+
+      const raw = GeometryComponent.get(geometry);
+      const projected = GeometryComponent.projectToSheet(geometry);
+      const expectedOrigin = Entity.generateRenderTransformFunction(geometry)(raw.origin);
+
+      expect(projected.type).toBe('rectangle');
+      if (projected.type !== 'rectangle') {
+        return;
+      }
+      expect(projected.origin.x).toBeCloseTo(expectedOrigin.x);
+      expect(projected.origin.y).toBeCloseTo(expectedOrigin.y);
+      expect(projected.width).toBe(raw.width);
+      expect(projected.height).toBe(raw.height);
+    });
+
+    it('projects an ellipse by applying its render transform', () => {
+      const ellipse = geometryStore.addOrdered(
+        ID_PREFIXES.ellipse,
+        Ellipse.create(new SheetPosition(10, 10), { radiusX: 4, radiusY: 2 }),
+      );
+      geometryStore.updateByIdWithComponent(ellipse.id, RotationComponent, (g) =>
+        RotationComponent.update(g, { angle: Angle.degrees(90) }),
+      );
+      const geometry = geometryStore.getByIdWithComponents(
+        ellipse.id,
+        GeometryComponent,
+        AnchorPointComponent,
+      )!;
+
+      const raw = GeometryComponent.get(geometry);
+      const projected = GeometryComponent.projectToSheet(geometry);
+      const expectedCenter = Entity.generateRenderTransformFunction(geometry)(raw.center);
+
+      expect(projected.type).toBe('ellipse');
+      if (projected.type !== 'ellipse') {
+        return;
+      }
+      expect(projected.center.x).toBeCloseTo(expectedCenter.x);
+      expect(projected.center.y).toBeCloseTo(expectedCenter.y);
+    });
+
+    it('projects polygon points by applying their render transform', () => {
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(2, 3), makePoint(8, 3), makePoint(5, 9)], { closed: true }),
+      );
+      geometryStore.updateByIdWithComponent(polygon.id, RotationComponent, (g) =>
+        RotationComponent.update(g, { angle: Angle.degrees(90) }),
+      );
+      const geometry = geometryStore.getByIdWithComponents(
+        polygon.id,
+        GeometryComponent,
+        AnchorPointComponent,
+      )!;
+
+      const raw = GeometryComponent.get(geometry);
+      const projected = GeometryComponent.projectToSheet(geometry);
+      const transform = Entity.generateRenderTransformFunction(geometry);
+
+      expect(projected.type).toBe('polygon');
+      if (projected.type !== 'polygon' || raw.type !== 'polygon') {
+        return;
+      }
+      expect(projected.points).toHaveLength(raw.points.length);
+      for (let i = 0; i < raw.points.length; i += 1) {
+        const expected = transform(raw.points[i].point);
+        expect(projected.points[i].point.x).toBeCloseTo(expected.x);
+        expect(projected.points[i].point.y).toBeCloseTo(expected.y);
+      }
     });
   });
 });

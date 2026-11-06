@@ -386,7 +386,9 @@ export namespace GeometryComponent {
     originalBBox?: Rect<SheetPosition>,
   ): E {
     // Resize math happens in anchored (rendered) space, but the stored geometry is raw. Translate the
-    // inputs back into raw space before dispatching to the raw resize implementations.
+    // inputs back into raw space before dispatching to the raw resize implementations. This
+    // intentionally preserves the legacy anchor-only conversion (bug-for-bug parity); rotation-aware
+    // resize is a follow-up.
     const offset = GeometryComponent.getAnchorPointOffset(geometry);
     const rawParams =
       offset.x === 0 && offset.y === 0
