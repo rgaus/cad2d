@@ -7,6 +7,8 @@ import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
 import { EllipseData } from './geometry/ellipse';
 import { Entity, EntityOmitComponents } from './types';
+import { RotationComponent } from './components/RotationComponent';
+import { Angle } from '@/lib/units/angle';
 
 /** An ellipse defined by its center and two radii.
  * The semi-major axis is horizontal (radiusX).
@@ -60,6 +62,7 @@ export namespace Ellipse {
           keyPoint: 'center',
           offset: new SheetPosition(0, 0),
         }),
+        ...RotationComponent.create(Angle.degrees(0)),
       },
     };
   }
