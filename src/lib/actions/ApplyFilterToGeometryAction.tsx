@@ -19,7 +19,7 @@ import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { FillColorComponent } from '@/lib/entity/components/FillColorComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
-import { DestinationPoint, RenderShape } from '@/lib/entity/components/GeometryComponent';
+import { DestinationPoint } from '@/lib/entity/components/GeometryComponent';
 import { type ChamferFilterData } from '@/lib/entity/filters/chamfer';
 import { type FilletFilterData } from '@/lib/entity/filters/fillet';
 import { type MirrorFilterData } from '@/lib/entity/filters/mirror';
@@ -30,6 +30,7 @@ import { CornerReplacement, type CornerSegmentFactory, Vector2, mod } from '@/li
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
+import { RenderShape } from '../entity/render-shape';
 
 type CornerState =
   | {
@@ -447,6 +448,12 @@ export class ApplyFilterToGeometryAction extends BaseAction {
             linkDimensions: false,
           }),
         );
+      case 'point':
+        // Point shapes are zero size
+        // TODO: I'm not 100% sure about this, validate there isn't a case where this will get hit
+        // in practice
+        console.warn('WARNING: ApplyFilterToGeometryAction.addRenderShapeAsGeometry: Skipping renderShape.shape of "point".');
+        return undefined;
       default:
         renderShape satisfies never;
         return undefined;

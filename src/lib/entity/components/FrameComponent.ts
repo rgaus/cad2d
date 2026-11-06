@@ -1,9 +1,10 @@
 import { BoundingBox } from '@/lib/math';
 import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
-import { Length } from '@/lib/units/length';
+import { Length, UnitType } from '@/lib/units/length';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import { type Entity, type EntityComponent, ResizeParams } from '../types';
+import { Entity, type EntityComponent, ResizeParams } from '../types';
+import { RenderShape } from '../render-shape';
 
 export type FrameData = { upperLeft: SheetPosition; lowerRight: SheetPosition };
 
@@ -64,8 +65,30 @@ export namespace FrameComponent {
   }
 
   export function boundingBox(entity: Entity<FrameComponent>): Rect<SheetPosition> {
-    const frameData = FrameComponent.get(entity);
+    const frameData = getRendered(entity);
     return BoundingBox.fromPoints([frameData.upperLeft, frameData.lowerRight]);
+  }
+
+  /** Returns the datum position data after any render transforms have been applied. */
+  export function getRendered(entity: Entity<FrameComponent>): FrameData {
+    const transformFn = Entity.generateRenderTransformFunction(entity);
+    return get(transform(entity, transformFn));
+  }
+
+  export function transform<E extends Entity<FrameComponent>>(
+    entity: E,
+    transform: (input: SheetPosition) => SheetPosition,
+  ): E {
+    const frameData = get(entity);
+    return update(entity, {
+      upperLeft: transform(frameData.upperLeft),
+      lowerRight: transform(frameData.lowerRight),
+    });
+  }
+
+  export function getRenderShapes(entity: Entity<FrameComponent>, _sheetDefaultUnit: UnitType): Array<RenderShape> {
+    const p = FrameComponent.get(entity);
+    return [RenderShape.rectangle(entity.id, p.upperLeft, p.lowerRight, { primary: true })];
   }
 
   export function keyPoints(_entity: Entity<FrameComponent>): KeyPoints<SheetPosition> {

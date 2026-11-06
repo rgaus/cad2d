@@ -654,6 +654,9 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
                 onFillPointerOut={onFillPointerOut}
               />
             );
+          case 'point':
+            // Don't render points, they are zero size.
+            return null;
           default:
             renderShape satisfies never;
             break;

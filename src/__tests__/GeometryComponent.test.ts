@@ -6,9 +6,6 @@ import {
   PointSegment,
   Polygon,
   Rectangle,
-  RenderShapeEllipse,
-  RenderShapePolygon,
-  RenderShapeRectangle,
 } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
@@ -16,6 +13,7 @@ import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { PolygonSegment } from '@/lib/entity/geometry/polygon';
 import type { QuadraticBezierSegment } from '@/lib/entity/geometry/polygon';
+import { RenderShapeEllipse, RenderShapePolygon, RenderShapeRectangle } from '@/lib/entity/render-shape';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { Sheet } from '@/lib/sheet/Sheet';

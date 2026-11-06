@@ -20,29 +20,7 @@ import { ConstraintComponent } from './ConstraintComponent';
 import { FilterComponent } from './FilterComponent';
 import { FrameComponent } from './FrameComponent';
 import { LinkDimensionsComponent } from './LinkDimensionsComponent';
-
-export type RenderShapePolygon = {
-  shape: 'polygon';
-  key: string;
-  primary: boolean;
-  points: Array<PolygonSegment>;
-  closed: boolean;
-};
-export type RenderShapeRectangle = {
-  shape: 'rectangle';
-  key: string;
-  primary: boolean;
-  upperLeft: SheetPosition;
-  lowerRight: SheetPosition;
-};
-export type RenderShapeEllipse = {
-  shape: 'ellipse';
-  key: string;
-  primary: boolean;
-  center: SheetPosition;
-  radiusX: number;
-  radiusY: number;
-};
+import { RenderShape } from '../render-shape';
 
 export type GetRenderShapesOptions<D extends GeometryData = GeometryData> = {
   /** Defaults to true. When set to false, a non closed polygon which would become closed (ie,
@@ -73,74 +51,6 @@ export type DestinationPoint =
       type: 'rectangle';
       corner: RectangleEndpoint;
     };
-
-export type RenderShape = RenderShapePolygon | RenderShapeRectangle | RenderShapeEllipse;
-
-export namespace RenderShape {
-  export function polygon(
-    key: string,
-    points: Array<PolygonSegment>,
-    options?: { closed?: boolean; primary?: boolean },
-  ): RenderShape {
-    return {
-      shape: 'polygon' as const,
-      key,
-      primary: options?.primary ?? false,
-      points,
-      closed: options?.closed ?? false,
-    };
-  }
-  export function rectangle(
-    key: string,
-    upperLeft: SheetPosition,
-    lowerRight: SheetPosition,
-    options?: { primary?: boolean },
-  ): RenderShape {
-    return {
-      shape: 'rectangle' as const,
-      key,
-      primary: options?.primary ?? false,
-      upperLeft,
-      lowerRight,
-    };
-  }
-  export function ellipse(
-    key: string,
-    center: SheetPosition,
-    args: { radiusX: number; radiusY: number; primary?: boolean },
-  ): RenderShape {
-    return {
-      shape: 'ellipse' as const,
-      key,
-      primary: args?.primary ?? false,
-      center,
-      radiusX: args.radiusX,
-      radiusY: args.radiusY,
-    };
-  }
-
-  export function boundingBox(renderShape: RenderShape) {
-    switch (renderShape.shape) {
-      case 'polygon':
-        return BoundingBox.fromPoints(renderShape.points.map((p) => p.point));
-      case 'rectangle':
-        return BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]);
-      case 'ellipse':
-        return BoundingBox.fromPoints([
-          renderShape.center,
-          new SheetPosition(renderShape.center.x, renderShape.center.y + renderShape.radiusY),
-          new SheetPosition(renderShape.center.x, renderShape.center.y - renderShape.radiusY),
-          new SheetPosition(renderShape.center.x + renderShape.radiusX, renderShape.center.y),
-          new SheetPosition(renderShape.center.x - renderShape.radiusX, renderShape.center.y),
-        ]);
-      default:
-        renderShape satisfies never;
-        throw new Error(
-          `RenderShape.boundingBox: Unknown render shape ${(renderShape as any).shape}`,
-        );
-    }
-  }
-}
 
 /**
  * Entity component for a geometry - a rectangle, ellipse, or polygon.
@@ -211,9 +121,9 @@ export namespace GeometryComponent {
 
   /** Returns the geometry data after the entity's render transforms have been applied. */
   export function getRendered<D extends GeometryData = GeometryData>(
-    geometry: Entity<GeometryComponent<D> & Partial<AnchorPointComponent>>,
+    geometry: Entity<GeometryComponent<D>>,
   ): D {
-    return get(transform(geometry, AnchorPointComponent.generateRenderTransformFunction(geometry)));
+    return get(transform(geometry, Entity.generateRenderTransformFunction(geometry)));
   }
 
   export function isPolygon(
@@ -265,14 +175,14 @@ export namespace GeometryComponent {
    * entities like constraints to. These are expressed in anchored (rendered) space.
    **/
   export function keyPoints(
-    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+    geometry: Entity<GeometryComponent>,
   ): KeyPoints<SheetPosition, string> {
     if (Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
       // Translate the geometry into anchored space, then drop the anchor so the recursive call
       // below reads plain (unanchored) geometry.
       const translated = GeometryComponent.transform(
         geometry,
-        AnchorPointComponent.generateRenderTransformFunction(geometry),
+        Entity.generateRenderTransformFunction(geometry),
       );
       return GeometryComponent.keyPoints(AnchorPointComponent.remove(translated));
     }
@@ -294,13 +204,11 @@ export namespace GeometryComponent {
   }
 
   /** Bounding box in anchored (rendered) space. */
-  export function boundingBox(
-    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
-  ): Rect<SheetPosition> {
+  export function boundingBox(geometry: Entity<GeometryComponent>): Rect<SheetPosition> {
     if (Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
       const translated = GeometryComponent.transform(
         geometry,
-        AnchorPointComponent.generateRenderTransformFunction(geometry),
+        Entity.generateRenderTransformFunction(geometry),
       );
       return GeometryComponent.boundingBox(AnchorPointComponent.remove(translated));
     }
@@ -371,13 +279,13 @@ export namespace GeometryComponent {
 
   /** Origin in anchored (rendered) space. */
   export function getRenderOrigin(
-    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+    geometry: Entity<GeometryComponent>,
   ): SheetPosition {
     let working = geometry;
     if (Entity.hasComponents(working, GeometryComponent, AnchorPointComponent)) {
       const translated = GeometryComponent.transform(
         working,
-        AnchorPointComponent.generateRenderTransformFunction(working),
+        Entity.generateRenderTransformFunction(working),
       );
       working = AnchorPointComponent.remove(translated);
     }

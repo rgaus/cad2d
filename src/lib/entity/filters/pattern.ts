@@ -11,8 +11,8 @@ import {
   DestinationPoint,
   GeometryComponent,
   GetRenderShapesOptions,
-  RenderShape,
 } from '../components/GeometryComponent';
+import { RenderShape } from '../render-shape';
 
 export type PatternGridFilterData = {
   type: 'pattern';
@@ -463,6 +463,17 @@ export namespace PatternFilter {
                   );
                   break;
                 }
+                case 'point': {
+                  const translatedPoint = new SheetPosition(
+                    renderShape.position.x + offsetX,
+                    renderShape.position.y + offsetY,
+                  );
+
+                  copies.push(
+                    RenderShape.point(key, translatedPoint, { primary: false }),
+                  );
+                  break;
+                }
                 default:
                   renderShape satisfies never;
                   throw new Error(
@@ -711,6 +722,18 @@ export namespace PatternFilter {
                 }
 
                 return [renderShape, ...copies];
+              }
+              case 'point': {
+                copies.push(
+                  RenderShape.point(
+                    key,
+                    rotatePointAround(renderShape.position, filterData.center, angle),
+                    {
+                      primary: false,
+                    },
+                  ),
+                );
+                break;
               }
               default:
                 renderShape satisfies never;

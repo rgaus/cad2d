@@ -707,6 +707,10 @@ export function serializeToSvg(
             );
             break;
           }
+          case 'point': {
+            // TODO: implement render shape type of point serialization!
+            break;
+          }
           default:
             rs satisfies never;
             break;

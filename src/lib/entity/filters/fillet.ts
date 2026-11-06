@@ -9,10 +9,10 @@ import {
   type Rectangle,
   RectangleCorner,
   RectangleEndpoint,
-  RenderShape,
 } from '..';
 import { FilterComponent } from '../components/FilterComponent';
 import { ChamferFilterData } from './chamfer';
+import { RenderShape } from '../render-shape';
 
 export type FilletFilterData =
   | {
@@ -212,7 +212,8 @@ export namespace FilletFilter {
           break;
         }
         case 'ellipse':
-          // Ellipses can't have fillets / chamfers
+        case 'point':
+          // Ellipses or points can't have fillets / chamfers
           // So just pass through unchanged
           return [renderShape];
         default:

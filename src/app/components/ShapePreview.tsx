@@ -6,7 +6,6 @@ import {
   FrameComponent,
   GeometryComponent,
   PolygonSegment,
-  RenderShape,
 } from '@/lib/entity';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { Filter } from '@/lib/entity/filters';
@@ -17,6 +16,7 @@ import {
   type ShapePreviewHighlight,
 } from '@/lib/selection/ShapePreviewManager';
 import { Sheet } from '@/lib/sheet/Sheet';
+import { RenderShape } from '@/lib/entity/render-shape';
 
 export { type ShapePreviewEditingDimension, type ShapePreviewHighlight };
 
@@ -234,6 +234,20 @@ export default function ShapePreview({
                     />
                   ) : null}
                 </Fragment>
+              );
+            case 'point':
+              return (
+                <ellipse
+                  key={renderShape.key}
+                  cx={toSvg(renderShape.position.x, renderShape.position.y)[0]}
+                  cy={toSvg(renderShape.position.x, renderShape.position.y)[1]}
+                  rx={2} // (Arbitrary size)
+                  ry={2}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth="1"
+                  opacity={renderShape.primary ? 1 : 0.5}
+                />
               );
             default:
               renderShape satisfies never;

@@ -13,6 +13,8 @@ import { RenderOrderComponent } from './components/RenderOrderComponent';
 import { EllipseData } from './geometry/ellipse';
 import { PolygonData } from './geometry/polygon';
 import { RectangleData } from './geometry/rectangle';
+import { UnitType } from '@/lib/units/length';
+import { RenderShape } from '@/lib/entity/render-shape';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -140,14 +142,26 @@ export namespace Entity {
     throw new Error(`Entity.boundingBox: unknown geometry type for id=${entity.id}`);
   }
 
+  /** Given an {@link Entity}, compute the transform function to take the entity and project it into
+    * where it should be rendered, based on any transformations like anchor point, rotation, etc. */
   export function generateRenderTransformFunction(entity: Entity) {
-    let previous = (position: SheetPosition) => position;
-
     if (Entity.hasComponent(entity, AnchorPointComponent)) {
-      previous = (position: SheetPosition) => AnchorPointComponent.generateRenderTransformFunction(entity)(previous(position));
+      return (position: SheetPosition) => AnchorPointComponent.generateRenderTransformFunction(entity)(position);
     }
 
-    return previous;
+    return (position: SheetPosition) => position;
+  }
+
+  export function getRenderShapes(entity: Entity, sheetDefaultUnit: UnitType): Array<RenderShape> {
+    if (Entity.hasComponent(entity, GeometryComponent)) {
+      return GeometryComponent.getRenderShapes(entity, sheetDefaultUnit);
+    } else if (Entity.hasComponent(entity, DatumComponent)) {
+      return DatumComponent.getRenderShapes(entity, sheetDefaultUnit);
+    } else if (Entity.hasComponent(entity, FrameComponent)) {
+      return FrameComponent.getRenderShapes(entity, sheetDefaultUnit);
+    }
+
+    return [];
   }
 
   /** The order of components in the selection inspector. If a component isn't in this list, it
