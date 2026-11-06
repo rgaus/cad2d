@@ -1,6 +1,6 @@
 # Coordinate System
 
-Cad2d uses four distinct position classes to separate concerns across screen rendering, viewport transforms, world geometry, and sheet units.
+Cad2d uses five distinct position classes to separate concerns across screen rendering, viewport transforms, world geometry, sheet units, and geometry-relative coordinates.
 
 ## Position Classes
 
@@ -26,7 +26,42 @@ WorldPosition  --  world/document coordinates in pixels
 SheetPosition  --  coordinates in the sheet's defaultUnit (e.g., cm, in)
      |
      | .toWorld()  (multiplies x,y by SHEET_UNITS_TO_PIXELS)
+     |
+     | .toGeometryRelativeSheetPosition(geometry)  (inverse render matrix, then subtract raw origin)
+     v
+GeometryRelativeSheetPosition  --  geometry-local coordinates (0,0 = raw natural origin)
+     |
+     | .toSheet(geometry)  (add raw origin, then apply render matrix)
+     v
+SheetPosition (rendered)
 ```
+
+## Geometry-Relative Coordinates
+
+`GeometryRelativeSheetPosition` represents a position in a geometry's local, untransformed
+coordinate system. The origin `(0, 0)` is the geometry's raw natural origin:
+
+- rectangle: raw upper-left `origin`
+- ellipse: raw `center`
+- polygon: raw bounding-box upper-left
+
+Raw geometry data is still stored in absolute `SheetPosition`s. These absolute values define the
+geometry-relative origin. Conversion is explicit:
+
+- `GeometryRelativeSheetPosition.fromRawSheet(position, geometry)` converts a raw absolute
+  `SheetPosition` into geometry-relative coordinates by subtracting the raw origin.
+- `SheetPosition.toGeometryRelativeSheetPosition(geometry)` converts a **rendered** sheet position
+  into geometry-relative coordinates by applying the inverse render matrix and subtracting the raw
+  origin.
+- `GeometryRelativeSheetPosition.toSheet(geometry)` projects geometry-relative coordinates into
+  rendered sheet space by adding the raw origin and applying `Entity.generateRenderMatrix(geometry)`.
+
+Helpers such as `GeometryComponent.keyPoints`, bounding boxes, and oriented bounding boxes return
+geometry-relative coordinates. Consumers project with `.toSheet(geometry)` when they need rendered
+sheet space. `RenderShape`s and filters remain in rendered sheet space.
+
+`getOrigin` and `getRenderOrigin` intentionally remain absolute-space functions because they are
+inputs to the render matrix itself.
 
 ## Key Constants
 

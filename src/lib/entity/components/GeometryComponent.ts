@@ -181,7 +181,7 @@ export namespace GeometryComponent {
     return AnchorPointComponent.computeAssociatedGeometryOffset(geometry);
   }
 
-  /** Key points in raw (untransformed) geometry space. */
+  /** Key points in geometry-relative coordinates. */
   export function rawKeyPoints(
     geometry: Entity<GeometryComponent>,
   ): KeyPoints<GeometryRelativeSheetPosition, string> {
