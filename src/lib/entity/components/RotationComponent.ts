@@ -1,9 +1,10 @@
+import { rotatePointAround } from '@/lib/math';
 import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import { type SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
+import { Angle } from '@/lib/units/angle';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Entity, EntityComponent, EntityOmitComponents } from '../types';
 import { GeometryComponent } from './GeometryComponent';
-import { Angle } from '@/lib/units/angle';
 
 export type RotationData = {
   angle: Angle;
@@ -35,20 +36,6 @@ export namespace RotationComponent {
     const components: Partial<E['components']> = { ...entity.components };
     delete components.rotation;
     return { ...entity, components };
-  }
-
-  /** Rotates a point around a center point by the given angle in degrees. */
-  function rotatePointAround(
-    point: SheetPosition,
-    center: SheetPosition,
-    angleDeg: number,
-  ): SheetPosition {
-    const rad = Angle.degrees(angleDeg).toRadians().magnitude;
-    const dx = point.x - center.x;
-    const dy = point.y - center.y;
-    const cos = Math.cos(rad);
-    const sin = Math.sin(rad);
-    return new SheetPosition(center.x + dx * cos - dy * sin, center.y + dx * sin + dy * cos);
   }
 
   /**
