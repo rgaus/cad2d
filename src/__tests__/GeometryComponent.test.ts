@@ -589,8 +589,8 @@ describe('GeometryComponent', () => {
       expect(GeometryComponent.getRenderOrigin(geometry).y).toBe(16);
 
       const bbox = GeometryComponent.boundingBox(geometry);
-      expect(bbox.position.x).toBe(8);
-      expect(bbox.position.y).toBe(16);
+      expect(bbox.position.x).toBe(0);
+      expect(bbox.position.y).toBe(0);
       expect(bbox.width).toBe(5);
       expect(bbox.height).toBe(2);
 
@@ -678,8 +678,8 @@ describe('GeometryComponent', () => {
       expect(GeometryComponent.getRenderOrigin(withoutAnchor).y).toBe(15);
 
       const bbox = GeometryComponent.boundingBox(withoutAnchor);
-      expect(bbox.position.x).toBe(11);
-      expect(bbox.position.y).toBe(15);
+      expect(bbox.position.x).toBe(0);
+      expect(bbox.position.y).toBe(0);
 
       const [shape] = GeometryComponent.getRenderShapes(withoutAnchor, sheet.defaultUnit);
       expect(shape).toMatchObject({

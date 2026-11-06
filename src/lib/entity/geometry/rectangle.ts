@@ -26,17 +26,17 @@ export namespace RectangleData {
    * entities like constraints to.
    **/
   export function rawKeyPoints(geometry: Entity<GeometryComponent<RectangleData>>) {
-    const rect = boundingBox(geometry);
+    const rect = GeometryComponent.get(geometry);
     const toRelative = (position: SheetPosition) =>
       GeometryRelativeSheetPosition.fromRawSheet(position, geometry);
     return {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
       // expects.
-      perimeter: cornersArray(GeometryComponent.get(geometry)).map(toRelative),
+      perimeter: cornersArray(rect).map(toRelative),
       perimeterLabels: ['upperLeft', 'upperRight', 'lowerRight', 'lowerLeft'] as const,
       extras: {
         center: toRelative(
-          new SheetPosition(rect.position.x + rect.width / 2, rect.position.y + rect.height / 2),
+          new SheetPosition(rect.origin.x + rect.width / 2, rect.origin.y + rect.height / 2),
         ),
       },
     } satisfies KeyPoints<GeometryRelativeSheetPosition, string, string>;
@@ -44,23 +44,23 @@ export namespace RectangleData {
 
   export function boundingBox(
     geometry: Entity<GeometryComponent<RectangleData>>,
-  ): Rect<SheetPosition> {
+  ): Rect<GeometryRelativeSheetPosition> {
     const rectangle = GeometryComponent.get(geometry);
     return {
-      position: rectangle.origin,
+      position: new GeometryRelativeSheetPosition(0, 0),
       width: rectangle.width,
       height: rectangle.height,
     };
   }
 
-  /** Oriented bounding box of already-rendered rectangle data. */
+  /** Oriented bounding box in geometry-relative coordinates. */
   export function orientedBoundingBox(
     data: RectangleData,
     angleDegrees: number,
-  ): OrientedRect<SheetPosition> {
+  ): OrientedRect<GeometryRelativeSheetPosition> {
     return OrientedBoundingBox.fromRect(
       {
-        position: data.origin,
+        position: new GeometryRelativeSheetPosition(0, 0),
         width: data.width,
         height: data.height,
       },
@@ -116,7 +116,11 @@ export namespace RectangleData {
   ): E | null {
     const state = GeometryComponent.get(geometry);
     if (!originalBBox) {
-      originalBBox = boundingBox(geometry);
+      originalBBox = {
+        position: state.origin,
+        width: state.width,
+        height: state.height,
+      };
     }
 
     const newBBox = GeometryComponent.resizeBBox(originalBBox, params);

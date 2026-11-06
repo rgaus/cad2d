@@ -67,7 +67,7 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
       (entity): Array<[OrientedRect<SheetPosition> | null, Rect<SheetPosition> | null]> => {
         let bbox: OrientedRect<SheetPosition>;
         try {
-          bbox = Entity.orientedBoundingBox(entity);
+          bbox = Entity.orientedBoundingBoxInSheet(entity);
         } catch {
           return [[null, null] as const];
         }

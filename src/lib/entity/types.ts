@@ -134,7 +134,7 @@ export namespace Entity {
     throw new Error(`Entity.keyPoints: unknown geometry type for id=${entity.id}`);
   }
 
-  export function orientedBoundingBox(entity: Entity): OrientedRect<SheetPosition> {
+  export function orientedBoundingBox(entity: Entity): OrientedRect<Position> {
     if (Entity.hasComponent(entity, GeometryComponent)) {
       return GeometryComponent.orientedBoundingBox(entity);
     } else if (Entity.hasComponent(entity, DatumComponent)) {
@@ -145,8 +145,33 @@ export namespace Entity {
     throw new Error(`Entity.orientedBoundingBox: unknown geometry type for id=${entity.id}`);
   }
 
-  export function boundingBox(entity: Entity): Rect<SheetPosition> {
-    return OrientedBoundingBox.toRect(orientedBoundingBox(entity));
+  export function boundingBox(entity: Entity): Rect<Position> {
+    if (Entity.hasComponent(entity, GeometryComponent)) {
+      return GeometryComponent.boundingBox(entity);
+    } else if (Entity.hasComponent(entity, DatumComponent)) {
+      return DatumComponent.boundingBox(entity);
+    } else if (Entity.hasComponent(entity, FrameComponent)) {
+      return FrameComponent.boundingBox(entity);
+    }
+    throw new Error(`Entity.boundingBox: unknown geometry type for id=${entity.id}`);
+  }
+
+  /** Returns the entity's oriented bounding box projected into rendered sheet space. Datum and
+   * frame positions are already absolute sheet positions. */
+  export function orientedBoundingBoxInSheet(entity: Entity): OrientedRect<SheetPosition> {
+    if (Entity.hasComponent(entity, GeometryComponent)) {
+      const rect = GeometryComponent.orientedBoundingBox(entity);
+      return OrientedBoundingBox.mapPositions(rect, (position) => position.toSheet(entity));
+    }
+    return orientedBoundingBox(entity) as OrientedRect<SheetPosition>;
+  }
+
+  /** Returns the entity's axis-aligned bounding box projected into rendered sheet space. */
+  export function boundingBoxInSheet(entity: Entity): Rect<SheetPosition> {
+    if (Entity.hasComponent(entity, GeometryComponent)) {
+      return OrientedBoundingBox.toRect(orientedBoundingBoxInSheet(entity));
+    }
+    return boundingBox(entity) as Rect<SheetPosition>;
   }
 
   /** Given an {@link Entity}, compute the transform function to take the entity and project it into

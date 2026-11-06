@@ -24,13 +24,7 @@ import {
   type VerticalConstraintData,
 } from '@/lib/entity/constraints';
 import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/entity/datum';
-import {
-  CONSTRAINT_COLOR,
-  CONSTRAINT_LINE_WIDTH_PX,
-  computeDimensionLinePoints,
-} from '@/lib/viewport/dimension-line-utils';
 import { GeometryData } from '@/lib/entity/geometry';
-import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { type UnitType } from '@/lib/units/length';
@@ -41,6 +35,11 @@ import {
   MetersType,
   MillimetersType,
 } from '@/lib/units/length';
+import {
+  CONSTRAINT_COLOR,
+  CONSTRAINT_LINE_WIDTH_PX,
+  computeDimensionLinePoints,
+} from '@/lib/viewport/dimension-line-utils';
 import { type SheetPosition } from '@/lib/viewport/types';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION, type SerializedState } from './versions';
 
@@ -128,7 +127,12 @@ export function serializePolygon(polygon: Polygon, options?: { hidden?: boolean 
 
 /** Serializes a rectangle to an SVG <rect> element string. */
 export function serializeRectangle(geometry: Rectangle, options?: { hidden?: boolean }): string {
-  const bbox = RectangleData.boundingBox(geometry);
+  const rectangleData = GeometryComponent.get(geometry);
+  const bbox = {
+    position: rectangleData.origin,
+    width: rectangleData.width,
+    height: rectangleData.height,
+  };
   if (bbox.width < 0 || bbox.height < 0) {
     throw new Error(
       `serializeRectangle: rectangle ${geometry.id} has negative dimensions ${bbox.width}x${bbox.height}`,

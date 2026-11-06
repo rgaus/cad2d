@@ -1,4 +1,4 @@
-import { ellipsePoints, rotatePointAround } from '@/lib/math';
+import { ellipsePoints } from '@/lib/math';
 import {
   GeometryRelativeSheetPosition,
   KeyPoints,
@@ -40,29 +40,22 @@ export namespace EllipseData {
 
   export function boundingBox(
     geometry: Entity<GeometryComponent<EllipseData>>,
-  ): Rect<SheetPosition> {
+  ): Rect<GeometryRelativeSheetPosition> {
     const ellipse = GeometryComponent.get(geometry);
     return {
-      position: new SheetPosition(
-        ellipse.center.x - ellipse.radiusX,
-        ellipse.center.y - ellipse.radiusY,
-      ),
+      position: new GeometryRelativeSheetPosition(-ellipse.radiusX, -ellipse.radiusY),
       width: ellipse.radiusX * 2,
       height: ellipse.radiusY * 2,
     };
   }
 
-  /** Oriented bounding box of already-rendered ellipse data. */
+  /** Oriented bounding box in geometry-relative coordinates. */
   export function orientedBoundingBox(
     data: EllipseData,
     angleDegrees: number,
-  ): OrientedRect<SheetPosition> {
-    const localUpperLeft = new SheetPosition(
-      data.center.x - data.radiusX,
-      data.center.y - data.radiusY,
-    );
+  ): OrientedRect<GeometryRelativeSheetPosition> {
     return {
-      position: rotatePointAround(localUpperLeft, data.center, angleDegrees),
+      position: new GeometryRelativeSheetPosition(-data.radiusX, -data.radiusY),
       width: data.radiusX * 2,
       height: data.radiusY * 2,
       angleDegrees,

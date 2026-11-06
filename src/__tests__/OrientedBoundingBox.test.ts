@@ -1,4 +1,4 @@
-import { Ellipse, GeometryComponent, Rectangle } from '@/lib/entity';
+import { Ellipse, Entity, GeometryComponent, Rectangle } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { RenderShape } from '@/lib/entity/render-shape';
@@ -119,17 +119,23 @@ describe('rotation-aware geometry bounding boxes', () => {
     const geometry = geometryStore.getByIdWithComponent(rectangle.id, GeometryComponent)!;
 
     const oriented = GeometryComponent.orientedBoundingBox(geometry);
-    expect(oriented.position.x).toBeCloseTo(10);
-    expect(oriented.position.y).toBeCloseTo(10);
+    expect(oriented.position.x).toBeCloseTo(0);
+    expect(oriented.position.y).toBeCloseTo(0);
     expect(oriented.width).toBeCloseTo(4);
     expect(oriented.height).toBeCloseTo(2);
     expect(oriented.angleDegrees).toBeCloseTo(90);
 
     const bbox = GeometryComponent.boundingBox(geometry);
-    expect(bbox.position.x).toBeCloseTo(8);
-    expect(bbox.position.y).toBeCloseTo(10);
-    expect(bbox.width).toBeCloseTo(2);
-    expect(bbox.height).toBeCloseTo(4);
+    expect(bbox.position.x).toBeCloseTo(0);
+    expect(bbox.position.y).toBeCloseTo(0);
+    expect(bbox.width).toBeCloseTo(4);
+    expect(bbox.height).toBeCloseTo(2);
+
+    const renderedBBox = Entity.boundingBoxInSheet(geometry);
+    expect(renderedBBox.position.x).toBeCloseTo(8);
+    expect(renderedBBox.position.y).toBeCloseTo(10);
+    expect(renderedBBox.width).toBeCloseTo(2);
+    expect(renderedBBox.height).toBeCloseTo(4);
   });
 
   it('computes a rotated ellipse bounding box', () => {
@@ -143,17 +149,23 @@ describe('rotation-aware geometry bounding boxes', () => {
     const geometry = geometryStore.getByIdWithComponent(ellipse.id, GeometryComponent)!;
 
     const oriented = GeometryComponent.orientedBoundingBox(geometry);
-    expect(oriented.position.x).toBeCloseTo(12);
-    expect(oriented.position.y).toBeCloseTo(6);
+    expect(oriented.position.x).toBeCloseTo(-4);
+    expect(oriented.position.y).toBeCloseTo(-2);
     expect(oriented.width).toBeCloseTo(8);
     expect(oriented.height).toBeCloseTo(4);
     expect(oriented.angleDegrees).toBeCloseTo(90);
 
     const bbox = GeometryComponent.boundingBox(geometry);
-    expect(bbox.position.x).toBeCloseTo(8);
-    expect(bbox.position.y).toBeCloseTo(6);
-    expect(bbox.width).toBeCloseTo(4);
-    expect(bbox.height).toBeCloseTo(8);
+    expect(bbox.position.x).toBeCloseTo(-4);
+    expect(bbox.position.y).toBeCloseTo(-2);
+    expect(bbox.width).toBeCloseTo(8);
+    expect(bbox.height).toBeCloseTo(4);
+
+    const renderedBBox = Entity.boundingBoxInSheet(geometry);
+    expect(renderedBBox.position.x).toBeCloseTo(8);
+    expect(renderedBBox.position.y).toBeCloseTo(6);
+    expect(renderedBBox.width).toBeCloseTo(4);
+    expect(renderedBBox.height).toBeCloseTo(8);
   });
 });
 

@@ -43,7 +43,7 @@ export class FlipVerticalAction extends BaseAction {
     for (const id of selectedIds) {
       const geometry = geometryStore.getRenderableGeometryById(id);
       if (geometry) {
-        const bbox = Entity.boundingBox(geometry);
+        const bbox = Entity.boundingBoxInSheet(geometry);
         if (bbox) {
           bboxes.push(bbox);
         }

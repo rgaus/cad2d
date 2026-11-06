@@ -307,7 +307,7 @@ namespace DragState {
   export function boundingBox(state: DragState): Rect<SheetPosition> | null {
     switch (state.state) {
       case 'geometry':
-        return GeometryComponent.boundingBox(state.geometry);
+        return Entity.boundingBoxInSheet(state.geometry);
       case 'datum':
         return {
           position: DatumComponent.getOrigin(state.entity),
@@ -497,7 +497,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
         const selectedIds = new Set<Entity['id']>();
         for (const geometry of this.getGeometryStore().listRenderableGeometries()) {
-          const bbox = Entity.boundingBox(geometry);
+          const bbox = Entity.boundingBoxInSheet(geometry);
           if (BoundingBox.contains(this.dragSelectBoundingBox, bbox)) {
             selectedIds.add(geometry.id);
           }

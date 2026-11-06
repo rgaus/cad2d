@@ -1,5 +1,5 @@
 import { UndoEntry } from '@/lib/history/types';
-import { BoundingBox, OrientedBoundingBox } from '@/lib/math';
+import { BoundingBox } from '@/lib/math';
 import { POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR } from '@/lib/selection/constants';
 import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import { computeOpenAtIndex } from '@/lib/selection/polygon-point-row';
@@ -207,11 +207,11 @@ export namespace GeometryComponent {
     return rawKeyPoints(geometry);
   }
 
-  /** Oriented bounding box in anchored (rendered) space. */
+  /** Oriented bounding box in geometry-relative coordinates. */
   export function orientedBoundingBox(
     geometry: Entity<GeometryComponent>,
-  ): OrientedRect<SheetPosition> {
-    const state = GeometryComponent.getRendered(geometry);
+  ): OrientedRect<GeometryRelativeSheetPosition> {
+    const state = GeometryComponent.get(geometry);
     const angleDegrees =
       RotationComponent.getOptional(geometry)?.angle?.toDegrees()?.magnitude ?? 0;
 
@@ -230,9 +230,24 @@ export namespace GeometryComponent {
     }
   }
 
-  /** Axis-aligned bounding box in anchored (rendered) space. */
-  export function boundingBox(geometry: Entity<GeometryComponent>): Rect<SheetPosition> {
-    return OrientedBoundingBox.toRect(orientedBoundingBox(geometry));
+  /** Axis-aligned bounding box in geometry-relative coordinates. */
+  export function boundingBox(
+    geometry: Entity<GeometryComponent>,
+  ): Rect<GeometryRelativeSheetPosition> {
+    const state = GeometryComponent.get(geometry);
+    switch (state.type) {
+      case 'polygon':
+        return PolygonData.boundingBox(geometry as Entity<GeometryComponent<PolygonData>>);
+      case 'rectangle':
+        return RectangleData.boundingBox(geometry as Entity<GeometryComponent<RectangleData>>);
+      case 'ellipse':
+        return EllipseData.boundingBox(geometry as Entity<GeometryComponent<EllipseData>>);
+      default:
+        state satisfies never;
+        throw new Error(
+          `GeometryComponent.boundingBox: Unknown geometry data type ${(state as any).type}`,
+        );
+    }
   }
 
   export function transform<E extends Entity<GeometryComponent>>(

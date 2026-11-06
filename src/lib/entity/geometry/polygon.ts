@@ -2,7 +2,6 @@ import { type UndoEntry } from '@/lib/history/types';
 import {
   BoundingBox,
   DeCasteljau,
-  OrientedBoundingBox,
   Vector2,
   closestPointOnCubicCurve,
   closestPointOnQuadraticCurve,
@@ -92,7 +91,7 @@ export namespace PolygonData {
       perimeter: points.map(toRelative),
       perimeterLabels: points.map((_, index) => `Point ${index + 1}` as const),
       extras: {
-        boundingBoxUpperLeft: toRelative(PolygonData.boundingBox(geometry).position),
+        boundingBoxUpperLeft: new GeometryRelativeSheetPosition(0, 0),
         centroid: toRelative(PolygonData.centroid(geometry)),
       },
     };
@@ -112,53 +111,37 @@ export namespace PolygonData {
     return mathCentroid(points.map((p) => p.point));
   }
 
-  export function boundingBox(
-    geometry: Entity<GeometryComponent<PolygonData>>,
-  ): Rect<SheetPosition> {
-    const polygonData = GeometryComponent.get(geometry);
-
+  function rawBoundingBox(polygonData: PolygonData): Rect<SheetPosition> {
     if (polygonData.points.length === 0) {
       throw new Error(
         'PolygonData.boundingBox: cannot compute bounding box of polygon with 0 points!',
       );
     }
 
-    let upperLeftX = Infinity,
-      upperLeftY = Infinity;
-    let lowerRightX = -Infinity,
-      lowerRightY = -Infinity;
-    for (const seg of polygonData.points) {
-      if (seg.point.x < upperLeftX) {
-        upperLeftX = seg.point.x;
-      }
-      if (seg.point.y < upperLeftY) {
-        upperLeftY = seg.point.y;
-      }
-      if (seg.point.x > lowerRightX) {
-        lowerRightX = seg.point.x;
-      }
-      if (seg.point.y > lowerRightY) {
-        lowerRightY = seg.point.y;
-      }
-    }
+    return BoundingBox.fromPoints(polygonData.points.map((segment) => segment.point));
+  }
 
+  export function boundingBox(
+    geometry: Entity<GeometryComponent<PolygonData>>,
+  ): Rect<GeometryRelativeSheetPosition> {
+    const raw = rawBoundingBox(GeometryComponent.get(geometry));
     return {
-      position: new SheetPosition(upperLeftX, upperLeftY),
-      width: lowerRightX - upperLeftX,
-      height: lowerRightY - upperLeftY,
+      position: new GeometryRelativeSheetPosition(0, 0),
+      width: raw.width,
+      height: raw.height,
     };
   }
 
-  export function orientedBoundingBox(polygonData: PolygonData): OrientedRect<SheetPosition> {
-    if (polygonData.points.length === 0) {
-      throw new Error(
-        'PolygonData.orientedBoundingBox: cannot compute bounding box of polygon with 0 points!',
-      );
-    }
-
-    return OrientedBoundingBox.fromRect(
-      BoundingBox.fromPoints(polygonData.points.map((segment) => segment.point)),
-    );
+  export function orientedBoundingBox(
+    polygonData: PolygonData,
+  ): OrientedRect<GeometryRelativeSheetPosition> {
+    const raw = rawBoundingBox(polygonData);
+    return {
+      position: new GeometryRelativeSheetPosition(0, 0),
+      width: raw.width,
+      height: raw.height,
+      angleDegrees: 0,
+    };
   }
 
   export function addPointOnEdge<G extends Entity<GeometryComponent<PolygonData>>>(
