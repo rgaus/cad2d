@@ -7,7 +7,7 @@ import { useGeometries } from '@/hooks/useEntities';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { FillColorComponent, GeometryComponent, PolygonSegment } from '@/lib/entity';
 import { type Geometry, GeometryData } from '@/lib/entity/geometry';
-import { BoundingBox, CohenSutherland } from '@/lib/math';
+import { BoundingBox, CohenSutherland, ellipseToPolygon, rotatePointAround } from '@/lib/math';
 import { ListLayers, RendererLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import {
@@ -33,6 +33,45 @@ import { LineSegmentEdgeHitDetector } from './LineSegmentEdgeHitDetector';
 /** Size of the center corsshairs rendered on ellipses. */
 const CIRCLE_CENTER_MARKER_SIZE_PX = 8;
 
+/** Appends a closed path built from sheet-space polygon segments to the given graphics. */
+function appendClosedPath(graphics: Graphics, segments: Array<PolygonSegment>) {
+  const first = segments[0];
+  if (!first) {
+    return;
+  }
+  graphics.moveTo(first.point.x * SHEET_UNITS_TO_PIXELS, first.point.y * SHEET_UNITS_TO_PIXELS);
+  for (let i = 1; i < segments.length; i += 1) {
+    const seg = segments[i];
+    switch (seg.type) {
+      case 'point':
+        graphics.lineTo(seg.point.x * SHEET_UNITS_TO_PIXELS, seg.point.y * SHEET_UNITS_TO_PIXELS);
+        break;
+      case 'arc-quadratic':
+        graphics.quadraticCurveTo(
+          seg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
+          seg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
+          seg.point.x * SHEET_UNITS_TO_PIXELS,
+          seg.point.y * SHEET_UNITS_TO_PIXELS,
+        );
+        break;
+      case 'arc-cubic':
+        graphics.bezierCurveTo(
+          seg.controlPointA.x * SHEET_UNITS_TO_PIXELS,
+          seg.controlPointA.y * SHEET_UNITS_TO_PIXELS,
+          seg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
+          seg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
+          seg.point.x * SHEET_UNITS_TO_PIXELS,
+          seg.point.y * SHEET_UNITS_TO_PIXELS,
+        );
+        break;
+      default:
+        seg satisfies never;
+        break;
+    }
+  }
+  graphics.closePath();
+}
+
 type GeometryShapeRendererCommonProps = {
   fillColor?: number | null;
   stroke?: number;
@@ -55,12 +94,14 @@ type GeometryShapeRendererProps =
       type: 'rectangle';
       upperLeft: SheetPosition;
       lowerRight: SheetPosition;
+      angleDegrees: number;
     })
   | (GeometryShapeRendererCommonProps & {
       type: 'ellipse';
       center: SheetPosition;
       radiusX: number;
       radiusY: number;
+      angleDegrees: number;
       showCenterCrosshairs?: boolean;
     });
 
@@ -279,7 +320,12 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
     (
       graphics: Graphics,
       center: SheetPosition,
-      args: { showCenterCrosshairs?: boolean; radiusX: number; radiusY: number },
+      args: {
+        showCenterCrosshairs?: boolean;
+        radiusX: number;
+        radiusY: number;
+        angleDegrees: number;
+      },
     ) => {
       graphics.clear();
 
@@ -288,13 +334,30 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
       const radiusXPixels = args.radiusX * SHEET_UNITS_TO_PIXELS;
       const radiusYPixels = args.radiusY * SHEET_UNITS_TO_PIXELS;
 
+      const rotatedSegments =
+        args.angleDegrees === 0
+          ? null
+          : ellipseToPolygon(center, args.radiusX, args.radiusY).map((seg) =>
+              PolygonSegment.transform(seg, (point) =>
+                rotatePointAround(point, center, args.angleDegrees),
+              ),
+            );
+
+      const addEllipsePath = () => {
+        if (rotatedSegments) {
+          appendClosedPath(graphics, rotatedSegments);
+        } else {
+          graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
+        }
+      };
+
       if (typeof props.fillColor !== 'undefined') {
         if (props.fillColor !== null) {
           graphics.setFillStyle({ color: props.fillColor });
         } else {
           graphics.setFillStyle({ color: 0x000000, alpha: 0 });
         }
-        graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
+        addEllipsePath();
         graphics.fill();
       }
 
@@ -305,7 +368,7 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
           alpha: 0.3,
           alignment: 1,
         });
-        graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
+        addEllipsePath();
         graphics.stroke();
       }
 
@@ -313,7 +376,7 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
         color: props.stroke ?? 0x000000,
         width: (props.strokeWidth ?? 1) / props.viewportScale,
       });
-      graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
+      addEllipsePath();
       graphics.stroke();
 
       // For ellipses that are selected, render a little crosshairs marker at the geometry's center.
@@ -330,7 +393,12 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
   );
 
   const drawRectangle = useCallback(
-    (graphics: Graphics, upperLeft: SheetPosition, lowerRight: SheetPosition) => {
+    (
+      graphics: Graphics,
+      upperLeft: SheetPosition,
+      lowerRight: SheetPosition,
+      angleDegrees: number,
+    ) => {
       graphics.clear();
 
       const x = upperLeft.x * SHEET_UNITS_TO_PIXELS;
@@ -338,13 +406,36 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
       const width = (lowerRight.x - upperLeft.x) * SHEET_UNITS_TO_PIXELS;
       const height = (lowerRight.y - upperLeft.y) * SHEET_UNITS_TO_PIXELS;
 
+      const rotatedSegments =
+        angleDegrees === 0
+          ? null
+          : [
+              upperLeft,
+              new SheetPosition(lowerRight.x, upperLeft.y),
+              lowerRight,
+              new SheetPosition(upperLeft.x, lowerRight.y),
+            ].map(
+              (point): PolygonSegment => ({
+                type: 'point',
+                point: rotatePointAround(point, upperLeft, angleDegrees),
+              }),
+            );
+
+      const addRectanglePath = () => {
+        if (rotatedSegments) {
+          appendClosedPath(graphics, rotatedSegments);
+        } else {
+          graphics.rect(x, y, width, height);
+        }
+      };
+
       if (typeof props.fillColor !== 'undefined') {
         if (props.fillColor !== null) {
           graphics.setFillStyle({ color: props.fillColor });
         } else {
           graphics.setFillStyle({ color: 0x000000, alpha: 0 });
         }
-        graphics.rect(x, y, width, height);
+        addRectanglePath();
         graphics.fill();
       }
 
@@ -355,7 +446,7 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
           alpha: 0.3,
           alignment: 1,
         });
-        graphics.rect(x, y, width, height);
+        addRectanglePath();
         graphics.stroke();
       }
 
@@ -363,7 +454,7 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
         color: props.stroke ?? 0x000000,
         width: (props.strokeWidth ?? 1) / props.viewportScale,
       });
-      graphics.rect(x, y, width, height);
+      addRectanglePath();
       graphics.stroke();
     },
     [props.fillColor, props.stroke, props.strokeWidth, props.viewportScale, props.showHintStroke],
@@ -380,10 +471,11 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
             showCenterCrosshairs: props.showCenterCrosshairs,
             radiusX: props.radiusX,
             radiusY: props.radiusY,
+            angleDegrees: props.angleDegrees,
           });
           break;
         case 'rectangle':
-          drawRectangle(g, props.upperLeft, props.lowerRight);
+          drawRectangle(g, props.upperLeft, props.lowerRight, props.angleDegrees);
           break;
         default:
           props satisfies never;
@@ -629,6 +721,7 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
                 viewportScale={viewportScale}
                 showHintStroke={isSelected && selectedIds.length > 1}
                 eventMode="static"
+                angleDegrees={renderShape.angleDegrees}
                 onFillPointerDown={onFillPointerDown}
                 onFillPointerOver={onFillPointerOver}
                 onFillPointerOut={onFillPointerOut}
@@ -649,6 +742,7 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
                 viewportScale={viewportScale}
                 showHintStroke={isSelected && selectedIds.length > 1}
                 eventMode="static"
+                angleDegrees={renderShape.angleDegrees}
                 onFillPointerDown={onFillPointerDown}
                 onFillPointerOver={onFillPointerOver}
                 onFillPointerOut={onFillPointerOut}

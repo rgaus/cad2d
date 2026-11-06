@@ -21,6 +21,7 @@ import { FilterComponent } from './FilterComponent';
 import { FrameComponent } from './FrameComponent';
 import { LinkDimensionsComponent } from './LinkDimensionsComponent';
 import { RenderShape } from '../render-shape';
+import { RotationComponent } from './RotationComponent';
 
 export type GetRenderShapesOptions<D extends GeometryData = GeometryData> = {
   /** Defaults to true. When set to false, a non closed polygon which would become closed (ie,
@@ -461,6 +462,7 @@ export namespace GeometryComponent {
         shapes = [
           RenderShape.rectangle(geometry.id, corners.upperLeft, corners.lowerRight, {
             primary: true,
+            angleDegrees: RotationComponent.getOptional(geometry)?.angle?.toDegrees()?.magnitude ?? 0,
           }),
         ];
         if (mapping) {
@@ -476,6 +478,7 @@ export namespace GeometryComponent {
             radiusX: state.radiusX,
             radiusY: state.radiusY,
             primary: true,
+            angleDegrees: RotationComponent.getOptional(geometry)?.angle?.toDegrees()?.magnitude ?? 0,
           }),
         ];
         break;

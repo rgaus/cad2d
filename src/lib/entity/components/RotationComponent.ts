@@ -22,6 +22,12 @@ export namespace RotationComponent {
   export function get(entity: Entity<RotationComponent>): RotationData {
     return entity.components.rotation;
   }
+  export function getOptional(entity: Entity): RotationData | undefined {
+    if (RotationComponent.key in entity.components) {
+      return (entity.components as RotationComponent).rotation;
+    }
+    return undefined;
+  }
   export function update<E extends Entity<RotationComponent>>(
     entity: E,
     rotation: RotationData,
@@ -75,21 +81,17 @@ export namespace RotationComponent {
         Fields.labelled(
           'rotation',
           'Angle:',
-          Fields.angle(
-            'rotationDegrees',
-            rotationData.angle,
-            {
-              onChange: (nextAngle) => {
-                ctx.geometryStore.updateByIdWithComponent(id, RotationComponent, (entity) =>
-                  RotationComponent.update(entity, {
-                    ...RotationComponent.get(entity),
-                    angle: nextAngle,
-                  }),
-                );
-                ctx.recomputeFields();
-              },
+          Fields.angle('rotationDegrees', rotationData.angle, {
+            onChange: (nextAngle) => {
+              ctx.geometryStore.updateByIdWithComponent(id, RotationComponent, (entity) =>
+                RotationComponent.update(entity, {
+                  ...RotationComponent.get(entity),
+                  angle: nextAngle,
+                }),
+              );
+              ctx.recomputeFields();
             },
-          ),
+          }),
         ),
       ]),
     ];

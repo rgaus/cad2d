@@ -1,5 +1,5 @@
-import { SheetPosition } from '@/lib/viewport/types';
 import { BoundingBox } from '@/lib/math';
+import { SheetPosition } from '@/lib/viewport/types';
 import { PolygonSegment } from './geometry/polygon';
 
 export type RenderShapePolygon = {
@@ -15,6 +15,7 @@ export type RenderShapeRectangle = {
   primary: boolean;
   upperLeft: SheetPosition;
   lowerRight: SheetPosition;
+  angleDegrees: number;
 };
 export type RenderShapeEllipse = {
   shape: 'ellipse';
@@ -23,6 +24,7 @@ export type RenderShapeEllipse = {
   center: SheetPosition;
   radiusX: number;
   radiusY: number;
+  angleDegrees: number;
 };
 export type RenderShapePoint = {
   shape: 'point';
@@ -55,7 +57,7 @@ export namespace RenderShape {
     key: string,
     upperLeft: SheetPosition,
     lowerRight: SheetPosition,
-    options?: { primary?: boolean },
+    options?: { primary?: boolean; angleDegrees?: number },
   ): RenderShape {
     return {
       shape: 'rectangle' as const,
@@ -63,12 +65,13 @@ export namespace RenderShape {
       primary: options?.primary ?? false,
       upperLeft,
       lowerRight,
+      angleDegrees: options?.angleDegrees ?? 0,
     };
   }
   export function ellipse(
     key: string,
     center: SheetPosition,
-    args: { radiusX: number; radiusY: number; primary?: boolean },
+    args: { radiusX: number; radiusY: number; primary?: boolean; angleDegrees?: number },
   ): RenderShape {
     return {
       shape: 'ellipse' as const,
@@ -77,6 +80,7 @@ export namespace RenderShape {
       center,
       radiusX: args.radiusX,
       radiusY: args.radiusY,
+      angleDegrees: args?.angleDegrees ?? 0,
     };
   }
   export function point(
