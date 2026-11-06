@@ -40,6 +40,7 @@ import {
   type Rect,
   SheetPosition,
 } from '@/lib/viewport/types';
+import { RotationComponent } from './components/RotationComponent';
 import { type Geometry } from './geometry';
 import { EllipseData } from './geometry/ellipse';
 import { PolygonData, PolygonSegment } from './geometry/polygon';
@@ -149,7 +150,15 @@ type TrackedShape = {
   // computeShapesForVertexId to map solver results back to the
   // correct polygon point indices.
   reversed: boolean;
+  // True when the shape has a non-zero rotation. Auto-inferred axis
+  // constraints are skipped for rotated shapes.
+  hasRotation: boolean;
 };
+
+function hasNonZeroRotation(entity: Entity): boolean {
+  const angleDegrees = RotationComponent.getOptional(entity)?.angle.toDegrees().magnitude ?? 0;
+  return Math.abs(angleDegrees % 360) > 1e-9;
+}
 
 /**
  * Result of intersecting a query segment against the DCEL.
@@ -1031,6 +1040,7 @@ export class DCELShapeIndex {
       undefined,
       perimeterLabels,
       /* extraLabels */ [],
+      hasNonZeroRotation(rect),
     );
   }
 
@@ -1061,12 +1071,12 @@ export class DCELShapeIndex {
     }
     const { perimeter, perimeterLabels } = GeometryComponent.keyPoints(ellipse);
     const ellipseData = GeometryComponent.get(ellipse);
-    const offset = GeometryComponent.getAnchorPointOffset(ellipse);
+    const transform = Entity.generateRenderTransformFunction(ellipse);
     const ellipseSegs = ellipseToPolygon(
-      new SheetPosition(ellipseData.center.x - offset.x, ellipseData.center.y - offset.y),
+      ellipseData.center,
       ellipseData.radiusX,
       ellipseData.radiusY,
-    );
+    ).map((segment) => PolygonSegment.transform(segment, transform));
     // segs[1..4] are arc-cubic segments in CCW order (top→right, right→bottom, bottom→left, left→top),
     // aligning 1:1 with DCEL candidate edges built from perimeter [top, right, bottom, left].
     const curveContexts: Array<EdgeCurveContext> = ellipseSegs.slice(1).map((seg) => ({
@@ -1087,6 +1097,7 @@ export class DCELShapeIndex {
       curveContexts,
       perimeterLabels,
       /* extraLabels */ [],
+      hasNonZeroRotation(ellipse),
     );
   }
 
@@ -1109,30 +1120,20 @@ export class DCELShapeIndex {
    * into _bezierSamples straight-line segments each.
    */
   addPolygon(polygon: Entity<GeometryComponent<PolygonData>>): void {
-    const polygonData = GeometryComponent.get(polygon);
     if (this.shapes.has(polygon.id)) {
       this.removePolygon(polygon.id);
     }
-    const offset = GeometryComponent.getAnchorPointOffset(polygon);
-    const worldPoints =
-      offset.x === 0 && offset.y === 0
-        ? polygonData.points
-        : polygonData.points.map((segment) =>
-            PolygonSegment.transform(
-              segment,
-              (position) => new SheetPosition(position.x - offset.x, position.y - offset.y),
-            ),
-          );
+    const renderedPolygon = GeometryComponent.getRendered(polygon);
     const { positions, curveContexts, reversed } = this._polygonPoints(
-      worldPoints,
-      polygonData.closed,
+      renderedPolygon.points,
+      renderedPolygon.closed,
     );
     this._registerShape(
       polygon.id,
       'polygon',
       positions,
       [],
-      polygonData.closed,
+      renderedPolygon.closed,
       reversed,
       curveContexts,
     );
@@ -1160,7 +1161,7 @@ export class DCELShapeIndex {
     if (this.shapes.has(datum.id)) {
       this.removeGeometry(datum.id);
     }
-    const pos = DatumComponent.get(datum);
+    const pos = DatumComponent.getRendered(datum);
     const vertexId = this.dcel.addVertex(pos);
     const faceId = this.dcel.addFace();
     this._faceToShapeIds.set(faceId, datum.id);
@@ -1174,6 +1175,7 @@ export class DCELShapeIndex {
       edgePairs: [],
       faceId,
       reversed: false,
+      hasRotation: false,
     });
   }
 
@@ -1411,7 +1413,7 @@ export class DCELShapeIndex {
     // reclassified as polygon due to edge splitting. Vertex IDs are looked up by label
     // so that extra intersection vertices in vertexIds don't corrupt the mapping.
     for (const [, tracked] of this.shapes) {
-      if (tracked.originalKind !== 'rectangle') {
+      if (tracked.originalKind !== 'rectangle' || tracked.hasRotation) {
         continue;
       }
 
@@ -1440,7 +1442,7 @@ export class DCELShapeIndex {
     // Add constraints to keep ellipse edge points colinear.
     // Uses originalKind and vertexLabels for the same reasons as the rectangle block above.
     for (const [, tracked] of this.shapes) {
-      if (tracked.originalKind !== 'ellipse') {
+      if (tracked.originalKind !== 'ellipse' || tracked.hasRotation) {
         continue;
       }
 
@@ -1729,6 +1731,7 @@ export class DCELShapeIndex {
     edgeCurveContexts?: Array<EdgeCurveContext | null>,
     perimeterLabels?: Array<string | null>,
     extraLabels?: Array<string>,
+    hasRotation: boolean = false,
   ): void {
     if (perimeterPositions.length === 0) {
       return;
@@ -2238,6 +2241,7 @@ export class DCELShapeIndex {
       edgePairs,
       faceId,
       reversed,
+      hasRotation,
     });
   }
 
