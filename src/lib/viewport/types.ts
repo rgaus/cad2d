@@ -148,6 +148,25 @@ export type KeyPointKeys<KP extends KeyPoints<any, any, any>> =
   | NonNullable<KP['perimeterLabels'][number]>
   | (keyof KP['extras'] & string);
 
+/** Maps every position in a {@link KeyPoints} object. */
+export function mapKeyPoints<
+  P extends Position,
+  Q extends Position,
+  Extras extends string,
+  PerimeterLabel extends string,
+>(
+  keyPoints: KeyPoints<P, Extras, PerimeterLabel>,
+  map: (position: P) => Q,
+): KeyPoints<Q, Extras, PerimeterLabel> {
+  return {
+    perimeter: keyPoints.perimeter.map(map),
+    perimeterLabels: keyPoints.perimeterLabels,
+    extras: Object.fromEntries(
+      Object.entries(keyPoints.extras).map(([key, point]) => [key, map(point as P)]),
+    ) as KeyPoints<Q, Extras, PerimeterLabel>['extras'],
+  };
+}
+
 /** Combined state for ViewportControls. */
 export type ViewportControlsState = {
   readonly viewport: ViewportState;
@@ -254,6 +273,16 @@ export class SheetPosition extends Position {
 /** Position in raw geometry coordinates, relative to the associated geometry's natural origin. */
 export class GeometryRelativeSheetPosition extends Position {
   readonly type = GeometryRelativeSheetPositionType;
+
+  /** Converts a raw absolute sheet position into geometry-relative coordinates by subtracting the
+   * geometry's raw natural origin. */
+  static fromRawSheet(
+    position: SheetPosition,
+    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  ): GeometryRelativeSheetPosition {
+    const origin = GeometryComponent.getOrigin(geometry);
+    return new GeometryRelativeSheetPosition(position.x - origin.x, position.y - origin.y);
+  }
 
   /** Converts this geometry-relative position into rendered sheet coordinates. */
   toSheet(geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>): SheetPosition {

@@ -17,6 +17,19 @@ export namespace OrientedBoundingBox {
     };
   }
 
+  /** Maps the position of the given oriented rectangle, preserving its dimensions and angle. */
+  export function mapPositions<P extends Position, Q extends Position>(
+    rect: OrientedRect<P>,
+    map: (position: P) => Q,
+  ): OrientedRect<Q> {
+    return {
+      position: map(rect.position),
+      width: rect.width,
+      height: rect.height,
+      angleDegrees: rect.angleDegrees,
+    };
+  }
+
   /** Returns the four corners of the oriented rectangle, rotating around its upper-left position. */
   export function corners<P extends Position>(rect: OrientedRect<P>): RectCorners<P> {
     const positionClass = rect.position.constructor as new (x: number, y: number) => P;

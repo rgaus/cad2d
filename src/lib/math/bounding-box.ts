@@ -26,6 +26,18 @@ export const BoundingBox = {
     };
   },
 
+  /** Maps the position of the given Rect, preserving its dimensions. */
+  mapPositions<P extends Position, Q extends Position>(
+    rect: Rect<P>,
+    map: (position: P) => Q,
+  ): Rect<Q> {
+    return {
+      position: map(rect.position),
+      width: rect.width,
+      height: rect.height,
+    };
+  },
+
   /** Inset the given Rect by the given offset. A negative offset performs an "outset" instead. */
   inset<P extends Position>(rect: Rect<P>, offset: number): Rect<P> {
     return {
