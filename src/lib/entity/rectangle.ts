@@ -79,7 +79,7 @@ export namespace Rectangle {
           keyPoint: 'upperLeft',
           offset: new SheetPosition(0, 0),
         }),
-        ...RotationComponent.create(Angle.degrees(45)),
+        ...RotationComponent.create(Angle.degrees(0)),
       },
     };
   }
