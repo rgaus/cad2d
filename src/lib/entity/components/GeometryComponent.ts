@@ -1,11 +1,11 @@
 import { UndoEntry } from '@/lib/history/types';
-import { BoundingBox } from '@/lib/math';
+import { BoundingBox, OrientedBoundingBox } from '@/lib/math';
 import { POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR } from '@/lib/selection/constants';
 import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import { computeOpenAtIndex } from '@/lib/selection/polygon-point-row';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { Length, type UnitType } from '@/lib/units/length';
-import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
+import { KeyPoints, OrientedRect, Rect, SheetPosition } from '@/lib/viewport/types';
 import { FilletFilter, Filter, FilterData } from '../filters';
 import { MirrorFilter } from '../filters/mirror';
 import { PatternFilter } from '../filters/pattern';
@@ -14,13 +14,13 @@ import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
 import { RectangleData } from '../geometry/rectangle';
 import { RectangleEndpoint } from '../rectangle';
+import { RenderShape } from '../render-shape';
 import { Entity, type EntityComponent, ResizeParams } from '../types';
 import { AnchorPointComponent } from './AnchorPointComponent';
 import { ConstraintComponent } from './ConstraintComponent';
 import { FilterComponent } from './FilterComponent';
 import { FrameComponent } from './FrameComponent';
 import { LinkDimensionsComponent } from './LinkDimensionsComponent';
-import { RenderShape } from '../render-shape';
 import { RotationComponent } from './RotationComponent';
 
 export type GetRenderShapesOptions<D extends GeometryData = GeometryData> = {
@@ -175,9 +175,7 @@ export namespace GeometryComponent {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to. These are expressed in anchored (rendered) space.
    **/
-  export function keyPoints(
-    geometry: Entity<GeometryComponent>,
-  ): KeyPoints<SheetPosition, string> {
+  export function keyPoints(geometry: Entity<GeometryComponent>): KeyPoints<SheetPosition, string> {
     if (Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
       // Translate the geometry into anchored space, then drop the anchor so the recursive call
       // below reads plain (unanchored) geometry.
@@ -204,30 +202,32 @@ export namespace GeometryComponent {
     }
   }
 
-  /** Bounding box in anchored (rendered) space. */
-  export function boundingBox(geometry: Entity<GeometryComponent>): Rect<SheetPosition> {
-    if (Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
-      const translated = GeometryComponent.transform(
-        geometry,
-        Entity.generateRenderTransformFunction(geometry),
-      );
-      return GeometryComponent.boundingBox(AnchorPointComponent.remove(translated));
-    }
+  /** Oriented bounding box in anchored (rendered) space. */
+  export function orientedBoundingBox(
+    geometry: Entity<GeometryComponent>,
+  ): OrientedRect<SheetPosition> {
+    const state = GeometryComponent.getRendered(geometry);
+    const angleDegrees =
+      RotationComponent.getOptional(geometry)?.angle?.toDegrees()?.magnitude ?? 0;
 
-    const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
-        return PolygonData.boundingBox(geometry as Entity<GeometryComponent<PolygonData>>);
+        return PolygonData.orientedBoundingBox(state);
       case 'rectangle':
-        return RectangleData.boundingBox(geometry as Entity<GeometryComponent<RectangleData>>);
+        return RectangleData.orientedBoundingBox(state, angleDegrees);
       case 'ellipse':
-        return EllipseData.boundingBox(geometry as Entity<GeometryComponent<EllipseData>>);
+        return EllipseData.orientedBoundingBox(state, angleDegrees);
       default:
         state satisfies never;
         throw new Error(
-          `GeometryComponent.boundingBox: Unknown geometry data type ${(state as any).type}`,
+          `GeometryComponent.orientedBoundingBox: Unknown geometry data type ${(state as any).type}`,
         );
     }
+  }
+
+  /** Axis-aligned bounding box in anchored (rendered) space. */
+  export function boundingBox(geometry: Entity<GeometryComponent>): Rect<SheetPosition> {
+    return OrientedBoundingBox.toRect(orientedBoundingBox(geometry));
   }
 
   export function transform<E extends Entity<GeometryComponent>>(
@@ -279,9 +279,7 @@ export namespace GeometryComponent {
   }
 
   /** Origin in anchored (rendered) space. */
-  export function getRenderOrigin(
-    geometry: Entity<GeometryComponent>,
-  ): SheetPosition {
+  export function getRenderOrigin(geometry: Entity<GeometryComponent>): SheetPosition {
     let working = geometry;
     if (Entity.hasComponents(working, GeometryComponent, AnchorPointComponent)) {
       const translated = GeometryComponent.transform(
@@ -462,7 +460,8 @@ export namespace GeometryComponent {
         shapes = [
           RenderShape.rectangle(geometry.id, corners.upperLeft, corners.lowerRight, {
             primary: true,
-            angleDegrees: RotationComponent.getOptional(geometry)?.angle?.toDegrees()?.magnitude ?? 0,
+            angleDegrees:
+              RotationComponent.getOptional(geometry)?.angle?.toDegrees()?.magnitude ?? 0,
           }),
         ];
         if (mapping) {
@@ -478,7 +477,8 @@ export namespace GeometryComponent {
             radiusX: state.radiusX,
             radiusY: state.radiusY,
             primary: true,
-            angleDegrees: RotationComponent.getOptional(geometry)?.angle?.toDegrees()?.magnitude ?? 0,
+            angleDegrees:
+              RotationComponent.getOptional(geometry)?.angle?.toDegrees()?.magnitude ?? 0,
           }),
         ];
         break;

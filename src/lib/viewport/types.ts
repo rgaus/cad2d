@@ -124,6 +124,12 @@ export type RectCorners<P extends Position> = {
   lowerRight: P;
 };
 
+/** A rectangle with an upper-left position, dimensions, and a rotation around its upper-left
+ * corner. */
+export type OrientedRect<P extends Position> = Rect<P> & {
+  readonly angleDegrees: number;
+};
+
 export type KeyPoints<
   P extends Position,
   Extras extends string = never,

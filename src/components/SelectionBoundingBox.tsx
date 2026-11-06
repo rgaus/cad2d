@@ -1,15 +1,16 @@
 import { Graphics } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
-import { BoundingBox } from '@/lib/math';
+import { OrientedBoundingBox } from '@/lib/math';
+import { drawRotatedRectangle } from '@/lib/pixi-render-helpers';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SELECTION_COLOR, SelectionCornerHandleTexture } from '@/lib/textures';
 import { SELECTED_OUTSET_PX } from '@/lib/tools/SelectTool';
-import { Rect, SheetPosition } from '@/lib/viewport/types';
+import { OrientedRect, SheetPosition } from '@/lib/viewport/types';
 import { HandleSprites } from './HandleSprites';
 import { LinearResizer } from './LinearResizer';
 
 type SelectionBoundingBoxProps = {
-  boundingBox: Rect<SheetPosition>;
+  boundingBox: OrientedRect<SheetPosition>;
   viewportScale: number;
   onLinearResizerPointerDown?: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
   onCornerHandlePointerDown?: (
@@ -25,19 +26,21 @@ export const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxP
   onLinearResizerPointerDown,
   onCornerHandlePointerDown,
 }) => {
-  const polygonBoundsCorners = useMemo(
+  const outsetBoundingBox = useMemo(
     () =>
-      BoundingBox.corners(
-        BoundingBox.inset(
-          boundingBox,
-          -1 * (SELECTED_OUTSET_PX / SHEET_UNITS_TO_PIXELS / viewportScale),
-        ),
+      OrientedBoundingBox.inset(
+        boundingBox,
+        -1 * (SELECTED_OUTSET_PX / SHEET_UNITS_TO_PIXELS / viewportScale),
       ),
     [boundingBox, viewportScale],
   );
+  const polygonBoundsCorners = useMemo(
+    () => OrientedBoundingBox.corners(outsetBoundingBox),
+    [outsetBoundingBox],
+  );
   const polygonBoundsPoints = useMemo(
-    () => BoundingBox.cornersToArray(polygonBoundsCorners),
-    [polygonBoundsCorners],
+    () => OrientedBoundingBox.cornersToArray(outsetBoundingBox),
+    [outsetBoundingBox],
   );
 
   const drawPolygonSelection = useCallback(
@@ -45,15 +48,18 @@ export const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxP
       graphics.clear();
 
       graphics.setStrokeStyle({ color: SELECTION_COLOR, width: 1 / viewportScale });
-      graphics.poly(
-        polygonBoundsPoints.flatMap((p) => [
-          p.x * SHEET_UNITS_TO_PIXELS,
-          p.y * SHEET_UNITS_TO_PIXELS,
-        ]),
+      drawRotatedRectangle(
+        graphics,
+        outsetBoundingBox.position,
+        new SheetPosition(
+          outsetBoundingBox.position.x + outsetBoundingBox.width,
+          outsetBoundingBox.position.y + outsetBoundingBox.height,
+        ),
+        outsetBoundingBox.angleDegrees,
       );
       graphics.stroke();
     },
-    [polygonBoundsPoints, viewportScale],
+    [outsetBoundingBox, viewportScale],
   );
 
   return (

@@ -1,5 +1,5 @@
-import { BoundingBox } from '@/lib/math';
-import { SheetPosition } from '@/lib/viewport/types';
+import { BoundingBox, OrientedBoundingBox, rotatePointAround } from '@/lib/math';
+import { OrientedRect, SheetPosition } from '@/lib/viewport/types';
 import { PolygonSegment } from './geometry/polygon';
 
 export type RenderShapePolygon = {
@@ -96,27 +96,48 @@ export namespace RenderShape {
     };
   }
 
-  export function boundingBox(renderShape: RenderShape) {
+  /** The oriented bounding box of a render shape in rendered sheet space. */
+  export function orientedBoundingBox(renderShape: RenderShape): OrientedRect<SheetPosition> {
     switch (renderShape.shape) {
       case 'polygon':
-        return BoundingBox.fromPoints(renderShape.points.map((p) => p.point));
+        return OrientedBoundingBox.fromRect(
+          BoundingBox.fromPoints(renderShape.points.map((p) => p.point)),
+        );
       case 'rectangle':
-        return BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]);
-      case 'ellipse':
-        return BoundingBox.fromPoints([
-          renderShape.center,
-          new SheetPosition(renderShape.center.x, renderShape.center.y + renderShape.radiusY),
-          new SheetPosition(renderShape.center.x, renderShape.center.y - renderShape.radiusY),
-          new SheetPosition(renderShape.center.x + renderShape.radiusX, renderShape.center.y),
-          new SheetPosition(renderShape.center.x - renderShape.radiusX, renderShape.center.y),
-        ]);
+        return {
+          position: renderShape.upperLeft,
+          width: renderShape.lowerRight.x - renderShape.upperLeft.x,
+          height: renderShape.lowerRight.y - renderShape.upperLeft.y,
+          angleDegrees: renderShape.angleDegrees,
+        };
+      case 'ellipse': {
+        const localUpperLeft = new SheetPosition(
+          renderShape.center.x - renderShape.radiusX,
+          renderShape.center.y - renderShape.radiusY,
+        );
+        return {
+          position: rotatePointAround(localUpperLeft, renderShape.center, renderShape.angleDegrees),
+          width: renderShape.radiusX * 2,
+          height: renderShape.radiusY * 2,
+          angleDegrees: renderShape.angleDegrees,
+        };
+      }
       case 'point':
-        return { position: renderShape.position, width: 0, height: 0 };
+        return OrientedBoundingBox.fromRect({
+          position: renderShape.position,
+          width: 0,
+          height: 0,
+        });
       default:
         renderShape satisfies never;
         throw new Error(
-          `RenderShape.boundingBox: Unknown render shape ${(renderShape as any).shape}`,
+          `RenderShape.orientedBoundingBox: Unknown render shape ${(renderShape as any).shape}`,
         );
     }
+  }
+
+  /** Axis-aligned bounding box of a render shape in rendered sheet space. */
+  export function boundingBox(renderShape: RenderShape) {
+    return OrientedBoundingBox.toRect(orientedBoundingBox(renderShape));
   }
 }

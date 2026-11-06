@@ -1,5 +1,5 @@
-import { ellipsePoints } from '@/lib/math';
-import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
+import { OrientedBoundingBox, ellipsePoints, rotatePointAround } from '@/lib/math';
+import { KeyPoints, OrientedRect, Rect, SheetPosition } from '@/lib/viewport/types';
 import { GeometryComponent } from '../components/GeometryComponent';
 import { Entity, type ResizeParams } from '../types';
 
@@ -41,6 +41,23 @@ export namespace EllipseData {
       ),
       width: ellipse.radiusX * 2,
       height: ellipse.radiusY * 2,
+    };
+  }
+
+  /** Oriented bounding box of already-rendered ellipse data. */
+  export function orientedBoundingBox(
+    data: EllipseData,
+    angleDegrees: number,
+  ): OrientedRect<SheetPosition> {
+    const localUpperLeft = new SheetPosition(
+      data.center.x - data.radiusX,
+      data.center.y - data.radiusY,
+    );
+    return {
+      position: rotatePointAround(localUpperLeft, data.center, angleDegrees),
+      width: data.radiusX * 2,
+      height: data.radiusY * 2,
+      angleDegrees,
     };
   }
 
