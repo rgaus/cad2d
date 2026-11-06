@@ -13,7 +13,9 @@ import {
 import { DCELShapeIndex } from '@/lib/entity/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { ConstraintEndpoint, LinearConstraint } from '@/lib/entity/constraints';
+import { Angle } from '@/lib/units/angle';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 
@@ -1378,6 +1380,22 @@ describe('DCELShapeIndex', () => {
       const verticals = resultAB.engineConstraints.filter((c) => c.type === 'vertical');
       expect(horizontals.length).toBe(4); // 2 rects × 2 horizontal edges each
       expect(verticals.length).toBe(4); // 2 rects × 2 vertical edges each
+    });
+
+    it('skips auto axis constraints for rotated rectangles', () => {
+      const rect = makeRect('rct_rotated', 0, 0, 100, 100);
+      const rotated = {
+        ...rect,
+        components: {
+          ...rect.components,
+          ...RotationComponent.create(Angle.degrees(45)),
+        },
+      };
+
+      index.addRectangle(rotated);
+      const result = index.computeEngineConstraints([], [], 'cm');
+      expect(result.engineConstraints.filter((c) => c.type === 'horizontal')).toHaveLength(0);
+      expect(result.engineConstraints.filter((c) => c.type === 'vertical')).toHaveLength(0);
     });
   });
 
