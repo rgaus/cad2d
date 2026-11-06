@@ -81,7 +81,7 @@ describe('PolygonData.centroid', () => {
 
   it('is exposed as a centroid key point', () => {
     const geometry = makePolygonGeometry([p(0, 0), p(4, 0), p(4, 4), p(0, 4)]);
-    const keyPoints = PolygonData.keyPoints(geometry);
+    const keyPoints = PolygonData.rawKeyPoints(geometry);
     expect(keyPoints.extras.centroid.x).toBeCloseTo(2);
     expect(keyPoints.extras.centroid.y).toBeCloseTo(2);
   });

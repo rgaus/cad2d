@@ -336,7 +336,9 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
             result.push({
               type: 'rectangle',
               id: g.id,
-              segments: pointsToSegments(rectangleToPolygon(geomData.origin, geomData.width, geomData.height)),
+              segments: pointsToSegments(
+                rectangleToPolygon(geomData.origin, geomData.width, geomData.height),
+              ),
             });
             break;
           }
@@ -1202,7 +1204,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     // The converted polygon is created in anchored (rendered) space with a default anchor, so the rendered
     // position of the rectangle is preserved.
-    const points = rectangleToPolygon(rectangleData.origin, rectangleData.width, rectangleData.height);
+    const points = rectangleToPolygon(
+      rectangleData.origin,
+      rectangleData.width,
+      rectangleData.height,
+    );
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
 
     const polygonTemplate = Polygon.create(points, {
@@ -1386,7 +1392,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       case 'locked-datum': {
         const datum = this.getByIdWithComponent(endpoint.id, DatumComponent);
         if (!datum) return null;
-        return DatumComponent.get(datum);
+        return DatumComponent.getRendered(datum);
       }
       default:
         endpoint satisfies never;
@@ -1434,12 +1440,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (polygonData.type !== 'polygon') {
       return null;
     }
-    if (pointIndex >= polygonData.points.length) {
+    const renderedPolygon = GeometryComponent.getRendered(polygon);
+    if (pointIndex >= renderedPolygon.points.length) {
       return null;
     }
-    const offset = GeometryComponent.getAnchorPointOffset(polygon);
-    const point = polygonData.points[pointIndex].point;
-    return new SheetPosition(point.x - offset.x, point.y - offset.y);
+    return renderedPolygon.points[pointIndex].point;
   }
 
   setWorkingConstraints(

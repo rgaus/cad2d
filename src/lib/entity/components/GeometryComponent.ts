@@ -171,35 +171,41 @@ export namespace GeometryComponent {
     return AnchorPointComponent.computeAssociatedGeometryOffset(geometry);
   }
 
+  /** Key points in raw (untransformed) geometry space. */
+  export function rawKeyPoints(
+    geometry: Entity<GeometryComponent>,
+  ): KeyPoints<SheetPosition, string> {
+    const state = GeometryComponent.get(geometry);
+    switch (state.type) {
+      case 'polygon':
+        return PolygonData.rawKeyPoints(geometry as Entity<GeometryComponent<PolygonData>>);
+      case 'rectangle':
+        return RectangleData.rawKeyPoints(geometry as Entity<GeometryComponent<RectangleData>>);
+      case 'ellipse':
+        return EllipseData.rawKeyPoints(geometry as Entity<GeometryComponent<EllipseData>>);
+      default:
+        state satisfies never;
+        throw new Error(
+          `GeometryComponent.rawKeyPoints: Unknown geometry data type ${(state as any).type}`,
+        );
+    }
+  }
+
   /**
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to. These are expressed in anchored (rendered) space.
    **/
   export function keyPoints(geometry: Entity<GeometryComponent>): KeyPoints<SheetPosition, string> {
-    if (Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
-      // Translate the geometry into anchored space, then drop the anchor so the recursive call
-      // below reads plain (unanchored) geometry.
-      const translated = GeometryComponent.transform(
-        geometry,
-        Entity.generateRenderTransformFunction(geometry),
-      );
-      return GeometryComponent.keyPoints(AnchorPointComponent.remove(translated));
-    }
+    const transform = Entity.generateRenderTransformFunction(geometry);
+    const raw = rawKeyPoints(geometry);
 
-    const state = GeometryComponent.get(geometry);
-    switch (state.type) {
-      case 'polygon':
-        return PolygonData.keyPoints(geometry as Entity<GeometryComponent<PolygonData>>);
-      case 'rectangle':
-        return RectangleData.keyPoints(geometry as Entity<GeometryComponent<RectangleData>>);
-      case 'ellipse':
-        return EllipseData.keyPoints(geometry as Entity<GeometryComponent<EllipseData>>);
-      default:
-        state satisfies never;
-        throw new Error(
-          `GeometryComponent.keyPoints: Unknown geometry data type ${(state as any).type}`,
-        );
-    }
+    return {
+      perimeter: raw.perimeter.map((point) => transform(point)),
+      perimeterLabels: raw.perimeterLabels,
+      extras: Object.fromEntries(
+        Object.entries(raw.extras).map(([key, point]) => [key, transform(point)]),
+      ) as KeyPoints<SheetPosition, string>['extras'],
+    };
   }
 
   /** Oriented bounding box in anchored (rendered) space. */
