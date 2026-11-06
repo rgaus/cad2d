@@ -1,5 +1,5 @@
-import { BoundingBox } from '@/lib/math';
-import { KeyPoints, Rect, RectCorners, SheetPosition } from '@/lib/viewport/types';
+import { BoundingBox, OrientedBoundingBox } from '@/lib/math';
+import { KeyPoints, OrientedRect, Rect, RectCorners, SheetPosition } from '@/lib/viewport/types';
 import { GeometryComponent } from '../components/GeometryComponent';
 import { Entity, type ResizeParams } from '../types';
 
@@ -43,6 +43,21 @@ export namespace RectangleData {
       width: rectangle.width,
       height: rectangle.height,
     };
+  }
+
+  /** Oriented bounding box of already-rendered rectangle data. */
+  export function orientedBoundingBox(
+    data: RectangleData,
+    angleDegrees: number,
+  ): OrientedRect<SheetPosition> {
+    return OrientedBoundingBox.fromRect(
+      {
+        position: data.origin,
+        width: data.width,
+        height: data.height,
+      },
+      angleDegrees,
+    );
   }
 
   export function corners(data: RectangleData): RectCorners<SheetPosition> {

@@ -1,6 +1,5 @@
 import { type PointSegment, type PolygonSegment } from '@/lib/entity';
 import { CubicCurve, Position, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
-import { Angle } from './angle';
 import { DeCasteljau } from './bezier';
 import { Vector2 } from './vector';
 
@@ -9,6 +8,8 @@ export { Intersection } from './intersection';
 export { Angle } from './angle';
 export { Vector2 } from './vector';
 export { BoundingBox } from './bounding-box';
+export { OrientedBoundingBox } from './oriented-bounding-box';
+export { rotatePointAround } from './rotation';
 export { centroid } from './centroid';
 export { type CohenSutherlandOutcode, CohenSutherland } from './cohen-sutherland';
 export { DeCasteljau, cubicBezierAt } from './bezier';
@@ -66,24 +67,6 @@ export function ellipsePoints<P extends Position>(ellipse: {
       ellipse.center.y - ellipse.radiusY,
     ),
   };
-}
-
-/** Rotates a point around a center point by the given angle in degrees, preserving the point's
- * position class. */
-export function rotatePointAround<P extends Position>(
-  point: P,
-  center: P,
-  angleDegrees: number,
-): P {
-  const rad = Angle.toRadians(angleDegrees);
-  const dx = point.x - center.x;
-  const dy = point.y - center.y;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
-  return new (point.constructor as new (x: number, y: number) => P)(
-    center.x + dx * cos - dy * sin,
-    center.y + dx * sin + dy * cos,
-  );
 }
 
 /** Result of closest point computation on a segment/curve, including the parameter t. */

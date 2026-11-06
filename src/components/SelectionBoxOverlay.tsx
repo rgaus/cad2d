@@ -3,14 +3,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { BoundingBoxVisibleComponent, Entity, GeometryComponent } from '@/lib/entity';
-import { BoundingBox } from '@/lib/math';
+import { RenderShape } from '@/lib/entity/render-shape';
+import { BoundingBox, OrientedBoundingBox } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { SELECTION_COLOR } from '@/lib/textures';
 import { SELECTED_OUTSET_PX } from '@/lib/tools/SelectTool';
 import { UnitType } from '@/lib/units/length';
-import { Rect, SheetPosition } from '@/lib/viewport/types';
+import { OrientedRect, Rect, SheetPosition } from '@/lib/viewport/types';
 import { SelectionBoundingBox } from './SelectionBoundingBox';
-import { RenderShape } from '@/lib/entity/render-shape';
 
 /** Overlay that renders the selection bounding box(es) for selected geometries.
  *
@@ -64,21 +64,21 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
       return [null, null];
     }
     const entityBoundingBoxes = selectedEntities.flatMap(
-      (entity): Array<[Rect<SheetPosition> | null, Rect<SheetPosition> | null]> => {
-        let bbox: Rect<SheetPosition>;
+      (entity): Array<[OrientedRect<SheetPosition> | null, Rect<SheetPosition> | null]> => {
+        let bbox: OrientedRect<SheetPosition>;
         try {
-          bbox = Entity.boundingBox(entity);
+          bbox = Entity.orientedBoundingBox(entity);
         } catch {
           return [[null, null] as const];
         }
 
-        let outlineBbox = bbox;
+        let outlineBbox = OrientedBoundingBox.toRect(bbox);
         // Take into account any filter-produced render shapes when generating the selection box
         const filters = filtersByGeometryId.get(entity.id) ?? [];
         if (Entity.hasComponent(entity, GeometryComponent) && filters.length > 0) {
           const shapes = GeometryComponent.getRenderShapes(entity, sheetDefaultUnit, filters);
           outlineBbox = BoundingBox.union([
-            bbox,
+            outlineBbox,
             ...shapes.map((shape) => RenderShape.boundingBox(shape)),
           ])!;
         }
@@ -87,18 +87,25 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
       },
     );
 
-    const selectionBbox = BoundingBox.union(
-      entityBoundingBoxes.flatMap((b) => (b[0] ? [b[0]] : [])),
-    );
+    const orientedBoundingBoxes = entityBoundingBoxes.flatMap((b) => (b[0] ? [b[0]] : []));
+    const selectionBbox =
+      selectedEntities.length === 1
+        ? (orientedBoundingBoxes[0] ?? null)
+        : (() => {
+            const union = OrientedBoundingBox.union(orientedBoundingBoxes);
+            return union ? OrientedBoundingBox.fromRect(union) : null;
+          })();
+    const selectionBboxAABB = selectionBbox ? OrientedBoundingBox.toRect(selectionBbox) : null;
     const selectionOutline = BoundingBox.union(
       entityBoundingBoxes.flatMap((b) => (b[1] ? [b[1]] : [])),
     );
-    return [
-      selectionBbox,
-      selectionBbox && selectionOutline && !BoundingBox.equals(selectionBbox, selectionOutline)
-        ? selectionOutline
-        : null,
-    ];
+    const showOutline =
+      selectionBbox !== null &&
+      selectionOutline !== null &&
+      selectionBboxAABB !== null &&
+      (!BoundingBox.equals(selectionBboxAABB, selectionOutline) ||
+        !OrientedBoundingBox.isAxisAligned(selectionBbox));
+    return [selectionBbox, showOutline ? selectionOutline : null];
   }, [hideBbox, selectedEntities, filtersByGeometryId, sheetDefaultUnit]);
 
   const onCornerHandlePointerDown = useCallback(

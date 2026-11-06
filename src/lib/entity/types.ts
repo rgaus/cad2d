@@ -1,6 +1,9 @@
+import { RenderShape } from '@/lib/entity/render-shape';
+import { OrientedBoundingBox } from '@/lib/math';
 import { type FieldOptionsList } from '@/lib/selection/fields';
 import { type SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
-import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
+import { UnitType } from '@/lib/units/length';
+import { KeyPoints, OrientedRect, Rect, SheetPosition } from '@/lib/viewport/types';
 import { AnchorPointComponent } from './components/AnchorPointComponent';
 import { ConstraintComponent } from './components/ConstraintComponent';
 import { DatumComponent } from './components/DatumComponent';
@@ -10,12 +13,10 @@ import { FrameComponent } from './components/FrameComponent';
 import { GeometryComponent } from './components/GeometryComponent';
 import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
+import { RotationComponent } from './components/RotationComponent';
 import { EllipseData } from './geometry/ellipse';
 import { PolygonData } from './geometry/polygon';
 import { RectangleData } from './geometry/rectangle';
-import { UnitType } from '@/lib/units/length';
-import { RenderShape } from '@/lib/entity/render-shape';
-import { RotationComponent } from './components/RotationComponent';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -132,19 +133,23 @@ export namespace Entity {
     throw new Error(`Entity.keyPoints: unknown geometry type for id=${entity.id}`);
   }
 
-  export function boundingBox(entity: Entity): Rect<SheetPosition> {
+  export function orientedBoundingBox(entity: Entity): OrientedRect<SheetPosition> {
     if (Entity.hasComponent(entity, GeometryComponent)) {
-      return GeometryComponent.boundingBox(entity);
+      return GeometryComponent.orientedBoundingBox(entity);
     } else if (Entity.hasComponent(entity, DatumComponent)) {
-      return DatumComponent.boundingBox(entity);
+      return DatumComponent.orientedBoundingBox(entity);
     } else if (Entity.hasComponent(entity, FrameComponent)) {
-      return FrameComponent.boundingBox(entity);
+      return FrameComponent.orientedBoundingBox(entity);
     }
-    throw new Error(`Entity.boundingBox: unknown geometry type for id=${entity.id}`);
+    throw new Error(`Entity.orientedBoundingBox: unknown geometry type for id=${entity.id}`);
+  }
+
+  export function boundingBox(entity: Entity): Rect<SheetPosition> {
+    return OrientedBoundingBox.toRect(orientedBoundingBox(entity));
   }
 
   /** Given an {@link Entity}, compute the transform function to take the entity and project it into
-    * where it should be rendered, based on any transformations like anchor point, rotation, etc. */
+   * where it should be rendered, based on any transformations like anchor point, rotation, etc. */
   export function generateRenderTransformFunction(entity: Entity) {
     if (Entity.hasComponent(entity, AnchorPointComponent)) {
       const anchor = AnchorPointComponent.generateRenderTransformFunction(entity);

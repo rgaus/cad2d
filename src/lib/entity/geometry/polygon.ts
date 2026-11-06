@@ -2,6 +2,7 @@ import { type UndoEntry } from '@/lib/history/types';
 import {
   BoundingBox,
   DeCasteljau,
+  OrientedBoundingBox,
   Vector2,
   closestPointOnCubicCurve,
   closestPointOnQuadraticCurve,
@@ -12,6 +13,7 @@ import {
   CubicCurve,
   KeyPoints,
   LineSegment,
+  OrientedRect,
   QuadraticCurve,
   Rect,
   SheetPosition,
@@ -138,6 +140,18 @@ export namespace PolygonData {
       width: lowerRightX - upperLeftX,
       height: lowerRightY - upperLeftY,
     };
+  }
+
+  export function orientedBoundingBox(polygonData: PolygonData): OrientedRect<SheetPosition> {
+    if (polygonData.points.length === 0) {
+      throw new Error(
+        'PolygonData.orientedBoundingBox: cannot compute bounding box of polygon with 0 points!',
+      );
+    }
+
+    return OrientedBoundingBox.fromRect(
+      BoundingBox.fromPoints(polygonData.points.map((segment) => segment.point)),
+    );
   }
 
   export function addPointOnEdge<G extends Entity<GeometryComponent<PolygonData>>>(

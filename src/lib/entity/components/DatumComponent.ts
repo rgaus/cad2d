@@ -1,9 +1,10 @@
+import { OrientedBoundingBox } from '@/lib/math';
 import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { Length, UnitType } from '@/lib/units/length';
-import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import { Entity, EntityComponent, type ResizeParams } from '../types';
+import { KeyPoints, OrientedRect, Rect, SheetPosition } from '@/lib/viewport/types';
 import { RenderShape } from '../render-shape';
+import { Entity, EntityComponent, type ResizeParams } from '../types';
 import { AnchorPointComponent } from './AnchorPointComponent';
 
 /**
@@ -51,15 +52,21 @@ export namespace DatumComponent {
     return { position: getRendered(entity), width: 0, height: 0 };
   }
 
+  /** Datum has no area — returns a zero-size oriented rect at its position. */
+  export function orientedBoundingBox(entity: Entity<DatumComponent>): OrientedRect<SheetPosition> {
+    return OrientedBoundingBox.fromRect(boundingBox(entity));
+  }
+
   /** Returns the datum position data after any render transforms have been applied. */
   export function getRendered(entity: Entity<DatumComponent>): SheetPosition {
     return Entity.generateRenderTransformFunction(entity)(get(entity));
   }
 
-  export function getRenderShapes(entity: Entity<DatumComponent>, _sheetDefaultUnit: UnitType): Array<RenderShape> {
-    return [
-      RenderShape.point(entity.id, getRendered(entity), { primary: true }),
-    ];
+  export function getRenderShapes(
+    entity: Entity<DatumComponent>,
+    _sheetDefaultUnit: UnitType,
+  ): Array<RenderShape> {
+    return [RenderShape.point(entity.id, getRendered(entity), { primary: true })];
   }
 
   export function getLayoutState(geometry: Entity<DatumComponent>) {
