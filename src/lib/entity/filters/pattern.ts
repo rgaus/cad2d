@@ -1,4 +1,4 @@
-import { BoundingBox, closestPointOnSegment } from '@/lib/math';
+import { BoundingBox, closestPointOnSegment, rotatePointAround } from '@/lib/math';
 import { lineLineIntersection } from '@/lib/math/intersection';
 import { Angle } from '@/lib/units/angle';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -329,20 +329,6 @@ export namespace PatternFilter {
       return 'filled';
     }
     return 'unchanged';
-  }
-
-  /** Rotates a point around a center point by the given angle in degrees. */
-  function rotatePointAround(
-    point: SheetPosition,
-    center: SheetPosition,
-    angleDeg: number,
-  ): SheetPosition {
-    const rad = Angle.degrees(angleDeg).toRadians().magnitude;
-    const dx = point.x - center.x;
-    const dy = point.y - center.y;
-    const cos = Math.cos(rad);
-    const sin = Math.sin(rad);
-    return new SheetPosition(center.x + dx * cos - dy * sin, center.y + dx * sin + dy * cos);
   }
 
   export function applyToRenderShape(
