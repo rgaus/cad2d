@@ -1026,7 +1026,9 @@ export class DCELShapeIndex {
       // Guard against accidental double-registration
       this.removeRectangle(rect.id);
     }
-    const { perimeter, perimeterLabels } = GeometryComponent.keyPoints(rect);
+    const kp = GeometryComponent.keyPoints(rect);
+    const perimeter = kp.perimeter.map((point) => point.toSheet(rect));
+    const { perimeterLabels } = kp;
     // Rectangle extras (e.g. center) are derived from perimeter vertices.
     // They are resolved and registered on-demand in constraintEndpointToVertexId
     // when a constraint actually references them.
@@ -1069,7 +1071,9 @@ export class DCELShapeIndex {
     if (this.shapes.has(ellipse.id)) {
       this.removeEllipse(ellipse.id);
     }
-    const { perimeter, perimeterLabels } = GeometryComponent.keyPoints(ellipse);
+    const kp = GeometryComponent.keyPoints(ellipse);
+    const perimeter = kp.perimeter.map((point) => point.toSheet(ellipse));
+    const { perimeterLabels } = kp;
     const ellipseData = GeometryComponent.get(ellipse);
     const transform = Entity.generateRenderTransformFunction(ellipse);
     const ellipseSegs = ellipseToPolygon(

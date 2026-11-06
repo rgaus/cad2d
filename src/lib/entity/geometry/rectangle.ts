@@ -1,5 +1,12 @@
 import { BoundingBox, OrientedBoundingBox } from '@/lib/math';
-import { KeyPoints, OrientedRect, Rect, RectCorners, SheetPosition } from '@/lib/viewport/types';
+import {
+  GeometryRelativeSheetPosition,
+  KeyPoints,
+  OrientedRect,
+  Rect,
+  RectCorners,
+  SheetPosition,
+} from '@/lib/viewport/types';
 import { GeometryComponent } from '../components/GeometryComponent';
 import { Entity, type ResizeParams } from '../types';
 
@@ -20,18 +27,19 @@ export namespace RectangleData {
    **/
   export function rawKeyPoints(geometry: Entity<GeometryComponent<RectangleData>>) {
     const rect = boundingBox(geometry);
+    const toRelative = (position: SheetPosition) =>
+      GeometryRelativeSheetPosition.fromRawSheet(position, geometry);
     return {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
       // expects.
-      perimeter: cornersArray(GeometryComponent.get(geometry)),
+      perimeter: cornersArray(GeometryComponent.get(geometry)).map(toRelative),
       perimeterLabels: ['upperLeft', 'upperRight', 'lowerRight', 'lowerLeft'] as const,
       extras: {
-        center: new SheetPosition(
-          rect.position.x + rect.width / 2,
-          rect.position.y + rect.height / 2,
+        center: toRelative(
+          new SheetPosition(rect.position.x + rect.width / 2, rect.position.y + rect.height / 2),
         ),
       },
-    } satisfies KeyPoints<SheetPosition, string, string>;
+    } satisfies KeyPoints<GeometryRelativeSheetPosition, string, string>;
   }
 
   export function boundingBox(

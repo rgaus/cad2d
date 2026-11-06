@@ -595,12 +595,13 @@ describe('GeometryComponent', () => {
       expect(bbox.height).toBe(2);
 
       const keyPoints = GeometryComponent.keyPoints(geometry);
-      expect(keyPoints.perimeter.map((p) => `${p.x},${p.y}`)).toEqual([
-        '8,16',
-        '13,16',
-        '13,18',
-        '8,18',
-      ]);
+      expect(keyPoints.perimeter.map((p) => `${p.x},${p.y}`)).toEqual(['0,0', '5,0', '5,2', '0,2']);
+      expect(
+        keyPoints.perimeter.map((p) => {
+          const sheetPosition = p.toSheet(geometry);
+          return `${sheetPosition.x},${sheetPosition.y}`;
+        }),
+      ).toEqual(['8,16', '13,16', '13,18', '8,18']);
 
       const [shape] = GeometryComponent.getRenderShapes(geometry, sheet.defaultUnit);
       expect(shape).toMatchObject({
@@ -705,23 +706,19 @@ describe('GeometryComponent', () => {
       )!;
 
       const raw = GeometryComponent.rawKeyPoints(geometry);
-      expect(raw.perimeter.map((p) => `${p.x},${p.y}`)).toEqual([
-        '10,10',
-        '14,10',
-        '14,12',
-        '10,12',
-      ]);
-      expect(raw.extras.center).toMatchObject({ x: 12, y: 11 });
+      expect(raw.perimeter.map((p) => `${p.x},${p.y}`)).toEqual(['0,0', '4,0', '4,2', '0,2']);
+      expect(raw.extras.center).toMatchObject({ x: 2, y: 1 });
 
       const keyPoints = GeometryComponent.keyPoints(geometry);
-      expect(keyPoints.perimeter.map((p) => `${p.x},${p.y}`)).toEqual([
-        '10,10',
-        '10,14',
-        '8,14',
-        '8,10',
-      ]);
-      expect(keyPoints.extras.center.x).toBeCloseTo(9);
-      expect(keyPoints.extras.center.y).toBeCloseTo(12);
+      expect(
+        keyPoints.perimeter.map((p) => {
+          const sheetPosition = p.toSheet(geometry);
+          return `${sheetPosition.x},${sheetPosition.y}`;
+        }),
+      ).toEqual(['10,10', '10,14', '8,14', '8,10']);
+      const center = keyPoints.extras.center.toSheet(geometry);
+      expect(center.x).toBeCloseTo(9);
+      expect(center.y).toBeCloseTo(12);
     });
 
     it('rotates ellipse key points around the center', () => {
@@ -740,13 +737,23 @@ describe('GeometryComponent', () => {
 
       const keyPoints = GeometryComponent.keyPoints(geometry);
       expect(keyPoints.perimeter.map((p) => `${p.x},${p.y}`)).toEqual([
-        '12,10',
-        '10,14',
-        '8,10',
-        '10,6',
+        '0,-2',
+        '4,0',
+        '0,2',
+        '-4,0',
       ]);
-      expect(keyPoints.extras.center.x).toBeCloseTo(10);
-      expect(keyPoints.extras.center.y).toBeCloseTo(10);
+      const projected = keyPoints.perimeter.map((p) => p.toSheet(geometry));
+      expect(projected[0].x).toBeCloseTo(12);
+      expect(projected[0].y).toBeCloseTo(10);
+      expect(projected[1].x).toBeCloseTo(10);
+      expect(projected[1].y).toBeCloseTo(14);
+      expect(projected[2].x).toBeCloseTo(8);
+      expect(projected[2].y).toBeCloseTo(10);
+      expect(projected[3].x).toBeCloseTo(10);
+      expect(projected[3].y).toBeCloseTo(6);
+      const center = keyPoints.extras.center.toSheet(geometry);
+      expect(center.x).toBeCloseTo(10);
+      expect(center.y).toBeCloseTo(10);
     });
 
     it('combines anchor offset and rotation without changing the anchor offset', () => {
@@ -774,14 +781,19 @@ describe('GeometryComponent', () => {
       expect(offset.y).toBeCloseTo(-1);
 
       const keyPoints = GeometryComponent.keyPoints(geometry);
-      expect(keyPoints.perimeter.map((p) => `${p.x},${p.y}`)).toEqual([
-        '10,12',
-        '10,17',
-        '8,17',
-        '8,12',
-      ]);
-      expect(keyPoints.extras.center.x).toBeCloseTo(9);
-      expect(keyPoints.extras.center.y).toBeCloseTo(14.5);
+      expect(keyPoints.perimeter.map((p) => `${p.x},${p.y}`)).toEqual(['0,0', '5,0', '5,2', '0,2']);
+      const projected = keyPoints.perimeter.map((p) => p.toSheet(geometry));
+      expect(projected[0].x).toBeCloseTo(10);
+      expect(projected[0].y).toBeCloseTo(12);
+      expect(projected[1].x).toBeCloseTo(10);
+      expect(projected[1].y).toBeCloseTo(17);
+      expect(projected[2].x).toBeCloseTo(8);
+      expect(projected[2].y).toBeCloseTo(17);
+      expect(projected[3].x).toBeCloseTo(8);
+      expect(projected[3].y).toBeCloseTo(12);
+      const center = keyPoints.extras.center.toSheet(geometry);
+      expect(center.x).toBeCloseTo(9);
+      expect(center.y).toBeCloseTo(14.5);
     });
   });
 });

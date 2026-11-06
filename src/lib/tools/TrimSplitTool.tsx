@@ -1005,7 +1005,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
       if (rectangle !== null && GeometryComponent.isRectangle(rectangle)) {
         const kp = GeometryComponent.keyPoints(rectangle);
         const perimeterLabels = kp.perimeterLabels as ReadonlyArray<string>;
-        const perimeterPositions = kp.perimeter;
+        const perimeterPositions = kp.perimeter.map((point) => point.toSheet(rectangle));
         const numCorners = perimeterPositions.length;
 
         for (let i = 0; i < numCorners; i += 1) {
@@ -1059,7 +1059,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
       if (ellipse !== null && GeometryComponent.isEllipse(ellipse)) {
         const kp = GeometryComponent.keyPoints(ellipse);
         const perimeterLabels = kp.perimeterLabels as ReadonlyArray<string>;
-        const perimeterPositions = kp.perimeter;
+        const perimeterPositions = kp.perimeter.map((point) => point.toSheet(ellipse));
         const numPoints = perimeterPositions.length;
 
         for (let i = 0; i < numPoints; i += 1) {

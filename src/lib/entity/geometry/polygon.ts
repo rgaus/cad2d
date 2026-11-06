@@ -11,6 +11,7 @@ import {
 } from '@/lib/math';
 import {
   CubicCurve,
+  GeometryRelativeSheetPosition,
   KeyPoints,
   LineSegment,
   OrientedRect,
@@ -72,7 +73,11 @@ export type PolygonData = {
 export namespace PolygonData {
   export function rawKeyPoints(
     geometry: Entity<GeometryComponent<PolygonData>>,
-  ): KeyPoints<SheetPosition, 'boundingBoxUpperLeft' | 'centroid', `Point ${number}`> {
+  ): KeyPoints<
+    GeometryRelativeSheetPosition,
+    'boundingBoxUpperLeft' | 'centroid',
+    `Point ${number}`
+  > {
     const polygonData = GeometryComponent.get(geometry);
     const points = polygonData.points.map((p) => p.point);
 
@@ -81,12 +86,14 @@ export namespace PolygonData {
       points.reverse();
     }
 
+    const toRelative = (position: SheetPosition) =>
+      GeometryRelativeSheetPosition.fromRawSheet(position, geometry);
     return {
-      perimeter: points,
+      perimeter: points.map(toRelative),
       perimeterLabels: points.map((_, index) => `Point ${index + 1}` as const),
       extras: {
-        boundingBoxUpperLeft: PolygonData.boundingBox(geometry).position,
-        centroid: PolygonData.centroid(geometry),
+        boundingBoxUpperLeft: toRelative(PolygonData.boundingBox(geometry).position),
+        centroid: toRelative(PolygonData.centroid(geometry)),
       },
     };
   }

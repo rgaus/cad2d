@@ -5,7 +5,13 @@ import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import { computeOpenAtIndex } from '@/lib/selection/polygon-point-row';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { Length, type UnitType } from '@/lib/units/length';
-import { KeyPoints, OrientedRect, Rect, SheetPosition } from '@/lib/viewport/types';
+import {
+  GeometryRelativeSheetPosition,
+  KeyPoints,
+  OrientedRect,
+  Rect,
+  SheetPosition,
+} from '@/lib/viewport/types';
 import { FilletFilter, Filter, FilterData } from '../filters';
 import { MirrorFilter } from '../filters/mirror';
 import { PatternFilter } from '../filters/pattern';
@@ -174,7 +180,7 @@ export namespace GeometryComponent {
   /** Key points in raw (untransformed) geometry space. */
   export function rawKeyPoints(
     geometry: Entity<GeometryComponent>,
-  ): KeyPoints<SheetPosition, string> {
+  ): KeyPoints<GeometryRelativeSheetPosition, string> {
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
@@ -193,19 +199,12 @@ export namespace GeometryComponent {
 
   /**
    * Key points that are added as verticies within the DCEL and available for a user to snap other
-   * entities like constraints to. These are expressed in anchored (rendered) space.
+   * entities like constraints to. These are expressed in geometry-relative coordinates.
    **/
-  export function keyPoints(geometry: Entity<GeometryComponent>): KeyPoints<SheetPosition, string> {
-    const transform = Entity.generateRenderTransformFunction(geometry);
-    const raw = rawKeyPoints(geometry);
-
-    return {
-      perimeter: raw.perimeter.map((point) => transform(point)),
-      perimeterLabels: raw.perimeterLabels,
-      extras: Object.fromEntries(
-        Object.entries(raw.extras).map(([key, point]) => [key, transform(point)]),
-      ) as KeyPoints<SheetPosition, string>['extras'],
-    };
+  export function keyPoints(
+    geometry: Entity<GeometryComponent>,
+  ): KeyPoints<GeometryRelativeSheetPosition, string> {
+    return rawKeyPoints(geometry);
   }
 
   /** Oriented bounding box in anchored (rendered) space. */

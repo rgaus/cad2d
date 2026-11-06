@@ -1,5 +1,11 @@
 import { ellipsePoints, rotatePointAround } from '@/lib/math';
-import { KeyPoints, OrientedRect, Rect, SheetPosition } from '@/lib/viewport/types';
+import {
+  GeometryRelativeSheetPosition,
+  KeyPoints,
+  OrientedRect,
+  Rect,
+  SheetPosition,
+} from '@/lib/viewport/types';
 import { GeometryComponent } from '../components/GeometryComponent';
 import { Entity, type ResizeParams } from '../types';
 
@@ -19,15 +25,17 @@ export namespace EllipseData {
   export function rawKeyPoints(geometry: Entity<GeometryComponent<EllipseData>>) {
     const ellipse = GeometryComponent.get(geometry);
     const points = ellipsePoints(ellipse);
+    const toRelative = (position: SheetPosition) =>
+      GeometryRelativeSheetPosition.fromRawSheet(position, geometry);
     return {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
       // expects.
-      perimeter: [points.top, points.right, points.bottom, points.left],
+      perimeter: [points.top, points.right, points.bottom, points.left].map(toRelative),
       perimeterLabels: ['top', 'right', 'bottom', 'left'] as const,
       extras: {
-        center: points.center,
+        center: toRelative(points.center),
       },
-    } satisfies KeyPoints<SheetPosition, string, string>;
+    } satisfies KeyPoints<GeometryRelativeSheetPosition, string, string>;
   }
 
   export function boundingBox(

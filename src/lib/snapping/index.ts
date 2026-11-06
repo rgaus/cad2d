@@ -15,7 +15,7 @@ import { type Geometry } from '@/lib/entity/geometry';
 import { type PolygonData } from '@/lib/entity/geometry/polygon';
 import { Angle, BoundingBox, Vector2, closestPointOnSegment } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { SheetPosition } from '@/lib/viewport/types';
+import { GeometryRelativeSheetPosition, SheetPosition } from '@/lib/viewport/types';
 import { FilterComponent } from '../entity/components/FilterComponent';
 import { PatternFilter } from '../entity/filters/pattern';
 import { lineLineIntersection, lineSlope } from '../math/intersection';
@@ -251,16 +251,17 @@ function snapNearestKeyPoint(
           if (label === null) {
             continue;
           }
-          const point = kp.perimeter[i];
+          const point = kp.perimeter[i].toSheet(geometry);
           consider(
             Vector2.distance(pos, point),
             { type: 'locked-rectangle', id: geometry.id, point: label as RectangleEndpoint },
             point,
           );
         }
-        for (const [name, point] of Object.entries(kp.extras) as Array<
-          [RectangleEndpoint, SheetPosition]
+        for (const [name, relativePoint] of Object.entries(kp.extras) as Array<
+          [RectangleEndpoint, GeometryRelativeSheetPosition]
         >) {
+          const point = relativePoint.toSheet(geometry);
           consider(
             Vector2.distance(pos, point),
             { type: 'locked-rectangle', id: geometry.id, point: name },
@@ -276,16 +277,17 @@ function snapNearestKeyPoint(
           if (label === null) {
             continue;
           }
-          const point = kp.perimeter[i];
+          const point = kp.perimeter[i].toSheet(geometry);
           consider(
             Vector2.distance(pos, point),
             { type: 'locked-ellipse', id: geometry.id, point: label as EllipseEndpoint },
             point,
           );
         }
-        for (const [name, point] of Object.entries(kp.extras) as Array<
-          [EllipseEndpoint, SheetPosition]
+        for (const [name, relativePoint] of Object.entries(kp.extras) as Array<
+          [EllipseEndpoint, GeometryRelativeSheetPosition]
         >) {
+          const point = relativePoint.toSheet(geometry);
           consider(
             Vector2.distance(pos, point),
             { type: 'locked-ellipse', id: geometry.id, point: name },

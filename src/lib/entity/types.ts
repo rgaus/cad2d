@@ -4,7 +4,7 @@ import { OrientedBoundingBox } from '@/lib/math';
 import { type FieldOptionsList } from '@/lib/selection/fields';
 import { type SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { UnitType } from '@/lib/units/length';
-import { KeyPoints, OrientedRect, Rect, SheetPosition } from '@/lib/viewport/types';
+import { KeyPoints, OrientedRect, Position, Rect, SheetPosition } from '@/lib/viewport/types';
 import { AnchorPointComponent } from './components/AnchorPointComponent';
 import { ConstraintComponent } from './components/ConstraintComponent';
 import { DatumComponent } from './components/DatumComponent';
@@ -123,7 +123,7 @@ export namespace Entity {
   export function keyPoints(
     geometry: Entity<FrameComponent>,
   ): ReturnType<typeof FrameComponent.keyPoints>;
-  export function keyPoints(entity: Entity): KeyPoints<SheetPosition, any> {
+  export function keyPoints(entity: Entity): KeyPoints<Position, string> {
     if (Entity.hasComponent(entity, GeometryComponent)) {
       return GeometryComponent.keyPoints(entity);
     } else if (Entity.hasComponent(entity, DatumComponent)) {

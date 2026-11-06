@@ -2,7 +2,7 @@ import { type Matrix, identity, translate } from 'transformation-matrix';
 import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { Length } from '@/lib/units/length';
-import { SheetPosition } from '@/lib/viewport/types';
+import { GeometryRelativeSheetPosition, SheetPosition } from '@/lib/viewport/types';
 import { Entity, EntityComponent, EntityOmitComponents } from '../types';
 import { GeometryComponent } from './GeometryComponent';
 
@@ -55,21 +55,21 @@ export namespace AnchorPointComponent {
   function resolveKeyPointPositionFrom(
     keyPoints: ReturnType<typeof GeometryComponent.keyPoints>,
     keyPoint: string,
-  ): SheetPosition | null {
+  ): GeometryRelativeSheetPosition | null {
     const index = keyPoints.perimeterLabels.indexOf(keyPoint);
     if (index !== -1) {
       return keyPoints.perimeter[index] ?? null;
     }
-    const extras = keyPoints.extras as Record<string, SheetPosition>;
+    const extras = keyPoints.extras as Record<string, GeometryRelativeSheetPosition>;
     return extras[keyPoint] ?? null;
   }
 
-  /** Resolves a named key point to its rendered position on the geometry, or null if it does not
-   * exist. */
+  /** Resolves a named key point to its geometry-relative position on the geometry, or null if it
+   * does not exist. */
   export function resolveKeyPointPosition(
     geometry: Entity<GeometryComponent>,
     keyPoint: string,
-  ): SheetPosition | null {
+  ): GeometryRelativeSheetPosition | null {
     return resolveKeyPointPositionFrom(GeometryComponent.keyPoints(geometry), keyPoint);
   }
 
@@ -89,12 +89,8 @@ export namespace AnchorPointComponent {
     if (!keyPointPosition) {
       return new SheetPosition(0, 0);
     }
-    const origin = GeometryComponent.getRenderOrigin(withoutAnchor);
 
-    return new SheetPosition(
-      keyPointPosition.x - origin.x + offset.x,
-      keyPointPosition.y - origin.y + offset.y,
-    );
+    return new SheetPosition(keyPointPosition.x + offset.x, keyPointPosition.y + offset.y);
   }
 
   /**

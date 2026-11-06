@@ -1378,11 +1378,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           endpoint.point as (typeof kp.perimeterLabels)[number],
         );
         if (perimeterIdx !== -1) {
-          return kp.perimeter[perimeterIdx];
+          return kp.perimeter[perimeterIdx].toSheet(ellipse);
         }
         // Check extras
         if (endpoint.point in kp.extras) {
-          return kp.extras[endpoint.point as keyof typeof kp.extras];
+          return kp.extras[endpoint.point as keyof typeof kp.extras].toSheet(ellipse);
         }
         return null;
       }
@@ -1421,11 +1421,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       endpoint as (typeof kp.perimeterLabels)[number],
     );
     if (perimeterIdx !== -1) {
-      return kp.perimeter[perimeterIdx];
+      return kp.perimeter[perimeterIdx].toSheet(rect);
     }
     // Check extras (e.g. topMiddle)
     if (endpoint in kp.extras) {
-      return kp.extras[endpoint as keyof typeof kp.extras];
+      return kp.extras[endpoint as keyof typeof kp.extras].toSheet(rect);
     }
     return null;
   }
