@@ -70,7 +70,7 @@ export type PolygonData = {
 };
 
 export namespace PolygonData {
-  export function keyPoints(
+  export function rawKeyPoints(
     geometry: Entity<GeometryComponent<PolygonData>>,
   ): KeyPoints<SheetPosition, 'boundingBoxUpperLeft' | 'centroid', `Point ${number}`> {
     const polygonData = GeometryComponent.get(geometry);

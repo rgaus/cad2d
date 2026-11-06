@@ -109,13 +109,13 @@ export namespace Entity {
 
   export function keyPoints(
     geometry: Entity<GeometryComponent<PolygonData>>,
-  ): ReturnType<typeof PolygonData.keyPoints>;
+  ): ReturnType<typeof PolygonData.rawKeyPoints>;
   export function keyPoints(
     geometry: Entity<GeometryComponent<RectangleData>>,
-  ): ReturnType<typeof PolygonData.keyPoints>;
+  ): ReturnType<typeof RectangleData.rawKeyPoints>;
   export function keyPoints(
     geometry: Entity<GeometryComponent<EllipseData>>,
-  ): ReturnType<typeof EllipseData.keyPoints>;
+  ): ReturnType<typeof EllipseData.rawKeyPoints>;
   export function keyPoints(
     geometry: Entity<DatumComponent>,
   ): ReturnType<typeof DatumComponent.keyPoints>;

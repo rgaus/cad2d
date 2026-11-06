@@ -1,3 +1,4 @@
+import { Angle } from '@/lib/units/angle';
 import { type KeyPointKeys, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
 import { AnchorPointComponent } from './components/AnchorPointComponent';
@@ -5,10 +6,9 @@ import { FillColorComponent } from './components/FillColorComponent';
 import { GeometryComponent } from './components/GeometryComponent';
 import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
+import { RotationComponent } from './components/RotationComponent';
 import { RectangleData } from './geometry/rectangle';
 import { Entity, EntityOmitComponents } from './types';
-import { RotationComponent } from './components/RotationComponent';
-import { Angle } from '@/lib/units/angle';
 
 /** A rectangle defined by its upper-left and lower-right corners. Axis-aligned. */
 export type Rectangle = Entity<
@@ -35,8 +35,8 @@ export namespace RectangleCorner {
 }
 
 /** A point on a rectangle that a constraint endpoint can lock to.
- *  Derived from {@link GeometryComponent.keyPoints} -> {@link RectangleData.keyPoints}. */
-export type RectangleEndpoint = KeyPointKeys<ReturnType<typeof RectangleData.keyPoints>>;
+ *  Derived from {@link GeometryComponent.keyPoints} -> {@link RectangleData.rawKeyPoints}. */
+export type RectangleEndpoint = KeyPointKeys<ReturnType<typeof RectangleData.rawKeyPoints>>;
 
 export namespace RectangleEndpoint {
   /** Attempts to cast the given passed string into a {@link RectangleEndpoint} */

@@ -9,17 +9,23 @@ import {
 } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { PolygonSegment } from '@/lib/entity/geometry/polygon';
 import type { QuadraticBezierSegment } from '@/lib/entity/geometry/polygon';
-import { RenderShapeEllipse, RenderShapePolygon, RenderShapeRectangle } from '@/lib/entity/render-shape';
+import {
+  RenderShapeEllipse,
+  RenderShapePolygon,
+  RenderShapeRectangle,
+} from '@/lib/entity/render-shape';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { FilletFilterTool } from '@/lib/tools/FilletFilterTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
+import { Angle } from '@/lib/units/angle';
 import { Length } from '@/lib/units/length';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import { SheetPosition, type ViewportState } from '@/lib/viewport/types';
@@ -680,6 +686,102 @@ describe('GeometryComponent', () => {
         upperLeft: { x: 11, y: 15 },
         lowerRight: { x: 16, y: 17 },
       });
+    });
+  });
+
+  describe('rotation-aware key points', () => {
+    it('rotates rectangle key points around the origin', () => {
+      const rectangle = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(10, 10), new SheetPosition(14, 12)),
+      );
+      geometryStore.updateByIdWithComponent(rectangle.id, RotationComponent, (g) =>
+        RotationComponent.update(g, { angle: Angle.degrees(90) }),
+      );
+      const geometry = geometryStore.getByIdWithComponents(
+        rectangle.id,
+        GeometryComponent,
+        AnchorPointComponent,
+      )!;
+
+      const raw = GeometryComponent.rawKeyPoints(geometry);
+      expect(raw.perimeter.map((p) => `${p.x},${p.y}`)).toEqual([
+        '10,10',
+        '14,10',
+        '14,12',
+        '10,12',
+      ]);
+      expect(raw.extras.center).toMatchObject({ x: 12, y: 11 });
+
+      const keyPoints = GeometryComponent.keyPoints(geometry);
+      expect(keyPoints.perimeter.map((p) => `${p.x},${p.y}`)).toEqual([
+        '10,10',
+        '10,14',
+        '8,14',
+        '8,10',
+      ]);
+      expect(keyPoints.extras.center.x).toBeCloseTo(9);
+      expect(keyPoints.extras.center.y).toBeCloseTo(12);
+    });
+
+    it('rotates ellipse key points around the center', () => {
+      const ellipse = geometryStore.addOrdered(
+        ID_PREFIXES.ellipse,
+        Ellipse.create(new SheetPosition(10, 10), { radiusX: 4, radiusY: 2 }),
+      );
+      geometryStore.updateByIdWithComponent(ellipse.id, RotationComponent, (g) =>
+        RotationComponent.update(g, { angle: Angle.degrees(90) }),
+      );
+      const geometry = geometryStore.getByIdWithComponents(
+        ellipse.id,
+        GeometryComponent,
+        AnchorPointComponent,
+      )!;
+
+      const keyPoints = GeometryComponent.keyPoints(geometry);
+      expect(keyPoints.perimeter.map((p) => `${p.x},${p.y}`)).toEqual([
+        '12,10',
+        '10,14',
+        '8,10',
+        '10,6',
+      ]);
+      expect(keyPoints.extras.center.x).toBeCloseTo(10);
+      expect(keyPoints.extras.center.y).toBeCloseTo(10);
+    });
+
+    it('combines anchor offset and rotation without changing the anchor offset', () => {
+      const rectangle = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(11, 15), new SheetPosition(16, 17)),
+      );
+      geometryStore.updateByIdWithComponent(rectangle.id, AnchorPointComponent, (g) =>
+        AnchorPointComponent.update(g, {
+          keyPoint: 'lowerRight',
+          offset: new SheetPosition(-2, -3),
+        }),
+      );
+      geometryStore.updateByIdWithComponent(rectangle.id, RotationComponent, (g) =>
+        RotationComponent.update(g, { angle: Angle.degrees(90) }),
+      );
+      const geometry = geometryStore.getByIdWithComponents(
+        rectangle.id,
+        GeometryComponent,
+        AnchorPointComponent,
+      )!;
+
+      const offset = AnchorPointComponent.computeAssociatedGeometryOffset(geometry);
+      expect(offset.x).toBeCloseTo(3);
+      expect(offset.y).toBeCloseTo(-1);
+
+      const keyPoints = GeometryComponent.keyPoints(geometry);
+      expect(keyPoints.perimeter.map((p) => `${p.x},${p.y}`)).toEqual([
+        '10,12',
+        '10,17',
+        '8,17',
+        '8,12',
+      ]);
+      expect(keyPoints.extras.center.x).toBeCloseTo(9);
+      expect(keyPoints.extras.center.y).toBeCloseTo(14.5);
     });
   });
 });

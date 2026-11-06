@@ -1,3 +1,4 @@
+import { Angle } from '@/lib/units/angle';
 import { type KeyPointKeys, SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
 import { AnchorPointComponent } from './components/AnchorPointComponent';
@@ -5,10 +6,9 @@ import { FillColorComponent } from './components/FillColorComponent';
 import { GeometryComponent } from './components/GeometryComponent';
 import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
+import { RotationComponent } from './components/RotationComponent';
 import { EllipseData } from './geometry/ellipse';
 import { Entity, EntityOmitComponents } from './types';
-import { RotationComponent } from './components/RotationComponent';
-import { Angle } from '@/lib/units/angle';
 
 /** An ellipse defined by its center and two radii.
  * The semi-major axis is horizontal (radiusX).
@@ -25,8 +25,8 @@ export type Ellipse = Entity<
 export type EllipseTemplate = Omit<EntityOmitComponents<Ellipse, RenderOrderComponent>, 'id'>;
 
 /** A point on an ellipse that a constraint endpoint can lock to.
- *  Derived from {@link GeometryComponent.keyPoints} -> {@link EllipseData.keyPoints}. */
-export type EllipseEndpoint = KeyPointKeys<ReturnType<typeof EllipseData.keyPoints>>;
+ *  Derived from {@link GeometryComponent.keyPoints} -> {@link EllipseData.rawKeyPoints}. */
+export type EllipseEndpoint = KeyPointKeys<ReturnType<typeof EllipseData.rawKeyPoints>>;
 
 export namespace EllipseEndpoint {
   /** Attempts to cast the given passed string into an {@link EllipseEndpoint} */

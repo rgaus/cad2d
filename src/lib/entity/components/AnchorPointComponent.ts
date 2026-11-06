@@ -51,18 +51,25 @@ export namespace AnchorPointComponent {
     return [...perimeterLabels, ...Object.keys(keyPoints.extras)];
   }
 
-  /** Resolves a named key point to its position on the geometry, or null if it does not exist. */
-  export function resolveKeyPointPosition(
-    geometry: Entity<GeometryComponent>,
+  function resolveKeyPointPositionFrom(
+    keyPoints: ReturnType<typeof GeometryComponent.keyPoints>,
     keyPoint: string,
   ): SheetPosition | null {
-    const keyPoints = GeometryComponent.keyPoints(geometry);
     const index = keyPoints.perimeterLabels.indexOf(keyPoint);
     if (index !== -1) {
       return keyPoints.perimeter[index] ?? null;
     }
     const extras = keyPoints.extras as Record<string, SheetPosition>;
     return extras[keyPoint] ?? null;
+  }
+
+  /** Resolves a named key point to its rendered position on the geometry, or null if it does not
+   * exist. */
+  export function resolveKeyPointPosition(
+    geometry: Entity<GeometryComponent>,
+    keyPoint: string,
+  ): SheetPosition | null {
+    return resolveKeyPointPositionFrom(GeometryComponent.keyPoints(geometry), keyPoint);
   }
 
   /** The offset that the associated geometry should be rendered at from it's natural origin, given
@@ -74,7 +81,10 @@ export namespace AnchorPointComponent {
     // Resolve the key point against the geometry without its own anchor applied, so both the key
     // point and the origin are in the same (raw) space and the anchor does not cancel itself out.
     const withoutAnchor = AnchorPointComponent.remove(geometry);
-    const keyPointPosition = resolveKeyPointPosition(withoutAnchor, keyPoint);
+    const keyPointPosition = resolveKeyPointPositionFrom(
+      GeometryComponent.rawKeyPoints(withoutAnchor),
+      keyPoint,
+    );
     if (!keyPointPosition) {
       return new SheetPosition(0, 0);
     }

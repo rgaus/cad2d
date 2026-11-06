@@ -18,7 +18,7 @@ export namespace RectangleData {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to.
    **/
-  export function keyPoints(geometry: Entity<GeometryComponent<RectangleData>>) {
+  export function rawKeyPoints(geometry: Entity<GeometryComponent<RectangleData>>) {
     const rect = boundingBox(geometry);
     return {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
