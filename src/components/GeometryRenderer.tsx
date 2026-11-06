@@ -72,6 +72,61 @@ function appendClosedPath(graphics: Graphics, segments: Array<PolygonSegment>) {
   graphics.closePath();
 }
 
+/** Appends a rectangle to the given graphics, rotating its corners around its upper-left corner.
+ * Callers are responsible for filling / stroking the resulting path. */
+function drawRotatedRectangle(
+  graphics: Graphics,
+  upperLeft: SheetPosition,
+  lowerRight: SheetPosition,
+  angleDegrees: number = 0,
+) {
+  if (angleDegrees === 0) {
+    graphics.rect(
+      upperLeft.x * SHEET_UNITS_TO_PIXELS,
+      upperLeft.y * SHEET_UNITS_TO_PIXELS,
+      (lowerRight.x - upperLeft.x) * SHEET_UNITS_TO_PIXELS,
+      (lowerRight.y - upperLeft.y) * SHEET_UNITS_TO_PIXELS,
+    );
+    return;
+  }
+
+  const segments: Array<PolygonSegment> = [
+    upperLeft,
+    new SheetPosition(lowerRight.x, upperLeft.y),
+    lowerRight,
+    new SheetPosition(upperLeft.x, lowerRight.y),
+  ].map((point) => ({
+    type: 'point',
+    point: rotatePointAround(point, upperLeft, angleDegrees),
+  }));
+  appendClosedPath(graphics, segments);
+}
+
+/** Appends an ellipse to the given graphics, rotating it around its center. Callers are
+ * responsible for filling / stroking the resulting path. */
+function drawRotatedEllipse(
+  graphics: Graphics,
+  center: SheetPosition,
+  radiusX: number,
+  radiusY: number,
+  angleDegrees: number = 0,
+) {
+  if (angleDegrees === 0) {
+    graphics.ellipse(
+      center.x * SHEET_UNITS_TO_PIXELS,
+      center.y * SHEET_UNITS_TO_PIXELS,
+      radiusX * SHEET_UNITS_TO_PIXELS,
+      radiusY * SHEET_UNITS_TO_PIXELS,
+    );
+    return;
+  }
+
+  const segments = ellipseToPolygon(center, radiusX, radiusY).map((seg) =>
+    PolygonSegment.transform(seg, (point) => rotatePointAround(point, center, angleDegrees)),
+  );
+  appendClosedPath(graphics, segments);
+}
+
 type GeometryShapeRendererCommonProps = {
   fillColor?: number | null;
   stroke?: number;
@@ -331,25 +386,6 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
 
       const centerX = center.x * SHEET_UNITS_TO_PIXELS;
       const centerY = center.y * SHEET_UNITS_TO_PIXELS;
-      const radiusXPixels = args.radiusX * SHEET_UNITS_TO_PIXELS;
-      const radiusYPixels = args.radiusY * SHEET_UNITS_TO_PIXELS;
-
-      const rotatedSegments =
-        args.angleDegrees === 0
-          ? null
-          : ellipseToPolygon(center, args.radiusX, args.radiusY).map((seg) =>
-              PolygonSegment.transform(seg, (point) =>
-                rotatePointAround(point, center, args.angleDegrees),
-              ),
-            );
-
-      const addEllipsePath = () => {
-        if (rotatedSegments) {
-          appendClosedPath(graphics, rotatedSegments);
-        } else {
-          graphics.ellipse(centerX, centerY, radiusXPixels, radiusYPixels);
-        }
-      };
 
       if (typeof props.fillColor !== 'undefined') {
         if (props.fillColor !== null) {
@@ -357,7 +393,7 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
         } else {
           graphics.setFillStyle({ color: 0x000000, alpha: 0 });
         }
-        addEllipsePath();
+        drawRotatedEllipse(graphics, center, args.radiusX, args.radiusY, args.angleDegrees);
         graphics.fill();
       }
 
@@ -368,7 +404,7 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
           alpha: 0.3,
           alignment: 1,
         });
-        addEllipsePath();
+        drawRotatedEllipse(graphics, center, args.radiusX, args.radiusY, args.angleDegrees);
         graphics.stroke();
       }
 
@@ -376,7 +412,7 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
         color: props.stroke ?? 0x000000,
         width: (props.strokeWidth ?? 1) / props.viewportScale,
       });
-      addEllipsePath();
+      drawRotatedEllipse(graphics, center, args.radiusX, args.radiusY, args.angleDegrees);
       graphics.stroke();
 
       // For ellipses that are selected, render a little crosshairs marker at the geometry's center.
@@ -401,41 +437,13 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
     ) => {
       graphics.clear();
 
-      const x = upperLeft.x * SHEET_UNITS_TO_PIXELS;
-      const y = upperLeft.y * SHEET_UNITS_TO_PIXELS;
-      const width = (lowerRight.x - upperLeft.x) * SHEET_UNITS_TO_PIXELS;
-      const height = (lowerRight.y - upperLeft.y) * SHEET_UNITS_TO_PIXELS;
-
-      const rotatedSegments =
-        angleDegrees === 0
-          ? null
-          : [
-              upperLeft,
-              new SheetPosition(lowerRight.x, upperLeft.y),
-              lowerRight,
-              new SheetPosition(upperLeft.x, lowerRight.y),
-            ].map(
-              (point): PolygonSegment => ({
-                type: 'point',
-                point: rotatePointAround(point, upperLeft, angleDegrees),
-              }),
-            );
-
-      const addRectanglePath = () => {
-        if (rotatedSegments) {
-          appendClosedPath(graphics, rotatedSegments);
-        } else {
-          graphics.rect(x, y, width, height);
-        }
-      };
-
       if (typeof props.fillColor !== 'undefined') {
         if (props.fillColor !== null) {
           graphics.setFillStyle({ color: props.fillColor });
         } else {
           graphics.setFillStyle({ color: 0x000000, alpha: 0 });
         }
-        addRectanglePath();
+        drawRotatedRectangle(graphics, upperLeft, lowerRight, angleDegrees);
         graphics.fill();
       }
 
@@ -446,7 +454,7 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
           alpha: 0.3,
           alignment: 1,
         });
-        addRectanglePath();
+        drawRotatedRectangle(graphics, upperLeft, lowerRight, angleDegrees);
         graphics.stroke();
       }
 
@@ -454,7 +462,7 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
         color: props.stroke ?? 0x000000,
         width: (props.strokeWidth ?? 1) / props.viewportScale,
       });
-      addRectanglePath();
+      drawRotatedRectangle(graphics, upperLeft, lowerRight, angleDegrees);
       graphics.stroke();
     },
     [props.fillColor, props.stroke, props.strokeWidth, props.viewportScale, props.showHintStroke],
