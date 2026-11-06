@@ -645,7 +645,7 @@ describe('GeometryComponent', () => {
         GeometryComponent,
         AnchorPointComponent,
       )!;
-      const world = GeometryComponent.getRendered(polygonGeometry);
+      const world = GeometryComponent.projectToSheet(polygonGeometry);
       expect(world.type).toBe('polygon');
       if (world.type === 'polygon') {
         expect(world.points.map((p: PolygonSegment) => `${p.point.x},${p.point.y}`)).toEqual([

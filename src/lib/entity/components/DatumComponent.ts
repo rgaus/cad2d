@@ -49,7 +49,7 @@ export namespace DatumComponent {
 
   /** Datum has no area — returns a zero-size rect at its position. */
   export function boundingBox(entity: Entity<DatumComponent>): Rect<SheetPosition> {
-    return { position: getRendered(entity), width: 0, height: 0 };
+    return { position: get(entity), width: 0, height: 0 };
   }
 
   /** Datum has no area — returns a zero-size oriented rect at its position. */
@@ -57,16 +57,11 @@ export namespace DatumComponent {
     return OrientedBoundingBox.fromRect(boundingBox(entity));
   }
 
-  /** Returns the datum position data after any render transforms have been applied. */
-  export function getRendered(entity: Entity<DatumComponent>): SheetPosition {
-    return Entity.generateRenderTransformFunction(entity)(get(entity));
-  }
-
   export function getRenderShapes(
     entity: Entity<DatumComponent>,
     _sheetDefaultUnit: UnitType,
   ): Array<RenderShape> {
-    return [RenderShape.point(entity.id, getRendered(entity), { primary: true })];
+    return [RenderShape.point(entity.id, get(entity), { primary: true })];
   }
 
   export function getLayoutState(geometry: Entity<DatumComponent>) {

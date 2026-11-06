@@ -65,18 +65,12 @@ export namespace FrameComponent {
   }
 
   export function boundingBox(entity: Entity<FrameComponent>): Rect<SheetPosition> {
-    const frameData = getRendered(entity);
+    const frameData = get(entity);
     return BoundingBox.fromPoints([frameData.upperLeft, frameData.lowerRight]);
   }
 
   export function orientedBoundingBox(entity: Entity<FrameComponent>): OrientedRect<SheetPosition> {
     return OrientedBoundingBox.fromRect(boundingBox(entity));
-  }
-
-  /** Returns the datum position data after any render transforms have been applied. */
-  export function getRendered(entity: Entity<FrameComponent>): FrameData {
-    const transformFn = Entity.generateRenderTransformFunction(entity);
-    return get(transform(entity, transformFn));
   }
 
   export function transform<E extends Entity<FrameComponent>>(

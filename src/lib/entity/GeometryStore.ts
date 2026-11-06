@@ -323,7 +323,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }> = [];
     for (const g of this.geometryById.values()) {
       if (Entity.hasComponent(g, GeometryComponent)) {
-        const geomData = GeometryComponent.getRendered<GeometryData>(g);
+        const geomData = GeometryComponent.projectToSheet<GeometryData>(g);
         switch (geomData.type) {
           case 'polygon':
             result.push({
@@ -1195,7 +1195,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         `GeometryStore.convertRectangleToPolygon: Cannot find geometry ${rectangleId}`,
       );
     }
-    const rectangleData = GeometryComponent.getRendered<GeometryData>(geometry);
+    const rectangleData = GeometryComponent.projectToSheet<GeometryData>(geometry);
     if (rectangleData.type !== 'rectangle') {
       throw new Error(
         `GeometryStore.convertRectangleToPolygon: GeometryComponent data for geometry ${rectangleId} is not of type rectangle, found ${rectangleData.type}`,
@@ -1392,7 +1392,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       case 'locked-datum': {
         const datum = this.getByIdWithComponent(endpoint.id, DatumComponent);
         if (!datum) return null;
-        return DatumComponent.getRendered(datum);
+        return DatumComponent.get(datum);
       }
       default:
         endpoint satisfies never;
@@ -1440,7 +1440,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (polygonData.type !== 'polygon') {
       return null;
     }
-    const renderedPolygon = GeometryComponent.getRendered(polygon);
+    const renderedPolygon = GeometryComponent.projectToSheet(polygon);
     if (pointIndex >= renderedPolygon.points.length) {
       return null;
     }

@@ -297,7 +297,7 @@ function snapNearestKeyPoint(
         break;
       }
       case 'polygon': {
-        const renderedPolygon = GeometryComponent.getRendered(
+        const renderedPolygon = GeometryComponent.projectToSheet(
           geometry as Entity<GeometryComponent<PolygonData>>,
         );
         for (let i = 0; i < renderedPolygon.points.length; i += 1) {

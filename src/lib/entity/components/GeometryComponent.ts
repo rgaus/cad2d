@@ -126,11 +126,15 @@ export namespace GeometryComponent {
     return geometry.components.geometry;
   }
 
-  /** Returns the geometry data after the entity's render transforms have been applied. */
-  export function getRendered<D extends GeometryData = GeometryData>(
+  /** Returns the geometry data projected into rendered sheet coordinates. */
+  export function projectToSheet<D extends GeometryData = GeometryData>(
     geometry: Entity<GeometryComponent<D>>,
   ): D {
-    return get(transform(geometry, Entity.generateRenderTransformFunction(geometry)));
+    return get(
+      transform(geometry, (position) =>
+        GeometryRelativeSheetPosition.fromRawSheet(position, geometry).toSheet(geometry),
+      ),
+    );
   }
 
   export function isPolygon(
@@ -341,7 +345,7 @@ export namespace GeometryComponent {
     geometry: Entity<GeometryComponent>,
     renderShape: RenderShape,
   ): boolean {
-    const data = GeometryComponent.getRendered(geometry);
+    const data = GeometryComponent.projectToSheet(geometry);
     switch (data.type) {
       case 'polygon':
         if (renderShape.shape !== 'polygon') {
@@ -463,7 +467,7 @@ export namespace GeometryComponent {
     // Render shapes are always expressed in anchored (rendered) space.
     const mapping =
       options.destinationPointMapping as GetRenderShapesOptions<GeometryData>['destinationPointMapping'];
-    const state = GeometryComponent.getRendered(geometry);
+    const state = GeometryComponent.projectToSheet(geometry);
     switch (state.type) {
       case 'polygon':
         shapes = [

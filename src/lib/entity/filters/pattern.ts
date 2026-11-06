@@ -321,7 +321,7 @@ export namespace PatternFilter {
     geometry: Entity<GeometryComponent>,
     filterData: PatternFilterData,
   ): 'unchanged' | 'filled' {
-    const polyData = GeometryComponent.getRendered(geometry);
+    const polyData = GeometryComponent.projectToSheet(geometry);
     if (polyData.type !== 'polygon' || polyData.closed) {
       return 'unchanged';
     }

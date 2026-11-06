@@ -11,12 +11,12 @@ import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { Filter } from '@/lib/entity/filters';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
+import { RenderShape } from '@/lib/entity/render-shape';
 import {
   type ShapePreviewEditingDimension,
   type ShapePreviewHighlight,
 } from '@/lib/selection/ShapePreviewManager';
 import { Sheet } from '@/lib/sheet/Sheet';
-import { RenderShape } from '@/lib/entity/render-shape';
 
 export { type ShapePreviewEditingDimension, type ShapePreviewHighlight };
 
@@ -134,7 +134,7 @@ export default function ShapePreview({
   const points = useMemo(() => {
     let points: Array<{ x: number; y: number }> = [];
 
-    const geometryData = GeometryComponent.getRendered(geometry);
+    const geometryData = GeometryComponent.projectToSheet(geometry);
     switch (geometryData.type) {
       case 'polygon':
         points = geometryData.points.map((s: PolygonSegment) => ({ x: s.point.x, y: s.point.y }));
@@ -412,8 +412,8 @@ export default function ShapePreview({
       {editingDimension === 'radiusX' && GeometryComponent.isEllipse(geometry) ? (
         <polyline
           points={[
-            [toSvgX(GeometryComponent.getRendered(geometry).center.x), toSvgY(bounds.minY) - 2],
-            [toSvgX(GeometryComponent.getRendered(geometry).center.x), toSvgY(bounds.minY) - 5],
+            [toSvgX(GeometryComponent.projectToSheet(geometry).center.x), toSvgY(bounds.minY) - 2],
+            [toSvgX(GeometryComponent.projectToSheet(geometry).center.x), toSvgY(bounds.minY) - 5],
             [toSvgX(bounds.minX), toSvgY(bounds.minY) - 5],
             [toSvgX(bounds.minX), toSvgY(bounds.minY) - 2],
           ]
@@ -454,8 +454,8 @@ export default function ShapePreview({
       {editingDimension === 'radiusY' && GeometryComponent.isEllipse(geometry) ? (
         <polyline
           points={[
-            [toSvgX(bounds.minX) - 2, toSvgY(GeometryComponent.getRendered(geometry).center.y)],
-            [toSvgX(bounds.minX) - 5, toSvgY(GeometryComponent.getRendered(geometry).center.y)],
+            [toSvgX(bounds.minX) - 2, toSvgY(GeometryComponent.projectToSheet(geometry).center.y)],
+            [toSvgX(bounds.minX) - 5, toSvgY(GeometryComponent.projectToSheet(geometry).center.y)],
             [toSvgX(bounds.minX) - 5, toSvgY(bounds.minY)],
             [toSvgX(bounds.minX) - 2, toSvgY(bounds.minY)],
           ]
@@ -469,24 +469,24 @@ export default function ShapePreview({
       {editingDimension === 'origin' && GeometryComponent.isEllipse(geometry) ? (
         <>
           <line
-            x1={toSvgX(GeometryComponent.getRendered(geometry).center.x)}
+            x1={toSvgX(GeometryComponent.projectToSheet(geometry).center.x)}
             y1={toSvgY(bounds.minY)}
-            x2={toSvgX(GeometryComponent.getRendered(geometry).center.x)}
+            x2={toSvgX(GeometryComponent.projectToSheet(geometry).center.x)}
             y2={toSvgY(bounds.maxY)}
             stroke="rgba(0,0,0,0.2)"
             strokeWidth={1}
           />
           <line
             x1={toSvgX(bounds.minX)}
-            y1={toSvgY(GeometryComponent.getRendered(geometry).center.y)}
+            y1={toSvgY(GeometryComponent.projectToSheet(geometry).center.y)}
             x2={toSvgX(bounds.maxX)}
-            y2={toSvgY(GeometryComponent.getRendered(geometry).center.y)}
+            y2={toSvgY(GeometryComponent.projectToSheet(geometry).center.y)}
             stroke="rgba(0,0,0,0.2)"
             strokeWidth={1}
           />
           <rect
-            x={toSvgX(GeometryComponent.getRendered(geometry).center.x) - vertexSizeInPx / 2}
-            y={toSvgY(GeometryComponent.getRendered(geometry).center.y) - vertexSizeInPx / 2}
+            x={toSvgX(GeometryComponent.projectToSheet(geometry).center.x) - vertexSizeInPx / 2}
+            y={toSvgY(GeometryComponent.projectToSheet(geometry).center.y) - vertexSizeInPx / 2}
             width={vertexSizeInPx}
             height={vertexSizeInPx}
             fill="white"

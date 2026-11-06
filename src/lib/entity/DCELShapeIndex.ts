@@ -1127,7 +1127,7 @@ export class DCELShapeIndex {
     if (this.shapes.has(polygon.id)) {
       this.removePolygon(polygon.id);
     }
-    const renderedPolygon = GeometryComponent.getRendered(polygon);
+    const renderedPolygon = GeometryComponent.projectToSheet(polygon);
     const { positions, curveContexts, reversed } = this._polygonPoints(
       renderedPolygon.points,
       renderedPolygon.closed,
@@ -1165,7 +1165,7 @@ export class DCELShapeIndex {
     if (this.shapes.has(datum.id)) {
       this.removeGeometry(datum.id);
     }
-    const pos = DatumComponent.getRendered(datum);
+    const pos = DatumComponent.get(datum);
     const vertexId = this.dcel.addVertex(pos);
     const faceId = this.dcel.addFace();
     this._faceToShapeIds.set(faceId, datum.id);

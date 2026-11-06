@@ -11,9 +11,9 @@ import {
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
+import { GeometryData } from '../entity/geometry';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
-import { GeometryData } from '../entity/geometry';
 
 export class UnionAction extends BaseAction {
   type = 'union' as const;
@@ -54,7 +54,7 @@ export class UnionAction extends BaseAction {
       const geometry = geometryStore.getById(id);
       if (!geometry) continue;
       if (Entity.hasComponent(geometry, GeometryComponent)) {
-        const geomData = GeometryComponent.getRendered<GeometryData>(geometry);
+        const geomData = GeometryComponent.projectToSheet<GeometryData>(geometry);
         if (geomData.type === 'polygon') {
           const points = this.extractPointsFromSegments(geomData.points);
           extractedPolygons.push(points);
@@ -97,34 +97,31 @@ export class UnionAction extends BaseAction {
 
     selectionManager.clearSelection();
 
-    const newPolygonIds = historyManager.applyTransaction(
-      'boolean-union',
-      () => {
-        // 1. Delete old geometries
-        for (const id of selectedIds) {
-          geometryStore.deleteById(id);
-        }
+    const newPolygonIds = historyManager.applyTransaction('boolean-union', () => {
+      // 1. Delete old geometries
+      for (const id of selectedIds) {
+        geometryStore.deleteById(id);
+      }
 
-        // 2. Add new boolean operation results
-        const ids: Array<string> = [];
-        for (const polygon of result) {
-          const newPoints: Array<PolygonSegment> = polygon[0].map(([x, y]) => ({
-            type: 'point' as const,
-            point: new SheetPosition(x, y),
-          }));
-          const newPolygon = geometryStore.addOrdered(
-            ID_PREFIXES.polygon,
-            Polygon.create(newPoints, {
-              closed: true,
-              fillColor: firstFillColor,
-              openAtIndex: 0,
-            }),
-          );
-          ids.push(newPolygon.id);
-        }
-        return ids;
-      },
-    );
+      // 2. Add new boolean operation results
+      const ids: Array<string> = [];
+      for (const polygon of result) {
+        const newPoints: Array<PolygonSegment> = polygon[0].map(([x, y]) => ({
+          type: 'point' as const,
+          point: new SheetPosition(x, y),
+        }));
+        const newPolygon = geometryStore.addOrdered(
+          ID_PREFIXES.polygon,
+          Polygon.create(newPoints, {
+            closed: true,
+            fillColor: firstFillColor,
+            openAtIndex: 0,
+          }),
+        );
+        ids.push(newPolygon.id);
+      }
+      return ids;
+    });
 
     selectionManager.selectAll(new Set(newPolygonIds));
 
