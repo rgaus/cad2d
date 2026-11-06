@@ -7,6 +7,8 @@ import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
 import { RectangleData } from './geometry/rectangle';
 import { Entity, EntityOmitComponents } from './types';
+import { RotationComponent } from './components/RotationComponent';
+import { Angle } from '@/lib/units/angle';
 
 /** A rectangle defined by its upper-left and lower-right corners. Axis-aligned. */
 export type Rectangle = Entity<
@@ -77,6 +79,7 @@ export namespace Rectangle {
           keyPoint: 'upperLeft',
           offset: new SheetPosition(0, 0),
         }),
+        ...RotationComponent.create(Angle.degrees(45)),
       },
     };
   }

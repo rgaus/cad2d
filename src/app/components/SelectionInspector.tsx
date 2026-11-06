@@ -84,6 +84,7 @@ const FieldLeafRenderer: React.FunctionComponent<{
     case 'render-order':
       return (
         <span
+          className="w-full"
           onKeyDownCapture={(e) => {
             if (e.key === 'Escape' && field.handlers.onKeyDown) {
               e.stopPropagation();
@@ -104,6 +105,7 @@ const FieldLeafRenderer: React.FunctionComponent<{
     case 'angle':
       return (
         <span
+          className="w-full"
           onKeyDownCapture={(e) => {
             if (e.key === 'Escape' && field.handlers.onKeyDown) {
               e.stopPropagation();
@@ -116,12 +118,14 @@ const FieldLeafRenderer: React.FunctionComponent<{
             onChange={field.handlers.onChange ?? (() => {})}
             onFocus={field.handlers.onFocus}
             onBlur={field.handlers.onBlur}
+            readOnlyUnit
           />
         </span>
       );
     case 'color':
       return (
         <span
+          className="w-full"
           onKeyDownCapture={(e) => {
             if (e.key === 'Escape' && field.handlers.onKeyDown) {
               e.stopPropagation();
