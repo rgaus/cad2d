@@ -10,6 +10,9 @@ export type FrameData = { upperLeft: SheetPosition; lowerRight: SheetPosition };
 
 /**
  * A frame is a axis aligned region of space which is user translateable or resizable.
+ *
+ * Frames live directly in absolute sheet space and intentionally have no {@link RotationComponent}
+ * or {@link AnchorPointComponent}; their render transform is the identity.
  */
 export type FrameComponent = EntityComponent<'frame', FrameData>;
 

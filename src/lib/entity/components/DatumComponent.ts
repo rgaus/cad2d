@@ -10,6 +10,9 @@ import { AnchorPointComponent } from './AnchorPointComponent';
 /**
  * Geometry component for a datum — a single anchor point that constraints can lock to.
  * A datum has exactly one position and no edges.
+ *
+ * Datums live directly in absolute sheet space and intentionally have no {@link RotationComponent}
+ * or {@link AnchorPointComponent}; their render transform is the identity.
  */
 export type DatumComponent = EntityComponent<'datum', SheetPosition>;
 
