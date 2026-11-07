@@ -43,6 +43,10 @@ export abstract class BaseAction<
     this.actionsManager = actionsManager;
   }
 
+  getActionsManager(): ActionsManager {
+    return this.actionsManager;
+  }
+
   getSheet(): Sheet {
     return this.actionsManager.getSheet();
   }

@@ -13,6 +13,13 @@ export class SheetSettingsAction extends BaseAction {
   }
 
   async execute() {
-    this.getSheet().toggleSheetSettingsPanel();
+    const sheet = this.getSheet();
+    if (!sheet.sheetSettingsPanelVisible) {
+      const gearGeneratorAction = this.getActionsManager().getAction(
+        'gear-generator',
+      ) as unknown as { cancel(): void };
+      gearGeneratorAction.cancel();
+    }
+    sheet.toggleSheetSettingsPanel();
   }
 }

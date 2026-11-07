@@ -6,6 +6,7 @@ import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { ActionPanel } from './components/ActionPanel';
+import GearGeneratorPanel from './components/GearGeneratorPanel';
 import SelectionInspector from './components/SelectionInspector';
 import SheetSettingsPanel from './components/SheetSettingsPanel';
 import ToolPalette from './components/ToolPalette';
@@ -35,6 +36,8 @@ export default function Home() {
       new ActionsManager(sheet, sheet.geometryStore, sheet.selectionManager, sheet.historyManager),
   );
 
+  const gearGeneratorAction = actionManager.getAction('gear-generator');
+
   // Wire up ToolManager with ActionsManager (for select-all action)
   useEffect(() => {
     actionManager.setToolManager(toolManager);
@@ -62,6 +65,7 @@ export default function Home() {
       </div>
       <div className="absolute right-4 top-4">
         {sheetSettingsPanelVisible ? <SheetSettingsPanel sheet={sheet} /> : null}
+        <GearGeneratorPanel action={gearGeneratorAction} />
       </div>
       <ToolPalette toolManager={toolManager} />
       <SelectionInspector

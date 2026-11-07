@@ -18,6 +18,7 @@ export const PINNED_ACTION_TYPES: Array<ActionType> = [
   'undo',
   'redo',
   'reconstrain',
+  'gear-generator',
   'sheet-settings',
 ];
 
