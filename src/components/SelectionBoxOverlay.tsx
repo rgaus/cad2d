@@ -99,8 +99,7 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
       selectionBbox !== null &&
       selectionOutline !== null &&
       selectionBboxAABB !== null &&
-      (!BoundingBox.equals(selectionBboxAABB, selectionOutline) ||
-        !OrientedBoundingBox.isAxisAligned(selectionBbox));
+      !BoundingBox.equals(selectionBboxAABB, selectionOutline);
     return [selectionBbox, showOutline ? selectionOutline : null];
   }, [hideBbox, selectedEntities, filtersByGeometryId, sheetDefaultUnit]);
 

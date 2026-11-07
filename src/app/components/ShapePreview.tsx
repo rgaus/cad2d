@@ -1,6 +1,7 @@
 'use client';
 import { Fragment, useMemo } from 'react';
 import {
+  AnchorPointComponent,
   Entity,
   FillColorComponent,
   FrameComponent,
@@ -12,11 +13,13 @@ import { Filter } from '@/lib/entity/filters';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { RenderShape } from '@/lib/entity/render-shape';
+import { OrientedBoundingBox, rotatePointAround } from '@/lib/math';
 import {
   type ShapePreviewEditingDimension,
   type ShapePreviewHighlight,
 } from '@/lib/selection/ShapePreviewManager';
 import { Sheet } from '@/lib/sheet/Sheet';
+import { OrientedRect, SheetPosition } from '@/lib/viewport/types';
 
 export { type ShapePreviewEditingDimension, type ShapePreviewHighlight };
 
@@ -29,7 +32,7 @@ export { type ShapePreviewEditingDimension, type ShapePreviewHighlight };
  * @param closed - Whether the polygon is closed (includes closing segment back to start).
  * @returns SVG path data string (e.g., "M 10,20 L 30,40 Q 50,60 70,80 ...").
  */
-function buildPolygonPath(
+export function buildPolygonPath(
   segments: Array<PolygonSegment>,
   toSvg: (x: number, y: number) => [number, number],
   closed: boolean,
@@ -58,23 +61,135 @@ function buildPolygonPath(
   }
 
   if (closed) {
-    const lastSeg = segments[segments.length - 1];
-    const [firstX, firstY] = toSvg(segments[0].point.x, segments[0].point.y);
-    if (lastSeg.type === 'arc-cubic') {
-      const [c1x, c1y] = toSvg(lastSeg.controlPointB.x, lastSeg.controlPointB.y);
-      parts.push(`C ${c1x},${c1y} ${firstX},${firstY} ${firstX},${firstY}`);
-    } else if (lastSeg.type === 'arc-quadratic') {
-      const [cx, cy] = toSvg(lastSeg.controlPoint.x, lastSeg.controlPoint.y);
-      parts.push(`Q ${cx},${cy} ${firstX},${firstY}`);
-    } else {
-      parts.push('Z');
-    }
+    parts.push('Z');
   }
   return parts.join(' ');
 }
 
 const selectedVertexSizeInPx = 6;
 const vertexSizeInPx = 4;
+
+const PREVIEW_VIEWBOX_SIZE = 60;
+const PREVIEW_PADDING = 8;
+
+export type ShapePreviewProjection = {
+  bounds: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  };
+  scale: number;
+  offsetX: number;
+  offsetY: number;
+  toSvg: (x: number, y: number) => [number, number];
+  toSvgX: (x: number) => number;
+  toSvgY: (y: number) => number;
+};
+
+/** Computes the bounds and viewBox projection for every render shape in the preview. */
+export function computePreviewProjection(renderShapes: Array<RenderShape>): ShapePreviewProjection {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const renderShape of renderShapes) {
+    const bbox = RenderShape.boundingBox(renderShape);
+    minX = Math.min(minX, bbox.position.x);
+    minY = Math.min(minY, bbox.position.y);
+    maxX = Math.max(maxX, bbox.position.x + bbox.width);
+    maxY = Math.max(maxY, bbox.position.y + bbox.height);
+  }
+
+  if (
+    !Number.isFinite(minX) ||
+    !Number.isFinite(minY) ||
+    !Number.isFinite(maxX) ||
+    !Number.isFinite(maxY)
+  ) {
+    minX = 0;
+    minY = 0;
+    maxX = 1;
+    maxY = 1;
+  }
+
+  const usableSize = PREVIEW_VIEWBOX_SIZE - PREVIEW_PADDING * 2;
+  const boundsWidth = maxX - minX || 1;
+  const boundsHeight = maxY - minY || 1;
+  const scale = Math.min(usableSize / boundsWidth, usableSize / boundsHeight);
+  const offsetX = PREVIEW_PADDING + (usableSize - boundsWidth * scale) / 2;
+  const offsetY = PREVIEW_PADDING + (usableSize - boundsHeight * scale) / 2;
+
+  const toSvgX = (x: number) => offsetX + (x - minX) * scale;
+  const toSvgY = (y: number) => offsetY + (y - minY) * scale;
+  const toSvg = (x: number, y: number): [number, number] => [toSvgX(x), toSvgY(y)];
+
+  return {
+    bounds: { minX, minY, maxX, maxY },
+    scale,
+    offsetX,
+    offsetY,
+    toSvg,
+    toSvgX,
+    toSvgY,
+  };
+}
+
+/** Returns the handle positions for a render shape in rendered sheet space. Ellipses expose their
+ * four rotated extremity points. */
+export function getRenderShapeHandlePoints(renderShape: RenderShape): Array<SheetPosition> {
+  switch (renderShape.shape) {
+    case 'polygon':
+      return renderShape.points.map((segment) => segment.point);
+    case 'rectangle':
+      return OrientedBoundingBox.cornersToArray(RenderShape.orientedBoundingBox(renderShape));
+    case 'ellipse': {
+      const { center, radiusX, radiusY, angleDegrees } = renderShape;
+      return [
+        rotatePointAround(new SheetPosition(center.x, center.y - radiusY), center, angleDegrees),
+        rotatePointAround(new SheetPosition(center.x + radiusX, center.y), center, angleDegrees),
+        rotatePointAround(new SheetPosition(center.x, center.y + radiusY), center, angleDegrees),
+        rotatePointAround(new SheetPosition(center.x - radiusX, center.y), center, angleDegrees),
+      ];
+    }
+    case 'point':
+      return [renderShape.position];
+    default:
+      renderShape satisfies never;
+      throw new Error(
+        `getRenderShapeHandlePoints: Unknown render shape ${(renderShape as any).shape}`,
+      );
+  }
+}
+
+/** Returns the rendered anchor handle position for a geometry, if it has an anchor point. */
+export function getPreviewAnchorPointPosition(
+  geometry: Entity<GeometryComponent>,
+): SheetPosition | null {
+  if (!Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
+    return null;
+  }
+  return AnchorPointComponent.getHandlePosition(geometry);
+}
+
+function offsetSvgPoint(
+  origin: [number, number],
+  awayFrom: [number, number],
+  distance: number,
+): [number, number] {
+  const dx = origin[0] - awayFrom[0];
+  const dy = origin[1] - awayFrom[1];
+  const length = Math.hypot(dx, dy);
+  if (length === 0) {
+    return origin;
+  }
+  return [origin[0] + (dx / length) * distance, origin[1] + (dy / length) * distance];
+}
+
+function midpointSvg(a: [number, number], b: [number, number]): [number, number] {
+  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+}
 
 type ShapePreviewProps = {
   geometry: Entity<GeometryComponent>;
@@ -108,72 +223,25 @@ export default function ShapePreview({
   }, [geometry, sheetDefaultUnit, filters]);
 
   const primaryRenderShape = useMemo(() => renderShapes.find((s) => s.primary), [renderShapes]);
-  const primaryRenderShapeBBox = useMemo(
-    () => (primaryRenderShape ? RenderShape.boundingBox(primaryRenderShape) : null),
-    [primaryRenderShape],
-  );
 
-  const bounds = useMemo(() => {
-    if (!primaryRenderShapeBBox) {
-      return {
-        minX: Infinity,
-        minY: Infinity,
-        maxX: 0,
-        maxY: 0,
-      };
-    }
-
-    return {
-      minX: primaryRenderShapeBBox.position.x,
-      minY: primaryRenderShapeBBox.position.y,
-      maxX: primaryRenderShapeBBox.position.x + primaryRenderShapeBBox.width,
-      maxY: primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height,
-    };
-  }, [primaryRenderShapeBBox]);
+  const projection = useMemo(() => computePreviewProjection(renderShapes), [renderShapes]);
+  const { scale, toSvg, toSvgX, toSvgY } = projection;
 
   const points = useMemo(() => {
-    let points: Array<{ x: number; y: number }> = [];
+    return primaryRenderShape ? getRenderShapeHandlePoints(primaryRenderShape) : [];
+  }, [primaryRenderShape]);
 
-    const geometryData = GeometryComponent.projectToSheet(geometry);
-    switch (geometryData.type) {
-      case 'polygon':
-        points = geometryData.points.map((s: PolygonSegment) => ({ x: s.point.x, y: s.point.y }));
-        break;
-      case 'rectangle':
-        points = RectangleData.cornersArray(geometryData).map((position) => ({
-          x: position.x,
-          y: position.y,
-        }));
-        break;
-      case 'ellipse':
-        break;
-      default:
-        geometryData satisfies never;
-        throw new Error(`ShapePreview: Unknown geometry data type ${(geometryData as any).type}`);
+  const editingBBox = useMemo((): OrientedRect<SheetPosition> | null => {
+    if (!primaryRenderShape) {
+      return null;
     }
+    if (primaryRenderShape.shape === 'polygon') {
+      return Entity.orientedBoundingBoxInSheet(geometry);
+    }
+    return RenderShape.orientedBoundingBox(primaryRenderShape);
+  }, [primaryRenderShape, geometry]);
 
-    return points;
-  }, [geometry]);
-
-  const viewBox = '0 0 60 60';
-  const padding = 8;
-  const usableSize = 60 - padding * 2;
-
-  const boundsWidth = bounds.maxX - bounds.minX || 1;
-  const boundsHeight = bounds.maxY - bounds.minY || 1;
-  const scale = Math.min(usableSize / boundsWidth, usableSize / boundsHeight);
-  const offsetX = padding + (usableSize - boundsWidth * scale) / 2;
-  const offsetY = padding + (usableSize - boundsHeight * scale) / 2;
-
-  function toSvg(x: number, y: number): [number, number] {
-    return [toSvgX(x), toSvgY(y)];
-  }
-  function toSvgX(x: number) {
-    return offsetX + (x - bounds.minX) * scale;
-  }
-  function toSvgY(y: number) {
-    return offsetY + (y - bounds.minY) * scale;
-  }
+  const anchorPointPosition = useMemo(() => getPreviewAnchorPointPosition(geometry), [geometry]);
 
   const fillColor = FillColorComponent.getOptional(geometry);
   const fill = typeof fillColor === 'number' ? hexToFill(fillColor) : 'none';
@@ -181,23 +249,30 @@ export default function ShapePreview({
 
   return (
     <svg
-      viewBox={viewBox}
+      viewBox={`0 0 ${PREVIEW_VIEWBOX_SIZE} ${PREVIEW_VIEWBOX_SIZE}`}
       className="w-full aspect-square"
       style={{ backgroundColor: '#fafafa', borderRadius: '4px' }}
     >
-      {renderShapes
+      {[...renderShapes]
         .sort((a, b) => {
           // Render primary shapes last, so they are above non primary shapes
           return (a.primary ? 1 : -1) - (b.primary ? 1 : -1);
         })
         .map((renderShape) => {
           switch (renderShape.shape) {
-            case 'rectangle':
+            case 'rectangle': {
+              const [x, y] = toSvg(renderShape.upperLeft.x, renderShape.upperLeft.y);
+              const transform =
+                renderShape.angleDegrees === 0
+                  ? undefined
+                  : `rotate(${renderShape.angleDegrees} ${x} ${y})`;
               return (
                 <rect
                   key={renderShape.key}
-                  x={toSvg(renderShape.upperLeft.x, renderShape.upperLeft.y)[0]}
-                  y={toSvg(renderShape.upperLeft.x, renderShape.upperLeft.y)[1]}
+                  data-preview-shape="rectangle"
+                  transform={transform}
+                  x={x}
+                  y={y}
                   width={(renderShape.lowerRight.x - renderShape.upperLeft.x) * scale}
                   height={(renderShape.lowerRight.y - renderShape.upperLeft.y) * scale}
                   fill={fill}
@@ -206,12 +281,20 @@ export default function ShapePreview({
                   opacity={renderShape.primary ? 1 : 0.5}
                 />
               );
-            case 'ellipse':
+            }
+            case 'ellipse': {
+              const [cx, cy] = toSvg(renderShape.center.x, renderShape.center.y);
+              const transform =
+                renderShape.angleDegrees === 0
+                  ? undefined
+                  : `rotate(${renderShape.angleDegrees} ${cx} ${cy})`;
               return (
                 <ellipse
                   key={renderShape.key}
-                  cx={toSvg(renderShape.center.x, renderShape.center.y)[0]}
-                  cy={toSvg(renderShape.center.x, renderShape.center.y)[1]}
+                  data-preview-shape="ellipse"
+                  transform={transform}
+                  cx={cx}
+                  cy={cy}
                   rx={renderShape.radiusX * scale}
                   ry={renderShape.radiusY * scale}
                   fill={fill}
@@ -220,11 +303,13 @@ export default function ShapePreview({
                   opacity={renderShape.primary ? 1 : 0.5}
                 />
               );
+            }
             case 'polygon':
               return (
                 <Fragment key={renderShape.key}>
-                  {points.length >= 2 ? (
+                  {renderShape.points.length >= 2 ? (
                     <path
+                      data-preview-shape="polygon"
                       d={buildPolygonPath(renderShape.points, toSvg, renderShape.closed)}
                       fill={renderShape.closed && fill !== 'none' ? fill : 'none'}
                       stroke={stroke}
@@ -239,6 +324,7 @@ export default function ShapePreview({
               return (
                 <ellipse
                   key={renderShape.key}
+                  data-preview-shape="point"
                   cx={toSvg(renderShape.position.x, renderShape.position.y)[0]}
                   cy={toSvg(renderShape.position.x, renderShape.position.y)[1]}
                   rx={2} // (Arbitrary size)
@@ -335,9 +421,10 @@ export default function ShapePreview({
         }
       })}
 
-      {GeometryComponent.isPolygon(geometry) ? (
+      {points.length > 0 ? (
         <>
-          {highlight?.type === 'segment' &&
+          {GeometryComponent.isPolygon(geometry) &&
+          highlight?.type === 'segment' &&
           typeof points[highlight.index]?.x !== 'undefined' &&
           typeof points[highlight.index]?.y !== 'undefined' ? (
             <line
@@ -368,6 +455,7 @@ export default function ShapePreview({
             return (
               <rect
                 key={i}
+                data-preview-handle-index={i}
                 x={sx - sizeInPx / 2}
                 y={sy - sizeInPx / 2}
                 width={sizeInPx}
@@ -381,27 +469,38 @@ export default function ShapePreview({
         </>
       ) : null}
 
+      {anchorPointPosition ? (
+        <rect
+          data-preview-anchor="true"
+          x={toSvg(anchorPointPosition.x, anchorPointPosition.y)[0] - vertexSizeInPx / 2}
+          y={toSvg(anchorPointPosition.x, anchorPointPosition.y)[1] - vertexSizeInPx / 2}
+          width={vertexSizeInPx}
+          height={vertexSizeInPx}
+          fill="#f39c12"
+          stroke="#fff"
+          strokeWidth={1}
+        />
+      ) : null}
+
       {/* Dimension line for editing width */}
-      {editingDimension === 'width' && primaryRenderShapeBBox ? (
+      {editingDimension === 'width' && editingBBox ? (
         <polyline
-          points={[
-            [
-              toSvgX(primaryRenderShapeBBox.position.x),
-              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 2,
-            ],
-            [
-              toSvgX(primaryRenderShapeBBox.position.x),
-              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 5,
-            ],
-            [
-              toSvgX(primaryRenderShapeBBox.position.x + primaryRenderShapeBBox.width),
-              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 5,
-            ],
-            [
-              toSvgX(primaryRenderShapeBBox.position.x + primaryRenderShapeBBox.width),
-              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height) + 2,
-            ],
-          ]
+          data-preview-dimension="width"
+          points={(() => {
+            const corners = OrientedBoundingBox.corners(editingBBox);
+            const lowerLeft = toSvg(corners.lowerLeft.x, corners.lowerLeft.y);
+            const lowerRight = toSvg(corners.lowerRight.x, corners.lowerRight.y);
+            const center = toSvg(
+              (corners.upperLeft.x + corners.lowerRight.x) / 2,
+              (corners.upperLeft.y + corners.lowerRight.y) / 2,
+            );
+            return [
+              offsetSvgPoint(lowerLeft, center, 2),
+              offsetSvgPoint(lowerLeft, center, 5),
+              offsetSvgPoint(lowerRight, center, 5),
+              offsetSvgPoint(lowerRight, center, 2),
+            ];
+          })()
             .map((p) => p.join(','))
             .join(' ')}
           fill="transparent"
@@ -409,14 +508,25 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'radiusX' && GeometryComponent.isEllipse(geometry) ? (
+      {editingDimension === 'radiusX' &&
+      GeometryComponent.isEllipse(geometry) &&
+      primaryRenderShape?.shape === 'ellipse' &&
+      editingBBox ? (
         <polyline
-          points={[
-            [toSvgX(GeometryComponent.projectToSheet(geometry).center.x), toSvgY(bounds.minY) - 2],
-            [toSvgX(GeometryComponent.projectToSheet(geometry).center.x), toSvgY(bounds.minY) - 5],
-            [toSvgX(bounds.minX), toSvgY(bounds.minY) - 5],
-            [toSvgX(bounds.minX), toSvgY(bounds.minY) - 2],
-          ]
+          data-preview-dimension="radiusX"
+          points={(() => {
+            const corners = OrientedBoundingBox.corners(editingBBox);
+            const upperLeft = toSvg(corners.upperLeft.x, corners.upperLeft.y);
+            const upperRight = toSvg(corners.upperRight.x, corners.upperRight.y);
+            const topCenter = midpointSvg(upperLeft, upperRight);
+            const center = toSvg(primaryRenderShape.center.x, primaryRenderShape.center.y);
+            return [
+              offsetSvgPoint(topCenter, center, 2),
+              offsetSvgPoint(topCenter, center, 5),
+              offsetSvgPoint(upperLeft, center, 5),
+              offsetSvgPoint(upperLeft, center, 2),
+            ];
+          })()
             .map((p) => p.join(','))
             .join(' ')}
           fill="transparent"
@@ -424,26 +534,24 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'height' && primaryRenderShapeBBox ? (
+      {editingDimension === 'height' && editingBBox ? (
         <polyline
-          points={[
-            [
-              toSvgX(primaryRenderShapeBBox.position.x) - 2,
-              toSvgY(primaryRenderShapeBBox.position.y),
-            ],
-            [
-              toSvgX(primaryRenderShapeBBox.position.x) - 5,
-              toSvgY(primaryRenderShapeBBox.position.y),
-            ],
-            [
-              toSvgX(primaryRenderShapeBBox.position.x) - 5,
-              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height),
-            ],
-            [
-              toSvgX(primaryRenderShapeBBox.position.x) - 2,
-              toSvgY(primaryRenderShapeBBox.position.y + primaryRenderShapeBBox.height),
-            ],
-          ]
+          data-preview-dimension="height"
+          points={(() => {
+            const corners = OrientedBoundingBox.corners(editingBBox);
+            const upperLeft = toSvg(corners.upperLeft.x, corners.upperLeft.y);
+            const lowerLeft = toSvg(corners.lowerLeft.x, corners.lowerLeft.y);
+            const center = toSvg(
+              (corners.upperLeft.x + corners.lowerRight.x) / 2,
+              (corners.upperLeft.y + corners.lowerRight.y) / 2,
+            );
+            return [
+              offsetSvgPoint(upperLeft, center, 2),
+              offsetSvgPoint(upperLeft, center, 5),
+              offsetSvgPoint(lowerLeft, center, 5),
+              offsetSvgPoint(lowerLeft, center, 2),
+            ];
+          })()
             .map((p) => p.join(','))
             .join(' ')}
           fill="transparent"
@@ -451,14 +559,25 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'radiusY' && GeometryComponent.isEllipse(geometry) ? (
+      {editingDimension === 'radiusY' &&
+      GeometryComponent.isEllipse(geometry) &&
+      primaryRenderShape?.shape === 'ellipse' &&
+      editingBBox ? (
         <polyline
-          points={[
-            [toSvgX(bounds.minX) - 2, toSvgY(GeometryComponent.projectToSheet(geometry).center.y)],
-            [toSvgX(bounds.minX) - 5, toSvgY(GeometryComponent.projectToSheet(geometry).center.y)],
-            [toSvgX(bounds.minX) - 5, toSvgY(bounds.minY)],
-            [toSvgX(bounds.minX) - 2, toSvgY(bounds.minY)],
-          ]
+          data-preview-dimension="radiusY"
+          points={(() => {
+            const corners = OrientedBoundingBox.corners(editingBBox);
+            const upperLeft = toSvg(corners.upperLeft.x, corners.upperLeft.y);
+            const lowerLeft = toSvg(corners.lowerLeft.x, corners.lowerLeft.y);
+            const leftCenter = midpointSvg(upperLeft, lowerLeft);
+            const center = toSvg(primaryRenderShape.center.x, primaryRenderShape.center.y);
+            return [
+              offsetSvgPoint(leftCenter, center, 2),
+              offsetSvgPoint(leftCenter, center, 5),
+              offsetSvgPoint(upperLeft, center, 5),
+              offsetSvgPoint(upperLeft, center, 2),
+            ];
+          })()
             .map((p) => p.join(','))
             .join(' ')}
           fill="transparent"
@@ -466,39 +585,71 @@ export default function ShapePreview({
           strokeWidth="2"
         />
       ) : null}
-      {editingDimension === 'origin' && GeometryComponent.isEllipse(geometry) ? (
+      {editingDimension === 'origin' &&
+      GeometryComponent.isEllipse(geometry) &&
+      primaryRenderShape?.shape === 'ellipse' &&
+      editingBBox ? (
         <>
-          <line
-            x1={toSvgX(GeometryComponent.projectToSheet(geometry).center.x)}
-            y1={toSvgY(bounds.minY)}
-            x2={toSvgX(GeometryComponent.projectToSheet(geometry).center.x)}
-            y2={toSvgY(bounds.maxY)}
-            stroke="rgba(0,0,0,0.2)"
-            strokeWidth={1}
-          />
-          <line
-            x1={toSvgX(bounds.minX)}
-            y1={toSvgY(GeometryComponent.projectToSheet(geometry).center.y)}
-            x2={toSvgX(bounds.maxX)}
-            y2={toSvgY(GeometryComponent.projectToSheet(geometry).center.y)}
-            stroke="rgba(0,0,0,0.2)"
-            strokeWidth={1}
-          />
-          <rect
-            x={toSvgX(GeometryComponent.projectToSheet(geometry).center.x) - vertexSizeInPx / 2}
-            y={toSvgY(GeometryComponent.projectToSheet(geometry).center.y) - vertexSizeInPx / 2}
-            width={vertexSizeInPx}
-            height={vertexSizeInPx}
-            fill="white"
-            stroke="#000"
-            strokeWidth={1}
-          />
+          {(() => {
+            const corners = OrientedBoundingBox.corners(editingBBox);
+            const upperLeft = toSvg(corners.upperLeft.x, corners.upperLeft.y);
+            const upperRight = toSvg(corners.upperRight.x, corners.upperRight.y);
+            const lowerLeft = toSvg(corners.lowerLeft.x, corners.lowerLeft.y);
+            const lowerRight = toSvg(corners.lowerRight.x, corners.lowerRight.y);
+            const leftCenter = midpointSvg(upperLeft, lowerLeft);
+            const rightCenter = midpointSvg(upperRight, lowerRight);
+            const topCenter = midpointSvg(upperLeft, upperRight);
+            const bottomCenter = midpointSvg(lowerLeft, lowerRight);
+            const [centerX, centerY] = toSvg(
+              primaryRenderShape.center.x,
+              primaryRenderShape.center.y,
+            );
+            return (
+              <>
+                <line
+                  data-preview-origin-guide="ellipse-x"
+                  x1={leftCenter[0]}
+                  y1={leftCenter[1]}
+                  x2={rightCenter[0]}
+                  y2={rightCenter[1]}
+                  stroke="rgba(0,0,0,0.2)"
+                  strokeWidth={1}
+                />
+                <line
+                  data-preview-origin-guide="ellipse-y"
+                  x1={topCenter[0]}
+                  y1={topCenter[1]}
+                  x2={bottomCenter[0]}
+                  y2={bottomCenter[1]}
+                  stroke="rgba(0,0,0,0.2)"
+                  strokeWidth={1}
+                />
+                <rect
+                  data-preview-origin="ellipse"
+                  x={centerX - vertexSizeInPx / 2}
+                  y={centerY - vertexSizeInPx / 2}
+                  width={vertexSizeInPx}
+                  height={vertexSizeInPx}
+                  fill="white"
+                  stroke="#000"
+                  strokeWidth={1}
+                />
+              </>
+            );
+          })()}
         </>
       ) : null}
-      {editingDimension === 'origin' && GeometryComponent.isRectangle(geometry) ? (
+      {editingDimension === 'origin' && primaryRenderShape?.shape === 'rectangle' ? (
         <rect
-          x={toSvgX(bounds.minX) - vertexSizeInPx / 2}
-          y={toSvgY(bounds.minY) - vertexSizeInPx / 2}
+          data-preview-origin="rectangle"
+          x={
+            toSvg(primaryRenderShape.upperLeft.x, primaryRenderShape.upperLeft.y)[0] -
+            vertexSizeInPx / 2
+          }
+          y={
+            toSvg(primaryRenderShape.upperLeft.x, primaryRenderShape.upperLeft.y)[1] -
+            vertexSizeInPx / 2
+          }
           width={vertexSizeInPx}
           height={vertexSizeInPx}
           fill="white"
