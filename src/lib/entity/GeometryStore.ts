@@ -990,9 +990,10 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   // ==================== POLYGON METHODS ====================
 
-  /** Finds all point segments across all polygons that are at exactly the same position as the given point. */
+  /** Finds all point segments across all polygons that render at exactly the same position as the
+   * given rendered (anchored / rotated) point. */
   findMatchingPoints(
-    point: SheetPosition,
+    renderedPoint: SheetPosition,
     excludePolygonId?: Id,
   ): Array<{ polygonId: Id; segmentIndex: number }> {
     const matches: Array<{ polygonId: Id; segmentIndex: number }> = [];
@@ -1001,10 +1002,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       const geomData = GeometryComponent.get(g);
       if (geomData.type !== 'polygon') continue;
       if (excludePolygonId && g.id === excludePolygonId) continue;
-      const points = PolygonData.rawSegments(g as Entity<GeometryComponent<PolygonData>>);
+      const points = PolygonData.renderedSegments(g as Entity<GeometryComponent<PolygonData>>);
+      const epsilon = 1e-9;
       for (let i = 0; i < points.length; i++) {
         const seg = points[i];
-        if (seg.type === 'point' && seg.point.x === point.x && seg.point.y === point.y) {
+        if (
+          seg.type === 'point' &&
+          Math.abs(seg.point.x - renderedPoint.x) < epsilon &&
+          Math.abs(seg.point.y - renderedPoint.y) < epsilon
+        ) {
           matches.push({ polygonId: g.id, segmentIndex: i });
         }
       }

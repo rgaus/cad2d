@@ -1,4 +1,5 @@
 import { MousePointer2Icon } from 'lucide-react';
+import { applyToPoint, inverse } from 'transformation-matrix';
 import { type DragListener, createDragListener } from '@/lib/drag/create-drag-listener';
 import {
   Constraint,
@@ -36,11 +37,18 @@ import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { UndoEntry } from '@/lib/history/types';
 import {
   BoundingBox,
+  OrientedBoundingBox,
   Vector2,
   closestPointOnCubicCurve,
   closestPointOnQuadraticCurve,
   closestPointOnSegment,
+  rotatePointAround,
 } from '@/lib/math';
+import {
+  type SelectionResizeFrame,
+  computeResizePointerOutset,
+  computeSelectionResizeFrame,
+} from '@/lib/selection/resize-frame';
 import {
   applyKeyPointSnapping,
   applySnapping,
@@ -52,6 +60,7 @@ import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { ViewportControls } from '../viewport/ViewportControls';
 import {
   GeometryRelativeSheetPosition,
+  type OrientedRect,
   Rect,
   ScreenPosition,
   SheetPosition,
@@ -119,17 +128,56 @@ function computeSelectionOrigin(states: Map<Id, DragState | null>): SheetPositio
   return new SheetPosition(minX, minY);
 }
 
-/** Returns the sheet position of a bounding box corner. */
-function getCornerPosition(corner: ResizeCorner, bbox: Rect<SheetPosition>): SheetPosition {
+/** Returns the rendered position of the handle opposite the one being dragged. This is the point
+ * that must remain pinned in rendered space during a rotation-aware resize. */
+function getPinnedResizePosition(
+  mode: ResizeMode,
+  frame: OrientedRect<SheetPosition>,
+): SheetPosition {
+  const corners = OrientedBoundingBox.corners(frame);
+  const mid = (a: SheetPosition, b: SheetPosition) =>
+    new SheetPosition((a.x + b.x) / 2, (a.y + b.y) / 2);
+
+  if (mode.type === 'corner') {
+    switch (mode.corner) {
+      case 'top-left':
+        return corners.lowerRight;
+      case 'top-right':
+        return corners.lowerLeft;
+      case 'bottom-left':
+        return corners.upperRight;
+      case 'bottom-right':
+        return corners.upperLeft;
+    }
+  }
+
+  switch (mode.edge) {
+    case 'top':
+      return mid(corners.lowerLeft, corners.lowerRight);
+    case 'bottom':
+      return mid(corners.upperLeft, corners.upperRight);
+    case 'left':
+      return mid(corners.upperRight, corners.lowerRight);
+    case 'right':
+      return mid(corners.upperLeft, corners.lowerLeft);
+  }
+}
+
+/** Returns the rendered sheet position of an oriented bounding box corner. */
+function getOrientedCornerPosition(
+  corner: ResizeCorner,
+  frame: OrientedRect<SheetPosition>,
+): SheetPosition {
+  const corners = OrientedBoundingBox.corners(frame);
   switch (corner) {
     case 'top-left':
-      return bbox.position;
+      return corners.upperLeft;
     case 'top-right':
-      return new SheetPosition(bbox.position.x + bbox.width, bbox.position.y);
+      return corners.upperRight;
     case 'bottom-left':
-      return new SheetPosition(bbox.position.x, bbox.position.y + bbox.height);
+      return corners.lowerLeft;
     case 'bottom-right':
-      return new SheetPosition(bbox.position.x + bbox.width, bbox.position.y + bbox.height);
+      return corners.lowerRight;
   }
 }
 
@@ -183,6 +231,108 @@ function isEndpointOnEdge(
   }
 }
 
+/** Transforms a constrained track by a point transform and a corresponding angle delta. */
+function transformConstrainedTrack(
+  track: ConstrainedTrack,
+  transformPoint: (position: SheetPosition) => SheetPosition,
+  angleDeltaDegrees: number,
+): ConstrainedTrack {
+  switch (track.type) {
+    case 'circle':
+      return { type: 'circle', center: transformPoint(track.center), radius: track.radius };
+    case 'point':
+      return { type: 'point', point: transformPoint(track.point) };
+    case 'line': {
+      const angleRadians = (angleDeltaDegrees * Math.PI) / 180;
+      const baseAngle = Number.isFinite(track.slope) ? Math.atan(track.slope) : Math.PI / 2;
+      const nextAngle = baseAngle + angleRadians;
+      const cos = Math.cos(nextAngle);
+      return {
+        type: 'line',
+        point: transformPoint(track.point),
+        slope: Math.abs(cos) < 1e-10 ? Infinity : Math.tan(nextAngle),
+      };
+    }
+    case 'or':
+      return {
+        type: 'or',
+        inner: track.inner.map((inner) =>
+          transformConstrainedTrack(inner, transformPoint, angleDeltaDegrees),
+        ),
+      };
+  }
+}
+
+/** Converts a rendered sheet position into a geometry's raw absolute sheet position. */
+function renderedPointToRaw(
+  geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  rendered: SheetPosition,
+): SheetPosition {
+  const raw = applyToPoint(inverse(Entity.generateRenderMatrix(geometry)), rendered);
+  return new SheetPosition(raw.x, raw.y);
+}
+
+function pointsClose(a: SheetPosition, b: SheetPosition): boolean {
+  return Math.abs(a.x - b.x) < 1e-9 && Math.abs(a.y - b.y) < 1e-9;
+}
+
+/** Returns the raw absolute position of the geometry's anchor key point, if it has an anchor. */
+function anchorKeyPointRawPosition(
+  geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+): SheetPosition | null {
+  if (!Entity.hasComponent(geometry, AnchorPointComponent)) {
+    return null;
+  }
+  const anchor = AnchorPointComponent.get(geometry);
+  const local = AnchorPointComponent.resolveKeyPointPosition(geometry, anchor.keyPoint);
+  if (!local) {
+    return null;
+  }
+  const origin = GeometryComponent.getOrigin(geometry);
+  return new SheetPosition(origin.x + local.x, origin.y + local.y);
+}
+
+/**
+ * If `originalRawPoint` is the geometry's anchor key point, adjusts the anchor offset so the
+ * derived anchor translation stays put while the moved point renders where it was dragged.
+ */
+function compensateAnchorForMovedKeyPoint<
+  G extends Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+>(
+  originalGeometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  updated: G,
+  originalRawPoint: SheetPosition,
+): G {
+  if (
+    !Entity.hasComponent(originalGeometry, AnchorPointComponent) ||
+    !Entity.hasComponent(updated, AnchorPointComponent)
+  ) {
+    return updated;
+  }
+  const originalKeyPoint = anchorKeyPointRawPosition(originalGeometry);
+  if (!originalKeyPoint || !pointsClose(originalKeyPoint, originalRawPoint)) {
+    return updated;
+  }
+
+  const anchor = AnchorPointComponent.get(updated);
+  const updatedKeyPoint = anchorKeyPointRawPosition(updated);
+  if (!updatedKeyPoint) {
+    return updated;
+  }
+
+  const derivedOffset = new SheetPosition(
+    originalKeyPoint.x + AnchorPointComponent.get(originalGeometry).offset.x,
+    originalKeyPoint.y + AnchorPointComponent.get(originalGeometry).offset.y,
+  );
+  return AnchorPointComponent.update(updated, {
+    keyPoint: anchor.keyPoint,
+    offset: new SheetPosition(
+      derivedOffset.x - updatedKeyPoint.x,
+      derivedOffset.y - updatedKeyPoint.y,
+    ),
+  }) as G;
+}
+
 /** A representation of all entities which can be moved. The type is a union, and the associated
  * namespace has utility functions for computing metrics about the given entity in a generic way. */
 type DragState =
@@ -233,8 +383,16 @@ namespace DragState {
   /** Takes a given {@link DragState} and updated the passed {@link Entity} to contin its data. */
   export function apply(state: DragState, entity: Entity): Entity {
     switch (state.state) {
-      case 'geometry':
-        return Entity.assignComponent(entity, GeometryComponent, state.geometry);
+      case 'geometry': {
+        let updated = Entity.assignComponent(entity, GeometryComponent, state.geometry);
+        if (Entity.hasComponent(state.geometry, AnchorPointComponent)) {
+          updated = Entity.assignComponent(updated, AnchorPointComponent, state.geometry);
+        }
+        if (Entity.hasComponent(state.geometry, RotationComponent)) {
+          updated = Entity.assignComponent(updated, RotationComponent, state.geometry);
+        }
+        return updated;
+      }
       case 'datum':
         return Entity.assignComponent(entity, DatumComponent, state.entity);
       case 'filter':
@@ -343,7 +501,7 @@ namespace DragState {
   export function resize(
     state: DragState,
     params: ResizeParams,
-    originalBBox?: Rect<SheetPosition>,
+    originalBBox?: OrientedRect<SheetPosition>,
   ): DragState | null {
     switch (state.state) {
       case 'geometry': {
@@ -413,8 +571,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   private resizeOriginalGroupStates: Map<Id, DragState> | null = null;
   /** Original entities (with full components like FillColorComponent) for correct history. */
   private resizeOriginalEntities: Map<Id, Entity> | null = null;
-  /** Original union bounding box at start of resize. */
-  private resizeOriginalUnionBBox: Rect<SheetPosition> | null = null;
+  /** Original oriented selection frame at start of resize. */
+  private resizeOriginalFrame: SelectionResizeFrame | null = null;
+  /** Full original geometries for each locked point, used for anchor compensation / cancel. */
+  private originalVertexGeometries: Map<Id, Entity> = new Map();
 
   /** The initial position the user clicked when clicking on a constraint label. Used to determine
    * if the user just clicked, or clicked and dragged (which moves the label). */
@@ -592,7 +752,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.draggingGeometryIds = null;
     this.resizeOriginalGroupStates = null;
     this.resizeOriginalEntities = null;
-    this.resizeOriginalUnionBBox = null;
+    this.resizeOriginalFrame = null;
+    this.originalVertexGeometries.clear();
     this.emit('dragStateChange', null);
   }
 
@@ -792,15 +953,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const sheetPos = worldPos.toSheet();
     const polygonData = GeometryComponent.get(polygonGeom);
     const worldPolygonData = GeometryComponent.projectToSheet(polygonGeom);
-    // The anchor offset stays fixed during a vertex drag. Snapping happens in anchored space, but
-    // geometry is stored raw, so translate between the two.
-    const anchorOffset = GeometryComponent.getAnchorPointOffset(polygonGeom);
-    const toRaw = (position: SheetPosition) =>
-      new SheetPosition(position.x + anchorOffset.x, position.y + anchorOffset.y);
-    const beforeRawPoint = PolygonData.rawSegments(polygonGeom)[segmentIndex].point;
+    const beforeRenderedPoint = worldPolygonData.points[segmentIndex].point;
     const localBeforePoint = polygonData.points[segmentIndex].point;
     const beforePoint = new SheetPosition(localBeforePoint.x, localBeforePoint.y);
-    const worldBeforePoint = worldPolygonData.points[segmentIndex].point;
 
     this.draggingPolygonId = polygonId;
     this.draggingSegmentIndex = segmentIndex;
@@ -812,8 +967,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.lockedPoints = [{ polygonId, segmentIndex }];
     this.originalLockedPolygonStates.clear();
     this.originalLockedPolygonStates.set(polygonId, polygonData.points.slice());
+    this.originalVertexGeometries.clear();
+    this.originalVertexGeometries.set(polygonId, polygonGeom);
 
-    const matchingPoints = this.getGeometryStore().findMatchingPoints(beforeRawPoint, polygonId);
+    const matchingPoints = this.getGeometryStore().findMatchingPoints(
+      beforeRenderedPoint,
+      polygonId,
+    );
     for (const match of matchingPoints) {
       this.lockedPoints.push({ polygonId: match.polygonId, segmentIndex: match.segmentIndex });
       const otherGeom = this.getGeometryStore().getByIdWithComponent(
@@ -825,6 +985,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           match.polygonId,
           GeometryComponent.get(otherGeom).points.slice(),
         );
+        this.originalVertexGeometries.set(match.polygonId, otherGeom);
       }
     }
 
@@ -837,7 +998,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     if (matchedConstraints.length > 0 && sheetConfig) {
       const result = Constraint.computeConstrainedTracksForPoints(
         matchedConstraints,
-        [worldBeforePoint],
+        [beforeRenderedPoint],
         sheetConfig.defaultUnit,
         (ep) => this.getGeometryStore().resolveConstraintEndpoint(ep),
         sheetConfig.epsilon,
@@ -872,53 +1033,18 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           },
           this.getSheet()?.epsilon ?? 0.001,
         );
-        const snappedRawAbsolute = toRaw(snapped);
-
-        this.getGeometryStore().updateByIdWithComponentDirect(
-          this.draggingPolygonId,
-          GeometryComponent,
-          (prev) => {
-            if (!GeometryComponent.isPolygon(prev)) {
-              return prev;
-            }
-            const prevData = GeometryComponent.get(prev);
-            const snappedLocal = new GeometryRelativeSheetPosition(
-              snappedRawAbsolute.x - prevData.position.x,
-              snappedRawAbsolute.y - prevData.position.y,
-            );
-            const points = prevData.points.slice();
-            const isFirstPointAndAtSamePositionAslastPoint =
-              this.draggingSegmentIndex === 0 &&
-              points.at(-1)?.point.x === points[0].point.x &&
-              points.at(-1)?.point.y === points[0].point.y;
-
-            points[this.draggingSegmentIndex] = {
-              ...points[this.draggingSegmentIndex],
-              point: snappedLocal,
-            };
-
-            // If dragging the furst point, also drag the last point too, if the last point is at the
-            // same position. This ensures that the first point of closed polygons (which have a final
-            // point at the same position as the first point) can be moved properly without the last
-            // point getting "stuck.
-            if (isFirstPointAndAtSamePositionAslastPoint) {
-              points[points.length - 1] = { ...points[points.length - 1], point: snappedLocal };
-            }
-
-            const updated = GeometryComponent.update(prev, { points });
-            const [output] = FilterComponent.syncFillColor(
-              updated,
-              this.getGeometryStore().findFiltersByGeometryId(updated.id),
-            );
-            return output;
-          },
-        );
-
-        // Move points which are at the same position in the same way as the selected polygon.
+        // Move points which render at the same position using each target's own inverse render
+        // transform. This keeps locked points together even when their rotations / anchors differ.
         for (const locked of this.lockedPoints) {
-          if (locked.polygonId === this.draggingPolygonId) {
+          const originalGeometry = this.originalVertexGeometries.get(locked.polygonId);
+          if (
+            !originalGeometry ||
+            !Entity.hasComponent(originalGeometry, GeometryComponent) ||
+            GeometryComponent.get(originalGeometry).type !== 'polygon'
+          ) {
             continue;
           }
+          const originalPolygon = originalGeometry as Entity<GeometryComponent<PolygonData>>;
 
           this.getGeometryStore().updateByIdDirect(locked.polygonId, (prev) => {
             if (
@@ -928,6 +1054,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               return prev;
             }
             const prevData = GeometryComponent.get(prev);
+            const snappedRawAbsolute = renderedPointToRaw(originalPolygon, snapped);
             const snappedLocal = new GeometryRelativeSheetPosition(
               snappedRawAbsolute.x - prevData.position.x,
               snappedRawAbsolute.y - prevData.position.y,
@@ -947,208 +1074,194 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               points[points.length - 1] = { ...points[points.length - 1], point: snappedLocal };
             }
 
-            return GeometryComponent.update(prev, { points }) as Entity;
+            const originalRawPoint =
+              PolygonData.rawSegments(originalPolygon)[locked.segmentIndex].point;
+            let updated = GeometryComponent.update(prev, { points }) as Entity<
+              GeometryComponent & Partial<AnchorPointComponent>
+            >;
+            updated = compensateAnchorForMovedKeyPoint(originalPolygon, updated, originalRawPoint);
+
+            if (locked.polygonId === this.draggingPolygonId) {
+              const [output] = FilterComponent.syncFillColor(
+                updated,
+                this.getGeometryStore().findFiltersByGeometryId(updated.id),
+              );
+              return output;
+            }
+            return updated;
           });
         }
       },
-      onCommit: (sp) => {
-        const liveViewport = viewportControls.getState().viewport;
-        const world = sp.toWorld(liveViewport);
-        const afterPointWorld = applySnappingOnConstrainedTrack(
-          world.toSheet(),
-          this.draggingConstrainedTrackResult,
-          {
-            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            ctrlHeld: this.toolManager.getCtrlHeld(),
-            superHeld: false,
-            selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(polygonId),
-            viewportScale: liveViewport.scale,
-          },
-          this.getSheet()?.epsilon ?? 0.001,
-        );
-        const afterRawAbsolute = toRaw(afterPointWorld);
-
-        if (
-          this.draggingPolygonId &&
-          (beforePoint.x !== afterRawAbsolute.x || beforePoint.y !== afterRawAbsolute.y)
-        ) {
+      onCommit: (_sp) => {
+        if (this.draggingPolygonId) {
           const moves: Array<{
             id: Id;
             segmentIndex: number;
             beforePoint: SheetPosition;
             afterPoint: SheetPosition;
           }> = [];
-
-          const mainPolygon = this.getGeometryStore().getByIdWithComponent(
-            this.draggingPolygonId,
-            GeometryComponent,
-          );
-          const mainPosition =
-            mainPolygon && GeometryComponent.isPolygon(mainPolygon)
-              ? GeometryComponent.get(mainPolygon).position
-              : polygonData.position;
-          const afterPoint = new SheetPosition(
-            afterRawAbsolute.x - mainPosition.x,
-            afterRawAbsolute.y - mainPosition.y,
-          );
-
-          moves.push({
-            id: this.draggingPolygonId,
-            segmentIndex: this.draggingSegmentIndex,
-            beforePoint,
-            afterPoint,
-          });
-
-          if (
-            mainPolygon &&
-            GeometryComponent.isPolygon(mainPolygon) &&
-            this.draggingSegmentIndex === 0
-          ) {
-            const mainPolygonData = GeometryComponent.get(mainPolygon);
-            const isFirstPointAndAtSamePositionAsLastPoint =
-              mainPolygonData.points.at(-1)?.point.x === beforePoint.x &&
-              mainPolygonData.points.at(-1)?.point.y === beforePoint.y;
-            if (isFirstPointAndAtSamePositionAsLastPoint) {
-              moves.push({
-                id: this.draggingPolygonId,
-                segmentIndex: mainPolygonData.points.length - 1,
-                beforePoint,
-                afterPoint,
-              });
-            }
-          }
+          const anchorEntries: Array<UndoEntry> = [];
 
           for (const locked of this.lockedPoints) {
-            if (locked.polygonId === this.draggingPolygonId) {
-              continue;
-            }
-
             const originalPoints = this.originalLockedPolygonStates.get(locked.polygonId);
-            if (!originalPoints) {
+            const originalGeometry = this.originalVertexGeometries.get(locked.polygonId);
+            const currentGeometry = this.getGeometryStore().getByIdWithComponent(
+              locked.polygonId,
+              GeometryComponent,
+            );
+            if (
+              !originalPoints ||
+              !originalGeometry ||
+              !currentGeometry ||
+              !GeometryComponent.isPolygon(currentGeometry)
+            ) {
               continue;
             }
-            if (originalPoints[locked.segmentIndex].type === 'point') {
-              const lockedGeometry = this.getGeometryStore().getByIdWithComponent(
-                locked.polygonId,
-                GeometryComponent,
-              );
-              if (!lockedGeometry || !GeometryComponent.isPolygon(lockedGeometry)) {
-                continue;
-              }
-              const lockedPosition = GeometryComponent.get(lockedGeometry).position;
-              const lockedAfterPoint = new SheetPosition(
-                afterRawAbsolute.x - lockedPosition.x,
-                afterRawAbsolute.y - lockedPosition.y,
-              );
-              const lockedBeforeLocal = originalPoints[locked.segmentIndex].point;
-              const lockedBeforePoint = new SheetPosition(lockedBeforeLocal.x, lockedBeforeLocal.y);
-              moves.push({
-                id: locked.polygonId,
-                segmentIndex: locked.segmentIndex,
-                beforePoint: lockedBeforePoint,
-                afterPoint: lockedAfterPoint,
-              });
+            const currentPoints = GeometryComponent.get(currentGeometry).points;
 
-              if (locked.segmentIndex === 0) {
-                const isFirstPointAndAtSamePositionAsLastPoint =
-                  originalPoints.at(-1)?.point.x === lockedBeforePoint.x &&
-                  originalPoints.at(-1)?.point.y === lockedBeforePoint.y;
-                if (isFirstPointAndAtSamePositionAsLastPoint) {
-                  moves.push({
-                    id: locked.polygonId,
-                    segmentIndex: originalPoints.length - 1,
-                    beforePoint: lockedBeforePoint,
-                    afterPoint: lockedAfterPoint,
-                  });
-                }
+            if (
+              Entity.hasComponent(originalGeometry, AnchorPointComponent) &&
+              Entity.hasComponent(currentGeometry, AnchorPointComponent)
+            ) {
+              const beforeAnchor = AnchorPointComponent.get(originalGeometry);
+              const afterAnchor = AnchorPointComponent.get(currentGeometry);
+              if (
+                beforeAnchor.keyPoint !== afterAnchor.keyPoint ||
+                beforeAnchor.offset.x !== afterAnchor.offset.x ||
+                beforeAnchor.offset.y !== afterAnchor.offset.y
+              ) {
+                anchorEntries.push(
+                  UndoEntry.anchorPointMove(locked.polygonId, beforeAnchor, afterAnchor),
+                );
+              }
+            }
+
+            if (originalPoints[locked.segmentIndex]?.type !== 'point') {
+              continue;
+            }
+            const beforeLocal = originalPoints[locked.segmentIndex].point;
+            const beforeLockedPoint = new SheetPosition(beforeLocal.x, beforeLocal.y);
+            const afterLocal = currentPoints[locked.segmentIndex]?.point;
+            if (!afterLocal) {
+              continue;
+            }
+            const afterPoint = new SheetPosition(afterLocal.x, afterLocal.y);
+            if (beforeLockedPoint.x === afterPoint.x && beforeLockedPoint.y === afterPoint.y) {
+              continue;
+            }
+
+            moves.push({
+              id: locked.polygonId,
+              segmentIndex: locked.segmentIndex,
+              beforePoint: beforeLockedPoint,
+              afterPoint,
+            });
+
+            if (locked.segmentIndex === 0 && originalPoints.length > 1) {
+              const originalLast = originalPoints.at(-1)?.point;
+              const currentLast = currentPoints.at(-1)?.point;
+              if (
+                originalLast &&
+                currentLast &&
+                originalLast.x === beforeLockedPoint.x &&
+                originalLast.y === beforeLockedPoint.y
+              ) {
+                moves.push({
+                  id: locked.polygonId,
+                  segmentIndex: originalPoints.length - 1,
+                  beforePoint: beforeLockedPoint,
+                  afterPoint: new SheetPosition(currentLast.x, currentLast.y),
+                });
               }
             }
           }
 
-          this.getHistoryManager().applyTransaction(
-            'polygon-vertex-move',
-            () => {
-              if (moves.length > 1) {
-                this.getHistoryManager().push(UndoEntry.polygonMoveMultipleVertices(moves));
-              } else {
-                this.getHistoryManager().push(
-                  UndoEntry.polygonMoveVertex(
-                    this.draggingPolygonId!,
-                    this.draggingSegmentIndex,
-                    beforePoint,
-                    afterPoint,
-                  ),
-                );
-              }
-
-              // After moving a filter endpoint, resync the filled state of any associated geometries
-              this.getGeometryStore().updateByIdWithComponentDirect(
-                this.draggingPolygonId!,
-                GeometryComponent,
-                (geometry) => {
-                  const [output, historyEvents] = FilterComponent.syncFillColor(
-                    geometry,
-                    this.getGeometryStore().findFiltersByGeometryId(geometry.id),
-                    polygonGeom,
+          if (moves.length > 0 || anchorEntries.length > 0) {
+            this.getHistoryManager().applyTransaction(
+              'polygon-vertex-move',
+              () => {
+                for (const entry of anchorEntries) {
+                  this.getHistoryManager().push(entry);
+                }
+                if (moves.length > 1) {
+                  this.getHistoryManager().push(UndoEntry.polygonMoveMultipleVertices(moves));
+                } else if (moves.length === 1) {
+                  const move = moves[0];
+                  this.getHistoryManager().push(
+                    UndoEntry.polygonMoveVertex(
+                      move.id,
+                      move.segmentIndex,
+                      move.beforePoint,
+                      move.afterPoint,
+                    ),
                   );
-                  if (output !== geometry) {
-                    for (const event of historyEvents) {
-                      this.getHistoryManager().push(event);
+                }
+
+                // After moving a filter endpoint, resync the filled state of any associated geometries
+                this.getGeometryStore().updateByIdWithComponentDirect(
+                  this.draggingPolygonId!,
+                  GeometryComponent,
+                  (geometry) => {
+                    const [output, historyEvents] = FilterComponent.syncFillColor(
+                      geometry,
+                      this.getGeometryStore().findFiltersByGeometryId(geometry.id),
+                      polygonGeom,
+                    );
+                    if (output !== geometry) {
+                      for (const event of historyEvents) {
+                        this.getHistoryManager().push(event);
+                      }
                     }
-                  }
-                  return output;
-                },
-              );
-            },
-            { collapseIfSingle: true },
-          );
+                    return output;
+                  },
+                );
+              },
+              { collapseIfSingle: true },
+            );
+          }
         }
         this.activeDragListener = null;
         this.clearDragState();
       },
       onCancel: () => {
-        if (this.draggingPolygonId && this.originalPolygonState) {
-          this.getGeometryStore().updateByIdWithComponentDirect(
-            this.draggingPolygonId,
-            GeometryComponent,
-            (prev) => {
-              if (
-                !Entity.hasComponent(prev, GeometryComponent) ||
-                !GeometryComponent.isPolygon(prev)
-              ) {
-                return prev;
-              }
-
-              const updated = GeometryComponent.update(prev, {
-                points: this.originalPolygonState!.points.slice(),
-              }) as Entity<GeometryComponent & Partial<FillColorComponent>>;
-
-              if (typeof this.originalPolygonFillColor !== 'undefined') {
-                return FillColorComponent.update(updated, this.originalPolygonFillColor);
-              } else {
-                return FillColorComponent.remove(updated);
-              }
-            },
-          );
-        }
-
         for (const locked of this.lockedPoints) {
-          if (locked.polygonId === this.draggingPolygonId) {
+          const originalState = this.originalLockedPolygonStates.get(locked.polygonId);
+          const originalGeometry = this.originalVertexGeometries.get(locked.polygonId);
+          if (!originalState || !originalGeometry) {
             continue;
           }
-          const originalState = this.originalLockedPolygonStates.get(locked.polygonId);
-          if (originalState) {
-            this.getGeometryStore().updateByIdDirect(locked.polygonId, (prev) => {
-              if (
-                !Entity.hasComponent(prev, GeometryComponent) ||
-                !GeometryComponent.isPolygon(prev)
-              ) {
-                return prev;
+          const isMain = locked.polygonId === this.draggingPolygonId;
+          this.getGeometryStore().updateByIdDirect(locked.polygonId, (prev) => {
+            if (
+              !Entity.hasComponent(prev, GeometryComponent) ||
+              !GeometryComponent.isPolygon(prev)
+            ) {
+              return prev;
+            }
+
+            let updated = GeometryComponent.update(prev, {
+              points: originalState.slice(),
+            }) as Entity<
+              GeometryComponent & Partial<AnchorPointComponent> & Partial<FillColorComponent>
+            >;
+
+            if (Entity.hasComponent(originalGeometry, AnchorPointComponent)) {
+              updated = AnchorPointComponent.update(
+                updated as Entity<AnchorPointComponent>,
+                AnchorPointComponent.get(
+                  originalGeometry as Entity<GeometryComponent & AnchorPointComponent>,
+                ),
+              ) as typeof updated;
+            }
+
+            if (isMain) {
+              if (typeof this.originalPolygonFillColor !== 'undefined') {
+                return FillColorComponent.update(updated, this.originalPolygonFillColor);
               }
-              return GeometryComponent.update(prev, { points: originalState.slice() }) as Entity;
-            });
-          }
+              return FillColorComponent.remove(updated);
+            }
+            return updated;
+          });
         }
 
         this.activeDragListener = null;
@@ -1173,9 +1286,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
     const ctrlPolygonData = GeometryComponent.get(geom);
-    const anchorOffset = GeometryComponent.getAnchorPointOffset(geom);
-    const toRaw = (position: SheetPosition) =>
-      new SheetPosition(position.x + anchorOffset.x, position.y + anchorOffset.y);
+    const originalGeometry = geom as Entity<GeometryComponent & Partial<AnchorPointComponent>>;
     let beforeLocalPoint: GeometryRelativeSheetPosition;
     if (pointKey === 'controlPoint') {
       beforeLocalPoint = (
@@ -1222,7 +1333,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
           const prevData = GeometryComponent.get(prev);
           const segments = prevData.points.slice();
-          const snappedRawAbsolute = toRaw(snapped);
+          const snappedRawAbsolute = renderedPointToRaw(originalGeometry, snapped);
           const snappedLocal = new GeometryRelativeSheetPosition(
             snappedRawAbsolute.x - prevData.position.x,
             snappedRawAbsolute.y - prevData.position.y,
@@ -1244,7 +1355,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
-        const afterRawAbsolute = toRaw(
+        const afterRawAbsolute = renderedPointToRaw(
+          originalGeometry,
           applySnapping(world.toSheet(), {
             primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
             secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
@@ -1318,6 +1430,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const beforeHandlePosition = AnchorPointComponent.getHandlePosition(geometry);
     const before = AnchorPointComponent.get(geometry);
     const filters = this.getGeometryStore().findFiltersByGeometryId(geometryId);
+    const angleDegrees = RotationComponent.getOptional(geometry)?.angle.toDegrees().magnitude ?? 0;
 
     let lastDeltaX = 0,
       lastDeltaY = 0;
@@ -1342,9 +1455,21 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             const deltaX = snapped.x - beforeHandlePosition.x;
             const deltaY = snapped.y - beforeHandlePosition.y;
 
+            // The handle itself moves with the raw geometry translation, but the anchor offset is
+            // expressed in raw space. Rotate the rendered offset delta into the raw frame so the
+            // rendered geometry stays pinned while the handle follows the mouse.
+            const rawOffsetDelta = rotatePointAround(
+              new SheetPosition(deltaX, deltaY),
+              new SheetPosition(0, 0),
+              -angleDegrees,
+            );
+
             const updated = AnchorPointComponent.update(g, {
               keyPoint: before.keyPoint,
-              offset: new SheetPosition(before.offset.x + deltaX, before.offset.y + deltaY),
+              offset: new SheetPosition(
+                before.offset.x + rawOffsetDelta.x,
+                before.offset.y + rawOffsetDelta.y,
+              ),
             });
 
             if (Entity.hasComponent(updated, GeometryComponent)) {
@@ -2017,6 +2142,46 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     return null;
   }
 
+  /** Builds all undo entries needed to restore an entity after a move/resize, including any anchor
+   * offset or rotation changes that accompanied the geometry change. */
+  private buildTransformUndoEntries(before: Entity, after: Entity): Array<UndoEntry> {
+    const entries: Array<UndoEntry> = [];
+    const move = this.buildMoveUndoEntry(before, after);
+    if (move) {
+      entries.push(move);
+    }
+
+    if (
+      Entity.hasComponent(before, AnchorPointComponent) &&
+      Entity.hasComponent(after, AnchorPointComponent)
+    ) {
+      const beforeAnchor = AnchorPointComponent.get(before);
+      const afterAnchor = AnchorPointComponent.get(after);
+      if (
+        beforeAnchor.keyPoint !== afterAnchor.keyPoint ||
+        beforeAnchor.offset.x !== afterAnchor.offset.x ||
+        beforeAnchor.offset.y !== afterAnchor.offset.y
+      ) {
+        entries.push(UndoEntry.anchorPointMove(before.id, beforeAnchor, afterAnchor));
+      }
+    }
+
+    if (
+      Entity.hasComponent(before, RotationComponent) &&
+      Entity.hasComponent(after, RotationComponent)
+    ) {
+      const beforeRotation = RotationComponent.get(before);
+      const afterRotation = RotationComponent.get(after);
+      if (
+        beforeRotation.angle.toDegrees().magnitude !== afterRotation.angle.toDegrees().magnitude
+      ) {
+        entries.push(UndoEntry.rotationChange(before.id, beforeRotation, afterRotation));
+      }
+    }
+
+    return entries;
+  }
+
   // ==================== COMMON GEOMETEY  HANDLERS ====================
 
   handleGeometryFillPointerDown(
@@ -2356,32 +2521,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    // Compute original union bounding box
-    let unionBBox: Rect<SheetPosition> | null = null;
-    for (const state of originalStates.values()) {
-      const bbox = DragState.boundingBox(state);
-      if (!bbox) {
-        continue;
-      }
-
-      if (!unionBBox) {
-        unionBBox = bbox;
-      } else {
-        const minX = Math.min(unionBBox.position.x, bbox.position.x);
-        const minY = Math.min(unionBBox.position.y, bbox.position.y);
-        const maxX = Math.max(unionBBox.position.x + unionBBox.width, bbox.position.x + bbox.width);
-        const maxY = Math.max(
-          unionBBox.position.y + unionBBox.height,
-          bbox.position.y + bbox.height,
-        );
-        unionBBox = {
-          position: new SheetPosition(minX, minY),
-          width: maxX - minX,
-          height: maxY - minY,
-        };
-      }
-    }
-    if (!unionBBox) {
+    // Compute the shared oriented resize frame (and per-entity frames) for this selection.
+    const resizeFrame = computeSelectionResizeFrame(Array.from(originalEntities.values()));
+    if (!resizeFrame) {
       return;
     }
 
@@ -2397,7 +2539,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.resizeMode = resizeMode;
     this.resizeOriginalGroupStates = originalStates;
     this.resizeOriginalEntities = originalEntities;
-    this.resizeOriginalUnionBBox = unionBBox;
+    this.resizeOriginalFrame = resizeFrame;
     this.draggingGeometryIds = geometryIds;
     this.emit('dragStateChange', {
       type: 'geometry-resize',
@@ -2405,55 +2547,25 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       mode: resizeMode,
     });
 
-    let initialPointerDownOffsetXPx = 0;
-    let initialPointerDownOffsetYPx = 0;
-    if (resizeMode.type === 'corner') {
-      switch (resizeMode.corner) {
-        case 'top-left':
-          initialPointerDownOffsetXPx = SELECTED_OUTSET_PX;
-          initialPointerDownOffsetYPx = SELECTED_OUTSET_PX;
-          break;
-        case 'top-right':
-          initialPointerDownOffsetXPx = -1 * SELECTED_OUTSET_PX;
-          initialPointerDownOffsetYPx = SELECTED_OUTSET_PX;
-          break;
-        case 'bottom-left':
-          initialPointerDownOffsetXPx = SELECTED_OUTSET_PX;
-          initialPointerDownOffsetYPx = -1 * SELECTED_OUTSET_PX;
-          break;
-        case 'bottom-right':
-          initialPointerDownOffsetXPx = -1 * SELECTED_OUTSET_PX;
-          initialPointerDownOffsetYPx = -1 * SELECTED_OUTSET_PX;
-          break;
-      }
-    } else {
-      switch (resizeMode.edge) {
-        case 'top':
-          initialPointerDownOffsetYPx = SELECTED_OUTSET_PX;
-          break;
-        case 'bottom':
-          initialPointerDownOffsetYPx = -1 * SELECTED_OUTSET_PX;
-          break;
-        case 'left':
-          initialPointerDownOffsetXPx = SELECTED_OUTSET_PX;
-          break;
-        case 'right':
-          initialPointerDownOffsetXPx = -1 * SELECTED_OUTSET_PX;
-          break;
-      }
-    }
+    const pointerOutset = computeResizePointerOutset(
+      resizeMode,
+      resizeFrame.bbox.angleDegrees,
+      SELECTED_OUTSET_PX,
+    );
+    const initialPointerDownOffsetXPx = pointerOutset.x;
+    const initialPointerDownOffsetYPx = pointerOutset.y;
 
     if (resizeMode.type === 'corner') {
       this.draggingConstrainedTrackResult = this.computeCornerResizeTracks(
-        geometryIds[0],
+        geometryIds,
         resizeMode.corner,
-        unionBBox,
+        resizeFrame.bbox,
       );
     } else if (resizeMode.type === 'edge') {
       this.draggingConstrainedTrackResult = this.computeEdgeResizeTracks(
-        geometryIds[0],
+        geometryIds,
         resizeMode.edge,
-        unionBBox,
+        resizeFrame.bbox,
       );
     }
 
@@ -2463,8 +2575,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       viewportControls,
       onMove: (sp) => {
         const groupStates = this.resizeOriginalGroupStates;
-        const unionBBox = this.resizeOriginalUnionBBox;
-        if (!this.draggingGeometryIds || !this.resizeMode || !unionBBox || !groupStates) {
+        const resizeFrame = this.resizeOriginalFrame;
+        if (!this.draggingGeometryIds || !this.resizeMode || !resizeFrame || !groupStates) {
           return;
         }
 
@@ -2499,17 +2611,50 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           linkDimensions,
         };
 
-        // Compute new union bounding box
-        const newUnionBBox = GeometryComponent.resizeBBox(unionBBox, params);
-        if (!newUnionBBox) {
-          return;
-        }
-
-        // Apply percentage-based resize to each geometry
+        // Apply the resize in the shared oriented frame. Each geometry uses its own pivot so
+        // anchor offsets come out correctly, while the group bbox keeps multi-selection scaling
+        // percentage-based (and preserves the legacy unrotated behavior).
         for (const [id, originalState] of groupStates) {
-          const newState = DragState.resize(originalState, params, unionBBox);
+          const stateParams: ResizeParams = {
+            ...params,
+            frame: resizeFrame.perEntity.get(id) ?? resizeFrame.frame,
+          };
+          const newState = DragState.resize(originalState, stateParams, resizeFrame.bbox);
           if (newState) {
             this.getGeometryStore().updateByIdDirect(id, (old) => DragState.apply(newState, old));
+          }
+        }
+
+        // Resizing changes the raw origin (which is the rotation pivot), so a rotated geometry can
+        // drift even though the raw opposite corner stayed pinned. Translate the resized result
+        // back so the opposite handle/edge stays pinned in rendered space.
+        if (
+          resizeFrame.strategy !== 'axis-aligned-fallback' &&
+          resizeFrame.bbox.angleDegrees !== 0
+        ) {
+          const beforePinned = getPinnedResizePosition(this.resizeMode, resizeFrame.bbox);
+          const afterEntities = Array.from(groupStates.keys()).flatMap((id) => {
+            const entity = this.getGeometryStore().getById(id);
+            return entity ? [entity] : [];
+          });
+          const afterFrame = computeSelectionResizeFrame(afterEntities);
+          if (afterFrame) {
+            const afterPinned = getPinnedResizePosition(this.resizeMode, afterFrame.bbox);
+            const correctionX = afterPinned.x - beforePinned.x;
+            const correctionY = afterPinned.y - beforePinned.y;
+            if (Math.abs(correctionX) > 1e-9 || Math.abs(correctionY) > 1e-9) {
+              for (const [id] of groupStates) {
+                this.getGeometryStore().updateByIdDirect(id, (old) => {
+                  if (!Entity.hasComponent(old, GeometryComponent)) {
+                    return old;
+                  }
+                  return GeometryComponent.transform(
+                    old,
+                    (p) => new SheetPosition(p.x - correctionX, p.y - correctionY),
+                  );
+                });
+              }
+            }
           }
         }
 
@@ -2541,9 +2686,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               // FIXME: replace with one single event
               switch (originalState.state) {
                 case 'geometry': {
-                  const move = this.buildMoveUndoEntry(originalState.geometry, afterEntity);
-                  if (move) {
-                    this.getHistoryManager().push(move);
+                  for (const entry of this.buildTransformUndoEntries(
+                    originalState.geometry,
+                    afterEntity,
+                  )) {
+                    this.getHistoryManager().push(entry);
                   }
                   break;
                 }
@@ -2558,9 +2705,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   );
                   break;
                 case 'frame': {
-                  const move = this.buildMoveUndoEntry(originalState.entity, afterEntity);
-                  if (move) {
-                    this.getHistoryManager().push(move);
+                  for (const entry of this.buildTransformUndoEntries(
+                    originalState.entity,
+                    afterEntity,
+                  )) {
+                    this.getHistoryManager().push(entry);
                   }
                   break;
                 }
@@ -2646,25 +2795,29 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    * corner so the snap is applied at the cursor rather than at the endpoint.
    */
   private computeCornerResizeTracks(
-    geometryId: Id,
+    geometryIds: Array<Id>,
     corner: ResizeCorner,
-    unionBBox: Rect<SheetPosition>,
+    frame: OrientedRect<SheetPosition>,
   ): ConstrainedTrackPath {
     const sheetConfig = this.getSheet();
     if (!sheetConfig) {
       return 'unconstrained';
     }
 
-    const matchedConstraints = this.getGeometryStore().findConstraintsByGeometryId(geometryId);
-    if (matchedConstraints.length === 0) {
+    const matchedGeometryIdConstraintsPairs = geometryIds.flatMap((id) =>
+      this.getGeometryStore()
+        .findConstraintsByGeometryId(id)
+        .map((c) => [id, c] as const),
+    );
+    if (matchedGeometryIdConstraintsPairs.length === 0) {
       return 'unconstrained';
     }
 
-    const cornerPos = getCornerPosition(corner, unionBBox);
+    const cornerPos = getOrientedCornerPosition(corner, frame);
 
     const tracks: Array<ConstrainedTrack> = [];
 
-    for (const c of matchedConstraints) {
+    for (const [geometryId, c] of matchedGeometryIdConstraintsPairs) {
       const built = this.buildSingleConstrainedTrack(c, geometryId, sheetConfig.defaultUnit);
       if (!built) {
         continue;
@@ -2726,23 +2879,33 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    * uses the same 2D offset approach as corner resize since vertices scale proportionally.
    */
   private computeEdgeResizeTracks(
-    geometryId: Id,
+    geometryIds: Array<Id>,
     edge: ResizeEdge,
-    unionBBox: Rect<SheetPosition>,
+    frame: OrientedRect<SheetPosition>,
   ): ConstrainedTrackPath {
     const sheetConfig = this.getSheet();
     if (!sheetConfig) {
       return 'unconstrained';
     }
 
-    const matchedConstraints = this.getGeometryStore().findConstraintsByGeometryId(geometryId);
-    if (matchedConstraints.length === 0) {
+    const matchedGeometryIdConstraintsPairs = geometryIds.flatMap((id) =>
+      this.getGeometryStore()
+        .findConstraintsByGeometryId(id)
+        .map((c) => [id, c] as const),
+    );
+    if (matchedGeometryIdConstraintsPairs.length === 0) {
       return 'unconstrained';
     }
 
+    const pivot = frame.position;
+    const toLocal = (position: SheetPosition) =>
+      rotatePointAround(position, pivot, -frame.angleDegrees);
+    const toRendered = (position: SheetPosition) =>
+      rotatePointAround(position, pivot, frame.angleDegrees);
+
     const tracks: Array<ConstrainedTrack> = [];
 
-    for (const c of matchedConstraints) {
+    for (const [geometryId, c] of matchedGeometryIdConstraintsPairs) {
       const built = this.buildSingleConstrainedTrack(c, geometryId, sheetConfig.defaultUnit);
       if (!built) {
         continue;
@@ -2756,14 +2919,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         continue;
       }
 
-      if (!isEndpointOnEdge(built.shapeEndpoint, edge, built.endpointPos, unionBBox)) {
+      const localEndpointPos = toLocal(built.endpointPos);
+      if (!isEndpointOnEdge(built.shapeEndpoint, edge, localEndpointPos, frame)) {
         continue;
       }
 
       const axis = edge === 'top' || edge === 'bottom' ? 'y' : 'x';
-      const fixedCoord = axis === 'y' ? built.endpointPos.x : built.endpointPos.y;
+      const fixedCoord = axis === 'y' ? localEndpointPos.x : localEndpointPos.y;
+      const localTrack = transformConstrainedTrack(built.track, toLocal, -frame.angleDegrees);
       const restricted = ConstrainedTrack.restrictToAxis(
-        built.track,
+        localTrack,
         fixedCoord,
         axis,
         sheetConfig.epsilon,
@@ -2772,7 +2937,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         return 'immobile';
       }
       if (restricted !== null) {
-        tracks.push(restricted);
+        tracks.push(transformConstrainedTrack(restricted, toRendered, frame.angleDegrees));
       }
     }
 
@@ -2908,14 +3073,15 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Adds a point on the specified line segment edge of a polygon at the given click position. */
   addPointOnLineSegmentEdge(polygonId: Id, segmentIndex: number, sheetPos: SheetPosition): void {
-    // The renderer reports the closest point in anchored space; store geometry is raw.
+    // The renderer reports the closest point in rendered space; store geometry is raw.
     const geom = this.getGeometryStore().getByIdWithComponent(polygonId, GeometryComponent);
-    const offset = geom ? GeometryComponent.getAnchorPointOffset(geom) : new SheetPosition(0, 0);
-    this.getGeometryStore().addPointOnLineSegmentEdge(
-      polygonId,
-      segmentIndex,
-      new SheetPosition(sheetPos.x + offset.x, sheetPos.y + offset.y),
-    );
+    const rawPoint = geom
+      ? renderedPointToRaw(
+          geom as Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+          sheetPos,
+        )
+      : sheetPos;
+    this.getGeometryStore().addPointOnLineSegmentEdge(polygonId, segmentIndex, rawPoint);
   }
 
   /** Adds a point on the specified quadratic arc edge of a polygon at the given click position.
