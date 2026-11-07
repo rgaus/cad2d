@@ -19,13 +19,9 @@ const ShapsHintOverlaps: React.FunctionComponent = () => {
     const pts: Array<SheetPosition> = [];
 
     for (const geometry of geometries) {
-      const kp = Entity.keyPoints(geometry);
-      for (const p of kp.perimeter) {
-        pts.push(p.toSheet(geometry));
-      }
-      for (const p of Object.values(kp.extras)) {
-        pts.push(p.toSheet(geometry));
-      }
+      const kp = Entity.keyPointsInSheet(geometry);
+      pts.push(...kp.perimeter);
+      pts.push(...Object.values(kp.extras));
     }
 
     return pts;

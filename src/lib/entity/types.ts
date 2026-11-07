@@ -4,7 +4,15 @@ import { OrientedBoundingBox } from '@/lib/math';
 import { type FieldOptionsList } from '@/lib/selection/fields';
 import { type SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { UnitType } from '@/lib/units/length';
-import { KeyPoints, OrientedRect, Position, Rect, SheetPosition } from '@/lib/viewport/types';
+import {
+  GeometryRelativeSheetPosition,
+  KeyPoints,
+  OrientedRect,
+  Position,
+  Rect,
+  SheetPosition,
+  mapKeyPoints,
+} from '@/lib/viewport/types';
 import { AnchorPointComponent } from './components/AnchorPointComponent';
 import { ConstraintComponent } from './components/ConstraintComponent';
 import { DatumComponent } from './components/DatumComponent';
@@ -15,9 +23,6 @@ import { GeometryComponent } from './components/GeometryComponent';
 import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
 import { RotationComponent } from './components/RotationComponent';
-import { EllipseData } from './geometry/ellipse';
-import { PolygonData } from './geometry/polygon';
-import { RectangleData } from './geometry/rectangle';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -108,30 +113,27 @@ export namespace Entity {
     };
   }
 
+  /** Key points in geometry-relative coordinates for a geometry entity. Datums and frames have no
+   * geometry-relative frame; use {@link keyPointsInSheet} to include them. */
   export function keyPoints(
-    geometry: Entity<GeometryComponent<PolygonData>>,
-  ): ReturnType<typeof PolygonData.rawKeyPoints>;
-  export function keyPoints(
-    geometry: Entity<GeometryComponent<RectangleData>>,
-  ): ReturnType<typeof RectangleData.rawKeyPoints>;
-  export function keyPoints(
-    geometry: Entity<GeometryComponent<EllipseData>>,
-  ): ReturnType<typeof EllipseData.rawKeyPoints>;
-  export function keyPoints(
-    geometry: Entity<DatumComponent>,
-  ): ReturnType<typeof DatumComponent.keyPoints>;
-  export function keyPoints(
-    geometry: Entity<FrameComponent>,
-  ): ReturnType<typeof FrameComponent.keyPoints>;
-  export function keyPoints(entity: Entity): KeyPoints<Position, string> {
+    entity: Entity<GeometryComponent>,
+  ): KeyPoints<GeometryRelativeSheetPosition, string, string> {
+    return GeometryComponent.keyPoints(entity);
+  }
+
+  /** Key points projected into absolute rendered sheet space. Geometry key points are projected
+   * through their render transform; datum and frame key points are already absolute. */
+  export function keyPointsInSheet(entity: Entity): KeyPoints<SheetPosition, string, string> {
     if (Entity.hasComponent(entity, GeometryComponent)) {
-      return GeometryComponent.keyPoints(entity);
+      return mapKeyPoints(GeometryComponent.keyPoints(entity), (position) =>
+        position.toSheet(entity),
+      );
     } else if (Entity.hasComponent(entity, DatumComponent)) {
       return DatumComponent.keyPoints(entity);
     } else if (Entity.hasComponent(entity, FrameComponent)) {
       return FrameComponent.keyPoints(entity);
     }
-    throw new Error(`Entity.keyPoints: unknown geometry type for id=${entity.id}`);
+    throw new Error(`Entity.keyPointsInSheet: unknown geometry type for id=${entity.id}`);
   }
 
   export function orientedBoundingBox(entity: Entity): OrientedRect<Position> {
