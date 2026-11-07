@@ -278,7 +278,7 @@ export class GeometryRelativeSheetPosition extends Position {
    * geometry's raw natural origin. */
   static fromRawSheet(
     position: SheetPosition,
-    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+    geometry: Entity<GeometryComponent>,
   ): GeometryRelativeSheetPosition {
     const origin = GeometryComponent.getOrigin(geometry);
     return new GeometryRelativeSheetPosition(position.x - origin.x, position.y - origin.y);
