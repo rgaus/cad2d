@@ -68,6 +68,7 @@ export function buildPolygonPath(
 
 const selectedVertexSizeInPx = 6;
 const vertexSizeInPx = 4;
+const anchorRadiusInPx = 2;
 
 const PREVIEW_VIEWBOX_SIZE = 60;
 const PREVIEW_PADDING = 8;
@@ -499,14 +500,13 @@ export default function ShapePreview({
       ) : null}
 
       {anchorPointPosition ? (
-        <rect
+        <circle
           data-preview-anchor="true"
-          x={toSvg(anchorPointPosition.x, anchorPointPosition.y)[0] - vertexSizeInPx / 2}
-          y={toSvg(anchorPointPosition.x, anchorPointPosition.y)[1] - vertexSizeInPx / 2}
-          width={vertexSizeInPx}
-          height={vertexSizeInPx}
-          fill="#f39c12"
-          stroke="#fff"
+          cx={toSvg(anchorPointPosition.x, anchorPointPosition.y)[0]}
+          cy={toSvg(anchorPointPosition.x, anchorPointPosition.y)[1]}
+          r={anchorRadiusInPx}
+          fill="#fff"
+          stroke="#f39c12"
           strokeWidth={1}
         />
       ) : null}
