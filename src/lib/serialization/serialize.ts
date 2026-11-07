@@ -13,7 +13,9 @@ import {
   type Rectangle,
   RenderOrderComponent,
 } from '@/lib/entity';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import {
   type ColinearConstraintData,
   type ConstraintData,
@@ -89,6 +91,25 @@ function segmentsToPathData(segments: Array<PolygonSegment>): string {
   return dParts.join(' ');
 }
 
+function serializeTransformAttributes(entity: Entity): Array<string> {
+  const attrs: Array<string> = [];
+  const anchor = Entity.hasComponent(entity, AnchorPointComponent)
+    ? AnchorPointComponent.get(entity)
+    : undefined;
+  if (anchor) {
+    attrs.push(
+      `data-anchor-key-point="${anchor.keyPoint}"`,
+      `data-anchor-offset-x="${anchor.offset.x}"`,
+      `data-anchor-offset-y="${anchor.offset.y}"`,
+    );
+  }
+  const rotation = RotationComponent.getOptional(entity);
+  if (rotation) {
+    attrs.push(`data-rotation-degrees="${rotation.angle.toDegrees().magnitude}"`);
+  }
+  return attrs;
+}
+
 /** Serializes a polygon to an SVG <path> element string. */
 export function serializePolygon(polygon: Polygon, options?: { hidden?: boolean }): string {
   const fillColor = colorToHex(FillColorComponent.getOptional(polygon) ?? null);
@@ -101,6 +122,7 @@ export function serializePolygon(polygon: Polygon, options?: { hidden?: boolean 
     `stroke-width="2"`,
     `data-open-at-index="${polygonData.openAtIndex}"`,
     `data-render-order="${RenderOrderComponent.get(polygon)}"`,
+    ...serializeTransformAttributes(polygon),
     options?.hidden ? 'display="none"' : '',
   ].filter((attr) => attr.length > 0);
 
@@ -152,6 +174,7 @@ export function serializeRectangle(geometry: Rectangle, options?: { hidden?: boo
     `stroke-width="2"`,
     `data-link-dimensions="${LinkDimensionsComponent.get(geometry)}"`,
     `data-render-order="${RenderOrderComponent.get(geometry)}"`,
+    ...serializeTransformAttributes(geometry),
     options?.hidden ? 'display="none"' : '',
   ].filter((attr) => attr.length > 0);
 
@@ -171,6 +194,7 @@ export function serializeEllipse(ellipse: Ellipse, options?: { hidden?: boolean 
     `stroke-width="2"`,
     `data-link-dimensions="${LinkDimensionsComponent.get(ellipse)}"`,
     `data-render-order="${RenderOrderComponent.get(ellipse)}"`,
+    ...serializeTransformAttributes(ellipse),
     options?.hidden ? 'display="none"' : '',
   ].filter((attr) => attr.length > 0);
 

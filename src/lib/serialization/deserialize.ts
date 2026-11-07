@@ -21,7 +21,10 @@ import {
   VerticalConstraint,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
+import { Angle } from '@/lib/units/angle';
 import {
   CentimetersLength,
   FeetLength,
@@ -69,6 +72,40 @@ export type ParseResult = {
 /** Converts a pixel coordinate to SheetPosition. */
 function pixelsToSheetPosition(x: number, y: number): SheetPosition {
   return new SheetPosition(x / SHEET_UNITS_TO_PIXELS, y / SHEET_UNITS_TO_PIXELS);
+}
+
+type TransformElementAttrs = {
+  [key: string]: string | undefined;
+  'data-anchor-key-point'?: string;
+  'data-anchor-offset-x'?: string;
+  'data-anchor-offset-y'?: string;
+  'data-rotation-degrees'?: string;
+};
+
+function parseTransformComponents(
+  element: TransformElementAttrs,
+): Partial<AnchorPointComponent & RotationComponent> {
+  const components: Partial<AnchorPointComponent & RotationComponent> = {};
+  const keyPoint = element['data-anchor-key-point'];
+  if (keyPoint !== undefined) {
+    const offsetX = parseFloat(element['data-anchor-offset-x'] || '0');
+    const offsetY = parseFloat(element['data-anchor-offset-y'] || '0');
+    components.anchorPoint = {
+      keyPoint,
+      offset: new SheetPosition(
+        Number.isNaN(offsetX) ? 0 : offsetX,
+        Number.isNaN(offsetY) ? 0 : offsetY,
+      ),
+    };
+  }
+  const rotationDegrees = element['data-rotation-degrees'];
+  if (rotationDegrees !== undefined) {
+    const parsed = parseFloat(rotationDegrees);
+    if (!Number.isNaN(parsed)) {
+      components.rotation = { angle: Angle.degrees(parsed) };
+    }
+  }
+  return components;
 }
 
 /** Extracts the render order from element data-render-order, or computes next. */
@@ -277,6 +314,7 @@ function parsePolygonPath(
       ...polygonTemplate,
       components: {
         ...polygonTemplate.components,
+        ...parseTransformComponents(element),
         ...RenderOrderComponent.create(renderOrder),
       },
     },
@@ -379,6 +417,7 @@ function parsePolygonPolygon(
       ...polygonTemplate,
       components: {
         ...polygonTemplate.components,
+        ...parseTransformComponents(element),
         ...RenderOrderComponent.create(renderOrder),
       },
     },
@@ -454,6 +493,7 @@ function parseRectangle(
       ...rectangleTemplate,
       components: {
         ...rectangleTemplate.components,
+        ...parseTransformComponents(element),
         ...RenderOrderComponent.create(renderOrder),
       },
     },
@@ -528,6 +568,7 @@ function parseEllipse(
       ...ellipseTemplate,
       components: {
         ...ellipseTemplate.components,
+        ...parseTransformComponents(element),
         ...RenderOrderComponent.create(renderOrder),
       },
     },

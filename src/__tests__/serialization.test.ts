@@ -33,7 +33,9 @@ import {
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { ChamferFilter } from '@/lib/entity/filters/chamfer';
 import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
@@ -54,6 +56,7 @@ import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION } from '@/lib/serialization
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
+import { Angle } from '@/lib/units/angle';
 import { Length } from '@/lib/units/length';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
@@ -3038,5 +3041,39 @@ describe('serializeToSvg filtered geometries', () => {
     expect(parseResult.ellipses).toHaveLength(1);
     expect(parseResult.ellipses[0].id).toBe('ell_pat_vis');
     expect(parseResult.filters).toHaveLength(1);
+  });
+});
+
+describe('anchor and rotation serialization', () => {
+  it('round-trips anchor and rotation attributes on rectangles', () => {
+    const { sheet, geometryStore } = makeSheet();
+    const rectangle = geometryStore.addOrdered(
+      ID_PREFIXES.rectangle,
+      Rectangle.create(new SheetPosition(0, 0), new SheetPosition(1, 1)),
+    );
+    geometryStore.updateByIdWithComponent(rectangle.id, AnchorPointComponent, (geometry) =>
+      AnchorPointComponent.update(geometry, {
+        keyPoint: 'center',
+        offset: new SheetPosition(0.25, 0.5),
+      }),
+    );
+    geometryStore.updateByIdWithComponent(rectangle.id, RotationComponent, (geometry) =>
+      RotationComponent.update(geometry, { angle: Angle.degrees(45) }),
+    );
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    expect(svg).toContain('data-anchor-key-point="center"');
+    expect(svg).toContain('data-anchor-offset-x="0.25"');
+    expect(svg).toContain('data-anchor-offset-y="0.5"');
+    expect(svg).toContain('data-rotation-degrees="45"');
+
+    const result = parseSvg(svg, generateStableId);
+    const parsed = result.rectangles[0] as unknown as Entity<
+      AnchorPointComponent & RotationComponent
+    >;
+    expect(AnchorPointComponent.get(parsed).keyPoint).toBe('center');
+    expect(AnchorPointComponent.get(parsed).offset.x).toBeCloseTo(0.25);
+    expect(AnchorPointComponent.get(parsed).offset.y).toBeCloseTo(0.5);
+    expect(RotationComponent.get(parsed).angle.toDegrees().magnitude).toBeCloseTo(45);
   });
 });
