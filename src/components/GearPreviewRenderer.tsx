@@ -4,6 +4,7 @@ import { useViewportContext } from '@/contexts/viewport-context';
 import { GearGeneratorAction, GearGeneratorState } from '@/lib/actions/GearGeneratorAction';
 import { DragListener, createDragListener } from '@/lib/drag/create-drag-listener';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { applySnapping } from '@/lib/snapping';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 import { GeometryShapeRenderer } from './GeometryRenderer';
 
@@ -18,9 +19,10 @@ type GearPreviewRendererProps = {
 export const GearPreviewRenderer: React.FunctionComponent<GearPreviewRendererProps> = ({
   action,
 }) => {
-  const { viewportControls, viewportScale } = useViewportContext();
+  const { toolManager, viewportControls, viewportScale } = useViewportContext();
   const [state, setState] = useState<GearGeneratorState>(() => action.getState());
   const dragListenerRef = useRef<DragListener | null>(null);
+  const escapeCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const handleStateChange = (nextState: GearGeneratorState) => {
@@ -34,6 +36,8 @@ export const GearPreviewRenderer: React.FunctionComponent<GearPreviewRendererPro
 
   useEffect(() => {
     return () => {
+      escapeCleanupRef.current?.();
+      escapeCleanupRef.current = null;
       dragListenerRef.current?.destroy();
       dragListenerRef.current = null;
     };
@@ -59,24 +63,58 @@ export const GearPreviewRenderer: React.FunctionComponent<GearPreviewRendererPro
         originalCenter.y - pointer.y,
       );
 
+      const removeEscapeListener = () => {
+        escapeCleanupRef.current?.();
+        escapeCleanupRef.current = null;
+      };
+
+      const onEscape = (keyEvent: KeyboardEvent) => {
+        if (keyEvent.key !== 'Escape') {
+          return;
+        }
+        keyEvent.preventDefault();
+        keyEvent.stopPropagation();
+        dragListenerRef.current?.destroy();
+      };
+      window.addEventListener('keydown', onEscape, true);
+      escapeCleanupRef.current = () => {
+        window.removeEventListener('keydown', onEscape, true);
+      };
+
+      action.setPreviewDragging(true);
+
       dragListenerRef.current?.destroy();
       dragListenerRef.current = createDragListener({
         viewportControls,
         onMove: (screenPos) => {
           const liveViewport = viewportControls.getState().viewport;
           const sheet = screenPos.toWorld(liveViewport).toSheet();
-          action.setCenter(new SheetPosition(sheet.x + grabOffset.x, sheet.y + grabOffset.y));
+          const rawCenter = new SheetPosition(sheet.x + grabOffset.x, sheet.y + grabOffset.y);
+          const snappedCenter = applySnapping(rawCenter, {
+            primaryGridSize: toolManager.snappingOptions.primaryGridSize,
+            secondaryGridSize: toolManager.snappingOptions.secondaryGridSize,
+            ctrlHeld: toolManager.getCtrlHeld(),
+            superHeld: false,
+            viewportScale: liveViewport.scale,
+          });
+          action.setCenter(snappedCenter);
         },
         onCommit: () => {
+          const finalCenter = action.getState().params.center;
+          action.commitCenterMove(originalCenter, finalCenter);
+          action.setPreviewDragging(false);
+          removeEscapeListener();
           dragListenerRef.current = null;
         },
         onCancel: () => {
           action.setCenter(originalCenter);
+          action.setPreviewDragging(false);
+          removeEscapeListener();
           dragListenerRef.current = null;
         },
       });
     },
-    [action, viewportControls],
+    [action, toolManager, viewportControls],
   );
 
   if (!state.panelVisible || state.preview === null) {
@@ -91,9 +129,6 @@ export const GearPreviewRenderer: React.FunctionComponent<GearPreviewRendererPro
 
   const drawCenterHandle = (graphics: Graphics) => {
     graphics.clear();
-    graphics.setFillStyle({ color: PREVIEW_STROKE_COLOR, alpha: 0.001 });
-    graphics.circle(centerX, centerY, handleRadius * 1.5);
-    graphics.fill();
     graphics.setStrokeStyle({ color: PREVIEW_STROKE_COLOR, width: 2 / viewportScale });
     graphics.circle(centerX, centerY, handleRadius);
     graphics.stroke();
@@ -131,7 +166,7 @@ export const GearPreviewRenderer: React.FunctionComponent<GearPreviewRendererPro
             type="polygon"
             segments={shape.points}
             closed={shape.closed}
-            fillColor={null}
+            fillColor={state.params.fillColor}
             stroke={PREVIEW_STROKE_COLOR}
             strokeWidth={2}
             viewportScale={viewportScale}
@@ -139,18 +174,15 @@ export const GearPreviewRenderer: React.FunctionComponent<GearPreviewRendererPro
           />
         ))}
 
+      <pixiGraphics draw={drawCenterHandle} eventMode="none" />
+
       <pixiGraphics
         draw={drawGearHitArea}
         eventMode="static"
         cursor="move"
         onPointerDown={startDrag}
-      />
-
-      <pixiGraphics
-        draw={drawCenterHandle}
-        eventMode="static"
-        cursor="move"
-        onPointerDown={startDrag}
+        onPointerEnter={() => action.setPreviewHovered(true)}
+        onPointerLeave={() => action.setPreviewHovered(false)}
       />
     </>
   );

@@ -9,6 +9,7 @@ import { DatumLayers, WorkingDatumLayers } from '@/components/DatumRenderer';
 import { FilterLayers } from '@/components/FilterRenderer';
 import { FrameLayers } from '@/components/FrameRenderer';
 import { GearPreviewRenderer } from '@/components/GearPreviewRenderer';
+import { GearPreviewTooltip } from '@/components/GearPreviewTooltip';
 import { GeometryLayers } from '@/components/GeometryRenderer';
 import { HandleSprites } from '@/components/HandleSprites';
 import { SelectionBoxOverlay } from '@/components/SelectionBoxOverlay';
@@ -805,6 +806,10 @@ export default function ViewportRenderer2D({
 
       {layerName === RendererLayers.Overlays ? (
         <GearPreviewRenderer action={gearGeneratorAction} />
+      ) : null}
+
+      {layerName === RendererLayers.Tooltips ? (
+        <GearPreviewTooltip action={gearGeneratorAction} />
       ) : null}
 
       <SingleLayerRenderer layers={SnapsHintLayers} layerName={layerName} />
