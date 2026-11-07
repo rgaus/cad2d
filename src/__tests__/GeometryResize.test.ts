@@ -204,6 +204,66 @@ describe('GeometryComponent.resize', () => {
       expectGeometryClose(actual!, expected);
       expect(RotationComponent.get(actual!).angle.toDegrees().magnitude).toBeCloseTo(30);
     });
+
+    it('keeps aspect ratio and anchor stability for a shifted rotated resize', () => {
+      const rectangle = addRectangle(new SheetPosition(10, 10), new SheetPosition(14, 12));
+      geometryStore.updateByIdWithComponent(rectangle.id, AnchorPointComponent, (g) =>
+        AnchorPointComponent.update(g, {
+          keyPoint: 'lowerRight',
+          offset: new SheetPosition(1.5, -0.5),
+        }),
+      );
+      geometryStore.updateByIdWithComponent(rectangle.id, RotationComponent, (g) =>
+        RotationComponent.update(g, { angle: Angle.degrees(30) }),
+      );
+      const geometry = geometryStore.getByIdWithComponents(
+        rectangle.id,
+        GeometryComponent,
+        AnchorPointComponent,
+        RotationComponent,
+      )!;
+      const beforeOffset = AnchorPointComponent.computeAssociatedGeometryOffset(geometry);
+      const beforeHandle = AnchorPointComponent.getHandlePosition(geometry);
+
+      const mode: ResizeMode = { type: 'corner', corner: 'bottom-right' };
+      const rawBBox = {
+        position: new SheetPosition(10, 10),
+        width: 4,
+        height: 2,
+      };
+      const localTarget = new SheetPosition(20, 16);
+      const expected = RectangleData.resize(
+        geometry,
+        { ...baseParams(localTarget, mode), shiftHeld: true },
+        rawBBox,
+      )!;
+      const actual = GeometryComponent.resize(
+        geometry,
+        {
+          ...baseParams(renderPoint(geometry, localTarget), mode),
+          shiftHeld: true,
+          frame: { angleDegrees: 30 },
+        },
+        renderedOrientedBBox(geometry),
+      );
+
+      expect(actual).not.toBeNull();
+      expectGeometryClose(actual!, expected);
+      const resized = GeometryComponent.get(actual!);
+      if (resized.type !== 'rectangle') {
+        throw new Error('Expected rectangle');
+      }
+      expect(resized.width / resized.height).toBeCloseTo(2);
+      expect(AnchorPointComponent.computeAssociatedGeometryOffset(actual!).x).toBeCloseTo(
+        beforeOffset.x,
+      );
+      expect(AnchorPointComponent.computeAssociatedGeometryOffset(actual!).y).toBeCloseTo(
+        beforeOffset.y,
+      );
+      const afterHandle = AnchorPointComponent.getHandlePosition(actual!);
+      expect(afterHandle.x).toBeCloseTo(beforeHandle.x);
+      expect(afterHandle.y).toBeCloseTo(beforeHandle.y);
+    });
   });
 
   describe('rotated ellipse', () => {
