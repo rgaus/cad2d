@@ -3,6 +3,7 @@ import {
   ConstraintEndpoint,
   Datum,
   DatumComponent,
+  Ellipse,
   GeometryComponent,
   LinearConstraint,
   Polygon,
@@ -10,12 +11,15 @@ import {
   RenderOrderComponent,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import {
   type KeyPointSnappingOptions,
   type SnappingOptions,
   applyKeyPointSnapping,
   applySnappingOnConstrainedTrack,
 } from '@/lib/snapping';
+import { Angle } from '@/lib/units/angle';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 
@@ -365,6 +369,23 @@ function makeRect(id: string, x1: number, y1: number, x2: number, y2: number): R
   };
 }
 
+function makeEllipse(id: string, cx: number, cy: number, rx: number, ry: number): Ellipse {
+  const template = Ellipse.create(new SheetPosition(cx, cy), {
+    radiusX: rx,
+    radiusY: ry,
+    fillColor: null,
+    linkDimensions: false,
+  });
+  return {
+    id,
+    ...template,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(0),
+    },
+  };
+}
+
 function makePolygon(id: string, points: Array<[number, number]>): Polygon {
   const template = Polygon.create(
     points.map(([x, y]) => ({ type: 'point' as const, point: new SheetPosition(x, y) })),
@@ -524,6 +545,175 @@ describe('applyKeyPointSnapping', () => {
       type: 'locked-polygon',
       id: 'ply',
       pointIndex: 2,
+    });
+  });
+
+  it('snaps to rotated rectangle key points', () => {
+    const rectangle = makeRect('rect_rot', 10, 10, 14, 12);
+    const rotated = {
+      ...rectangle,
+      components: {
+        ...rectangle.components,
+        ...RotationComponent.create(Angle.degrees(90)),
+      },
+    };
+    const keyPoints = GeometryComponent.keyPoints(rotated);
+    const lowerRightIndex = keyPoints.perimeterLabels.indexOf('lowerRight');
+    const target = keyPoints.perimeter[lowerRightIndex].toSheet(rotated);
+    expect(target.x).toBeCloseTo(8);
+    expect(target.y).toBeCloseTo(14);
+
+    const options: KeyPointSnappingOptions = {
+      viewportScale: 1,
+      primaryGridSize: 1,
+      secondaryGridSize: null,
+      superHeld: false,
+      manager: { emit: () => true },
+      geometries: [rotated],
+      constraints: [],
+      datums: [],
+    };
+
+    const { endpoint } = applyKeyPointSnapping(
+      new SheetPosition(target.x + 0.02, target.y),
+      /* ctrlHeld */ false,
+      options,
+    );
+
+    expect(endpoint).toEqual({
+      type: 'locked-rectangle',
+      id: 'rect_rot',
+      point: 'lowerRight',
+    });
+  });
+
+  it('snaps to anchored rectangle key points', () => {
+    const rectangle = makeRect('rect_anchor', 11, 15, 16, 17);
+    const anchored = {
+      ...rectangle,
+      components: {
+        ...rectangle.components,
+        ...AnchorPointComponent.create({
+          keyPoint: 'lowerRight',
+          offset: new SheetPosition(-2, -3),
+        }),
+      },
+    };
+    const keyPoints = GeometryComponent.keyPoints(anchored);
+    const upperRightIndex = keyPoints.perimeterLabels.indexOf('upperRight');
+    const target = keyPoints.perimeter[upperRightIndex].toSheet(anchored);
+    expect(target.x).toBeCloseTo(13);
+    expect(target.y).toBeCloseTo(16);
+
+    const options: KeyPointSnappingOptions = {
+      viewportScale: 1,
+      primaryGridSize: 1,
+      secondaryGridSize: null,
+      superHeld: false,
+      manager: { emit: () => true },
+      geometries: [anchored],
+      constraints: [],
+      datums: [],
+    };
+
+    const { endpoint } = applyKeyPointSnapping(
+      new SheetPosition(target.x + 0.02, target.y),
+      /* ctrlHeld */ false,
+      options,
+    );
+
+    expect(endpoint).toEqual({
+      type: 'locked-rectangle',
+      id: 'rect_anchor',
+      point: 'upperRight',
+    });
+  });
+
+  it('snaps to rotated ellipse key points', () => {
+    const ellipse = makeEllipse('ellipse_rot', 10, 10, 4, 2);
+    const rotated = {
+      ...ellipse,
+      components: {
+        ...ellipse.components,
+        ...RotationComponent.create(Angle.degrees(90)),
+      },
+    };
+    const keyPoints = GeometryComponent.keyPoints(rotated);
+    const rightIndex = keyPoints.perimeterLabels.indexOf('right');
+    const target = keyPoints.perimeter[rightIndex].toSheet(rotated);
+    expect(target.x).toBeCloseTo(10);
+    expect(target.y).toBeCloseTo(14);
+
+    const options: KeyPointSnappingOptions = {
+      viewportScale: 1,
+      primaryGridSize: 1,
+      secondaryGridSize: null,
+      superHeld: false,
+      manager: { emit: () => true },
+      geometries: [rotated],
+      constraints: [],
+      datums: [],
+    };
+
+    const { endpoint } = applyKeyPointSnapping(
+      new SheetPosition(target.x, target.y + 0.02),
+      /* ctrlHeld */ false,
+      options,
+    );
+
+    expect(endpoint).toEqual({
+      type: 'locked-ellipse',
+      id: 'ellipse_rot',
+      point: 'right',
+    });
+  });
+
+  it('snaps to rotated and anchored polygon key points', () => {
+    const polygon = makePolygon('polygon_rot_anchor', [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [0, 10],
+    ]);
+    const transformed = {
+      ...polygon,
+      components: {
+        ...polygon.components,
+        ...AnchorPointComponent.create({
+          keyPoint: 'Point 1',
+          offset: new SheetPosition(1, 2),
+        }),
+        ...RotationComponent.create(Angle.degrees(30)),
+      },
+    };
+    const keyPoints = GeometryComponent.keyPoints(transformed);
+    const labelIndex = keyPoints.perimeterLabels.indexOf('Point 3');
+    const target = keyPoints.perimeter[labelIndex].toSheet(transformed);
+    const rawTarget = keyPoints.perimeter[labelIndex];
+    expect(target.x).not.toBeCloseTo(rawTarget.x);
+    expect(target.y).not.toBeCloseTo(rawTarget.y);
+
+    const options: KeyPointSnappingOptions = {
+      viewportScale: 1,
+      primaryGridSize: 1,
+      secondaryGridSize: null,
+      superHeld: false,
+      manager: { emit: () => true },
+      geometries: [transformed],
+      constraints: [],
+      datums: [],
+    };
+
+    const { endpoint } = applyKeyPointSnapping(
+      new SheetPosition(target.x + 0.02, target.y),
+      /* ctrlHeld */ false,
+      options,
+    );
+
+    expect(endpoint).toEqual({
+      type: 'locked-polygon',
+      id: 'polygon_rot_anchor',
+      pointIndex: labelIndex,
     });
   });
 
