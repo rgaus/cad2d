@@ -5,7 +5,6 @@ import {
   Vector2,
   closestPointOnCubicCurve,
   closestPointOnQuadraticCurve,
-  convexPolygonWindOrder,
   centroid as mathCentroid,
 } from '@/lib/math';
 import {
@@ -135,12 +134,9 @@ export namespace PolygonData {
     `Point ${number}`
   > {
     const polygonData = GeometryComponent.get(geometry);
+    // Polygon key points are labelled in stored point order so that `Point N` always refers to
+    // `polygonData.points[N - 1]`. Winding order is handled independently by the DCEL.
     const points = polygonData.points.map((p) => p.point);
-
-    const windOrder = convexPolygonWindOrder(points);
-    if (windOrder === 'clockwise') {
-      points.reverse();
-    }
 
     return {
       perimeter: points,

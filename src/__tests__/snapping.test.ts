@@ -5,6 +5,7 @@ import {
   DatumComponent,
   GeometryComponent,
   LinearConstraint,
+  Polygon,
   Rectangle,
   RenderOrderComponent,
 } from '@/lib/entity';
@@ -364,6 +365,21 @@ function makeRect(id: string, x1: number, y1: number, x2: number, y2: number): R
   };
 }
 
+function makePolygon(id: string, points: Array<[number, number]>): Polygon {
+  const template = Polygon.create(
+    points.map(([x, y]) => ({ type: 'point' as const, point: new SheetPosition(x, y) })),
+    { closed: true },
+  );
+  return {
+    id,
+    ...template,
+    components: {
+      ...template.components,
+      ...RenderOrderComponent.create(0),
+    },
+  };
+}
+
 function makeDatum(id: string, x: number, y: number): Datum {
   const template = Datum.create(new SheetPosition(x, y));
   return {
@@ -470,6 +486,45 @@ describe('applyKeyPointSnapping', () => {
       expect(result.point.x).toBeCloseTo(0.3);
       expect(result.point.y).toBeCloseTo(0.7);
     }
+  });
+
+  it('uses stored point indexes for clockwise polygon key points', () => {
+    // Clockwise polygon: stored indexes 0..3 map to Points 1..4 in stored order.
+    const polygon = makePolygon('ply', [
+      [0, 0],
+      [0, 100],
+      [100, 100],
+      [100, 0],
+    ]);
+    const keyPoints = GeometryComponent.keyPoints(polygon);
+    const labelIndex = keyPoints.perimeterLabels.indexOf('Point 3');
+    expect(labelIndex).toBe(2);
+
+    const target = keyPoints.perimeter[labelIndex].toSheet(polygon);
+    expect(target).toEqual(new SheetPosition(100, 100));
+
+    const options: KeyPointSnappingOptions = {
+      viewportScale: 1,
+      primaryGridSize: 1,
+      secondaryGridSize: null,
+      superHeld: false,
+      manager: { emit: () => true },
+      geometries: [polygon],
+      constraints: [],
+      datums: [],
+    };
+
+    const { endpoint } = applyKeyPointSnapping(
+      new SheetPosition(target.x + 0.02, target.y),
+      /* ctrlHeld */ false,
+      options,
+    );
+
+    expect(endpoint).toEqual({
+      type: 'locked-polygon',
+      id: 'ply',
+      pointIndex: 2,
+    });
   });
 
   it('snaps to an existing datum point', () => {

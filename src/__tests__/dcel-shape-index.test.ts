@@ -1207,6 +1207,112 @@ describe('DCELShapeIndex', () => {
   });
 
   // -----------------------------------------------------------
+  // Clockwise polygon point-index consistency
+  // -----------------------------------------------------------
+  describe('clockwise polygon point index consistency', () => {
+    it('resolves every stored point index on a CW polygon without a closure duplicate', () => {
+      const polygon = makePolygon({
+        id: 'ply_cw_no_dup',
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          { type: 'point', point: new SheetPosition(0, 100) },
+          { type: 'point', point: new SheetPosition(100, 100) },
+          { type: 'point', point: new SheetPosition(100, 0) },
+        ],
+        closed: true,
+        fillColor: null,
+      });
+      index.addGeometry(polygon);
+
+      const refDatum: Datum = {
+        id: 'dtm_cw_no_dup_ref',
+        ...Datum.create(new SheetPosition(200, 0)),
+      };
+      index.addDatum(refDatum);
+
+      const expectedPositions = [
+        new SheetPosition(0, 0),
+        new SheetPosition(0, 100),
+        new SheetPosition(100, 100),
+        new SheetPosition(100, 0),
+      ];
+
+      for (let pointIndex = 0; pointIndex < expectedPositions.length; pointIndex += 1) {
+        const constraint = {
+          id: `cns_cw_no_dup_${pointIndex}`,
+          ...LinearConstraint.create(
+            ConstraintEndpoint.lockedToPolygon(polygon.id, pointIndex),
+            ConstraintEndpoint.lockedToDatum(refDatum.id),
+            Length.centimeters(5),
+          ),
+        };
+        const result = index.computeEngineConstraints([constraint], [], 'cm');
+        const engineConstraint = result.engineConstraints.find((c) => c.type === 'distance');
+        expect(engineConstraint).toBeDefined();
+        if (engineConstraint && engineConstraint.type === 'distance') {
+          const pos = index.dcel.getPosition(engineConstraint.pointA as VertexId);
+          expect(pos).toBeDefined();
+          expect(pos!.x).toBeCloseTo(expectedPositions[pointIndex].x);
+          expect(pos!.y).toBeCloseTo(expectedPositions[pointIndex].y);
+        }
+      }
+    });
+
+    it('maps a CW polygon vertex back to its stored point index', () => {
+      const polygon = makePolygon({
+        id: 'ply_cw_reverse_lookup',
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          { type: 'point', point: new SheetPosition(0, 100) },
+          { type: 'point', point: new SheetPosition(100, 100) },
+          { type: 'point', point: new SheetPosition(100, 0) },
+        ],
+        closed: true,
+        fillColor: null,
+      });
+      index.addGeometry(polygon);
+
+      const vertexId = index.dcel.getVertexId(new SheetPosition(100, 100));
+      expect(vertexId).toBeDefined();
+
+      const results = index.computeShapesForVertexId(vertexId!);
+
+      expect(results).toContainEqual({
+        type: 'polygon',
+        id: polygon.id,
+        pointIndex: 2,
+      });
+    });
+
+    it('maps a duplicated closure point back to stored point index 0', () => {
+      const polygon = makePolygon({
+        id: 'ply_ccw_closure',
+        points: [
+          { type: 'point', point: new SheetPosition(0, 0) },
+          { type: 'point', point: new SheetPosition(100, 0) },
+          { type: 'point', point: new SheetPosition(100, 100) },
+          { type: 'point', point: new SheetPosition(0, 100) },
+          { type: 'point', point: new SheetPosition(0, 0) },
+        ],
+        closed: true,
+        fillColor: null,
+      });
+      index.addGeometry(polygon);
+
+      const vertexId = index.dcel.getVertexId(new SheetPosition(0, 0));
+      expect(vertexId).toBeDefined();
+
+      const results = index.computeShapesForVertexId(vertexId!);
+
+      expect(results).toContainEqual({
+        type: 'polygon',
+        id: polygon.id,
+        pointIndex: 0,
+      });
+    });
+  });
+
+  // -----------------------------------------------------------
   // Lazy center vertex registration
   // -----------------------------------------------------------
   describe('lazy center vertex registration', () => {

@@ -135,6 +135,32 @@ describe('polygon stable local storage', () => {
     expect(renderedBounds.height).toBeCloseTo(10);
   });
 
+  it('labels clockwise polygon key points in stored point order', () => {
+    const polygon = geometryStore.addOrdered(
+      ID_PREFIXES.polygon,
+      Polygon.create([makePoint(10, 20), makePoint(10, 30), makePoint(20, 30), makePoint(20, 20)], {
+        closed: true,
+      }),
+    );
+    const entity = polygonById(geometryStore, polygon.id);
+
+    const keyPoints = PolygonData.rawKeyPoints(entity);
+
+    expect(keyPoints.perimeter.map((point) => [point.x, point.y])).toEqual([
+      [0, 0],
+      [0, 10],
+      [10, 10],
+      [10, 0],
+    ]);
+    expect(keyPoints.perimeterLabels).toEqual(['Point 1', 'Point 2', 'Point 3', 'Point 4']);
+    expect(keyPoints.perimeter.map((point) => point.toSheet(entity))).toEqual([
+      new SheetPosition(10, 20),
+      new SheetPosition(10, 30),
+      new SheetPosition(20, 30),
+      new SheetPosition(20, 20),
+    ]);
+  });
+
   it('serializes polygons using raw absolute segments and round-trips', () => {
     const polygon = geometryStore.addOrdered(
       ID_PREFIXES.polygon,

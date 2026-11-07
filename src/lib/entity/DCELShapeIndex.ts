@@ -153,11 +153,70 @@ type TrackedShape = {
   // True when the shape has a non-zero rotation. Auto-inferred axis
   // constraints are skipped for rotated shapes.
   hasRotation: boolean;
+  // For polygons: maps each stored PolygonData.points index to the ordinal of its original
+  // vertex among the shape's vertexIdsOriginal entries. This accounts for clockwise reversal
+  // and for a duplicated closing point.
+  polygonPointIndexToOriginalOrdinal?: Array<number>;
+  // For polygons: the inverse of polygonPointIndexToOriginalOrdinal, parallel to the original
+  // vertex ordinals.
+  polygonOriginalOrdinalToPointIndex?: Array<number>;
 };
 
 function hasNonZeroRotation(entity: Entity): boolean {
   const angleDegrees = RotationComponent.getOptional(entity)?.angle.toDegrees().magnitude ?? 0;
   return Math.abs(angleDegrees % 360) > 1e-9;
+}
+
+/**
+ * Builds the mapping between stored polygon point indexes and the order in which the DCEL
+ * registers their original vertices. `_polygonPoints` may reverse a clockwise polygon and may
+ * strip a duplicated closing point, so the two orders are not always identical.
+ */
+function buildPolygonPointIndexMappings(
+  points: Array<PolygonSegment>,
+  closed: boolean,
+  reversed: boolean,
+): {
+  pointIndexToOriginalOrdinal: Array<number>;
+  originalOrdinalToPointIndex: Array<number>;
+} {
+  const pointCount = points.length;
+  const hasDuplicateClosure =
+    closed &&
+    pointCount > 1 &&
+    points[0].point.x === points[pointCount - 1].point.x &&
+    points[0].point.y === points[pointCount - 1].point.y;
+
+  const registeredPointIndexes: Array<number> = [];
+  if (reversed) {
+    const stop = hasDuplicateClosure ? 1 : 0;
+    for (let i = pointCount - 1; i >= stop; i -= 1) {
+      registeredPointIndexes.push(i);
+    }
+  } else {
+    const stop = hasDuplicateClosure ? pointCount - 1 : pointCount;
+    for (let i = 0; i < stop; i += 1) {
+      registeredPointIndexes.push(i);
+    }
+  }
+
+  const canonicalPointIndex = (pointIndex: number) =>
+    hasDuplicateClosure && pointIndex === pointCount - 1 ? 0 : pointIndex;
+
+  const originalOrdinalToPointIndex = registeredPointIndexes.map(canonicalPointIndex);
+  const pointIndexToOriginalOrdinal = new Array<number>(pointCount).fill(-1);
+  registeredPointIndexes.forEach((pointIndex, ordinal) => {
+    pointIndexToOriginalOrdinal[pointIndex] = ordinal;
+  });
+
+  if (hasDuplicateClosure) {
+    const closureOrdinal = pointIndexToOriginalOrdinal[0];
+    if (closureOrdinal >= 0) {
+      pointIndexToOriginalOrdinal[pointCount - 1] = closureOrdinal;
+    }
+  }
+
+  return { pointIndexToOriginalOrdinal, originalOrdinalToPointIndex };
 }
 
 /**
@@ -1141,6 +1200,17 @@ export class DCELShapeIndex {
       reversed,
       curveContexts,
     );
+
+    const tracked = this.shapes.get(polygon.id);
+    if (tracked) {
+      const mappings = buildPolygonPointIndexMappings(
+        renderedPolygon.points,
+        renderedPolygon.closed,
+        reversed,
+      );
+      tracked.polygonPointIndexToOriginalOrdinal = mappings.pointIndexToOriginalOrdinal;
+      tracked.polygonOriginalOrdinalToPointIndex = mappings.originalOrdinalToPointIndex;
+    }
   }
 
   /** Update a polygon that was previously registered. */
@@ -1491,13 +1561,13 @@ export class DCELShapeIndex {
         if (!trackedPolygon) {
           return null;
         }
-        // Map from polygonData.points index to the corresponding vertex ID
-        // in trackedPolygon.vertexIds, accounting for reversed ordering (CW
-        // polygons) and interleaved split-point vertices.
-        let targetOriginalIndex = constraintEndpoint.pointIndex;
-        if (trackedPolygon.reversed) {
-          const numOriginal = trackedPolygon.vertexIdsOriginal.filter(Boolean).length;
-          targetOriginalIndex = (numOriginal - constraintEndpoint.pointIndex) % numOriginal;
+        // Map from polygonData.points index to the corresponding original vertex
+        // ordinal, accounting for CW reversal, closure duplicates, and interleaved
+        // split-point vertices.
+        const targetOriginalIndex =
+          trackedPolygon.polygonPointIndexToOriginalOrdinal?.[constraintEndpoint.pointIndex];
+        if (typeof targetOriginalIndex === 'undefined' || targetOriginalIndex < 0) {
+          return null;
         }
         let count = 0;
         for (let i = 0; i < trackedPolygon.vertexIds.length; i += 1) {
@@ -1635,14 +1705,11 @@ export class DCELShapeIndex {
             }
           }
 
-          let pointIndex = originalIndex;
-          // When _polygonPoints reversed the vertices (clockwise polygon
-          // converted to CCW for the DCEL), the vertex ordering is reversed
-          // relative to PolygonComponent.points. Remap so the solver's
-          // result is applied to the correct point.
-          if (shape.reversed) {
-            const numOriginal = shape.vertexIdsOriginal.filter(Boolean).length;
-            pointIndex = (numOriginal - originalIndex) % numOriginal;
+          // The registration order may differ from stored point order for clockwise
+          // polygons (and closure duplicates), so map back explicitly.
+          const pointIndex = shape.polygonOriginalOrdinalToPointIndex?.[originalIndex];
+          if (typeof pointIndex === 'undefined') {
+            continue;
           }
 
           results.push({
