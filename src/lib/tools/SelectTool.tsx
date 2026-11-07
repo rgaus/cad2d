@@ -346,19 +346,23 @@ namespace DragState {
     originalBBox?: Rect<SheetPosition>,
   ): DragState | null {
     switch (state.state) {
-      case 'geometry':
-        return {
-          ...state,
-          geometry: GeometryComponent.resize(state.geometry, params, originalBBox),
-        };
+      case 'geometry': {
+        const resized = GeometryComponent.resize(state.geometry, params, originalBBox);
+        if (!resized) {
+          return null;
+        }
+        return { ...state, geometry: resized };
+      }
       case 'datum':
       case 'filter':
         return null;
-      case 'frame':
-        return {
-          ...state,
-          entity: FrameComponent.resize(state.entity, params, originalBBox) ?? state.entity,
-        };
+      case 'frame': {
+        const resized = FrameComponent.resize(state.entity, params, originalBBox);
+        if (!resized) {
+          return null;
+        }
+        return { ...state, entity: resized };
+      }
       default:
         state satisfies never;
         console.warn(`DragState.resize: Unknown state.for ${(state as any)?.for}. Doing nothing.`);

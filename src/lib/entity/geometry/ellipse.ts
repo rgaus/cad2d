@@ -101,6 +101,9 @@ export namespace EllipseData {
         height: state.radiusY * 2,
       };
     }
+    if (!GeometryComponent.isValidResizeBBox(originalBBox)) {
+      return null;
+    }
 
     const newBBox = GeometryComponent.resizeBBox(originalBBox, params);
     if (!newBBox) {
@@ -119,7 +122,14 @@ export namespace EllipseData {
     const newRadiusX = Math.abs(pctRadiusX * newBBox.width);
     const newRadiusY = Math.abs(pctRadiusY * newBBox.height);
 
-    if (newRadiusX > 0 && newRadiusY > 0) {
+    if (
+      Number.isFinite(newCenter.x) &&
+      Number.isFinite(newCenter.y) &&
+      Number.isFinite(newRadiusX) &&
+      Number.isFinite(newRadiusY) &&
+      newRadiusX > 0 &&
+      newRadiusY > 0
+    ) {
       return GeometryComponent.update(geometry, {
         center: newCenter,
         radiusX: newRadiusX,

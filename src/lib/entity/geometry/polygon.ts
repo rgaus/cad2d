@@ -208,13 +208,14 @@ export namespace PolygonData {
 
   export function orientedBoundingBox(
     polygonData: PolygonData,
+    angleDegrees: number = 0,
   ): OrientedRect<GeometryRelativeSheetPosition> {
     const local = localBoundingBox(polygonData);
     return {
       position: new GeometryRelativeSheetPosition(local.position.x, local.position.y),
       width: local.width,
       height: local.height,
-      angleDegrees: 0,
+      angleDegrees,
     };
   }
 
@@ -551,6 +552,9 @@ export namespace PolygonData {
     const state = GeometryComponent.get(geometry);
     if (!originalBBox) {
       originalBBox = rawBoundingBox(state);
+    }
+    if (!GeometryComponent.isValidResizeBBox(originalBBox)) {
+      return null;
     }
 
     // FIXME: get rid of layout state, all its functionality should be handled now by the

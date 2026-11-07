@@ -1,5 +1,5 @@
 import { UndoEntry } from '@/lib/history/types';
-import { BoundingBox } from '@/lib/math';
+import { BoundingBox, OrientedBoundingBox, rotatePointAround } from '@/lib/math';
 import { POLYGON_OPEN_SEGMENT_HIGHLIGHT_COLOR } from '@/lib/selection/constants';
 import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import { computeOpenAtIndex } from '@/lib/selection/polygon-point-row';
@@ -21,7 +21,7 @@ import { PolygonData, PolygonSegment } from '../geometry/polygon';
 import { RectangleData } from '../geometry/rectangle';
 import { RectangleEndpoint } from '../rectangle';
 import { RenderShape } from '../render-shape';
-import { Entity, type EntityComponent, ResizeParams } from '../types';
+import { Entity, type EntityComponent, type ResizeFrame, ResizeParams } from '../types';
 import { AnchorPointComponent } from './AnchorPointComponent';
 import { ConstraintComponent } from './ConstraintComponent';
 import { FilterComponent } from './FilterComponent';
@@ -238,7 +238,7 @@ export namespace GeometryComponent {
 
     switch (state.type) {
       case 'polygon':
-        return PolygonData.orientedBoundingBox(state);
+        return PolygonData.orientedBoundingBox(state, angleDegrees);
       case 'rectangle':
         return RectangleData.orientedBoundingBox(state, angleDegrees);
       case 'ellipse':
@@ -397,57 +397,132 @@ export namespace GeometryComponent {
     }
   }
 
+  /** Returns the oriented resize frame matching the geometry's current rotation. */
+  export function getResizeFrame(geometry: Entity<GeometryComponent>): ResizeFrame {
+    return {
+      angleDegrees: RotationComponent.getOptional(geometry)?.angle?.toDegrees()?.magnitude ?? 0,
+      pivot: getOrigin(geometry),
+    };
+  }
+
+  /** Returns true when the passed bounding box is finite and has a non-zero area. */
+  export function isValidResizeBBox(bbox: Rect<SheetPosition>): boolean {
+    return (
+      Number.isFinite(bbox.position.x) &&
+      Number.isFinite(bbox.position.y) &&
+      Number.isFinite(bbox.width) &&
+      Number.isFinite(bbox.height) &&
+      bbox.width > 0 &&
+      bbox.height > 0
+    );
+  }
+
+  function transformResizeBBox(
+    bbox: Rect<SheetPosition> | OrientedRect<SheetPosition>,
+    map: (position: SheetPosition) => SheetPosition,
+  ): Rect<SheetPosition> {
+    const corners =
+      'angleDegrees' in bbox
+        ? OrientedBoundingBox.cornersToArray(bbox)
+        : BoundingBox.cornersToArray(BoundingBox.corners(bbox));
+    return BoundingBox.fromPoints(corners.map(map));
+  }
+
+  /**
+   * Keeps the anchor's associated-geometry offset stable across a resize. The anchor key point moves
+   * as the raw geometry changes, so without compensation the rendered shape would jump. We adjust
+   * {@link AnchorPointComponent.offset} such that `keyPoint + offset` (the derived offset) is
+   * unchanged.
+   */
+  function compensateAnchorOffset<
+    E extends Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  >(before: E, after: E): E {
+    if (
+      !Entity.hasComponents(before, GeometryComponent, AnchorPointComponent) ||
+      !Entity.hasComponents(after, GeometryComponent, AnchorPointComponent)
+    ) {
+      return after;
+    }
+
+    const beforeAnchor = AnchorPointComponent.get(before);
+    const afterAnchor = AnchorPointComponent.get(after);
+    const keyPointBefore = AnchorPointComponent.resolveKeyPointPosition(
+      AnchorPointComponent.remove(before),
+      beforeAnchor.keyPoint,
+    );
+    const keyPointAfter = AnchorPointComponent.resolveKeyPointPosition(
+      AnchorPointComponent.remove(after),
+      afterAnchor.keyPoint,
+    );
+    if (!keyPointBefore || !keyPointAfter) {
+      return after;
+    }
+
+    return AnchorPointComponent.update(after, {
+      keyPoint: afterAnchor.keyPoint,
+      offset: new SheetPosition(
+        keyPointBefore.x + beforeAnchor.offset.x - keyPointAfter.x,
+        keyPointBefore.y + beforeAnchor.offset.y - keyPointAfter.y,
+      ),
+    }) as E;
+  }
+
   export function resize<E extends Entity<GeometryComponent & Partial<AnchorPointComponent>>>(
     geometry: E,
     params: ResizeParams,
-    originalBBox?: Rect<SheetPosition>,
-  ): E {
-    // Resize math happens in anchored (rendered) space, but the stored geometry is raw. Translate the
-    // inputs back into raw space before dispatching to the raw resize implementations. This
-    // intentionally preserves the legacy anchor-only conversion (bug-for-bug parity); rotation-aware
-    // resize is a follow-up.
+    originalBBox?: Rect<SheetPosition> | OrientedRect<SheetPosition>,
+  ): E | null {
+    // Resize math always happens in the geometry's raw (unrotated) frame, but callers provide
+    // handle positions and bounding boxes in rendered sheet space. Invert the render transform
+    // (anchor translation, then rotation) before dispatching to the raw resize implementations.
+    // With no frame the angle defaults to 0, preserving the legacy anchor-only behavior exactly.
     const offset = GeometryComponent.getAnchorPointOffset(geometry);
-    const rawParams =
-      offset.x === 0 && offset.y === 0
-        ? params
-        : { ...params, to: new SheetPosition(params.to.x + offset.x, params.to.y + offset.y) };
-    const rawBBox =
-      originalBBox && (offset.x !== 0 || offset.y !== 0)
-        ? {
-            ...originalBBox,
-            position: new SheetPosition(
-              originalBBox.position.x + offset.x,
-              originalBBox.position.y + offset.y,
-            ),
-          }
-        : originalBBox;
+    const angleDegrees = params.frame?.angleDegrees ?? 0;
+    const pivot = params.frame?.pivot ?? GeometryComponent.getOrigin(geometry);
+    const toRaw = (position: SheetPosition): SheetPosition => {
+      const unrotated =
+        angleDegrees === 0 ? position : rotatePointAround(position, pivot, -angleDegrees);
+      return new SheetPosition(unrotated.x + offset.x, unrotated.y + offset.y);
+    };
+
+    const rawParams: ResizeParams = { ...params, to: toRaw(params.to) };
+    const rawBBox = originalBBox ? transformResizeBBox(originalBBox, toRaw) : undefined;
 
     const state = GeometryComponent.get(geometry);
+    let resized: E | null;
     switch (state.type) {
       case 'polygon':
-        return PolygonData.resize(
+        resized = PolygonData.resize(
           geometry as Entity<GeometryComponent<PolygonData>>,
           rawParams,
           rawBBox,
-        ) as E;
+        ) as E | null;
+        break;
       case 'rectangle':
-        return RectangleData.resize(
+        resized = RectangleData.resize(
           geometry as Entity<GeometryComponent<RectangleData>>,
           rawParams,
           rawBBox,
-        ) as E;
+        ) as E | null;
+        break;
       case 'ellipse':
-        return EllipseData.resize(
+        resized = EllipseData.resize(
           geometry as Entity<GeometryComponent<EllipseData>>,
           rawParams,
           rawBBox,
-        ) as E;
+        ) as E | null;
+        break;
       default:
         state satisfies never;
         throw new Error(
           `GeometryComponent.resize: Unknown geometry data type ${(state as any).type}`,
         );
     }
+
+    if (!resized) {
+      return null;
+    }
+    return compensateAnchorOffset(geometry, resized);
   }
 
   export function resizeBBox(

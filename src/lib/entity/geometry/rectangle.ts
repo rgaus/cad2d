@@ -122,6 +122,9 @@ export namespace RectangleData {
         height: state.height,
       };
     }
+    if (!GeometryComponent.isValidResizeBBox(originalBBox)) {
+      return null;
+    }
 
     const newBBox = GeometryComponent.resizeBBox(originalBBox, params);
     if (!newBBox) {
@@ -152,7 +155,14 @@ export namespace RectangleData {
       Math.max(newUpperLeft.y, newLowerRight.y),
     );
 
-    if (ul.x !== lr.x && ul.y !== lr.y) {
+    if (
+      Number.isFinite(ul.x) &&
+      Number.isFinite(ul.y) &&
+      Number.isFinite(lr.x) &&
+      Number.isFinite(lr.y) &&
+      ul.x < lr.x &&
+      ul.y < lr.y
+    ) {
       return GeometryComponent.update(geometry, {
         origin: ul,
         width: lr.x - ul.x,

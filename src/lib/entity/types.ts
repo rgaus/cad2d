@@ -373,6 +373,18 @@ export type ResizeMode =
   | { type: 'corner'; corner: ResizeCorner }
   | { type: 'edge'; edge: ResizeEdge };
 
+/**
+ * Describes the local (unrotated) frame that resize coordinates are expressed in. This lets callers
+ * pass oriented handle coordinates instead of pre-rotating every point into a world AABB.
+ */
+export type ResizeFrame = {
+  /** Rotation of the geometry's local frame relative to sheet space, in degrees. */
+  angleDegrees: number;
+  /** Numeric pivot about which the local frame is rotated. Defaults to the geometry's raw natural
+   * origin, matching {@link RotationComponent}. */
+  pivot?: SheetPosition;
+};
+
 /** Parameters for performing a per-geometry resize via LayoutState.resize. */
 export type ResizeParams = {
   to: SheetPosition;
@@ -380,4 +392,6 @@ export type ResizeParams = {
   altHeld: boolean;
   shiftHeld: boolean;
   linkDimensions: boolean;
+  /** Optional oriented frame for rotation-aware resize. Defaults to an unrotated frame. */
+  frame?: ResizeFrame;
 };

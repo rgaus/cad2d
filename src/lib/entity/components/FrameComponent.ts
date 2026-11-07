@@ -136,6 +136,16 @@ export namespace FrameComponent {
         height: state.lowerRight.y - state.upperLeft.y,
       };
     }
+    if (
+      !Number.isFinite(originalBBox.position.x) ||
+      !Number.isFinite(originalBBox.position.y) ||
+      !Number.isFinite(originalBBox.width) ||
+      !Number.isFinite(originalBBox.height) ||
+      originalBBox.width <= 0 ||
+      originalBBox.height <= 0
+    ) {
+      return null;
+    }
 
     const newBBox = FrameComponent.resizeBBox(originalBBox, params);
     if (!newBBox) {
@@ -165,7 +175,14 @@ export namespace FrameComponent {
       Math.max(newUpperLeft.y, newLowerRight.y),
     );
 
-    if (ul.x !== lr.x && ul.y !== lr.y) {
+    if (
+      Number.isFinite(ul.x) &&
+      Number.isFinite(ul.y) &&
+      Number.isFinite(lr.x) &&
+      Number.isFinite(lr.y) &&
+      ul.x < lr.x &&
+      ul.y < lr.y
+    ) {
       return FrameComponent.update(entity, { upperLeft: ul, lowerRight: lr });
     } else {
       return null;
@@ -184,6 +201,16 @@ export namespace FrameComponent {
 
     let newUpperLeft = upperLeft;
     let newLowerRight = lowerRight;
+
+    if (
+      (params.shiftHeld || params.linkDimensions) &&
+      (!Number.isFinite(bbox.width) ||
+        !Number.isFinite(bbox.height) ||
+        bbox.width <= 0 ||
+        bbox.height <= 0)
+    ) {
+      return null;
+    }
 
     if (params.mode.type === 'corner') {
       const corner = params.mode.corner;
@@ -413,7 +440,14 @@ export namespace FrameComponent {
       Math.max(newUpperLeft.x, newLowerRight.x),
       Math.max(newUpperLeft.y, newLowerRight.y),
     );
-    if (ul.x !== lr.x && ul.y !== lr.y) {
+    if (
+      Number.isFinite(ul.x) &&
+      Number.isFinite(ul.y) &&
+      Number.isFinite(lr.x) &&
+      Number.isFinite(lr.y) &&
+      ul.x < lr.x &&
+      ul.y < lr.y
+    ) {
       return { position: ul, width: lr.x - ul.x, height: lr.y - ul.y };
     }
     return null;
