@@ -1190,6 +1190,24 @@ describe('SelectTool rotation-aware interactions', () => {
       ctrlSpy.mockRestore();
     });
 
+    it('snaps the resulting rotation angle rather than the pointer direction', () => {
+      const ctrlSpy = jest.spyOn(toolManager, 'getCtrlHeld').mockReturnValue(false);
+      const rectangle = addRotatedRectangle(
+        new SheetPosition(10, 10),
+        new SheetPosition(14, 12),
+        20,
+      );
+      const pivot = GeometryComponent.getOrigin(rectangle);
+
+      startRotation(rectangle.id, new SheetPosition(pivot.x, pivot.y - 5));
+      const end = endScreenAtAngle(pivot, -50);
+      moveTo(end);
+      const current = geometryStore.getByIdWithComponent(rectangle.id, RotationComponent)!;
+      expect(RotationComponent.get(current).angle.toDegrees().magnitude).toBeCloseTo(60);
+      commitAt(end);
+      ctrlSpy.mockRestore();
+    });
+
     it('normalizes the angle into [0, 360)', () => {
       const ctrlSpy = jest.spyOn(toolManager, 'getCtrlHeld').mockReturnValue(true);
       const rectangle = addRotatedRectangle(

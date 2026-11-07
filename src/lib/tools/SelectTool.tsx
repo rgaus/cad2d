@@ -50,11 +50,11 @@ import {
   computeSelectionResizeFrame,
 } from '@/lib/selection/resize-frame';
 import {
+  ANGLE_SNAP_DEGREES,
   applyKeyPointSnapping,
   applySnapping,
   applySnappingLineSeries,
   applySnappingOnConstrainedTrack,
-  snapToAngle,
 } from '@/lib/snapping';
 import { Angle } from '@/lib/units/angle';
 import { type UnitType } from '@/lib/units/length';
@@ -2551,13 +2551,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
         const viewport = viewportControls.getState().viewport;
         const pointer = sp.toWorld(viewport).toSheet();
-        const snapped = this.toolManager.getCtrlHeld()
-          ? pointer
-          : snapToAngle(drag.pivot, pointer, 15);
-        const pointerAngle = Math.atan2(snapped.y - drag.pivot.y, snapped.x - drag.pivot.x);
+        const pointerAngle = Math.atan2(pointer.y - drag.pivot.y, pointer.x - drag.pivot.x);
         const deltaDegrees = ((pointerAngle - drag.startPointerAngleRadians) * 180) / Math.PI;
+        const rawDegrees = drag.beforeRotation.angle.toDegrees().magnitude + deltaDegrees;
         const nextDegrees = normalizeAngleDegrees(
-          drag.beforeRotation.angle.toDegrees().magnitude + deltaDegrees,
+          this.toolManager.getCtrlHeld()
+            ? rawDegrees
+            : Math.round(rawDegrees / ANGLE_SNAP_DEGREES) * ANGLE_SNAP_DEGREES,
         );
 
         this.getGeometryStore().updateByIdWithComponentDirect(

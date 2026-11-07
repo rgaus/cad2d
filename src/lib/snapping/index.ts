@@ -123,6 +123,9 @@ function snapToGrid(pos: SheetPosition, gridSize: number): SheetPosition {
   );
 }
 
+/** Default angular snap increment in degrees. */
+export const ANGLE_SNAP_DEGREES = 15;
+
 /**
  * Snaps the end point to the nearest multiple of {@link angleDegrees} from the start point.
  * Preserves the distance from start to end.
@@ -130,7 +133,7 @@ function snapToGrid(pos: SheetPosition, gridSize: number): SheetPosition {
 export function snapToAngle(
   start: SheetPosition,
   end: SheetPosition,
-  angleDegrees = 15,
+  angleDegrees = ANGLE_SNAP_DEGREES,
 ): SheetPosition {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
