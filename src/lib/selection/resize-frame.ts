@@ -1,8 +1,20 @@
 import { Entity, GeometryComponent, type Id, type ResizeFrame } from '@/lib/entity';
 import { BoundingBox, OrientedBoundingBox, rotatePointAround } from '@/lib/math';
-import { type OrientedRect, SheetPosition } from '@/lib/viewport/types';
+import { type OrientedRect, type Rect, SheetPosition } from '@/lib/viewport/types';
 
 const ANGLE_EPSILON = 1e-6;
+
+/** The axis-aligned outline is only useful when it extends beyond the oriented selection box,
+ * which happens when filters produce extra render shapes. */
+export function shouldShowSelectionOutline(
+  selectionBbox: OrientedRect<SheetPosition> | null,
+  selectionOutline: Rect<SheetPosition> | null,
+): boolean {
+  if (!selectionBbox || !selectionOutline) {
+    return false;
+  }
+  return !BoundingBox.equals(OrientedBoundingBox.toRect(selectionBbox), selectionOutline);
+}
 
 /** The frame (rotation + pivot) and oriented bounds used to resize one or more entities. */
 export type SelectionResizeTarget = {

@@ -173,18 +173,47 @@ export function getPreviewAnchorPointPosition(
   return AnchorPointComponent.getHandlePosition(geometry);
 }
 
-function offsetSvgPoint(
-  origin: [number, number],
-  awayFrom: [number, number],
-  distance: number,
+function edgeOutwardNormal(
+  a: [number, number],
+  b: [number, number],
+  center: [number, number],
 ): [number, number] {
-  const dx = origin[0] - awayFrom[0];
-  const dy = origin[1] - awayFrom[1];
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
   const length = Math.hypot(dx, dy);
   if (length === 0) {
-    return origin;
+    return [0, 0];
   }
-  return [origin[0] + (dx / length) * distance, origin[1] + (dy / length) * distance];
+  let nx = -dy / length;
+  let ny = dx / length;
+  const midX = (a[0] + b[0]) / 2;
+  const midY = (a[1] + b[1]) / 2;
+  if ((midX - center[0]) * nx + (midY - center[1]) * ny < 0) {
+    nx = -nx;
+    ny = -ny;
+  }
+  return [nx, ny];
+}
+
+function offsetByNormal(
+  point: [number, number],
+  normal: [number, number],
+  distance: number,
+): [number, number] {
+  return [point[0] + normal[0] * distance, point[1] + normal[1] * distance];
+}
+
+function guidePoints(
+  a: [number, number],
+  b: [number, number],
+  normal: [number, number],
+): Array<[number, number]> {
+  return [
+    offsetByNormal(a, normal, 2),
+    offsetByNormal(a, normal, 5),
+    offsetByNormal(b, normal, 5),
+    offsetByNormal(b, normal, 2),
+  ];
 }
 
 function midpointSvg(a: [number, number], b: [number, number]): [number, number] {
@@ -494,12 +523,8 @@ export default function ShapePreview({
               (corners.upperLeft.x + corners.lowerRight.x) / 2,
               (corners.upperLeft.y + corners.lowerRight.y) / 2,
             );
-            return [
-              offsetSvgPoint(lowerLeft, center, 2),
-              offsetSvgPoint(lowerLeft, center, 5),
-              offsetSvgPoint(lowerRight, center, 5),
-              offsetSvgPoint(lowerRight, center, 2),
-            ];
+            const normal = edgeOutwardNormal(lowerLeft, lowerRight, center);
+            return guidePoints(lowerLeft, lowerRight, normal);
           })()
             .map((p) => p.join(','))
             .join(' ')}
@@ -520,12 +545,8 @@ export default function ShapePreview({
             const upperRight = toSvg(corners.upperRight.x, corners.upperRight.y);
             const topCenter = midpointSvg(upperLeft, upperRight);
             const center = toSvg(primaryRenderShape.center.x, primaryRenderShape.center.y);
-            return [
-              offsetSvgPoint(topCenter, center, 2),
-              offsetSvgPoint(topCenter, center, 5),
-              offsetSvgPoint(upperLeft, center, 5),
-              offsetSvgPoint(upperLeft, center, 2),
-            ];
+            const normal = edgeOutwardNormal(upperLeft, upperRight, center);
+            return guidePoints(topCenter, upperLeft, normal);
           })()
             .map((p) => p.join(','))
             .join(' ')}
@@ -545,12 +566,8 @@ export default function ShapePreview({
               (corners.upperLeft.x + corners.lowerRight.x) / 2,
               (corners.upperLeft.y + corners.lowerRight.y) / 2,
             );
-            return [
-              offsetSvgPoint(upperLeft, center, 2),
-              offsetSvgPoint(upperLeft, center, 5),
-              offsetSvgPoint(lowerLeft, center, 5),
-              offsetSvgPoint(lowerLeft, center, 2),
-            ];
+            const normal = edgeOutwardNormal(upperLeft, lowerLeft, center);
+            return guidePoints(upperLeft, lowerLeft, normal);
           })()
             .map((p) => p.join(','))
             .join(' ')}
@@ -571,12 +588,8 @@ export default function ShapePreview({
             const lowerLeft = toSvg(corners.lowerLeft.x, corners.lowerLeft.y);
             const leftCenter = midpointSvg(upperLeft, lowerLeft);
             const center = toSvg(primaryRenderShape.center.x, primaryRenderShape.center.y);
-            return [
-              offsetSvgPoint(leftCenter, center, 2),
-              offsetSvgPoint(leftCenter, center, 5),
-              offsetSvgPoint(upperLeft, center, 5),
-              offsetSvgPoint(upperLeft, center, 2),
-            ];
+            const normal = edgeOutwardNormal(upperLeft, lowerLeft, center);
+            return guidePoints(leftCenter, upperLeft, normal);
           })()
             .map((p) => p.join(','))
             .join(' ')}
