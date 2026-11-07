@@ -1,4 +1,6 @@
+import { SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
+import { AnchorPointComponent } from './components/AnchorPointComponent';
 import { FillColorComponent } from './components/FillColorComponent';
 import { GeometryComponent } from './components/GeometryComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
@@ -16,7 +18,10 @@ export type PolygonTemplate = Omit<EntityOmitComponents<Polygon, RenderOrderComp
 
 /** A completed polygon with an id, segments, and closed state. */
 export type Polygon = Entity<
-  GeometryComponent<PolygonData> & Partial<FillColorComponent> & RenderOrderComponent
+  GeometryComponent<PolygonData> &
+    Partial<FillColorComponent> &
+    RenderOrderComponent &
+    AnchorPointComponent
 >;
 
 export namespace Polygon {
@@ -43,6 +48,10 @@ export namespace Polygon {
         ...GeometryComponent.createPolygon(points, {
           closed,
           openAtIndex,
+        }),
+        ...AnchorPointComponent.create({
+          keyPoint: 'boundingBoxUpperLeft',
+          offset: new SheetPosition(0, 0),
         }),
       },
     };

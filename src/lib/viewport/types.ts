@@ -1,4 +1,5 @@
 import { BoundingBox } from '@/lib/math';
+import { AnchorPointComponent, Entity, GeometryComponent } from '../entity';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 
 /** Runtime type symbol for ViewportPosition. */
@@ -9,6 +10,8 @@ export const WorldPositionType = Symbol('world-position');
 export const ScreenPositionType = Symbol('screen-position');
 /** Runtime type symbol for SheetPosition. */
 export const SheetPositionType = Symbol('sheet-position');
+/** Runtime type symbol for GeometryRelativeSheetPosition. */
+export const GeometryRelativeSheetPositionType = Symbol('geometry-relative-sheet-position');
 
 /** Current viewport transform state. */
 export type ViewportState = {
@@ -228,6 +231,25 @@ export class SheetPosition extends Position {
 
   toScreen(state: ViewportState): ScreenPosition {
     return this.toWorld().toScreen(state);
+  }
+
+  toGeometryRelativeSheetPosition(
+    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  ): GeometryRelativeSheetPosition {
+    const origin = GeometryComponent.getRenderOrigin(geometry);
+    return new GeometryRelativeSheetPosition(this.x - origin.x, this.y - origin.y);
+  }
+}
+
+/** Position in sheet coodrinates, relative to the associated geometry's origin */
+export class GeometryRelativeSheetPosition extends Position {
+  readonly type = GeometryRelativeSheetPositionType;
+
+  toSheetPosition(
+    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  ): SheetPosition {
+    const origin = GeometryComponent.getRenderOrigin(geometry);
+    return new SheetPosition(origin.x + this.x, origin.y + this.y);
   }
 }
 

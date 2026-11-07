@@ -1,8 +1,10 @@
 import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
-import { Length } from '@/lib/units/length';
+import { Length, UnitType } from '@/lib/units/length';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
+import { RenderShape } from '../render-shape';
 import { Entity, EntityComponent, type ResizeParams } from '../types';
+import { AnchorPointComponent } from './AnchorPointComponent';
 
 /**
  * Geometry component for a datum — a single anchor point that constraints can lock to.
@@ -45,9 +47,20 @@ export namespace DatumComponent {
   }
 
   /** Datum has no area — returns a zero-size rect at its position. */
-  export function boundingBox(geometry: Entity<DatumComponent>): Rect<SheetPosition> {
-    const p = DatumComponent.get(geometry);
-    return { position: p, width: 0, height: 0 };
+  export function boundingBox(entity: Entity<DatumComponent>): Rect<SheetPosition> {
+    return { position: getRendered(entity), width: 0, height: 0 };
+  }
+
+  /** Returns the datum position data after any render transforms have been applied. */
+  export function getRendered(entity: Entity<DatumComponent>): SheetPosition {
+    return Entity.generateRenderTransformFunction(entity)(get(entity));
+  }
+
+  export function getRenderShapes(
+    entity: Entity<DatumComponent>,
+    _sheetDefaultUnit: UnitType,
+  ): Array<RenderShape> {
+    return [RenderShape.point(entity.id, getRendered(entity), { primary: true })];
   }
 
   export function getLayoutState(geometry: Entity<DatumComponent>) {

@@ -63,6 +63,7 @@ const FieldLeafRenderer: React.FunctionComponent<{
     case 'length':
       return (
         <span
+          className="w-full"
           onKeyDownCapture={(e) => {
             if (e.key === 'Escape' && field.handlers.onKeyDown) {
               e.stopPropagation();
@@ -150,7 +151,7 @@ const FieldLeafRenderer: React.FunctionComponent<{
         />
       );
     case 'link-dimensions-button':
-      return <LinkButton linked={field.value} onClick={field.handlers.onClick} />;
+      return <LinkButton linked={field.value} onClick={field.handlers.onClick} size="sm" />;
     case 'button':
       return (
         <Button

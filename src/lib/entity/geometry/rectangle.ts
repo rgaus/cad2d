@@ -1,13 +1,16 @@
 import { BoundingBox } from '@/lib/math';
-import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
+import { KeyPoints, Rect, RectCorners, SheetPosition } from '@/lib/viewport/types';
 import { GeometryComponent } from '../components/GeometryComponent';
 import { Entity, type ResizeParams } from '../types';
 
 /** A rectangle shaped geometry represented by the axis aligned region between two points. */
 export type RectangleData = {
   type: 'rectangle';
-  upperLeft: SheetPosition;
-  lowerRight: SheetPosition;
+  /** The position of the rectangle. By default, this is the upper left position unless
+   * an {@link AnchorPointComponent} defines the origin differently. */
+  origin: SheetPosition;
+  width: number;
+  height: number;
 };
 
 export namespace RectangleData {
@@ -16,16 +19,11 @@ export namespace RectangleData {
    * entities like constraints to.
    **/
   export function keyPoints(geometry: Entity<GeometryComponent<RectangleData>>) {
-    const rectangle = GeometryComponent.get(geometry);
-    const rect: Rect<SheetPosition> = {
-      position: rectangle.upperLeft,
-      width: rectangle.lowerRight.x - rectangle.upperLeft.x,
-      height: rectangle.lowerRight.y - rectangle.upperLeft.y,
-    };
+    const rect = boundingBox(geometry);
     return {
       // NOTE: it is very important that perimeter winds counter clockwise, as that is what the DCEL
       // expects.
-      perimeter: BoundingBox.cornersToArray(BoundingBox.corners(rect)),
+      perimeter: cornersArray(GeometryComponent.get(geometry)),
       perimeterLabels: ['upperLeft', 'upperRight', 'lowerRight', 'lowerLeft'] as const,
       extras: {
         center: new SheetPosition(
@@ -41,10 +39,22 @@ export namespace RectangleData {
   ): Rect<SheetPosition> {
     const rectangle = GeometryComponent.get(geometry);
     return {
-      position: rectangle.upperLeft,
-      width: rectangle.lowerRight.x - rectangle.upperLeft.x,
-      height: rectangle.lowerRight.y - rectangle.upperLeft.y,
+      position: rectangle.origin,
+      width: rectangle.width,
+      height: rectangle.height,
     };
+  }
+
+  export function corners(data: RectangleData): RectCorners<SheetPosition> {
+    return BoundingBox.corners({
+      position: data.origin,
+      width: data.width,
+      height: data.height,
+    });
+  }
+
+  export function cornersArray(data: RectangleData): Array<SheetPosition> {
+    return BoundingBox.cornersToArray(corners(data));
   }
 
   export function translate<E extends Entity<GeometryComponent<RectangleData>>>(
@@ -52,20 +62,11 @@ export namespace RectangleData {
     transform: (input: SheetPosition) => SheetPosition,
   ): E {
     const state = GeometryComponent.get(geometry);
-    const upperLeft = transform(state.upperLeft);
-    return GeometryComponent.update(geometry, {
-      upperLeft,
-      lowerRight: new SheetPosition(
-        // NOTE: keep width / height the same, even if that width/height doesn't nicely snap to a
-        // grid
-        upperLeft.x + (state.lowerRight.x - state.upperLeft.x),
-        upperLeft.y + (state.lowerRight.y - state.upperLeft.y),
-      ),
-    });
+    return GeometryComponent.update(geometry, { origin: transform(state.origin) });
   }
 
   export function getOrigin(geometry: Entity<GeometryComponent<RectangleData>>): SheetPosition {
-    return GeometryComponent.get(geometry).upperLeft;
+    return GeometryComponent.get(geometry).origin;
   }
 
   export function equals(
@@ -78,10 +79,10 @@ export namespace RectangleData {
       return false;
     }
     return (
-      aData.upperLeft.x === bData.upperLeft.x &&
-      aData.upperLeft.y === bData.upperLeft.y &&
-      aData.lowerRight.x === bData.lowerRight.x &&
-      aData.lowerRight.y === bData.lowerRight.y
+      aData.origin.x === bData.origin.x &&
+      aData.origin.y === bData.origin.y &&
+      aData.width === bData.width &&
+      aData.height === bData.height
     );
   }
 
@@ -92,11 +93,7 @@ export namespace RectangleData {
   ): E | null {
     const state = GeometryComponent.get(geometry);
     if (!originalBBox) {
-      originalBBox = {
-        position: state.upperLeft,
-        width: state.lowerRight.x - state.upperLeft.x,
-        height: state.lowerRight.y - state.upperLeft.y,
-      };
+      originalBBox = boundingBox(geometry);
     }
 
     const newBBox = GeometryComponent.resizeBBox(originalBBox, params);
@@ -104,10 +101,11 @@ export namespace RectangleData {
       return null;
     }
 
-    const pctLeft = (state.upperLeft.x - originalBBox.position.x) / originalBBox.width;
-    const pctTop = (state.upperLeft.y - originalBBox.position.y) / originalBBox.height;
-    const pctRight = (state.lowerRight.x - originalBBox.position.x) / originalBBox.width;
-    const pctBottom = (state.lowerRight.y - originalBBox.position.y) / originalBBox.height;
+    const pctLeft = (state.origin.x - originalBBox.position.x) / originalBBox.width;
+    const pctTop = (state.origin.y - originalBBox.position.y) / originalBBox.height;
+    const pctRight = (state.origin.x + state.width - originalBBox.position.x) / originalBBox.width;
+    const pctBottom =
+      (state.origin.y + state.height - originalBBox.position.y) / originalBBox.height;
 
     const newUpperLeft = new SheetPosition(
       newBBox.position.x + pctLeft * newBBox.width,
@@ -128,7 +126,11 @@ export namespace RectangleData {
     );
 
     if (ul.x !== lr.x && ul.y !== lr.y) {
-      return GeometryComponent.update(geometry, { upperLeft: ul, lowerRight: lr });
+      return GeometryComponent.update(geometry, {
+        origin: ul,
+        width: lr.x - ul.x,
+        height: lr.y - ul.y,
+      });
     } else {
       return null;
     }

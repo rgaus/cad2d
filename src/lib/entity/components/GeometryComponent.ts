@@ -14,34 +14,13 @@ import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
 import { RectangleData } from '../geometry/rectangle';
 import { RectangleEndpoint } from '../rectangle';
-import { type Entity, type EntityComponent, ResizeParams } from '../types';
+import { RenderShape } from '../render-shape';
+import { Entity, type EntityComponent, ResizeParams } from '../types';
+import { AnchorPointComponent } from './AnchorPointComponent';
 import { ConstraintComponent } from './ConstraintComponent';
 import { FilterComponent } from './FilterComponent';
 import { FrameComponent } from './FrameComponent';
 import { LinkDimensionsComponent } from './LinkDimensionsComponent';
-
-export type RenderShapePolygon = {
-  shape: 'polygon';
-  key: string;
-  primary: boolean;
-  points: Array<PolygonSegment>;
-  closed: boolean;
-};
-export type RenderShapeRectangle = {
-  shape: 'rectangle';
-  key: string;
-  primary: boolean;
-  upperLeft: SheetPosition;
-  lowerRight: SheetPosition;
-};
-export type RenderShapeEllipse = {
-  shape: 'ellipse';
-  key: string;
-  primary: boolean;
-  center: SheetPosition;
-  radiusX: number;
-  radiusY: number;
-};
 
 export type GetRenderShapesOptions<D extends GeometryData = GeometryData> = {
   /** Defaults to true. When set to false, a non closed polygon which would become closed (ie,
@@ -72,74 +51,6 @@ export type DestinationPoint =
       type: 'rectangle';
       corner: RectangleEndpoint;
     };
-
-export type RenderShape = RenderShapePolygon | RenderShapeRectangle | RenderShapeEllipse;
-
-export namespace RenderShape {
-  export function polygon(
-    key: string,
-    points: Array<PolygonSegment>,
-    options?: { closed?: boolean; primary?: boolean },
-  ): RenderShape {
-    return {
-      shape: 'polygon' as const,
-      key,
-      primary: options?.primary ?? false,
-      points,
-      closed: options?.closed ?? false,
-    };
-  }
-  export function rectangle(
-    key: string,
-    upperLeft: SheetPosition,
-    lowerRight: SheetPosition,
-    options?: { primary?: boolean },
-  ): RenderShape {
-    return {
-      shape: 'rectangle' as const,
-      key,
-      primary: options?.primary ?? false,
-      upperLeft,
-      lowerRight,
-    };
-  }
-  export function ellipse(
-    key: string,
-    center: SheetPosition,
-    args: { radiusX: number; radiusY: number; primary?: boolean },
-  ): RenderShape {
-    return {
-      shape: 'ellipse' as const,
-      key,
-      primary: args?.primary ?? false,
-      center,
-      radiusX: args.radiusX,
-      radiusY: args.radiusY,
-    };
-  }
-
-  export function boundingBox(renderShape: RenderShape) {
-    switch (renderShape.shape) {
-      case 'polygon':
-        return BoundingBox.fromPoints(renderShape.points.map((p) => p.point));
-      case 'rectangle':
-        return BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]);
-      case 'ellipse':
-        return BoundingBox.fromPoints([
-          renderShape.center,
-          new SheetPosition(renderShape.center.x, renderShape.center.y + renderShape.radiusY),
-          new SheetPosition(renderShape.center.x, renderShape.center.y - renderShape.radiusY),
-          new SheetPosition(renderShape.center.x + renderShape.radiusX, renderShape.center.y),
-          new SheetPosition(renderShape.center.x - renderShape.radiusX, renderShape.center.y),
-        ]);
-      default:
-        renderShape satisfies never;
-        throw new Error(
-          `RenderShape.boundingBox: Unknown render shape ${(renderShape as any).shape}`,
-        );
-    }
-  }
-}
 
 /**
  * Entity component for a geometry - a rectangle, ellipse, or polygon.
@@ -175,7 +86,14 @@ export namespace GeometryComponent {
     upperLeft: SheetPosition,
     lowerRight: SheetPosition,
   ): GeometryComponent<RectangleData> {
-    return { geometry: { type: 'rectangle', upperLeft, lowerRight } };
+    return {
+      geometry: {
+        type: 'rectangle',
+        origin: upperLeft,
+        width: lowerRight.x - upperLeft.x,
+        height: lowerRight.y - upperLeft.y,
+      },
+    };
   }
 
   export function createEllipse(
@@ -199,6 +117,13 @@ export namespace GeometryComponent {
     geometry: Entity<GeometryComponent<D>>,
   ): D {
     return geometry.components.geometry;
+  }
+
+  /** Returns the geometry data after the entity's render transforms have been applied. */
+  export function getRendered<D extends GeometryData = GeometryData>(
+    geometry: Entity<GeometryComponent<D>>,
+  ): D {
+    return get(transform(geometry, Entity.generateRenderTransformFunction(geometry)));
   }
 
   export function isPolygon(
@@ -233,10 +158,33 @@ export namespace GeometryComponent {
   }
 
   /**
+   * The offset by which the rendered (anchored) geometry is shifted from the raw stored geometry.
+   * Returns `(0, 0)` when the geometry has no anchor point component.
+   */
+  export function getAnchorPointOffset(
+    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  ): SheetPosition {
+    if (!Entity.hasComponent(geometry, AnchorPointComponent)) {
+      return new SheetPosition(0, 0);
+    }
+    return AnchorPointComponent.computeAssociatedGeometryOffset(geometry);
+  }
+
+  /**
    * Key points that are added as verticies within the DCEL and available for a user to snap other
-   * entities like constraints to.
+   * entities like constraints to. These are expressed in anchored (rendered) space.
    **/
   export function keyPoints(geometry: Entity<GeometryComponent>): KeyPoints<SheetPosition, string> {
+    if (Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
+      // Translate the geometry into anchored space, then drop the anchor so the recursive call
+      // below reads plain (unanchored) geometry.
+      const translated = GeometryComponent.transform(
+        geometry,
+        Entity.generateRenderTransformFunction(geometry),
+      );
+      return GeometryComponent.keyPoints(AnchorPointComponent.remove(translated));
+    }
+
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
@@ -253,7 +201,16 @@ export namespace GeometryComponent {
     }
   }
 
+  /** Bounding box in anchored (rendered) space. */
   export function boundingBox(geometry: Entity<GeometryComponent>): Rect<SheetPosition> {
+    if (Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
+      const translated = GeometryComponent.transform(
+        geometry,
+        Entity.generateRenderTransformFunction(geometry),
+      );
+      return GeometryComponent.boundingBox(AnchorPointComponent.remove(translated));
+    }
+
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
@@ -270,7 +227,7 @@ export namespace GeometryComponent {
     }
   }
 
-  export function translate<E extends Entity<GeometryComponent>>(
+  export function transform<E extends Entity<GeometryComponent>>(
     geometry: E,
     transform: (input: SheetPosition) => SheetPosition,
   ): E {
@@ -299,7 +256,9 @@ export namespace GeometryComponent {
     }
   }
 
-  export function getOrigin(geometry: Entity<GeometryComponent>): SheetPosition {
+  export function getOrigin(
+    geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+  ): SheetPosition {
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
@@ -314,6 +273,20 @@ export namespace GeometryComponent {
           `GeometryComponent.getOrigin: Unknown geometry data type ${(state as any).type}`,
         );
     }
+  }
+
+  /** Origin in anchored (rendered) space. */
+  export function getRenderOrigin(geometry: Entity<GeometryComponent>): SheetPosition {
+    let working = geometry;
+    if (Entity.hasComponents(working, GeometryComponent, AnchorPointComponent)) {
+      const translated = GeometryComponent.transform(
+        working,
+        Entity.generateRenderTransformFunction(working),
+      );
+      working = AnchorPointComponent.remove(translated);
+    }
+
+    return getOrigin(working);
   }
 
   export function equals(a: Entity<GeometryComponent>, b: Entity<GeometryComponent>): boolean {
@@ -345,23 +318,25 @@ export namespace GeometryComponent {
     geometry: Entity<GeometryComponent>,
     renderShape: RenderShape,
   ): boolean {
-    const data = GeometryComponent.get(geometry);
+    const data = GeometryComponent.getRendered(geometry);
     switch (data.type) {
       case 'polygon':
         if (renderShape.shape !== 'polygon') {
           return false;
         }
         return PolygonData.isGeometricallyEqualToRenderShape(data.points, data.closed, renderShape);
-      case 'rectangle':
+      case 'rectangle': {
         if (renderShape.shape !== 'rectangle') {
           return false;
         }
+        const corners = RectangleData.corners(data);
         return (
-          data.upperLeft.x === renderShape.upperLeft.x &&
-          data.upperLeft.y === renderShape.upperLeft.y &&
-          data.lowerRight.x === renderShape.lowerRight.x &&
-          data.lowerRight.y === renderShape.lowerRight.y
+          corners.upperLeft.x === renderShape.upperLeft.x &&
+          corners.upperLeft.y === renderShape.upperLeft.y &&
+          corners.lowerRight.x === renderShape.lowerRight.x &&
+          corners.lowerRight.y === renderShape.lowerRight.y
         );
+      }
       case 'ellipse':
         if (renderShape.shape !== 'ellipse') {
           return false;
@@ -378,30 +353,48 @@ export namespace GeometryComponent {
     }
   }
 
-  export function resize<E extends Entity<GeometryComponent>>(
+  export function resize<E extends Entity<GeometryComponent & Partial<AnchorPointComponent>>>(
     geometry: E,
     params: ResizeParams,
     originalBBox?: Rect<SheetPosition>,
   ): E {
+    // Resize math happens in anchored (rendered) space, but the stored geometry is raw. Translate the
+    // inputs back into raw space before dispatching to the raw resize implementations.
+    const offset = GeometryComponent.getAnchorPointOffset(geometry);
+    const rawParams =
+      offset.x === 0 && offset.y === 0
+        ? params
+        : { ...params, to: new SheetPosition(params.to.x + offset.x, params.to.y + offset.y) };
+    const rawBBox =
+      originalBBox && (offset.x !== 0 || offset.y !== 0)
+        ? {
+            ...originalBBox,
+            position: new SheetPosition(
+              originalBBox.position.x + offset.x,
+              originalBBox.position.y + offset.y,
+            ),
+          }
+        : originalBBox;
+
     const state = GeometryComponent.get(geometry);
     switch (state.type) {
       case 'polygon':
         return PolygonData.resize(
           geometry as Entity<GeometryComponent<PolygonData>>,
-          params,
-          originalBBox,
+          rawParams,
+          rawBBox,
         ) as E;
       case 'rectangle':
         return RectangleData.resize(
           geometry as Entity<GeometryComponent<RectangleData>>,
-          params,
-          originalBBox,
+          rawParams,
+          rawBBox,
         ) as E;
       case 'ellipse':
         return EllipseData.resize(
           geometry as Entity<GeometryComponent<EllipseData>>,
-          params,
-          originalBBox,
+          rawParams,
+          rawBBox,
         ) as E;
       default:
         state satisfies never;
@@ -437,16 +430,17 @@ export namespace GeometryComponent {
   };
 
   export function getRenderShapes<D extends GeometryData = GeometryData>(
-    geometry: Entity<GeometryComponent<D>>,
+    geometry: Entity<GeometryComponent<D> & Partial<AnchorPointComponent>>,
     sheetDefaultUnit: UnitType,
     filters: Array<Filter> = [],
     options: GetRenderShapesOptions<D> = { combineNonClosedPolygons: true },
   ): Array<RenderShape> {
     let shapes;
 
+    // Render shapes are always expressed in anchored (rendered) space.
     const mapping =
       options.destinationPointMapping as GetRenderShapesOptions<GeometryData>['destinationPointMapping'];
-    const state = GeometryComponent.get(geometry);
+    const state = GeometryComponent.getRendered(geometry);
     switch (state.type) {
       case 'polygon':
         shapes = [
@@ -458,9 +452,12 @@ export namespace GeometryComponent {
           }
         }
         break;
-      case 'rectangle':
+      case 'rectangle': {
+        const corners = RectangleData.corners(state);
         shapes = [
-          RenderShape.rectangle(geometry.id, state.upperLeft, state.lowerRight, { primary: true }),
+          RenderShape.rectangle(geometry.id, corners.upperLeft, corners.lowerRight, {
+            primary: true,
+          }),
         ];
         if (mapping) {
           for (const corner of RectangleEndpoint.LIST) {
@@ -468,6 +465,7 @@ export namespace GeometryComponent {
           }
         }
         break;
+      }
       case 'ellipse':
         shapes = [
           RenderShape.ellipse(geometry.id, state.center, {
@@ -548,7 +546,7 @@ export namespace GeometryComponent {
               'X:',
               Fields.length(
                 'x',
-                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.upperLeft.x),
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.origin.x),
                 { readOnlyUnit: true },
                 ctx.makeLengthHandlers(
                   id,
@@ -564,13 +562,8 @@ export namespace GeometryComponent {
                       return null;
                     }
                     const newX = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
-                    const deltaX = newX - currentGeom.upperLeft.x;
-                    const upperLeft = new SheetPosition(newX, currentGeom.upperLeft.y);
-                    const lowerRight = new SheetPosition(
-                      currentGeom.lowerRight.x + deltaX,
-                      currentGeom.lowerRight.y,
-                    );
-                    return { upperLeft, lowerRight };
+                    const origin = new SheetPosition(newX, currentGeom.origin.y);
+                    return { origin };
                   },
                   'origin',
                 ),
@@ -582,7 +575,7 @@ export namespace GeometryComponent {
               'Y:',
               Fields.length(
                 'y',
-                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.upperLeft.y),
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.origin.y),
                 { readOnlyUnit: true },
                 ctx.makeLengthHandlers(
                   id,
@@ -598,13 +591,8 @@ export namespace GeometryComponent {
                       return null;
                     }
                     const newY = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
-                    const deltaY = newY - currentGeom.upperLeft.y;
-                    const upperLeft = new SheetPosition(currentGeom.upperLeft.x, newY);
-                    const lowerRight = new SheetPosition(
-                      currentGeom.lowerRight.x,
-                      currentGeom.lowerRight.y + deltaY,
-                    );
-                    return { upperLeft, lowerRight };
+                    const origin = new SheetPosition(currentGeom.origin.x, newY);
+                    return { origin };
                   },
                   'origin',
                 ),
@@ -617,10 +605,7 @@ export namespace GeometryComponent {
               'W:',
               Fields.length(
                 'width',
-                Length.fromSheetUnits(
-                  ctx.sheetDefaultUnit,
-                  geometryData.lowerRight.x - geometryData.upperLeft.x,
-                ),
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.width),
                 { readOnlyUnit: true },
                 ctx.makeLengthHandlers(
                   id,
@@ -638,10 +623,8 @@ export namespace GeometryComponent {
                     const isLinkedNow = LinkDimensionsComponent.getOptional(current) ?? false;
                     const w = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
                     return {
-                      lowerRight: new SheetPosition(
-                        currentGeom.upperLeft.x + w,
-                        isLinkedNow ? currentGeom.upperLeft.y + w : currentGeom.lowerRight.y,
-                      ),
+                      width: w,
+                      height: isLinkedNow ? w : currentGeom.height,
                     };
                   },
                   'width',
@@ -658,10 +641,7 @@ export namespace GeometryComponent {
               'H:',
               Fields.length(
                 'height',
-                Length.fromSheetUnits(
-                  ctx.sheetDefaultUnit,
-                  geometryData.lowerRight.y - geometryData.upperLeft.y,
-                ),
+                Length.fromSheetUnits(ctx.sheetDefaultUnit, geometryData.height),
                 { readOnlyUnit: true },
                 ctx.makeLengthHandlers(
                   id,
@@ -679,10 +659,8 @@ export namespace GeometryComponent {
                     const isLinkedNow = LinkDimensionsComponent.getOptional(current) ?? false;
                     const h = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
                     return {
-                      lowerRight: new SheetPosition(
-                        isLinkedNow ? currentGeom.upperLeft.x + h : currentGeom.lowerRight.x,
-                        currentGeom.upperLeft.y + h,
-                      ),
+                      width: isLinkedNow ? h : currentGeom.width,
+                      height: h,
                     };
                   },
                   'height',

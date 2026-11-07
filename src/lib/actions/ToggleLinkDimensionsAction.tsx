@@ -3,7 +3,6 @@ import React from 'react';
 import { Entity, GeometryComponent, LinkDimensionsComponent } from '@/lib/entity';
 import { EllipseData } from '@/lib/entity/geometry/ellipse';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
-import { SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 
@@ -75,16 +74,12 @@ export class ToggleLinkDimensionsAction extends BaseAction {
             const rectData = geomData;
             const newLink = !LinkDimensionsComponent.get(geometry);
             if (newLink) {
-              const w = rectData.lowerRight.x - rectData.upperLeft.x;
-              const h = rectData.lowerRight.y - rectData.upperLeft.y;
-              const dimension = Math.max(w, h);
+              const dimension = Math.max(rectData.width, rectData.height);
               geometryStore.setLinkDimensions(geometry.id, true);
               geometryStore.updateById(geometry.id, (old) =>
                 GeometryComponent.update(old as Entity<GeometryComponent<RectangleData>>, {
-                  lowerRight: new SheetPosition(
-                    rectData.upperLeft.x + dimension,
-                    rectData.upperLeft.y + dimension,
-                  ),
+                  width: dimension,
+                  height: dimension,
                 }),
               );
             } else {

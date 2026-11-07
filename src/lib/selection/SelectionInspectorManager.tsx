@@ -1,28 +1,16 @@
 import { EventEmitter } from 'eventemitter3';
-import { ActionsManager } from '../actions/ActionsManager';
-import {
-  ConstraintComponent,
-  type ConstraintEndpoint,
-  DatumComponent,
-  Entity,
-  FillColorComponent,
-  FrameComponent,
-  GeometryComponent,
-  type Id,
-  LinkDimensionsComponent,
-  RenderOrderComponent,
-} from '../entity';
-import { GeometryStore } from '../entity/GeometryStore';
-import { FilterComponent } from '../entity/components/FilterComponent';
-import { PolygonData } from '../entity/geometry/polygon';
-import { HistoryManager } from '../history/HistoryManager';
-import { Sheet } from '../sheet/Sheet';
-import { type SelectTool } from '../tools/SelectTool';
-import { SelectionManager } from '../tools/SelectionManager';
-import type { ToolManager } from '../tools/ToolManager';
-import { Angle } from '../units/angle';
-import { Length } from '../units/length';
-import { SheetPosition } from '../viewport/types';
+import { ActionsManager } from '@/lib/actions/ActionsManager';
+import { type ConstraintEndpoint, Entity, GeometryComponent, type Id } from '@/lib/entity';
+import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { HistoryManager } from '@/lib/history/HistoryManager';
+import { Sheet } from '@/lib/sheet/Sheet';
+import { type SelectTool } from '@/lib/tools/SelectTool';
+import { SelectionManager } from '@/lib/tools/SelectionManager';
+import type { ToolManager } from '@/lib/tools/ToolManager';
+import { Angle } from '@/lib/units/angle';
+import { Length } from '@/lib/units/length';
+import { SheetPosition } from '@/lib/viewport/types';
 import {
   type ShapePreviewEditingDimension,
   ShapePreviewManager,
@@ -55,41 +43,6 @@ export type {
   OpenAtIndexState,
   WorkingFieldData,
 } from './fields';
-
-/** The order of components in the {@link SelectionInspectorManager}. If a component isn't in this
- * list, it will be rendered at the bottom. */
-function getComponentKeyOrdering(key: string): number {
-  return [
-    GeometryComponent.key,
-    ConstraintComponent.key,
-    DatumComponent.key,
-    FilterComponent.key,
-    FrameComponent.key,
-    LinkDimensionsComponent.key,
-
-    // Fill color + render order at the bottom
-    FillColorComponent.key,
-    RenderOrderComponent.key,
-  ].indexOf(key as any);
-}
-
-function getComponentByKey(key: string) {
-  for (const component of [
-    GeometryComponent,
-    FillColorComponent,
-    ConstraintComponent,
-    DatumComponent,
-    FilterComponent,
-    FrameComponent,
-    LinkDimensionsComponent,
-    RenderOrderComponent,
-  ]) {
-    if (component.key === key) {
-      return component;
-    }
-  }
-  return null;
-}
 
 type SelectionInspectorManagerEvents = {
   fieldsChange: (fields: Array<Field>) => void;
@@ -469,64 +422,55 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
 
     // Step 1: Generate list of fields
     for (const entity of this.geometryStore.getByIds(this.selectedIds)) {
-      const componentKeys = Object.keys(entity.components).sort((a, b) => {
-        return getComponentKeyOrdering(a) - getComponentKeyOrdering(b);
-      });
-      for (const key of componentKeys) {
-        const Component = getComponentByKey(key);
-        if (!Component) {
+      const computed = Entity.computeSelectionInspectorFields(entity, this.makeContext());
+      for (const field of computed) {
+        const existingForKey = fields.get(field.key) ?? [];
+
+        // Base case: add first entry if there's nothing stored under that key yet.
+        if (existingForKey.length === 0) {
+          fieldKeyOrder.push(field.key);
+          fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
+          fields.set(field.key, [field]);
           continue;
         }
-        const computed = this.computeFieldsForComponent(entity, Component);
-        for (const field of computed) {
-          const existingForKey = fields.get(field.key) ?? [];
 
-          // Base case: add first entry if there's nothing stored under that key yet.
-          if (existingForKey.length === 0) {
-            fieldKeyOrder.push(field.key);
-            fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
-            fields.set(field.key, [field]);
+        // Rows should be pushed twice
+        if (field.type === 'row' || field.type === 'polygon-points') {
+          existingForKey.push(field);
+          fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
+          fields.set(field.key, existingForKey);
+          continue;
+        }
+
+        // Entries without `value` cannot be merged together, so just use the first one and drop
+        // all others.
+        //
+        // Example: "link" button, heterogeneous structured rows with identical keys, etc
+        if (!('value' in field)) {
+          if (field.type !== existingForKey[0].type) {
+            console.warn(
+              `Field key=${field.key} type=${field.type} cannot be merged with existing key of type=${existingForKey[0].type}, skipping...`,
+            );
             continue;
           }
+          fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
+          continue;
+        }
 
-          // Rows should be pushed twice
-          if (field.type === 'row' || field.type === 'polygon-points') {
-            existingForKey.push(field);
-            fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
-            fields.set(field.key, existingForKey);
+        // Otherwise, merge fields together
+        const match = existingForKey.find(
+          (existing) => existing.type === field.type && existing.key === field.key,
+        );
+        if (match) {
+          if (!('value' in match)) {
+            console.warn(
+              `Field key=${field.key} type=${field.type} cannot be merged into existing matching field type=${match.type}, no "value" attribute found, skipping...`,
+            );
             continue;
           }
-
-          // Entries without `value` cannot be merged together, so just use the first one and drop
-          // all others.
-          //
-          // Example: "link" button, heterogeneous structured rows with identical keys, etc
-          if (!('value' in field)) {
-            if (field.type !== existingForKey[0].type) {
-              console.warn(
-                `Field key=${field.key} type=${field.type} cannot be merged with existing key of type=${existingForKey[0].type}, skipping...`,
-              );
-              continue;
-            }
-            fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
-            continue;
-          }
-
-          // Otherwise, merge fields together
-          const match = existingForKey.find(
-            (existing) => existing.type === field.type && existing.key === field.key,
-          );
-          if (match) {
-            if (!('value' in match)) {
-              console.warn(
-                `Field key=${field.key} type=${field.type} cannot be merged into existing matching field type=${match.type}, no "value" attribute found, skipping...`,
-              );
-              continue;
-            }
-            fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
-            match.value = [...match.value, ...(field.value as any)];
-            match.handlers = [...match.handlers, ...(field.handlers as any)];
-          }
+          fieldFrequencies.set(field.key, (fieldFrequencies.get(field.key) ?? 0) + 1);
+          match.value = [...match.value, ...(field.value as any)];
+          match.handlers = [...match.handlers, ...(field.handlers as any)];
         }
       }
     }
@@ -939,66 +883,6 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       return this.collapseFieldOptions(entries, combined[0]) as Field<OptionsToSingle<F>>; // homogeneous
     } else {
       return { type: 'heterogeneous', key, fieldType: entries[0]?.type };
-    }
-  }
-
-  /** Dispatches a single entity + component to that component's field builder. Each component owns
-   * the knowledge of which fields it contributes; this method only routes and guards. */
-  private computeFieldsForComponent(
-    entity: Entity,
-    Component: NonNullable<ReturnType<typeof getComponentByKey>>,
-  ): FieldOptionsList {
-    switch (Component.key) {
-      case GeometryComponent.key: {
-        if (!Entity.hasComponent(entity, GeometryComponent)) {
-          return [];
-        }
-        return GeometryComponent.computeSelectionInspectorFields(entity, this.makeContext());
-      }
-      case FillColorComponent.key: {
-        if (!Entity.hasComponent(entity, FillColorComponent)) {
-          return [];
-        }
-        return FillColorComponent.computeSelectionInspectorFields(entity, this.makeContext());
-      }
-      case RenderOrderComponent.key: {
-        if (!Entity.hasComponent(entity, RenderOrderComponent)) {
-          return [];
-        }
-        return RenderOrderComponent.computeSelectionInspectorFields(entity, this.makeContext());
-      }
-      case FrameComponent.key: {
-        if (!Entity.hasComponent(entity, FrameComponent)) {
-          return [];
-        }
-        return FrameComponent.computeSelectionInspectorFields(entity, this.makeContext());
-      }
-      case DatumComponent.key: {
-        if (!Entity.hasComponent(entity, DatumComponent)) {
-          return [];
-        }
-        return DatumComponent.computeSelectionInspectorFields(entity, this.makeContext());
-      }
-      case FilterComponent.key: {
-        if (!Entity.hasComponent(entity, FilterComponent)) {
-          return [];
-        }
-        return FilterComponent.computeSelectionInspectorFields(entity, this.makeContext());
-      }
-      case ConstraintComponent.key: {
-        if (!Entity.hasComponent(entity, ConstraintComponent)) {
-          return [];
-        }
-        return ConstraintComponent.computeSelectionInspectorFields(entity, this.makeContext());
-      }
-      case LinkDimensionsComponent.key: {
-        // LinkDimensionsComponent is consumed within GeometryComponent to conditionally show the
-        // link button. It does not render its own standalone fields.
-        return [];
-      }
-      default:
-        Component satisfies never;
-        return [];
     }
   }
 }

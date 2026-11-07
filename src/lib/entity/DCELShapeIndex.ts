@@ -42,7 +42,7 @@ import {
 } from '@/lib/viewport/types';
 import { type Geometry } from './geometry';
 import { EllipseData } from './geometry/ellipse';
-import { PolygonData } from './geometry/polygon';
+import { PolygonData, PolygonSegment } from './geometry/polygon';
 import { RectangleData } from './geometry/rectangle';
 import {
   ConstraintComponent,
@@ -52,7 +52,6 @@ import {
   Entity,
   GeometryComponent,
   type Id,
-  PolygonSegment,
 } from './index';
 
 // ============================================================
@@ -1062,8 +1061,9 @@ export class DCELShapeIndex {
     }
     const { perimeter, perimeterLabels } = GeometryComponent.keyPoints(ellipse);
     const ellipseData = GeometryComponent.get(ellipse);
+    const offset = GeometryComponent.getAnchorPointOffset(ellipse);
     const ellipseSegs = ellipseToPolygon(
-      ellipseData.center,
+      new SheetPosition(ellipseData.center.x - offset.x, ellipseData.center.y - offset.y),
       ellipseData.radiusX,
       ellipseData.radiusY,
     );
@@ -1113,8 +1113,18 @@ export class DCELShapeIndex {
     if (this.shapes.has(polygon.id)) {
       this.removePolygon(polygon.id);
     }
+    const offset = GeometryComponent.getAnchorPointOffset(polygon);
+    const worldPoints =
+      offset.x === 0 && offset.y === 0
+        ? polygonData.points
+        : polygonData.points.map((segment) =>
+            PolygonSegment.transform(
+              segment,
+              (position) => new SheetPosition(position.x - offset.x, position.y - offset.y),
+            ),
+          );
     const { positions, curveContexts, reversed } = this._polygonPoints(
-      polygonData.points,
+      worldPoints,
       polygonData.closed,
     );
     this._registerShape(

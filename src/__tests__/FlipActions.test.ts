@@ -99,10 +99,10 @@ describe('FlipHorizontalAction', () => {
     const geometry = geometryStore.getByIdWithComponent(rectId, GeometryComponent);
     expect(geometry).not.toBeNull();
     const rect = GeometryComponent.get(geometry!);
-    expect(rect.upperLeft.x).toBeCloseTo(2);
-    expect(rect.upperLeft.y).toBeCloseTo(4);
-    expect(rect.lowerRight.x).toBeCloseTo(10);
-    expect(rect.lowerRight.y).toBeCloseTo(12);
+    expect(rect.origin.x).toBeCloseTo(2);
+    expect(rect.origin.y).toBeCloseTo(4);
+    expect(rect.width).toBeCloseTo(8);
+    expect(rect.height).toBeCloseTo(8);
   });
 
   it('flips an ellipse horizontally', async () => {
@@ -287,10 +287,10 @@ describe('FlipVerticalAction', () => {
     const geometry = geometryStore.getByIdWithComponent(rectId, GeometryComponent);
     expect(geometry).not.toBeNull();
     const rect = GeometryComponent.get(geometry!);
-    expect(rect.upperLeft.x).toBeCloseTo(2);
-    expect(rect.upperLeft.y).toBeCloseTo(4);
-    expect(rect.lowerRight.x).toBeCloseTo(10);
-    expect(rect.lowerRight.y).toBeCloseTo(12);
+    expect(rect.origin.x).toBeCloseTo(2);
+    expect(rect.origin.y).toBeCloseTo(4);
+    expect(rect.width).toBeCloseTo(8);
+    expect(rect.height).toBeCloseTo(8);
   });
 
   it('flips an ellipse vertically', async () => {

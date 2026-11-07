@@ -1,4 +1,5 @@
 import type {
+  AnchorPointData,
   ConstraintEndpoint,
   Entity,
   GeometryComponent,
@@ -6,10 +7,10 @@ import type {
   Polygon,
   PolygonSegment,
 } from '@/lib/entity';
+import type { EllipseData } from '@/lib/entity/geometry/ellipse';
+import type { RectangleData } from '@/lib/entity/geometry/rectangle';
 import type { Length, SerializedLength, UnitType } from '@/lib/units/length';
 import type { SheetPosition } from '@/lib/viewport/types';
-import type { EllipseData } from '../entity/geometry/ellipse';
-import type { RectangleData } from '../entity/geometry/rectangle';
 
 export type TransactionEntity = {
   type: 'transaction';
@@ -71,6 +72,14 @@ export type LinkDimensionsEntry = {
   id: Id;
   beforeLink: boolean;
   afterLink: boolean;
+};
+
+/** Recorded when a geometry's anchor point is changed. */
+export type AnchorPointMoveEntry = {
+  type: 'anchor-point-move';
+  id: Id;
+  beforeAnchorPoint: AnchorPointData;
+  afterAnchorPoint: AnchorPointData;
 };
 
 /** Recorded when a polygon is moved (all vertices shifted). */
@@ -385,6 +394,7 @@ export type UndoEntry =
   | FillColorRemoveEntry
   | RenderOrderEntry
   | LinkDimensionsEntry
+  | AnchorPointMoveEntry
   | PolygonMoveEntry
   | RectangleMoveEntry
   | EllipseMoveEntry
@@ -592,6 +602,15 @@ export namespace UndoEntry {
     afterLink: boolean,
   ): LinkDimensionsEntry {
     return { type: 'link-dimensions', id, beforeLink, afterLink };
+  }
+
+  /** Creates an entry for changing a geometry's anchor point. */
+  export function anchorPointMove(
+    id: Id,
+    beforeAnchorPoint: AnchorPointData,
+    afterAnchorPoint: AnchorPointData,
+  ): AnchorPointMoveEntry {
+    return { type: 'anchor-point-move', id, beforeAnchorPoint, afterAnchorPoint };
   }
 
   /** Creates an entry for converting a rectangle to a polygon. */

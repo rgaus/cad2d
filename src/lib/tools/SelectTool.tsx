@@ -21,6 +21,7 @@ import {
   type ResizeParams,
 } from '@/lib/entity';
 import { ID_PREFIXES, getPrefixFromId } from '@/lib/entity/GeometryStore';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { FrameComponent } from '@/lib/entity/components/FrameComponent';
 import {
@@ -177,7 +178,7 @@ function isEndpointOnEdge(
 /** A representation of all entities which can be moved. The type is a union, and the associated
  * namespace has utility functions for computing metrics about the given entity in a generic way. */
 type DragState =
-  | { state: 'geometry'; geometry: Entity<GeometryComponent> }
+  | { state: 'geometry'; geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>> }
   | { state: 'datum'; entity: Entity<DatumComponent> }
   | { state: 'filter'; entity: Entity<FilterComponent> }
   | { state: 'frame'; entity: Entity<FrameComponent> };
@@ -186,7 +187,22 @@ namespace DragState {
   /** Extracts the {@link DragState} from the passed {@link Entity}, or null if nothing could be computed. */
   export function get(entity: Entity): DragState | null {
     if (Entity.hasComponent(entity, GeometryComponent)) {
-      return { state: 'geometry', geometry: Entity.pickComponent(entity, GeometryComponent) };
+      const geometry = Entity.pickComponent(entity, GeometryComponent);
+      // Preserve the anchor point component so anchored-space metrics (origin / bbox / resize) take
+      // the anchor offset into account.
+      if (Entity.hasComponent(entity, AnchorPointComponent)) {
+        return {
+          state: 'geometry',
+          geometry: {
+            id: geometry.id,
+            components: {
+              ...geometry.components,
+              anchorPoint: entity.components.anchorPoint,
+            },
+          },
+        };
+      }
+      return { state: 'geometry', geometry };
     } else if (Entity.hasComponent(entity, DatumComponent)) {
       return { state: 'datum', entity };
     } else if (Entity.hasComponent(entity, FrameComponent)) {
@@ -223,7 +239,7 @@ namespace DragState {
   ): DragState {
     switch (state.state) {
       case 'geometry':
-        return { ...state, geometry: GeometryComponent.translate(state.geometry, transform) };
+        return { ...state, geometry: GeometryComponent.transform(state.geometry, transform) };
       case 'datum':
         return { ...state, entity: DatumComponent.translate(state.entity, transform) };
       case 'filter':
@@ -274,7 +290,7 @@ namespace DragState {
   export function getOrigin(state: DragState): SheetPosition | null {
     switch (state.state) {
       case 'geometry':
-        return GeometryComponent.getOrigin(state.geometry);
+        return GeometryComponent.getRenderOrigin(state.geometry);
       case 'datum':
         return DatumComponent.getOrigin(state.entity);
       case 'filter':
@@ -682,7 +698,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       const geom = this.getGeometryStore().getByIdWithComponent(id, GeometryComponent);
       if (!geom || !GeometryComponent.isPolygon(geom)) continue;
 
-      const polygonData = GeometryComponent.get(geom);
+      const polygonData = GeometryComponent.getRendered(geom);
       const pointCount = polygonData.points.length;
       if (pointCount < 2) continue;
 
@@ -751,7 +767,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
     const polygonData = GeometryComponent.get(polygonGeom);
+    const worldPolygonData = GeometryComponent.getRendered(polygonGeom);
+    // The anchor offset stays fixed during a vertex drag. Snapping happens in anchored space, but
+    // geometry is stored raw, so translate between the two.
+    const anchorOffset = GeometryComponent.getAnchorPointOffset(polygonGeom);
+    const toRaw = (position: SheetPosition) =>
+      new SheetPosition(position.x + anchorOffset.x, position.y + anchorOffset.y);
     const beforePoint = polygonData.points[segmentIndex].point;
+    const worldBeforePoint = worldPolygonData.points[segmentIndex].point;
 
     this.draggingPolygonId = polygonId;
     this.draggingSegmentIndex = segmentIndex;
@@ -788,7 +811,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     if (matchedConstraints.length > 0 && sheetConfig) {
       const result = Constraint.computeConstrainedTracksForPoints(
         matchedConstraints,
-        [beforePoint],
+        [worldBeforePoint],
         sheetConfig.defaultUnit,
         (ep) => this.getGeometryStore().resolveConstraintEndpoint(ep),
         sheetConfig.epsilon,
@@ -823,6 +846,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           },
           this.getSheet()?.epsilon ?? 0.001,
         );
+        const snappedRaw = toRaw(snapped);
 
         this.getGeometryStore().updateByIdWithComponentDirect(
           this.draggingPolygonId,
@@ -840,7 +864,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
             points[this.draggingSegmentIndex] = {
               ...points[this.draggingSegmentIndex],
-              point: snapped,
+              point: snappedRaw,
             };
 
             // If dragging the furst point, also drag the last point too, if the last point is at the
@@ -848,7 +872,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             // point at the same position as the first point) can be moved properly without the last
             // point getting "stuck.
             if (isFirstPointAndAtSamePositionAslastPoint) {
-              points[points.length - 1] = { ...points[points.length - 1], point: snapped };
+              points[points.length - 1] = { ...points[points.length - 1], point: snappedRaw };
             }
 
             const updated = GeometryComponent.update(prev, { points });
@@ -882,11 +906,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
             points[locked.segmentIndex] = {
               ...points[locked.segmentIndex],
-              point: snapped,
+              point: snappedRaw,
             };
 
             if (isFirstPointAndAtSamePositionAsLastPoint) {
-              points[points.length - 1] = { ...points[points.length - 1], point: snapped };
+              points[points.length - 1] = { ...points[points.length - 1], point: snappedRaw };
             }
 
             return GeometryComponent.update(prev, { points }) as Entity;
@@ -896,7 +920,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
-        const afterPoint = applySnappingOnConstrainedTrack(
+        const afterPointWorld = applySnappingOnConstrainedTrack(
           world.toSheet(),
           this.draggingConstrainedTrackResult,
           {
@@ -909,6 +933,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           },
           this.getSheet()?.epsilon ?? 0.001,
         );
+        const afterPoint = toRaw(afterPointWorld);
 
         if (
           this.draggingPolygonId &&
@@ -1092,6 +1117,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
     const ctrlPolygonData = GeometryComponent.get(geom);
+    const anchorOffset = GeometryComponent.getAnchorPointOffset(geom);
+    const toRaw = (position: SheetPosition) =>
+      new SheetPosition(position.x + anchorOffset.x, position.y + anchorOffset.y);
     let beforePoint: SheetPosition;
     if (pointKey === 'controlPoint') {
       beforePoint = (ctrlPolygonData.points[segmentIndex] as QuadraticBezierSegment).controlPoint;
@@ -1131,12 +1159,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
           const prevData = GeometryComponent.get(prev);
           const segments = prevData.points.slice();
+          const snappedRaw = toRaw(snapped);
           if (this.draggingPointKey === 'controlPoint') {
             const seg = segments[this.draggingSegmentIndex] as QuadraticBezierSegment;
-            segments[this.draggingSegmentIndex] = { ...seg, controlPoint: snapped };
+            segments[this.draggingSegmentIndex] = { ...seg, controlPoint: snappedRaw };
           } else {
             const seg = segments[this.draggingSegmentIndex] as CubicBezierSegment;
-            segments[this.draggingSegmentIndex] = { ...seg, [this.draggingPointKey]: snapped };
+            segments[this.draggingSegmentIndex] = { ...seg, [this.draggingPointKey]: snappedRaw };
           }
           return GeometryComponent.update(prev, { points: segments }) as Entity;
         });
@@ -1144,14 +1173,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       onCommit: (sp) => {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
-        const afterPoint = applySnapping(world.toSheet(), {
-          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-          ctrlHeld: this.toolManager.getCtrlHeld(),
-          superHeld: false,
-          selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(polygonId),
-          viewportScale: liveViewport.scale,
-        });
+        const afterPoint = toRaw(
+          applySnapping(world.toSheet(), {
+            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+            ctrlHeld: this.toolManager.getCtrlHeld(),
+            superHeld: false,
+            selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(polygonId),
+            viewportScale: liveViewport.scale,
+          }),
+        );
         if (
           this.draggingPolygonId &&
           (beforePoint.x !== afterPoint.x || beforePoint.y !== afterPoint.y)
@@ -1185,6 +1216,126 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }
         this.activeDragListener = null;
         this.clearDragState();
+      },
+    });
+  }
+
+  /**
+   * Starts dragging a geometry's anchor point handle. The anchor point is stored as an offset (in
+   * sheet units) from the geometry's natural origin, so the handle is moved by updating the
+   * {@link AnchorPointComponent} rather than the underlying geometry.
+   */
+  onAnchorPointPointerDown(
+    _screenPos: ScreenPosition,
+    viewportControls: ViewportControls,
+    geometryId: Id,
+  ) {
+    const geometry = this.getGeometryStore().getByIdWithComponents(
+      geometryId,
+      GeometryComponent,
+      AnchorPointComponent,
+    );
+    if (!geometry) {
+      return;
+    }
+
+    // The key point stays fixed while dragging the handle - only the offset changes.
+    const beforeHandlePosition = AnchorPointComponent.getHandlePosition(geometry);
+    const before = AnchorPointComponent.get(geometry);
+    const filters = this.getGeometryStore().findFiltersByGeometryId(geometryId);
+
+    let lastDeltaX = 0,
+      lastDeltaY = 0;
+
+    this.activeDragListener = createDragListener({
+      viewportControls,
+      onMove: (sp) => {
+        const liveViewport = viewportControls.getState().viewport;
+        const snapped = applySnapping(sp.toWorld(liveViewport).toSheet(), {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          ctrlHeld: this.toolManager.getCtrlHeld(),
+          superHeld: false,
+          selectedGeometryFilters: filters,
+          viewportScale: liveViewport.scale,
+        });
+
+        this.getGeometryStore().updateByIdWithComponentDirect(
+          geometryId,
+          AnchorPointComponent,
+          (g) => {
+            const deltaX = snapped.x - beforeHandlePosition.x;
+            const deltaY = snapped.y - beforeHandlePosition.y;
+
+            const updated = AnchorPointComponent.update(g, {
+              keyPoint: before.keyPoint,
+              offset: new SheetPosition(before.offset.x + deltaX, before.offset.y + deltaY),
+            });
+
+            if (Entity.hasComponent(updated, GeometryComponent)) {
+              const output = GeometryComponent.transform(
+                updated,
+                (prev) =>
+                  new SheetPosition(prev.x - lastDeltaX + deltaX, prev.y - lastDeltaY + deltaY),
+              );
+              lastDeltaX = deltaX;
+              lastDeltaY = deltaY;
+              return output;
+            } else {
+              return updated;
+            }
+          },
+        );
+      },
+      onCommit: () => {
+        // Read the post-drag state from the store rather than recomputing it from the mouseup
+        // position: onMove is the source of truth for the live state (and onCommit can be called
+        // without a matching onMove, eg. a click without dragging).
+        const afterGeometry = this.getGeometryStore().getByIdWithComponents(
+          geometryId,
+          GeometryComponent,
+          AnchorPointComponent,
+        );
+        if (!afterGeometry) {
+          this.activeDragListener = null;
+          return;
+        }
+        const after = AnchorPointComponent.get(afterGeometry);
+
+        if (before.offset.x !== after.offset.x || before.offset.y !== after.offset.y) {
+          const forwardsActions: Array<UndoEntry> = [
+            UndoEntry.anchorPointMove(geometryId, before, after),
+          ];
+
+          const move = this.buildMoveUndoEntry(geometry, afterGeometry);
+          if (move) {
+            forwardsActions.push(move);
+          }
+
+          this.getHistoryManager().push(
+            UndoEntry.transaction('anchor-point-drag', forwardsActions),
+          );
+        }
+        this.activeDragListener = null;
+      },
+      onCancel: () => {
+        this.getGeometryStore().updateByIdWithComponentDirect(
+          geometryId,
+          AnchorPointComponent,
+          (g) => {
+            const updated = AnchorPointComponent.update(g, before);
+
+            if (Entity.hasComponent(updated, GeometryComponent)) {
+              return GeometryComponent.transform(
+                updated,
+                (prev) => new SheetPosition(prev.x - lastDeltaX, prev.y - lastDeltaY),
+              );
+            } else {
+              return updated;
+            }
+          },
+        );
+        this.activeDragListener = null;
       },
     });
   }
@@ -1696,6 +1847,95 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
   }
 
+  private buildMoveUndoEntry(before: Entity, after: Entity): UndoEntry | null {
+    if (before.id !== after.id) {
+      console.warn(
+        `SelectTool.buildMoveUndoEntry: before.id (${before.id}) is not after.id (${after.id}), returning null...`,
+      );
+      return null;
+    }
+
+    if (
+      Entity.hasComponent(before, GeometryComponent) &&
+      Entity.hasComponent(after, GeometryComponent)
+    ) {
+      if (GeometryComponent.isPolygon(before) && GeometryComponent.isPolygon(after)) {
+        const beforeState = GeometryComponent.get(before);
+        const afterState = GeometryComponent.get(after);
+        return UndoEntry.polygonMove(before.id, beforeState.points, afterState.points);
+      } else if (GeometryComponent.isEllipse(before) && GeometryComponent.isEllipse(after)) {
+        const beforeState = GeometryComponent.get(before);
+        const afterState = GeometryComponent.get(after);
+        return UndoEntry.ellipseMove(before.id, beforeState, afterState);
+      } else if (GeometryComponent.isRectangle(before) && GeometryComponent.isRectangle(after)) {
+        const beforeState = GeometryComponent.get(before);
+        const afterState = GeometryComponent.get(after);
+        return UndoEntry.rectangleMove(before.id, beforeState, afterState);
+      }
+    }
+
+    if (Entity.hasComponent(before, DatumComponent) && Entity.hasComponent(after, DatumComponent)) {
+      const beforeState = DatumComponent.get(before);
+      const afterState = DatumComponent.get(after);
+      // FIXME: make this history entry take just before / after, not wrapped in the object
+      return UndoEntry.datumMove(before.id, { position: beforeState }, { position: afterState });
+    }
+
+    if (
+      Entity.hasComponent(before, FilterComponent) &&
+      Entity.hasComponent(after, FilterComponent)
+    ) {
+      const beforeState = FilterComponent.get(before);
+      const afterState = FilterComponent.get(after);
+      switch (beforeState.type) {
+        case 'fillet':
+        case 'chamfer':
+          return null;
+        case 'mirror':
+          return UndoEntry.mirrorFilterMoveEndpoints(
+            before.id,
+            beforeState.pointA,
+            beforeState.pointB,
+            (afterState as typeof beforeState).pointA,
+            (afterState as typeof beforeState).pointB,
+          );
+        case 'pattern':
+          switch (beforeState.mode) {
+            case 'grid':
+              // This case should be a no-op, a grid filter will be moved as a frame.
+              return null;
+            case 'radial':
+              return UndoEntry.patternRadialFilterMoveCenter(
+                before.id,
+                beforeState.center,
+                (afterState as typeof beforeState).center,
+              );
+            default:
+              beforeState satisfies never;
+              break;
+          }
+          break;
+        default:
+          beforeState satisfies never;
+          break;
+      }
+    }
+
+    if (Entity.hasComponent(before, FrameComponent) && Entity.hasComponent(after, FrameComponent)) {
+      const beforeState = FrameComponent.get(before);
+      const afterState = FrameComponent.get(after);
+      return UndoEntry.frameMove(
+        before.id,
+        beforeState.upperLeft,
+        beforeState.lowerRight,
+        afterState.upperLeft,
+        afterState.lowerRight,
+      );
+    }
+
+    return null;
+  }
+
   // ==================== COMMON GEOMETEY  HANDLERS ====================
 
   handleGeometryFillPointerDown(
@@ -1933,110 +2173,32 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           if (!DragState.equals(state, newState)) {
             // FIXME: replace with one single event
             switch (state.state) {
-              case 'geometry':
-                if (!Entity.hasComponent(entity, GeometryComponent)) {
-                  // FIXME: add log
-                  return;
-                }
-                if (
-                  GeometryComponent.isPolygon(state.geometry) &&
-                  GeometryComponent.isPolygon(entity)
-                ) {
-                  const before = GeometryComponent.get(state.geometry);
-                  const after = GeometryComponent.get(entity);
-                  forwardsActions.push(UndoEntry.polygonMove(id, before.points, after.points));
-                } else if (
-                  GeometryComponent.isEllipse(state.geometry) &&
-                  GeometryComponent.isEllipse(entity)
-                ) {
-                  const before = GeometryComponent.get(state.geometry);
-                  const after = GeometryComponent.get(entity);
-                  forwardsActions.push(UndoEntry.ellipseMove(id, before, after));
-                } else if (
-                  GeometryComponent.isRectangle(state.geometry) &&
-                  GeometryComponent.isRectangle(entity)
-                ) {
-                  const before = GeometryComponent.get(state.geometry);
-                  const after = GeometryComponent.get(entity);
-                  forwardsActions.push(UndoEntry.rectangleMove(id, before, after));
+              case 'geometry': {
+                const move = this.buildMoveUndoEntry(state.geometry, entity);
+                if (move) {
+                  forwardsActions.push(move);
                 }
                 break;
+              }
               case 'datum': {
-                if (!Entity.hasComponent(entity, DatumComponent)) {
-                  // FIXME: add log
-                  return;
+                const move = this.buildMoveUndoEntry(state.entity, entity);
+                if (move) {
+                  forwardsActions.push(move);
                 }
-                const before = DatumComponent.get(state.entity);
-                const after = DatumComponent.get(entity);
-                // FIXME: make this history entry take just before / after, not wrapped in the object
-                forwardsActions.push(
-                  UndoEntry.datumMove(id, { position: before }, { position: after }),
-                );
                 break;
               }
               case 'filter': {
-                if (!Entity.hasComponent(entity, FilterComponent)) {
-                  // FIXME: add log
-                  return;
-                }
-                const before = FilterComponent.get(state.entity);
-                const after = FilterComponent.get(entity);
-                switch (before.type) {
-                  case 'fillet':
-                  case 'chamfer':
-                    break;
-                  case 'mirror':
-                    forwardsActions.push(
-                      UndoEntry.mirrorFilterMoveEndpoints(
-                        id,
-                        before.pointA,
-                        before.pointB,
-                        (after as typeof before).pointA,
-                        (after as typeof before).pointB,
-                      ),
-                    );
-                    break;
-                  case 'pattern':
-                    switch (before.mode) {
-                      case 'grid':
-                        // This case shouldn't get hit, a grid filter will be moved as a frame.
-                        break;
-                      case 'radial':
-                        forwardsActions.push(
-                          UndoEntry.patternRadialFilterMoveCenter(
-                            id,
-                            before.center,
-                            (after as typeof before).center,
-                          ),
-                        );
-                        break;
-                      default:
-                        before satisfies never;
-                        break;
-                    }
-                    break;
-                  default:
-                    before satisfies never;
-                    break;
+                const move = this.buildMoveUndoEntry(state.entity, entity);
+                if (move) {
+                  forwardsActions.push(move);
                 }
                 break;
               }
               case 'frame': {
-                if (!Entity.hasComponent(entity, FrameComponent)) {
-                  // FIXME: add log
-                  return;
+                const move = this.buildMoveUndoEntry(state.entity, entity);
+                if (move) {
+                  forwardsActions.push(move);
                 }
-                const before = FrameComponent.get(state.entity);
-                const after = FrameComponent.get(entity);
-                forwardsActions.push(
-                  UndoEntry.frameMove(
-                    id,
-                    before.upperLeft,
-                    before.lowerRight,
-                    after.upperLeft,
-                    after.lowerRight,
-                  ),
-                );
                 break;
               }
               default:
@@ -2297,36 +2459,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
               // FIXME: replace with one single event
               switch (originalState.state) {
-                case 'geometry':
-                  if (!Entity.hasComponent(afterEntity, GeometryComponent)) {
-                    // FIXME: add log
-                    return;
-                  }
-                  if (
-                    GeometryComponent.isPolygon(originalState.geometry) &&
-                    GeometryComponent.isPolygon(afterEntity)
-                  ) {
-                    const before = GeometryComponent.get(originalState.geometry);
-                    const after = GeometryComponent.get(afterEntity);
-                    this.getHistoryManager().push(
-                      UndoEntry.polygonMove(id, before.points, after.points),
-                    );
-                  } else if (
-                    GeometryComponent.isEllipse(originalState.geometry) &&
-                    GeometryComponent.isEllipse(afterEntity)
-                  ) {
-                    const before = GeometryComponent.get(originalState.geometry);
-                    const after = GeometryComponent.get(afterEntity);
-                    this.getHistoryManager().push(UndoEntry.ellipseMove(id, before, after));
-                  } else if (
-                    GeometryComponent.isRectangle(originalState.geometry) &&
-                    GeometryComponent.isRectangle(afterEntity)
-                  ) {
-                    const before = GeometryComponent.get(originalState.geometry);
-                    const after = GeometryComponent.get(afterEntity);
-                    this.getHistoryManager().push(UndoEntry.rectangleMove(id, before, after));
+                case 'geometry': {
+                  const move = this.buildMoveUndoEntry(originalState.geometry, afterEntity);
+                  if (move) {
+                    this.getHistoryManager().push(move);
                   }
                   break;
+                }
                 case 'datum':
                   console.warn(
                     'SelectTool.onCommit: Datum was resized, but this should not be possible. Doing nothing.',
@@ -2337,23 +2476,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                     'SelectTool.onCommit: Filter was resized, but this should not be possible. Doing nothing.',
                   );
                   break;
-                case 'frame':
-                  if (!Entity.hasComponent(afterEntity, FrameComponent)) {
-                    // FIXME: add log
-                    return;
+                case 'frame': {
+                  const move = this.buildMoveUndoEntry(originalState.entity, afterEntity);
+                  if (move) {
+                    this.getHistoryManager().push(move);
                   }
-                  const before = FrameComponent.get(originalState.entity);
-                  const after = FrameComponent.get(afterEntity);
-                  this.getHistoryManager().push(
-                    UndoEntry.frameMove(
-                      id,
-                      before.upperLeft,
-                      before.lowerRight,
-                      after.upperLeft,
-                      after.lowerRight,
-                    ),
-                  );
                   break;
+                }
                 default:
                   originalState satisfies never;
                   console.warn(
@@ -2698,7 +2827,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Adds a point on the specified line segment edge of a polygon at the given click position. */
   addPointOnLineSegmentEdge(polygonId: Id, segmentIndex: number, sheetPos: SheetPosition): void {
-    this.getGeometryStore().addPointOnLineSegmentEdge(polygonId, segmentIndex, sheetPos);
+    // The renderer reports the closest point in anchored space; store geometry is raw.
+    const geom = this.getGeometryStore().getByIdWithComponent(polygonId, GeometryComponent);
+    const offset = geom ? GeometryComponent.getAnchorPointOffset(geom) : new SheetPosition(0, 0);
+    this.getGeometryStore().addPointOnLineSegmentEdge(
+      polygonId,
+      segmentIndex,
+      new SheetPosition(sheetPos.x + offset.x, sheetPos.y + offset.y),
+    );
   }
 
   /** Adds a point on the specified quadratic arc edge of a polygon at the given click position.
@@ -2709,7 +2845,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const quadPolygonData = GeometryComponent.get(geom);
+    const quadPolygonData = GeometryComponent.getRendered(geom);
     const pointSegment = quadPolygonData.points[segmentIndex];
     const arcSegment = quadPolygonData.points[segmentIndex + 1];
     if (
@@ -2740,7 +2876,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const cubicPolygonData = GeometryComponent.get(geom);
+    const cubicPolygonData = GeometryComponent.getRendered(geom);
     const pointSegment = cubicPolygonData.points[segmentIndex];
     const arcSegment = cubicPolygonData.points[segmentIndex + 1];
     if (

@@ -63,28 +63,24 @@ export class FlipHorizontalAction extends BaseAction {
         const polyGeom = geometryStore.getByIdWithComponent(id, GeometryComponent);
         if (polyGeom) {
           const polyData = GeometryComponent.get(polyGeom);
+          // The selection center is in anchored space; geometry is stored raw.
+          const rawCenterX = centerX + GeometryComponent.getAnchorPointOffset(polyGeom).x;
           if (polyData.type === 'polygon') {
             geometryStore.updateById(id, (old) => {
               const data = GeometryComponent.get(old as Entity<GeometryComponent<PolygonData>>);
               return GeometryComponent.update(old as Entity<GeometryComponent<PolygonData>>, {
-                points: flipPolygonPoints(data.points, centerX),
+                points: flipPolygonPoints(data.points, rawCenterX),
               });
             });
             continue;
           }
 
           if (polyData.type === 'rectangle') {
-            const rect = polyData;
-            const flippedUl = Flip.horizontal(rect.upperLeft, centerX);
-            const flippedUr = Flip.horizontal(
-              new SheetPosition(rect.lowerRight.x, rect.upperLeft.y),
-              centerX,
-            );
-            const flippedLr = Flip.horizontal(rect.lowerRight, centerX);
-            const flippedLl = Flip.horizontal(
-              new SheetPosition(rect.upperLeft.x, rect.lowerRight.y),
-              centerX,
-            );
+            const corners = RectangleData.corners(polyData);
+            const flippedUl = Flip.horizontal(corners.upperLeft, rawCenterX);
+            const flippedUr = Flip.horizontal(corners.upperRight, rawCenterX);
+            const flippedLr = Flip.horizontal(corners.lowerRight, rawCenterX);
+            const flippedLl = Flip.horizontal(corners.lowerLeft, rawCenterX);
 
             const xs = [flippedUl.x, flippedUr.x, flippedLr.x, flippedLl.x];
             const ys = [flippedUl.y, flippedUr.y, flippedLr.y, flippedLl.y];
@@ -93,8 +89,9 @@ export class FlipHorizontalAction extends BaseAction {
 
             geometryStore.updateById(id, (old) =>
               GeometryComponent.update(old as Entity<GeometryComponent<RectangleData>>, {
-                upperLeft: newUl,
-                lowerRight: newLr,
+                origin: newUl,
+                width: newLr.x - newUl.x,
+                height: newLr.y - newUl.y,
               }),
             );
             continue;
@@ -102,7 +99,7 @@ export class FlipHorizontalAction extends BaseAction {
 
           if (polyData.type === 'ellipse') {
             const ellipse = polyData;
-            const newCenter = Flip.horizontal(ellipse.center, centerX);
+            const newCenter = Flip.horizontal(ellipse.center, rawCenterX);
 
             geometryStore.updateById(id, (old) =>
               GeometryComponent.update(old as Entity<GeometryComponent<EllipseData>>, {

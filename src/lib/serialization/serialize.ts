@@ -24,23 +24,24 @@ import {
   type VerticalConstraintData,
 } from '@/lib/entity/constraints';
 import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/entity/datum';
-import {
-  CONSTRAINT_COLOR,
-  CONSTRAINT_LINE_WIDTH_PX,
-  computeDimensionLinePoints,
-} from '@/lib/viewport/dimension-line-utils';
-import { GeometryData } from '../entity/geometry';
-import { type Sheet } from '../sheet/Sheet';
-import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
-import { type UnitType } from '../units/length';
+import { GeometryData } from '@/lib/entity/geometry';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
+import { type Sheet } from '@/lib/sheet/Sheet';
+import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
+import { type UnitType } from '@/lib/units/length';
 import {
   CentimetersType,
   FeetType,
   InchesType,
   MetersType,
   MillimetersType,
-} from '../units/length';
-import { type SheetPosition } from '../viewport/types';
+} from '@/lib/units/length';
+import {
+  CONSTRAINT_COLOR,
+  CONSTRAINT_LINE_WIDTH_PX,
+  computeDimensionLinePoints,
+} from '@/lib/viewport/dimension-line-utils';
+import { type SheetPosition } from '@/lib/viewport/types';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION, type SerializedState } from './versions';
 
 /** Converts a SheetPosition to pixels (world coordinates). */
@@ -127,13 +128,17 @@ export function serializePolygon(polygon: Polygon, options?: { hidden?: boolean 
 
 /** Serializes a rectangle to an SVG <rect> element string. */
 export function serializeRectangle(geometry: Rectangle, options?: { hidden?: boolean }): string {
-  const rectangleData = GeometryComponent.get(geometry);
-  const upperLeft = positionToPixels(rectangleData.upperLeft);
-  const lowerRight = positionToPixels(rectangleData.lowerRight);
-  const width = Math.abs(lowerRight.x - upperLeft.x);
-  const height = Math.abs(lowerRight.y - upperLeft.y);
-  const x = Math.min(upperLeft.x, lowerRight.x);
-  const y = Math.min(upperLeft.y, lowerRight.y);
+  const bbox = RectangleData.boundingBox(geometry);
+  if (bbox.width < 0 || bbox.height < 0) {
+    throw new Error(
+      `serializeRectangle: rectangle ${geometry.id} has negative dimensions ${bbox.width}x${bbox.height}`,
+    );
+  }
+  const upperLeft = positionToPixels(bbox.position);
+  const width = Math.abs(bbox.width) * SHEET_UNITS_TO_PIXELS;
+  const height = Math.abs(bbox.height) * SHEET_UNITS_TO_PIXELS;
+  const x = upperLeft.x;
+  const y = upperLeft.y;
   const fillColor = colorToHex(FillColorComponent.get(geometry));
 
   const attrs: Array<string> = [
@@ -700,6 +705,10 @@ export function serializeToSvg(
             renderShapesSvgParts.push(
               `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"${fillAttr} stroke="#000" stroke-width="1" />`,
             );
+            break;
+          }
+          case 'point': {
+            // TODO: implement render shape type of point serialization!
             break;
           }
           default:

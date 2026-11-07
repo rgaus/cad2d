@@ -11,8 +11,8 @@ import {
   DestinationPoint,
   GeometryComponent,
   GetRenderShapesOptions,
-  RenderShape,
 } from '../components/GeometryComponent';
+import { RenderShape } from '../render-shape';
 
 export type PatternGridFilterData = {
   type: 'pattern';
@@ -321,7 +321,7 @@ export namespace PatternFilter {
     geometry: Entity<GeometryComponent>,
     filterData: PatternFilterData,
   ): 'unchanged' | 'filled' {
-    const polyData = GeometryComponent.get(geometry);
+    const polyData = GeometryComponent.getRendered(geometry);
     if (polyData.type !== 'polygon' || polyData.closed) {
       return 'unchanged';
     }
@@ -461,6 +461,15 @@ export namespace PatternFilter {
                       primary: false,
                     }),
                   );
+                  break;
+                }
+                case 'point': {
+                  const translatedPoint = new SheetPosition(
+                    renderShape.position.x + offsetX,
+                    renderShape.position.y + offsetY,
+                  );
+
+                  copies.push(RenderShape.point(key, translatedPoint, { primary: false }));
                   break;
                 }
                 default:
@@ -711,6 +720,18 @@ export namespace PatternFilter {
                 }
 
                 return [renderShape, ...copies];
+              }
+              case 'point': {
+                copies.push(
+                  RenderShape.point(
+                    key,
+                    rotatePointAround(renderShape.position, filterData.center, angle),
+                    {
+                      primary: false,
+                    },
+                  ),
+                );
+                break;
               }
               default:
                 renderShape satisfies never;

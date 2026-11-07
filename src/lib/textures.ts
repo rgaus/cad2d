@@ -12,6 +12,7 @@ export const SPRITE_SCALE_FACTOR = 2;
 
 export const SELECTION_COLOR = 0x3498db;
 export const SELECTION_HINT_WIDTH_PX = 3;
+export const ANCHOR_POINT_COLOR = 0xe67e22;
 
 /** Stroke color used to indicate when a tool calls BaseTool.highlightGeometry */
 export const HIGHLIGHT_COLOR_STROKE = 0x1c3e32; // var(--jade-3)
@@ -116,6 +117,33 @@ export const SelectionCornerHandleTexture = new CachedIconTexture(() => {
   ctx.arc(HANDLE_SIZE_PX, HANDLE_SIZE_PX, HANDLE_SIZE_PX - 1, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  return Texture.from(canvas);
+});
+
+/** A circular handle with a crosshair, used to adjust a geometry's anchor point. */
+export const AnchorPointHandleTexture = new CachedIconTexture(() => {
+  const canvas = document.createElement('canvas');
+  canvas.width = HANDLE_SIZE_PX * SPRITE_SCALE_FACTOR;
+  canvas.height = HANDLE_SIZE_PX * SPRITE_SCALE_FACTOR;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = `#${ANCHOR_POINT_COLOR.toString(16)}`;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(HANDLE_SIZE_PX, HANDLE_SIZE_PX, HANDLE_SIZE_PX - 1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Crosshair arms to distinguish this handle from the selection corner handles.
+  const arm = 5;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(HANDLE_SIZE_PX - arm, HANDLE_SIZE_PX);
+  ctx.lineTo(HANDLE_SIZE_PX + arm, HANDLE_SIZE_PX);
+  ctx.moveTo(HANDLE_SIZE_PX, HANDLE_SIZE_PX - arm);
+  ctx.lineTo(HANDLE_SIZE_PX, HANDLE_SIZE_PX + arm);
+  ctx.stroke();
+
   return Texture.from(canvas);
 });
 

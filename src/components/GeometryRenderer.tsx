@@ -24,6 +24,7 @@ import {
   ScreenPosition,
   SheetPosition,
 } from '@/lib/viewport/types';
+import { AnchorPointOverlay } from './AnchorPointOverlay';
 import { CurveControlPointHandlesSprites } from './CurveControlPointHandlesSprites';
 import { CurveEdgeHitDetector } from './CurveEdgeHitDetector';
 import { HandleSprites } from './HandleSprites';
@@ -653,6 +654,9 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
                 onFillPointerOut={onFillPointerOut}
               />
             );
+          case 'point':
+            // Don't render points, they are zero size.
+            return null;
           default:
             renderShape satisfies never;
             break;
@@ -799,7 +803,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
   const idPolygonDataPairs = useMemo(
     () =>
       geometries.flatMap((g) => {
-        const data = GeometryComponent.get<GeometryData>(g);
+        const data = GeometryComponent.getRendered<GeometryData>(g);
         if (data.type === 'polygon') {
           return [[g.id, data] as const];
         } else {
@@ -1073,8 +1077,17 @@ const PolygonOverlay: React.FunctionComponent = () => {
   );
 };
 
+const GeometryOverlay: React.FunctionComponent = () => {
+  return (
+    <>
+      <PolygonOverlay />
+      <AnchorPointOverlay />
+    </>
+  );
+};
+
 /** Renders all polygons currently on the sheet. */
 export const GeometryLayers: ListLayers<Geometry, React.ReactNode> = {
   [RendererLayers.Solids]: (geometry) => <GeometrySolid geometry={geometry} />,
-  [RendererLayers.Overlays]: <PolygonOverlay />,
+  [RendererLayers.Overlays]: <GeometryOverlay />,
 };

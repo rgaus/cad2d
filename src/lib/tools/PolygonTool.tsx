@@ -12,12 +12,14 @@ import {
 import { QuerySegmentIntersectionPoint } from '@/lib/entity/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
 } from '@/lib/entity/constraints';
 import { LinearConstraintData } from '@/lib/entity/constraints/linear';
+import { GeometryData } from '@/lib/entity/geometry';
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
 import { DeCasteljau, Vector2, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import {
@@ -32,6 +34,7 @@ import {
   type WorkingPolygonSource,
 } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
+import { getGridAtScale } from '@/lib/viewport/grid';
 import {
   CubicCurve,
   LineSegment,
@@ -40,8 +43,6 @@ import {
   SheetPosition,
   type ViewportState,
 } from '@/lib/viewport/types';
-import { FilterComponent } from '../entity/components/FilterComponent';
-import { getGridAtScale } from '../viewport/grid';
 import { BaseTool } from './BaseTool';
 
 export type PolygonToolEndpoint = {
@@ -1528,19 +1529,20 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             continue;
           }
 
-          const geoData = GeometryComponent.get(geometry);
+          const geomData = GeometryComponent.get<GeometryData>(geometry);
           let polygonPoints: Array<PolygonSegment>;
           let polygonClosed = true;
-          switch (geoData.type) {
+          switch (geomData.type) {
             case 'ellipse':
-              polygonPoints = ellipseToPolygon(geoData.center, geoData.radiusX, geoData.radiusY);
+              polygonPoints = ellipseToPolygon(geomData.center, geomData.radiusX, geomData.radiusY);
               break;
-            case 'rectangle':
-              polygonPoints = rectangleToPolygon(geoData.upperLeft, geoData.lowerRight);
+            case 'rectangle': {
+              polygonPoints = rectangleToPolygon(geomData.origin, geomData.width, geomData.height);
               break;
+            }
             case 'polygon':
-              polygonPoints = geoData.points;
-              polygonClosed = geoData.closed;
+              polygonPoints = geomData.points;
+              polygonClosed = geomData.closed;
               break;
             default:
               continue;

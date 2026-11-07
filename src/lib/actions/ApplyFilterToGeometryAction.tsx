@@ -19,16 +19,16 @@ import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { FillColorComponent } from '@/lib/entity/components/FillColorComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
-import { DestinationPoint, RenderShape } from '@/lib/entity/components/GeometryComponent';
+import { DestinationPoint } from '@/lib/entity/components/GeometryComponent';
 import { type ChamferFilterData } from '@/lib/entity/filters/chamfer';
 import { type FilletFilterData } from '@/lib/entity/filters/fillet';
 import { type MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { type PatternFilterData } from '@/lib/entity/filters/pattern';
-import { PolygonData } from '@/lib/entity/geometry/polygon';
-import { PolygonSegment } from '@/lib/entity/polygon';
+import { PolygonData, PolygonSegment } from '@/lib/entity/geometry/polygon';
 import { type RectangleEndpoint } from '@/lib/entity/rectangle';
 import { CornerReplacement, type CornerSegmentFactory, Vector2, mod } from '@/lib/math';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
+import { RenderShape } from '../entity/render-shape';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 
@@ -386,8 +386,19 @@ export class ApplyFilterToGeometryAction extends BaseAction {
         return g;
       }
       const polygon = g as Entity<GeometryComponent<PolygonData>>;
+      // Render shapes are anchored-space; convert back to raw stored coordinates.
+      const offset = GeometryComponent.getAnchorPointOffset(g);
+      const points =
+        offset.x === 0 && offset.y === 0
+          ? merged.points
+          : merged.points.map((segment) =>
+              PolygonSegment.transform(
+                segment,
+                (position) => new SheetPosition(position.x + offset.x, position.y + offset.y),
+              ),
+            );
       const withMergedPoints = GeometryComponent.update(polygon, {
-        points: merged.points,
+        points,
         closed: true,
         openAtIndex: 0,
       });
@@ -437,6 +448,14 @@ export class ApplyFilterToGeometryAction extends BaseAction {
             linkDimensions: false,
           }),
         );
+      case 'point':
+        // Point shapes are zero size
+        // TODO: I'm not 100% sure about this, validate there isn't a case where this will get hit
+        // in practice
+        console.warn(
+          'WARNING: ApplyFilterToGeometryAction.addRenderShapeAsGeometry: Skipping renderShape.shape of "point".',
+        );
+        return undefined;
       default:
         renderShape satisfies never;
         return undefined;

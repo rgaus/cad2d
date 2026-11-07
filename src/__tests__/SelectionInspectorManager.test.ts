@@ -116,7 +116,7 @@ describe('SelectionInspectorManager', () => {
         GeometryComponent,
       );
       const origData = GeometryComponent.get(origEntity!);
-      const origX = origData.type === 'rectangle' ? origData.upperLeft.x : 0;
+      const origX = origData.type === 'rectangle' ? origData.origin.x : 0;
 
       // First onChange — immediate commit via *Direct
       const newX = Length.centimeters(4);
@@ -134,8 +134,8 @@ describe('SelectionInspectorManager', () => {
       if (afterData.type !== 'rectangle') {
         return;
       }
-      expect(afterData.upperLeft.x).toBeCloseTo(4);
-      expect(afterData.upperLeft.y).toBeCloseTo(2);
+      expect(afterData.origin.x).toBeCloseTo(4);
+      expect(afterData.origin.y).toBeCloseTo(2);
 
       // Escape restores to original
       xField.handlers.onKeyDown?.('Escape');
@@ -147,7 +147,7 @@ describe('SelectionInspectorManager', () => {
       if (restoredData.type !== 'rectangle') {
         return;
       }
-      expect(restoredData.upperLeft.x).toBeCloseTo(origX);
+      expect(restoredData.origin.x).toBeCloseTo(origX);
     });
 
     it('y field onBlur moves upperLeft vertically', () => {
@@ -170,9 +170,8 @@ describe('SelectionInspectorManager', () => {
       if (data.type !== 'rectangle') {
         return;
       }
-      expect(data.upperLeft.y).toBeCloseTo(7);
-      const deltaY = 7 - 2;
-      expect(data.lowerRight.y).toBeCloseTo(5 + deltaY);
+      expect(data.origin.y).toBeCloseTo(7);
+      expect(data.height).toBeCloseTo(3);
     });
 
     it('width field onBlur resizes (anchors upperLeft)', () => {
@@ -195,9 +194,9 @@ describe('SelectionInspectorManager', () => {
       if (data.type !== 'rectangle') {
         return;
       }
-      expect(data.lowerRight.x).toBeCloseTo(1 + 10);
-      // upperLeft unchanged
-      expect(data.upperLeft.x).toBeCloseTo(1);
+      expect(data.width).toBeCloseTo(10);
+      // origin unchanged
+      expect(data.origin.x).toBeCloseTo(1);
     });
 
     it('height field onBlur resizes (anchors upperLeft)', () => {
@@ -220,8 +219,8 @@ describe('SelectionInspectorManager', () => {
       if (data.type !== 'rectangle') {
         return;
       }
-      expect(data.lowerRight.y).toBeCloseTo(2 + 8);
-      expect(data.upperLeft.y).toBeCloseTo(2);
+      expect(data.height).toBeCloseTo(8);
+      expect(data.origin.y).toBeCloseTo(2);
     });
 
     it('link button and convert button exist', () => {
@@ -270,8 +269,8 @@ describe('SelectionInspectorManager', () => {
       if (data.type !== 'rectangle') {
         return;
       }
-      expect(data.lowerRight.x).toBeCloseTo(1 + 10);
-      expect(data.lowerRight.y).toBeCloseTo(2 + 10);
+      expect(data.width).toBeCloseTo(10);
+      expect(data.height).toBeCloseTo(10);
     });
 
     it('height field forces square when linked', () => {
@@ -301,8 +300,8 @@ describe('SelectionInspectorManager', () => {
       if (data.type !== 'rectangle') {
         return;
       }
-      expect(data.lowerRight.y).toBeCloseTo(2 + 8);
-      expect(data.lowerRight.x).toBeCloseTo(1 + 8);
+      expect(data.height).toBeCloseTo(8);
+      expect(data.width).toBeCloseTo(8);
     });
 
     it('width field commit refreshes the linked height field display', () => {
@@ -1034,10 +1033,10 @@ describe('SelectionInspectorManager', () => {
       if (rectData.type !== 'rectangle') {
         return;
       }
-      expect(rectData.upperLeft.x).toBeCloseTo(12);
-      expect(rectData.upperLeft.y).toBeCloseTo(30);
-      expect(rectData.lowerRight.x).toBeCloseTo(17);
-      expect(rectData.lowerRight.y).toBeCloseTo(35);
+      expect(rectData.origin.x).toBeCloseTo(12);
+      expect(rectData.origin.y).toBeCloseTo(30);
+      expect(rectData.width).toBeCloseTo(5);
+      expect(rectData.height).toBeCloseTo(5);
 
       const ellEntity = geometryStore.getByIdWithComponent(ellipse.id, GeometryComponent);
       const ellData = GeometryComponent.get(ellEntity!);
@@ -1172,7 +1171,7 @@ describe('SelectionInspectorManager', () => {
       if (changedData.type !== 'rectangle') {
         return;
       }
-      expect(changedData.upperLeft.x).toBeCloseTo(4);
+      expect(changedData.origin.x).toBeCloseTo(4);
 
       // Change selection mid-edit.
       sheet.selectionManager.select(other.id);
@@ -1183,7 +1182,7 @@ describe('SelectionInspectorManager', () => {
       if (restoredData.type !== 'rectangle') {
         return;
       }
-      expect(restoredData.upperLeft.x).toBeCloseTo(1);
+      expect(restoredData.origin.x).toBeCloseTo(1);
       expect(historyManager.getUndoStack().length).toBe(undoBefore);
     });
   });
@@ -2116,14 +2115,14 @@ describe('SelectionInspectorManager', () => {
       if (data1.type !== 'rectangle') {
         return;
       }
-      expect(data1.upperLeft.x).toBeCloseTo(50);
+      expect(data1.origin.x).toBeCloseTo(50);
 
       const entity2 = geometryStore.getByIdWithComponent(rect2.id, GeometryComponent);
       const data2 = GeometryComponent.get(entity2!);
       if (data2.type !== 'rectangle') {
         return;
       }
-      expect(data2.upperLeft.x).toBeCloseTo(50);
+      expect(data2.origin.x).toBeCloseTo(50);
     });
 
     it('rectangle and ellipse at same x both move to new x', () => {
@@ -2153,7 +2152,7 @@ describe('SelectionInspectorManager', () => {
       if (rectData.type !== 'rectangle') {
         return;
       }
-      expect(rectData.upperLeft.x).toBeCloseTo(30);
+      expect(rectData.origin.x).toBeCloseTo(30);
 
       // Ellipse center.x moved
       const ellEntity = geometryStore.getByIdWithComponent(ellipse.id, GeometryComponent);

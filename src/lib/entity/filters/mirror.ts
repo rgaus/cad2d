@@ -4,11 +4,8 @@ import { Entity, type Polygon, PolygonSegment, RectangleEndpoint } from '..';
 import { DEFAULT_COLOR } from '../colors';
 import { FillColorComponent } from '../components/FillColorComponent';
 import { FilterComponent } from '../components/FilterComponent';
-import {
-  GeometryComponent,
-  GetRenderShapesOptions,
-  RenderShape,
-} from '../components/GeometryComponent';
+import { GeometryComponent, GetRenderShapesOptions } from '../components/GeometryComponent';
+import { RenderShape } from '../render-shape';
 
 export type MirrorFilterData = {
   type: 'mirror';
@@ -137,7 +134,7 @@ export namespace MirrorFilter {
     geometry: Entity<GeometryComponent>,
     filterData: MirrorFilterData,
   ): 'unchanged' | 'filled' {
-    const polyData = GeometryComponent.get(geometry);
+    const polyData = GeometryComponent.getRendered(geometry);
     if (polyData.type !== 'polygon' || polyData.closed) {
       return 'unchanged';
     }
@@ -226,7 +223,7 @@ export namespace MirrorFilter {
         }
         case 'ellipse': {
           // IMPORTANT: the below algorithm does not properly handle flipping over non 90 or 45
-          // degree lines, since there isn't a way to represent a rotated rectangle currently.
+          // degree lines, since there isn't a way to represent a rotated ellipse currently.
           //
           // FIXME: Address this, it's a bug that is fairly noticable.
 
@@ -345,6 +342,15 @@ export namespace MirrorFilter {
               mapping.set(i, existing);
             }
           }
+          break;
+        }
+        case 'point': {
+          produced.push(
+            RenderShape.point(
+              key,
+              mirrorPointOverLine(renderShape.position, filterData.pointA, filterData.pointB),
+            ),
+          );
           break;
         }
         default:

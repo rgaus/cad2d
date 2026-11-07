@@ -6,6 +6,7 @@ import {
   closestPointOnCubicCurve,
   closestPointOnQuadraticCurve,
   convexPolygonWindOrder,
+  centroid as mathCentroid,
 } from '@/lib/math';
 import {
   CubicCurve,
@@ -69,7 +70,7 @@ export type PolygonData = {
 export namespace PolygonData {
   export function keyPoints(
     geometry: Entity<GeometryComponent<PolygonData>>,
-  ): KeyPoints<SheetPosition, never> {
+  ): KeyPoints<SheetPosition, 'boundingBoxUpperLeft' | 'centroid', `Point ${number}`> {
     const polygonData = GeometryComponent.get(geometry);
     const points = polygonData.points.map((p) => p.point);
 
@@ -80,9 +81,26 @@ export namespace PolygonData {
 
     return {
       perimeter: points,
-      perimeterLabels: points.map(() => null),
-      extras: {},
+      perimeterLabels: points.map((_, index) => `Point ${index + 1}` as const),
+      extras: {
+        boundingBoxUpperLeft: PolygonData.boundingBox(geometry).position,
+        centroid: PolygonData.centroid(geometry),
+      },
     };
+  }
+
+  /**
+   * Computes the area centroid (center of mass) of the polygon's boundary, treating each segment
+   * as a straight line between its endpoint vertices. For open polygons the ring is implicitly
+   * closed from the last point back to the first. Degenerate polygons with ~zero enclosed area
+   * (eg. a single point or collinear points) fall back to the average of the vertices.
+   */
+  export function centroid(geometry: Entity<GeometryComponent<PolygonData>>): SheetPosition {
+    const { points } = GeometryComponent.get(geometry);
+    if (points.length === 0) {
+      throw new Error('PolygonData.centroid: cannot compute centroid of polygon with 0 points!');
+    }
+    return mathCentroid(points.map((p) => p.point));
   }
 
   export function boundingBox(
@@ -559,6 +577,7 @@ export namespace PolygonSegment {
     }
   }
 
+  /** Are two {@link PolygonSegment}s 100% equal? */
   export function equals(a: PolygonSegment, b: PolygonSegment): boolean {
     if (a.type !== b.type) {
       return false;
@@ -581,6 +600,31 @@ export namespace PolygonSegment {
           a.controlPointB.x === (b as CubicBezierSegment).controlPointB.x &&
           a.controlPointB.y === (b as CubicBezierSegment).controlPointB.y
         );
+    }
+  }
+
+  /** Apply the given transform function to all {@link SheetPosition}s contained within the
+   * passed {@link PolygonSegment. */
+  export function transform(
+    segment: PolygonSegment,
+    apply: (old: SheetPosition) => SheetPosition,
+  ): PolygonSegment {
+    switch (segment.type) {
+      case 'point':
+        return { ...segment, point: apply(segment.point) };
+      case 'arc-quadratic':
+        return {
+          ...segment,
+          point: apply(segment.point),
+          controlPoint: apply(segment.controlPoint),
+        };
+      case 'arc-cubic':
+        return {
+          ...segment,
+          point: apply(segment.point),
+          controlPointA: apply(segment.controlPointA),
+          controlPointB: apply(segment.controlPointB),
+        };
     }
   }
 
