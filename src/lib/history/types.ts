@@ -7,10 +7,11 @@ import type {
   Polygon,
   PolygonSegment,
 } from '@/lib/entity';
-import type { Length, SerializedLength, UnitType } from '@/lib/units/length';
-import type { SheetPosition } from '@/lib/viewport/types';
+import type { RotationData } from '@/lib/entity/components/RotationComponent';
 import type { EllipseData } from '@/lib/entity/geometry/ellipse';
 import type { RectangleData } from '@/lib/entity/geometry/rectangle';
+import type { Length, SerializedLength, UnitType } from '@/lib/units/length';
+import type { SheetPosition } from '@/lib/viewport/types';
 
 export type TransactionEntity = {
   type: 'transaction';
@@ -80,6 +81,14 @@ export type AnchorPointMoveEntry = {
   id: Id;
   beforeAnchorPoint: AnchorPointData;
   afterAnchorPoint: AnchorPointData;
+};
+
+/** Recorded when a geometry's rotation is changed. */
+export type RotationChangeEntry = {
+  type: 'rotation-change';
+  id: Id;
+  beforeRotation: RotationData;
+  afterRotation: RotationData;
 };
 
 /** Recorded when a polygon is moved (all vertices shifted). */
@@ -395,6 +404,7 @@ export type UndoEntry =
   | RenderOrderEntry
   | LinkDimensionsEntry
   | AnchorPointMoveEntry
+  | RotationChangeEntry
   | PolygonMoveEntry
   | RectangleMoveEntry
   | EllipseMoveEntry
@@ -611,6 +621,15 @@ export namespace UndoEntry {
     afterAnchorPoint: AnchorPointData,
   ): AnchorPointMoveEntry {
     return { type: 'anchor-point-move', id, beforeAnchorPoint, afterAnchorPoint };
+  }
+
+  /** Creates an entry for changing a geometry's rotation. */
+  export function rotationChange(
+    id: Id,
+    beforeRotation: RotationData,
+    afterRotation: RotationData,
+  ): RotationChangeEntry {
+    return { type: 'rotation-change', id, beforeRotation, afterRotation };
   }
 
   /** Creates an entry for converting a rectangle to a polygon. */

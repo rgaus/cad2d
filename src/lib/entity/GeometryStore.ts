@@ -29,6 +29,7 @@ import { UnitType } from '../units/length';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 import { DCELShapeIndex } from './DCELShapeIndex';
 import { FilterComponent } from './components/FilterComponent';
+import { RotationComponent } from './components/RotationComponent';
 import {
   Constraint,
   ConstraintEndpoint,
@@ -890,6 +891,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       const afterAnchor = AnchorPointComponent.get(after);
       if (beforeAnchor !== afterAnchor) {
         this.historyManager.apply(UndoEntry.anchorPointMove(id, beforeAnchor, afterAnchor));
+      }
+    }
+
+    // Track rotation changes.
+    if (
+      Entity.hasComponent(before, RotationComponent) &&
+      Entity.hasComponent(after, RotationComponent)
+    ) {
+      const beforeRotation = RotationComponent.get(before);
+      const afterRotation = RotationComponent.get(after);
+      if (beforeRotation !== afterRotation) {
+        this.historyManager.push(UndoEntry.rotationChange(id, beforeRotation, afterRotation));
       }
     }
   }

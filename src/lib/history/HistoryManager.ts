@@ -14,6 +14,7 @@ import {
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -270,6 +271,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'anchor-point-move':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, AnchorPointComponent, (old) =>
           AnchorPointComponent.update(old, entry.afterAnchorPoint),
+        );
+        break;
+      case 'rotation-change':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, RotationComponent, (old) =>
+          RotationComponent.update(old, entry.afterRotation),
         );
         break;
       case 'polygon-insert-point':
@@ -910,6 +916,11 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
       case 'anchor-point-move':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, AnchorPointComponent, (old) =>
           AnchorPointComponent.update(old, entry.beforeAnchorPoint),
+        );
+        break;
+      case 'rotation-change':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, RotationComponent, (old) =>
+          RotationComponent.update(old, entry.beforeRotation),
         );
         break;
       case 'fill-color':
