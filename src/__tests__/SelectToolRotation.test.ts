@@ -218,6 +218,40 @@ describe('SelectTool rotation-aware interactions', () => {
       ctrlSpy.mockRestore();
     });
 
+    it('pins the center for an alt-resize of a rotated rectangle', () => {
+      const ctrlSpy = jest.spyOn(toolManager, 'getCtrlHeld').mockReturnValue(true);
+      const altSpy = jest.spyOn(toolManager, 'getAltHeld').mockReturnValue(true);
+      const rectangle = addRotatedRectangle(
+        new SheetPosition(10, 10),
+        new SheetPosition(14, 12),
+        30,
+      );
+      const beforeCorners = renderedCorners(rectangle);
+      const beforeCenter = new SheetPosition(
+        (beforeCorners.upperLeft.x + beforeCorners.lowerRight.x) / 2,
+        (beforeCorners.upperLeft.y + beforeCorners.lowerRight.y) / 2,
+      );
+
+      const targetRendered = renderPoint(rectangle, new SheetPosition(20, 8));
+      const client = startResize(
+        [rectangle.id],
+        { type: 'corner', corner: 'top-right' },
+        targetRendered,
+      );
+      commitAt(client);
+
+      const after = geometryStore.getByIdWithComponent(rectangle.id, GeometryComponent)!;
+      const afterCorners = renderedCorners(after);
+      const afterCenter = new SheetPosition(
+        (afterCorners.upperLeft.x + afterCorners.lowerRight.x) / 2,
+        (afterCorners.upperLeft.y + afterCorners.lowerRight.y) / 2,
+      );
+      expect(afterCenter.x).toBeCloseTo(beforeCenter.x, 6);
+      expect(afterCenter.y).toBeCloseTo(beforeCenter.y, 6);
+      altSpy.mockRestore();
+      ctrlSpy.mockRestore();
+    });
+
     it('preserves fill components and lastFillColor during a rotated resize', () => {
       const ctrlSpy = jest.spyOn(toolManager, 'getCtrlHeld').mockReturnValue(true);
       const polygon = geometryStore.addOrdered(
@@ -791,6 +825,15 @@ describe('SelectTool rotation-aware interactions', () => {
       expect(oneScaleY).not.toBeCloseTo(1, 3);
       expect(twoScaleX).toBeCloseTo(oneScaleX, 6);
       expect(twoScaleY).toBeCloseTo(oneScaleY, 6);
+
+      const afterFrame = computeSelectionResizeFrame([
+        geometryStore.getById(one.id)!,
+        geometryStore.getById(two.id)!,
+      ])!;
+      const beforePinned = OrientedBoundingBox.corners(frame.bbox).lowerLeft;
+      const afterPinned = OrientedBoundingBox.corners(afterFrame.bbox).lowerLeft;
+      expect(afterPinned.x).toBeCloseTo(beforePinned.x, 6);
+      expect(afterPinned.y).toBeCloseTo(beforePinned.y, 6);
       ctrlSpy.mockRestore();
     });
 

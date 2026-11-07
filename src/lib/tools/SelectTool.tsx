@@ -128,15 +128,20 @@ function computeSelectionOrigin(states: Map<Id, DragState | null>): SheetPositio
   return new SheetPosition(minX, minY);
 }
 
-/** Returns the rendered position of the handle opposite the one being dragged. This is the point
- * that must remain pinned in rendered space during a rotation-aware resize. */
+/** Returns the rendered position that must remain pinned in rendered space during a
+ * rotation-aware resize: the opposite handle, or the center when alt-dragging. */
 function getPinnedResizePosition(
   mode: ResizeMode,
   frame: OrientedRect<SheetPosition>,
+  centerPinned: boolean,
 ): SheetPosition {
   const corners = OrientedBoundingBox.corners(frame);
   const mid = (a: SheetPosition, b: SheetPosition) =>
     new SheetPosition((a.x + b.x) / 2, (a.y + b.y) / 2);
+
+  if (centerPinned) {
+    return mid(corners.upperLeft, corners.lowerRight);
+  }
 
   if (mode.type === 'corner') {
     switch (mode.corner) {
@@ -2632,14 +2637,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           resizeFrame.strategy !== 'axis-aligned-fallback' &&
           resizeFrame.bbox.angleDegrees !== 0
         ) {
-          const beforePinned = getPinnedResizePosition(this.resizeMode, resizeFrame.bbox);
+          const beforePinned = getPinnedResizePosition(this.resizeMode, resizeFrame.bbox, altHeld);
           const afterEntities = Array.from(groupStates.keys()).flatMap((id) => {
             const entity = this.getGeometryStore().getById(id);
             return entity ? [entity] : [];
           });
           const afterFrame = computeSelectionResizeFrame(afterEntities);
           if (afterFrame) {
-            const afterPinned = getPinnedResizePosition(this.resizeMode, afterFrame.bbox);
+            const afterPinned = getPinnedResizePosition(this.resizeMode, afterFrame.bbox, altHeld);
             const correctionX = afterPinned.x - beforePinned.x;
             const correctionY = afterPinned.y - beforePinned.y;
             if (Math.abs(correctionX) > 1e-9 || Math.abs(correctionY) > 1e-9) {
