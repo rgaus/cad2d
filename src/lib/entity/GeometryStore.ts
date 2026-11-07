@@ -26,13 +26,7 @@ import { HistoryManager } from '../history/HistoryManager';
 import { type ConversionMigration, UndoEntry } from '../history/types';
 import { ellipseToPolygon } from '../math';
 import { UnitType } from '../units/length';
-import {
-  CubicCurve,
-  GeometryRelativeSheetPosition,
-  LineSegment,
-  QuadraticCurve,
-  SheetPosition,
-} from '../viewport/types';
+import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
 import { DCELShapeIndex } from './DCELShapeIndex';
 import { FilterComponent } from './components/FilterComponent';
 import { RotationComponent } from './components/RotationComponent';
@@ -1646,11 +1640,13 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     if (polygonData.type !== 'polygon') {
       return null;
     }
-    const renderedPolygon = GeometryComponent.projectToSheet(polygon);
-    if (pointIndex >= renderedPolygon.points.length) {
+    const renderedPoints = PolygonData.renderedSegments(
+      polygon as Entity<GeometryComponent<PolygonData>>,
+    );
+    if (pointIndex >= renderedPoints.length) {
       return null;
     }
-    return renderedPolygon.points[pointIndex].point;
+    return renderedPoints[pointIndex].point;
   }
 
   setWorkingConstraints(
@@ -1860,13 +1856,11 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               if (geomData.type !== 'polygon') {
                 return old;
               }
-              // The DCEL works in anchored space; convert back to raw stored coordinates. This
-              // intentionally preserves the legacy anchor-only conversion (bug-for-bug parity).
-              const offset = GeometryComponent.getAnchorPointOffset(old);
+              // The DCEL works in rendered space; invert the full render transform (anchor and
+              // rotation) to convert back to raw stored coordinates.
               const toLocal = (position: SheetPosition) =>
-                new GeometryRelativeSheetPosition(
-                  position.x + offset.x - geomData.position.x,
-                  position.y + offset.y - geomData.position.y,
+                position.toGeometryRelativeSheetPosition(
+                  old as Entity<GeometryComponent & Partial<AnchorPointComponent>>,
                 );
               const points = geomData.points.slice();
               for (const { update, position } of updates) {
@@ -1901,10 +1895,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               if (geomData.type !== 'rectangle') {
                 return old;
               }
-              // The DCEL works in anchored space; convert back to raw stored coordinates.
-              const offset = GeometryComponent.getAnchorPointOffset(old);
-              const toRaw = (position: SheetPosition) =>
-                new SheetPosition(position.x + offset.x, position.y + offset.y);
+              // The DCEL works in rendered space; invert the full render transform (anchor and
+              // rotation) to convert back to raw stored coordinates.
+              const origin = GeometryComponent.getOrigin(old as Entity<GeometryComponent>);
+              const toRaw = (position: SheetPosition) => {
+                const relative = position.toGeometryRelativeSheetPosition(
+                  old as Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+                );
+                return new SheetPosition(origin.x + relative.x, origin.y + relative.y);
+              };
               let working: Entity<GeometryComponent<RectangleData>> = old as Entity<
                 GeometryComponent<RectangleData>
               >;
@@ -1955,10 +1954,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               if (geomData.type !== 'ellipse') {
                 return old;
               }
-              // The DCEL works in anchored space; convert back to raw stored coordinates.
-              const offset = GeometryComponent.getAnchorPointOffset(old);
-              const toRaw = (position: SheetPosition) =>
-                new SheetPosition(position.x + offset.x, position.y + offset.y);
+              // The DCEL works in rendered space; invert the full render transform (anchor and
+              // rotation) to convert back to raw stored coordinates.
+              const origin = GeometryComponent.getOrigin(old as Entity<GeometryComponent>);
+              const toRaw = (position: SheetPosition) => {
+                const relative = position.toGeometryRelativeSheetPosition(
+                  old as Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+                );
+                return new SheetPosition(origin.x + relative.x, origin.y + relative.y);
+              };
               // NOTE: the ordering here is really important.
               // The center has to be dealt with first
               // And then the perimeter positions subtracted from the up to date center
