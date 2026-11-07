@@ -2,7 +2,6 @@ import {
   type ConstrainedTrack,
   ConstraintEndpoint,
   Datum,
-  DatumComponent,
   Ellipse,
   GeometryComponent,
   LinearConstraint,

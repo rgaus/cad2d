@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useRenderableGeometries } from '@/hooks/useEntities';
-import { Entity, GeometryComponent } from '@/lib/entity';
+import { Entity } from '@/lib/entity';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { SPRITE_SCALE_FACTOR, SnapHintDiamondTexture } from '@/lib/textures';
