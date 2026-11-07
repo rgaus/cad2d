@@ -1,3 +1,5 @@
+import type { Rect, SheetPosition } from '@/lib/viewport/types';
+
 /**
  * The layers which all rendering should break down into.
  *
@@ -27,3 +29,21 @@ export type SingleLayers<ReactNodeLike> = { [key in RendererLayers]?: ReactNodeL
 export type ListLayers<Item, ReactNodeLike> = {
   [k in RendererLayers]?: ReactNodeLike | ((item: Item) => ReactNodeLike);
 };
+
+export type ProximityEdgeDetectorVisibility = {
+  primary: boolean;
+  closed: boolean;
+  isSelected: boolean;
+  mousePositionProximityAABB: Rect<SheetPosition> | null;
+};
+
+/** Proximity edge detectors are only rendered for open, non-selected, primary polygons while the
+ * mouse is nearby. */
+export function shouldRenderProximityEdgeDetectors({
+  primary,
+  closed,
+  isSelected,
+  mousePositionProximityAABB,
+}: ProximityEdgeDetectorVisibility): boolean {
+  return primary && !closed && !isSelected && mousePositionProximityAABB !== null;
+}

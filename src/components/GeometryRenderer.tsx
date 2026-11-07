@@ -9,7 +9,7 @@ import { FillColorComponent, GeometryComponent, PolygonSegment } from '@/lib/ent
 import { type Geometry, GeometryData } from '@/lib/entity/geometry';
 import { BoundingBox, CohenSutherland } from '@/lib/math';
 import { drawRotatedEllipse, drawRotatedRectangle } from '@/lib/pixi-render-helpers';
-import { ListLayers, RendererLayers } from '@/lib/renderer';
+import { ListLayers, RendererLayers, shouldRenderProximityEdgeDetectors } from '@/lib/renderer';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import {
   HIGHLIGHT_COLOR_FILL,
@@ -519,7 +519,15 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
     <>
       {renderShapes.map((renderShape) => {
         switch (renderShape.shape) {
-          case 'polygon':
+          case 'polygon': {
+            const proximityAABB = shouldRenderProximityEdgeDetectors({
+              primary: renderShape.primary,
+              closed: renderShape.closed,
+              isSelected,
+              mousePositionProximityAABB,
+            })
+              ? mousePositionProximityAABB
+              : null;
             return (
               <Fragment key={renderShape.key}>
                 <GeometryShapeRenderer
@@ -540,7 +548,7 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
                 {/* Edge detectors for non-closed, non-selected polygons based on mouse proximity.
                  * Only renders detectors for segments that might intersect the proximity AABB.
                  * This makes it easier to select edges on open polygons. */}
-                {renderShape.primary && !closed && !isSelected && mousePositionProximityAABB ? (
+                {proximityAABB ? (
                   <>
                     {renderShape.points.slice(1).map((seg, i) => {
                       const prevSeg = renderShape.points[i];
@@ -555,7 +563,7 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
                           if (
                             !CohenSutherland.lineSegmentMightIntersectBoundingBox(
                               segment,
-                              mousePositionProximityAABB,
+                              proximityAABB,
                             )
                           ) {
                             return null;
@@ -578,7 +586,7 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
                           if (
                             !CohenSutherland.quadraticCurveMightIntersectBoundingBox(
                               quadraticCurve,
-                              mousePositionProximityAABB,
+                              proximityAABB,
                             )
                           ) {
                             return null;
@@ -601,7 +609,7 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
                           if (
                             !CohenSutherland.cubicCurveMightIntersectBoundingBox(
                               cubicCurve,
-                              mousePositionProximityAABB,
+                              proximityAABB,
                             )
                           ) {
                             return null;
@@ -623,6 +631,7 @@ const GeometrySolid: React.FunctionComponent<{ geometry: Geometry }> = ({ geomet
                 ) : null}
               </Fragment>
             );
+          }
           case 'rectangle':
             return (
               <GeometryShapeRenderer

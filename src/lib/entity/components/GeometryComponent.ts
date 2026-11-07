@@ -608,7 +608,7 @@ export namespace GeometryComponent {
     }
 
     let filterApplicationCounter = 0;
-    for (const filter of filters.sort((a, b) => {
+    for (const filter of [...filters].sort((a, b) => {
       const aScore = FILTER_DATA_TYPE_SORT_ORDER[FilterComponent.get(a).type];
       const bScore = FILTER_DATA_TYPE_SORT_ORDER[FilterComponent.get(b).type];
       return aScore - bScore;

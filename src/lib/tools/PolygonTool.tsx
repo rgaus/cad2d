@@ -1,5 +1,6 @@
 import { HexagonIcon } from 'lucide-react';
 import {
+  AnchorPointComponent,
   ConstraintComponent,
   type CubicBezierSegment,
   Entity,
@@ -38,7 +39,6 @@ import { Length } from '@/lib/units/length';
 import { getGridAtScale } from '@/lib/viewport/grid';
 import {
   CubicCurve,
-  GeometryRelativeSheetPosition,
   LineSegment,
   QuadraticCurve,
   ScreenPosition,
@@ -414,7 +414,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           if (polygonData.closed) {
             return wp;
           }
-          const polygonPoints = PolygonData.rawSegments(polygon);
+          const polygonPoints = PolygonData.renderedSegments(polygon);
 
           const source: WorkingPolygonSource = {
             type: 'existing-polygon',
@@ -1734,15 +1734,13 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               return old;
             }
 
-            // First, update the geometry points. Working points are in absolute sheet space,
+            // First, update the geometry points. Working points are in rendered sheet space,
             // while stored polygon points are local to the stable position.
-            const currentData = GeometryComponent.get(old);
-            const position = currentData.position;
             const localPoints = pointsCopyWithIntersections.map((segment) =>
-              PolygonSegment.transform(
-                segment,
-                (point) =>
-                  new GeometryRelativeSheetPosition(point.x - position.x, point.y - position.y),
+              PolygonSegment.transform(segment, (point) =>
+                point.toGeometryRelativeSheetPosition(
+                  old as Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+                ),
               ),
             );
             const updated = GeometryComponent.update(old, {
