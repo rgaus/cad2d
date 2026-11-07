@@ -67,6 +67,11 @@ Helpers such as `GeometryComponent.keyPoints`, bounding boxes, and oriented boun
 geometry-relative coordinates. Consumers project with `.toSheet(geometry)` when they need rendered
 sheet space. `RenderShape`s and filters remain in rendered sheet space.
 
+Polygons store a stable raw `position` plus local geometry-relative segments. They support the same
+`RotationComponent` behavior as rectangles and ellipses; their rotation pivot is the polygon's raw
+`position`. Baked conversions (booleans, trim/split, filter materialization, rectangle/ellipse to
+polygon) reset rotation to zero because the rendered geometry is already baked into local points.
+
 `getOrigin` and `getRenderOrigin` intentionally remain absolute-space functions because they are
 inputs to the render matrix itself.
 

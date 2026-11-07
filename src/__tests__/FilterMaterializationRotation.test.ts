@@ -292,7 +292,7 @@ describe('rotation-aware filter materialization and conversion', () => {
         .listWithComponent(GeometryComponent)
         .filter((g) => g.id !== polygon.id);
       expect(copies).toHaveLength(1);
-      expect(RotationComponent.getOptional(copies[0])).toBeUndefined();
+      expect(RotationComponent.getOptional(copies[0])?.angle.toDegrees().magnitude).toBeCloseTo(0);
     });
   });
 
@@ -477,7 +477,7 @@ describe('rotation-aware filter materialization and conversion', () => {
 
       const [polygon] = geometryStore.listWithComponent(GeometryComponent);
       expect(GeometryComponent.get(polygon).type).toBe('polygon');
-      expect(RotationComponent.getOptional(polygon)).toBeUndefined();
+      expect(RotationComponent.getOptional(polygon)?.angle.toDegrees().magnitude).toBeCloseTo(0);
     });
 
     it('applies a chamfer in the rendered rotated frame', async () => {
@@ -679,7 +679,7 @@ describe('rotation-aware filter materialization and conversion', () => {
       expect(FillColorComponent.getOptional(polygon)).toBe(0x123456);
       expect((polygon.components as any).renderOrder).toBe(7);
       expect(LinkDimensionsComponent.getOptional(polygon)).toBe(false);
-      expect(RotationComponent.getOptional(polygon)).toBeUndefined();
+      expect(RotationComponent.getOptional(polygon)?.angle.toDegrees().magnitude).toBeCloseTo(0);
 
       const constraint = geometryStore.getByIdWithComponent(constraintId, ConstraintComponent)!;
       const data = ConstraintComponent.get(constraint);
@@ -739,7 +739,7 @@ describe('rotation-aware filter materialization and conversion', () => {
       expect(FillColorComponent.getOptional(polygon)).toBe(0xabcdef);
       expect((polygon.components as any).renderOrder).toBe(9);
       expect(LinkDimensionsComponent.getOptional(polygon)).toBe(false);
-      expect(RotationComponent.getOptional(polygon)).toBeUndefined();
+      expect(RotationComponent.getOptional(polygon)?.angle.toDegrees().magnitude).toBeCloseTo(0);
 
       const constraint = geometryStore.getByIdWithComponent(constraintId, ConstraintComponent)!;
       const data = ConstraintComponent.get(constraint);

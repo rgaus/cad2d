@@ -1,9 +1,11 @@
+import { Angle } from '@/lib/units/angle';
 import { SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from './colors';
 import { AnchorPointComponent } from './components/AnchorPointComponent';
 import { FillColorComponent } from './components/FillColorComponent';
 import { GeometryComponent } from './components/GeometryComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
+import { RotationComponent } from './components/RotationComponent';
 import {
   type CubicBezierSegment,
   type PointSegment,
@@ -53,6 +55,7 @@ export namespace Polygon {
           keyPoint: 'boundingBoxUpperLeft',
           offset: new SheetPosition(0, 0),
         }),
+        ...RotationComponent.create(Angle.degrees(0)),
       },
     };
   }

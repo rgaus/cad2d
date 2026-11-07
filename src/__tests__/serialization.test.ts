@@ -3066,4 +3066,24 @@ describe('anchor and rotation serialization', () => {
     expect(AnchorPointComponent.get(parsed).offset.y).toBeCloseTo(0.5);
     expect(RotationComponent.get(parsed).angle.toDegrees().magnitude).toBeCloseTo(45);
   });
+
+  it('round-trips rotation attributes on polygons', () => {
+    const { sheet, geometryStore } = makeSheet();
+    const polygon = geometryStore.addOrdered(
+      ID_PREFIXES.polygon,
+      Polygon.create([makePoint(0, 0), makePoint(1, 0), makePoint(1, 1), makePoint(0, 1)], {
+        closed: true,
+      }),
+    );
+    geometryStore.updateByIdWithComponent(polygon.id, RotationComponent, (geometry) =>
+      RotationComponent.update(geometry, { angle: Angle.degrees(30) }),
+    );
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    expect(svg).toContain('data-rotation-degrees="30"');
+
+    const result = parseSvg(svg, generateStableId);
+    const parsed = result.polygons[0];
+    expect(RotationComponent.getOptional(parsed)?.angle.toDegrees().magnitude).toBeCloseTo(30);
+  });
 });

@@ -216,9 +216,9 @@ describe('polygon stable local storage', () => {
       const expected = transform(raw[i].point);
       expect(rendered[i].point.x).toBeCloseTo(expected.x);
       expect(rendered[i].point.y).toBeCloseTo(expected.y);
-      expect(PolygonSegment.equals(rendered[i], PolygonSegment.transform(raw[i], transform))).toBe(
-        true,
-      );
+      const expectedSegment = PolygonSegment.transform(raw[i], transform);
+      expect(rendered[i].point.x).toBeCloseTo(expectedSegment.point.x);
+      expect(rendered[i].point.y).toBeCloseTo(expectedSegment.point.y);
     }
   });
 

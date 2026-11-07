@@ -1166,6 +1166,30 @@ describe('SelectTool rotation-aware interactions', () => {
       ctrlHeldSpy.mockRestore();
     });
 
+    it('rotates a polygon around its stored position', () => {
+      const ctrlSpy = jest.spyOn(toolManager, 'getCtrlHeld').mockReturnValue(true);
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([point(10, 10), point(14, 10), point(14, 12), point(10, 12)], {
+          closed: true,
+        }),
+      );
+      const pivot = GeometryComponent.getOrigin(polygon);
+
+      startRotation(polygon.id, new SheetPosition(pivot.x, pivot.y - 5));
+      const end = endScreenAtAngle(pivot, 0);
+      moveTo(end);
+      const current = geometryStore.getByIdWithComponent(polygon.id, RotationComponent)!;
+      expect(RotationComponent.get(current).angle.toDegrees().magnitude).toBeCloseTo(90);
+      commitAt(end);
+
+      expect(historyManager.getUndoStack().at(-1)?.type).toBe('rotation-change');
+      historyManager.undo();
+      const undone = geometryStore.getByIdWithComponent(polygon.id, RotationComponent)!;
+      expect(RotationComponent.get(undone).angle.toDegrees().magnitude).toBeCloseTo(0);
+      ctrlSpy.mockRestore();
+    });
+
     it('normalizes the angle into [0, 360)', () => {
       const ctrlSpy = jest.spyOn(toolManager, 'getCtrlHeld').mockReturnValue(true);
       const rectangle = addRotatedRectangle(
