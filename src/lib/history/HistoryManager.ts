@@ -483,21 +483,27 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         });
         break;
       case 'rectangle-to-polygon':
+      case 'ellipse-to-polygon': {
+        const oldId = entry.type === 'rectangle-to-polygon' ? entry.rectangle.id : entry.ellipse.id;
         this.geometryStore.addDirect(entry.polygon);
-        this.geometryStore.deleteByIdDirect(entry.rectangle.id);
+        for (const datum of entry.datums ?? []) {
+          this.geometryStore.addDirect(datum);
+        }
+        for (const constraint of entry.constraintsAfter ?? []) {
+          this.geometryStore.updateByIdDirect(constraint.id, () => constraint);
+        }
+        const afterFilterIds = new Set((entry.filtersAfter ?? []).map((filter) => filter.id));
+        for (const filter of entry.filtersAfter ?? []) {
+          this.geometryStore.updateByIdDirect(filter.id, () => filter);
+        }
+        for (const filter of entry.filtersBefore ?? []) {
+          if (!afterFilterIds.has(filter.id)) {
+            this.geometryStore.deleteByIdDirect(filter.id);
+          }
+        }
+        this.geometryStore.deleteByIdDirect(oldId);
         break;
-      case 'ellipse-to-polygon':
-        this.geometryStore.addDirect(entry.polygon);
-        this.geometryStore.deleteByIdDirect(entry.ellipse.id);
-        break;
-      case 'rectangle-to-polygon':
-        this.geometryStore.addDirect(entry.polygon);
-        this.geometryStore.deleteByIdDirect(entry.rectangle.id);
-        break;
-      case 'ellipse-to-polygon':
-        this.geometryStore.addDirect(entry.polygon);
-        this.geometryStore.deleteByIdDirect(entry.ellipse.id);
-        break;
+      }
       case 'horizontal-constraint-move-endpoints':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
           ConstraintComponent.update(g, {
@@ -657,6 +663,22 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         }
         break;
       }
+      case 'filter-change-data': {
+        const updates = this.geometryStore.updateByIdWithComponentDirect(
+          entry.id,
+          FilterComponent,
+          (g) => FilterComponent.replaceData(g, entry.afterData),
+        );
+        if (updates) {
+          this.geometryStore.resyncFilterAttachedGeometryFillColor(updates[1 /* after */]);
+        }
+        break;
+      }
+      case 'constraint-change-data':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.replaceData(g, entry.afterData),
+        );
+        break;
       case 'mirror-filter-move-endpoints': {
         const updates = this.geometryStore.updateByIdWithComponentDirect(
           entry.id,
@@ -808,13 +830,29 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         break;
       }
       case 'rectangle-to-polygon':
-        this.geometryStore.addDirect(entry.rectangle);
+      case 'ellipse-to-polygon': {
+        const oldGeometry = entry.type === 'rectangle-to-polygon' ? entry.rectangle : entry.ellipse;
+        this.geometryStore.addDirect(oldGeometry);
+        for (const constraint of entry.constraintsBefore ?? []) {
+          if (this.geometryStore.hasId(constraint.id)) {
+            this.geometryStore.updateByIdDirect(constraint.id, () => constraint);
+          } else {
+            this.geometryStore.addDirect(constraint);
+          }
+        }
+        for (const filter of entry.filtersBefore ?? []) {
+          if (this.geometryStore.hasId(filter.id)) {
+            this.geometryStore.updateByIdDirect(filter.id, () => filter);
+          } else {
+            this.geometryStore.addDirect(filter);
+          }
+        }
         this.geometryStore.deleteByIdDirect(entry.polygon.id);
+        for (const datum of entry.datums ?? []) {
+          this.geometryStore.deleteByIdDirect(datum.id);
+        }
         break;
-      case 'ellipse-to-polygon':
-        this.geometryStore.addDirect(entry.ellipse);
-        this.geometryStore.deleteByIdDirect(entry.polygon.id);
-        break;
+      }
       case 'polygon-close':
         if (entry.beforeClosed) {
           const geometry = this.geometryStore.getByIdWithComponent(entry.id, GeometryComponent);
@@ -1111,6 +1149,22 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         }
         break;
       }
+      case 'filter-change-data': {
+        const updates = this.geometryStore.updateByIdWithComponentDirect(
+          entry.id,
+          FilterComponent,
+          (g) => FilterComponent.replaceData(g, entry.beforeData),
+        );
+        if (updates) {
+          this.geometryStore.resyncFilterAttachedGeometryFillColor(updates[1 /* after */]);
+        }
+        break;
+      }
+      case 'constraint-change-data':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.replaceData(g, entry.beforeData),
+        );
+        break;
       case 'mirror-filter-move-endpoints': {
         const updates = this.geometryStore.updateByIdWithComponentDirect(
           entry.id,

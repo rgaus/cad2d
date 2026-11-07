@@ -40,6 +40,20 @@ export namespace ConstraintComponent {
     };
   }
 
+  /** Replaces the constraint's entire data payload (rather than merging a partial). */
+  export function replaceData<E extends Entity<ConstraintComponent>>(
+    geometry: E,
+    data: ConstraintData,
+  ): E {
+    return {
+      ...geometry,
+      components: {
+        ...geometry.components,
+        constraint: data,
+      },
+    };
+  }
+
   /** Builds the selection inspector fields for a constraint entity, dispatching on constraint type. */
   export function computeSelectionInspectorFields(
     entity: Entity<ConstraintComponent>,

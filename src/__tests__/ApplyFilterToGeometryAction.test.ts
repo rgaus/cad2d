@@ -698,9 +698,18 @@ describe('ApplyFilterToGeometryAction', () => {
       expect(FillColorComponent.getOptional(polys[0])).toBe(DEFAULT_COLOR);
       expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(0);
 
-      // Constraint locked to the old polygon points is removed
-      expect(geometryStore.findConstraintsByGeometryId(polygonId)).toHaveLength(0);
-      expect(geometryStore.getById(constraintId)).toBeNull();
+      // Constraint locked to the polygon points is preserved and remains attached to the source
+      // occurrence of each merged point.
+      const constraints = geometryStore.findConstraintsByGeometryId(polygonId);
+      expect(constraints).toHaveLength(1);
+      const constraint = ConstraintComponent.get(constraints[0]);
+      expect(constraint.type).toBe('horizontal');
+      if (constraint.type !== 'horizontal') {
+        throw new Error('Expected horizontal constraint');
+      }
+      expect(constraint.pointA).toStrictEqual(ConstraintEndpoint.lockedToPolygon(polygonId, 0));
+      expect(constraint.pointB).toStrictEqual(ConstraintEndpoint.lockedToPolygon(polygonId, 2));
+      expect(geometryStore.getById(constraintId)).not.toBeNull();
     });
   });
 

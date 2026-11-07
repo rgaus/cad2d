@@ -20,13 +20,17 @@ import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { FillColorComponent } from '@/lib/entity/components/FillColorComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { DestinationPoint } from '@/lib/entity/components/GeometryComponent';
+import { LinkDimensionsComponent } from '@/lib/entity/components/LinkDimensionsComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { type ChamferFilterData } from '@/lib/entity/filters/chamfer';
 import { type FilletFilterData } from '@/lib/entity/filters/fillet';
 import { type MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { type PatternFilterData } from '@/lib/entity/filters/pattern';
 import { PolygonData, PolygonSegment } from '@/lib/entity/geometry/polygon';
 import { type RectangleEndpoint } from '@/lib/entity/rectangle';
+import { UndoEntry } from '@/lib/history/types';
 import { CornerReplacement, type CornerSegmentFactory, Vector2, mod } from '@/lib/math';
+import { Angle } from '@/lib/units/angle';
 import {
   CubicCurve,
   GeometryRelativeSheetPosition,
@@ -70,6 +74,7 @@ type ResolveGeometryAndIndicesResults = {
   centerDatumId: Datum['id'] | null;
   pointAIsAfterCenter: boolean;
   pointBIsAfterCenter: boolean;
+  sourceAngleDegrees: number;
 };
 
 type ValidateOffsetResults = {
@@ -242,31 +247,36 @@ export class ApplyFilterToGeometryAction extends BaseAction {
 
         if (otherFilter.type === 'fillet' || otherFilter.type === 'chamfer') {
           // Convert any other fillet/chamfer that still references the old rectangle into
-          // a polygon-mode filter so it acts just like a native polygon filter.
-          if (otherFilter.geometryType !== 'rectangle') {
-            continue;
-          }
-          const cornerState = this.buildCornerStateFromPolygon(finalPolygon, otherFilter);
+          // a polygon-mode filter so it acts just like a native polygon filter. If its corner
+          // can no longer be resolved against the converted polygon, remove it rather than
+          // leaving a filter typed for a geometry which no longer exists.
+          const cornerState =
+            otherFilter.geometryType === 'rectangle'
+              ? this.buildCornerStateFromPolygon(finalPolygon, otherFilter)
+              : null;
           if (!cornerState || cornerState.mode !== 'polygon') {
+            this.getGeometryStore().deleteById(f.id);
             continue;
           }
 
-          this.getGeometryStore().updateByIdWithComponent(f.id, FilterComponent, (g) =>
-            FilterComponent.update(g, {
-              type: otherFilter.type,
-              offset: otherFilter.offset,
-              geometryType: 'polygon' as const,
-              geometryId: finalPolygon.id,
-              pointAIndex: cornerState.pointAIndex,
-              pointCenterIndex: cornerState.centerIndex,
-              pointBIndex: cornerState.pointBIndex,
-            } as any),
+          const after = FilterComponent.update(f, {
+            type: otherFilter.type,
+            offset: otherFilter.offset,
+            geometryType: 'polygon' as const,
+            geometryId: finalPolygon.id,
+            pointAIndex: cornerState.pointAIndex,
+            pointCenterIndex: cornerState.centerIndex,
+            pointBIndex: cornerState.pointBIndex,
+          } as any);
+          this.getHistoryManager().apply(
+            UndoEntry.filterChangeData(f.id, otherFilter, FilterComponent.get(after)),
           );
         } else if (otherFilter.type === 'mirror' || otherFilter.type === 'pattern') {
           // Mirror/pattern filters only reference the geometry by id - point them at the
           // converted polygon so they keep rendering/applying against the new geometry.
-          this.getGeometryStore().updateByIdWithComponent(f.id, FilterComponent, (g) =>
-            FilterComponent.update(g, { geometryId: finalPolygon.id }),
+          const after = FilterComponent.update(f, { geometryId: finalPolygon.id });
+          this.getHistoryManager().apply(
+            UndoEntry.filterChangeData(f.id, otherFilter, FilterComponent.get(after)),
           );
         }
       }
@@ -279,9 +289,8 @@ export class ApplyFilterToGeometryAction extends BaseAction {
    * geometry, then removing the filter.
    *
    * - A single merged render shape (open polygon mirrored/radially-chained over
-   *   the filter line) replaces the source polygon in place, and any constraints
-   *   locked to the polygon's old points are removed (constraint migration is a
-   *   future enhancement).
+   *   the filter line) replaces the source polygon in place, and constraints
+   *   locked to the polygon's old points are remapped to their merged occurrences.
    * - Multiple render shapes keep the source and add each non-primary shape as
    *   new geometry.
    */
@@ -328,13 +337,23 @@ export class ApplyFilterToGeometryAction extends BaseAction {
       });
 
     const sourceFillColor = FillColorComponent.getOptional(geometry);
+    const sourceLinkDimensions = LinkDimensionsComponent.getOptional(geometry);
 
     if (renderShapes.length === 1) {
-      this.mergeRenderShapeIntoGeometry(geometry, renderShapes[0], sourceFillColor);
+      this.mergeRenderShapeIntoGeometry(
+        geometry,
+        renderShapes[0],
+        sourceFillColor,
+        destinationPointMapping,
+      );
       this.migrateMergedGeometryFilters(sourceId, otherFilters, destinationPointMapping);
     } else {
       for (let shapeIndex = 1; shapeIndex < renderShapes.length; shapeIndex += 1) {
-        const copyEntity = this.addRenderShapeAsGeometry(renderShapes[shapeIndex], sourceFillColor);
+        const copyEntity = this.addRenderShapeAsGeometry(
+          renderShapes[shapeIndex],
+          sourceFillColor,
+          sourceLinkDimensions,
+        );
         if (!copyEntity) {
           continue;
         }
@@ -362,6 +381,7 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     geometry: Entity<GeometryComponent>,
     merged: RenderShape,
     sourceFillColor: number | null | undefined,
+    destinationPointMapping: Map<number | RectangleEndpoint, Array<DestinationPoint>>,
   ): void {
     const geometryStore = this.getGeometryStore();
     if (merged.shape !== 'polygon') {
@@ -370,46 +390,24 @@ export class ApplyFilterToGeometryAction extends BaseAction {
 
     const polygonId = geometry.id;
 
-    // Remove constraints locked to the polygon's old points - migrating them to
-    // the merged geometry is a future enhancement.
-    const constraints = geometryStore.findConstraintsByGeometryId(polygonId);
-    for (const c of constraints) {
-      const keys = Constraint.getPositionKeys(c);
-      let referencesPolygon = false;
-      for (const key of keys) {
-        const ep = Constraint.getEndpoint(c, key);
-        if (ep && ep.type === 'locked-polygon' && ep.id === polygonId) {
-          referencesPolygon = true;
-        }
-      }
-      if (referencesPolygon) {
-        geometryStore.deleteById(c.id);
-      }
-    }
-
     geometryStore.updateById(polygonId, (g) => {
       if (!Entity.hasComponent(g, GeometryComponent)) {
         return g;
       }
       const polygon = g as Entity<GeometryComponent<PolygonData>>;
-      // Render shapes are anchored-space; convert back to raw stored coordinates, then into the
-      // polygon's local frame.
-      const offset = GeometryComponent.getAnchorPointOffset(g);
-      const position = GeometryComponent.get(polygon).position;
-      const rawPoints =
-        offset.x === 0 && offset.y === 0
-          ? merged.points
-          : merged.points.map((segment) =>
-              PolygonSegment.transform(
-                segment,
-                (point) => new SheetPosition(point.x + offset.x, point.y + offset.y),
-              ),
-            );
-      const points = rawPoints.map((segment) =>
-        PolygonSegment.transform(
-          segment,
-          (point) => new GeometryRelativeSheetPosition(point.x - position.x, point.y - position.y),
-        ),
+      // Render shapes are in rendered (anchored + rotated) sheet space. Invert the full render
+      // matrix to recover raw geometry coordinates, then express them in the polygon's stable
+      // local frame (`position` + local points).
+      const polygonData = GeometryComponent.get(polygon);
+      const origin = GeometryComponent.getOrigin(polygon);
+      const points = merged.points.map((segment) =>
+        PolygonSegment.transform(segment, (point) => {
+          const relative = point.toGeometryRelativeSheetPosition(polygon);
+          return new GeometryRelativeSheetPosition(
+            relative.x + origin.x - polygonData.position.x,
+            relative.y + origin.y - polygonData.position.y,
+          );
+        }),
       );
       const withMergedPoints = GeometryComponent.update(polygon, {
         points,
@@ -426,6 +424,45 @@ export class ApplyFilterToGeometryAction extends BaseAction {
       );
       return withFill as unknown as Entity<GeometryComponent<PolygonData>>;
     });
+
+    this.remapMergedConstraints(polygonId, destinationPointMapping);
+  }
+
+  /**
+   * Re-targets constraints locked to the source polygon's pre-merge point indexes onto the merged
+   * polygon's equivalent points. Points which were duplicated by the merge (source half + mirrored
+   * half) keep their primary (shape index 0) occurrence.
+   */
+  private remapMergedConstraints(
+    polygonId: Id,
+    destinationPointMapping: Map<number | RectangleEndpoint, Array<DestinationPoint>>,
+  ): void {
+    const geometryStore = this.getGeometryStore();
+    for (const constraint of geometryStore.findConstraintsByGeometryId(polygonId)) {
+      const beforeData = ConstraintComponent.get(constraint);
+      let after = constraint;
+      for (const key of Constraint.getPositionKeys(constraint)) {
+        const endpoint = Constraint.getEndpoint(constraint, key);
+        if (endpoint?.type !== 'locked-polygon' || endpoint.id !== polygonId) {
+          continue;
+        }
+        const mappedIndex = this.findMergedPolygonIndex(
+          endpoint.pointIndex,
+          destinationPointMapping,
+        );
+        if (mappedIndex === null || mappedIndex === endpoint.pointIndex) {
+          continue;
+        }
+        after = ConstraintComponent.update(after, {
+          [key]: ConstraintEndpoint.lockedToPolygon(polygonId, mappedIndex),
+        });
+      }
+      if (after !== constraint) {
+        this.getHistoryManager().apply(
+          UndoEntry.constraintChangeData(constraint.id, beforeData, ConstraintComponent.get(after)),
+        );
+      }
+    }
   }
 
   /**
@@ -436,32 +473,44 @@ export class ApplyFilterToGeometryAction extends BaseAction {
   private addRenderShapeAsGeometry(
     renderShape: RenderShape,
     sourceFillColor: number | null | undefined,
+    sourceLinkDimensions?: boolean,
   ): Entity | undefined {
     const fillColor = typeof sourceFillColor === 'number' ? sourceFillColor : DEFAULT_COLOR;
+    const linkDimensions = sourceLinkDimensions ?? false;
     switch (renderShape.shape) {
       case 'polygon':
         return this.getGeometryStore().addOrdered(
           ID_PREFIXES.polygon,
           Polygon.create(renderShape.points, { closed: renderShape.closed, fillColor }),
         );
-      case 'rectangle':
-        return this.getGeometryStore().addOrdered(
-          ID_PREFIXES.rectangle,
-          Rectangle.create(renderShape.upperLeft, renderShape.lowerRight, {
-            fillColor,
-            linkDimensions: false,
-          }),
-        );
-      case 'ellipse':
-        return this.getGeometryStore().addOrdered(
-          ID_PREFIXES.ellipse,
-          Ellipse.create(renderShape.center, {
-            radiusX: renderShape.radiusX,
-            radiusY: renderShape.radiusY,
-            fillColor,
-            linkDimensions: false,
-          }),
-        );
+      case 'rectangle': {
+        const template = Rectangle.create(renderShape.upperLeft, renderShape.lowerRight, {
+          fillColor,
+          linkDimensions,
+        });
+        return this.getGeometryStore().addOrdered(ID_PREFIXES.rectangle, {
+          ...template,
+          components: {
+            ...template.components,
+            ...RotationComponent.create(Angle.degrees(renderShape.angleDegrees)),
+          },
+        });
+      }
+      case 'ellipse': {
+        const template = Ellipse.create(renderShape.center, {
+          radiusX: renderShape.radiusX,
+          radiusY: renderShape.radiusY,
+          fillColor,
+          linkDimensions,
+        });
+        return this.getGeometryStore().addOrdered(ID_PREFIXES.ellipse, {
+          ...template,
+          components: {
+            ...template.components,
+            ...RotationComponent.create(Angle.degrees(renderShape.angleDegrees)),
+          },
+        });
+      }
       case 'point':
         // Point shapes are zero size
         // TODO: I'm not 100% sure about this, validate there isn't a case where this will get hit
@@ -487,7 +536,6 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     otherFilters: Array<Entity<FilterComponent>>,
     destinationPointMapping: Map<number | RectangleEndpoint, Array<DestinationPoint>>,
   ): void {
-    const geometryStore = this.getGeometryStore();
     for (const f of otherFilters) {
       const data = FilterComponent.get(f);
       if (data.type !== 'fillet' && data.type !== 'chamfer') {
@@ -502,12 +550,13 @@ export class ApplyFilterToGeometryAction extends BaseAction {
       if (center === null || a === null || b === null) {
         continue;
       }
-      geometryStore.updateByIdWithComponent(f.id, FilterComponent, (g) =>
-        FilterComponent.update(g, {
-          pointCenterIndex: center,
-          pointAIndex: a,
-          pointBIndex: b,
-        }),
+      const after = FilterComponent.update(f, {
+        pointCenterIndex: center,
+        pointAIndex: a,
+        pointBIndex: b,
+      });
+      this.getHistoryManager().apply(
+        UndoEntry.filterChangeData(f.id, data, FilterComponent.get(after)),
       );
     }
   }
@@ -855,6 +904,7 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     let pointBIndex: number = -1;
     let pointAIsAfterCenter: boolean;
     let pointBIsAfterCenter: boolean;
+    let sourceAngleDegrees = 0;
     switch (pending.mode) {
       case 'polygon': {
         const result = geometryStore.getByIdWithComponent(geometryId, GeometryComponent);
@@ -865,7 +915,8 @@ export class ApplyFilterToGeometryAction extends BaseAction {
         }
         geometry = result;
         polygonData = GeometryComponent.get(geometry);
-        const rawSegments = PolygonData.rawSegments(geometry);
+        sourceAngleDegrees =
+          RotationComponent.getOptional(geometry)?.angle?.toDegrees()?.magnitude ?? 0;
 
         centerIndex = pending.centerIndex;
         pointAIndex = pending.pointAIndex;
@@ -890,7 +941,7 @@ export class ApplyFilterToGeometryAction extends BaseAction {
               if (!centerDatumId) {
                 const datum = geometryStore.addOrdered(
                   ID_PREFIXES.datum,
-                  Datum.create(rawSegments[pending.centerIndex].point),
+                  Datum.create(pending.centerPos),
                 );
                 centerDatumId = datum.id;
               }
@@ -905,6 +956,10 @@ export class ApplyFilterToGeometryAction extends BaseAction {
         break;
       }
       case 'rectangle': {
+        const sourceGeometry = geometryStore.getByIdWithComponent(geometryId, GeometryComponent);
+        sourceAngleDegrees = sourceGeometry
+          ? (RotationComponent.getOptional(sourceGeometry)?.angle?.toDegrees()?.magnitude ?? 0)
+          : 0;
         const resolvedCenter = geometryStore.resolveConstraintEndpoint(
           ConstraintEndpoint.lockedToRectangle(geometryId, pending.centerEndpoint),
         );
@@ -946,32 +1001,24 @@ export class ApplyFilterToGeometryAction extends BaseAction {
         }
 
         // Convert rectangle to polygon
+        // Filter migration is deferred until after this action has finished mutating the polygon
+        // (the fillet/chamfer itself changes point indexes). `recordRemap` below re-targets both
+        // this filter and any sibling filters against the final polygon.
         geometry = geometryStore.convertRectangleToPolygon(geometryId, {
           insertConstraints: false,
+          migrateFilters: false,
         });
         geometryId = geometry.id;
         polygonData = GeometryComponent.get(geometry);
         const convertedRawSegments = PolygonData.rawSegments(geometry);
 
-        // Find all three point indices by position in new polygon
-        for (let i = 0; i < convertedRawSegments.length - 1; i += 1) {
-          const p = convertedRawSegments[i].point;
-          if (p.x === resolvedCenter.x && p.y === resolvedCenter.y) {
-            centerIndex = i;
-          }
-          if (p.x === resolvedA.x && p.y === resolvedA.y) {
-            pointAIndex = i;
-          }
-          if (p.x === resolvedB.x && p.y === resolvedB.y) {
-            pointBIndex = i;
-          }
-        }
+        // Find all three point indices by position in new polygon. Use a tolerance because the
+        // baked conversion and endpoint resolution round rotation math independently.
+        centerIndex = this.findPointIndexByPos(convertedRawSegments, resolvedCenter);
+        pointAIndex = this.findPointIndexByPos(convertedRawSegments, resolvedA);
+        pointBIndex = this.findPointIndexByPos(convertedRawSegments, resolvedB);
 
-        if (
-          typeof centerIndex !== 'number' ||
-          typeof pointAIndex !== 'number' ||
-          typeof pointBIndex !== 'number'
-        ) {
+        if (centerIndex < 0 || pointAIndex < 0 || pointBIndex < 0) {
           throw new Error(
             'ApplyFilterToGeometryAction.resolveGeometryAndIndices: could not find all point indices',
           );
@@ -1023,6 +1070,7 @@ export class ApplyFilterToGeometryAction extends BaseAction {
       centerDatumId,
       pointAIsAfterCenter,
       pointBIsAfterCenter,
+      sourceAngleDegrees,
     };
   }
 
@@ -1256,6 +1304,12 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     if (polygonData.points.length !== 5 || !polygonData.closed) {
       return;
     }
+    // The implicit horizontal/vertical constraints are only valid for an axis-aligned rectangle.
+    // A rotated source bakes its rotation into the polygon points, so its edges are no longer
+    // horizontal/vertical.
+    if (step1.sourceAngleDegrees % 360 !== 0) {
+      return;
+    }
 
     let counter = 0;
     for (const side of ['top', 'right', 'bottom', 'left'] as const) {
@@ -1285,8 +1339,12 @@ export class ApplyFilterToGeometryAction extends BaseAction {
   }
 
   private findPointIndexByPos(points: Array<{ point: SheetPosition }>, pos: SheetPosition): number {
+    const epsilon = 1e-9;
     for (let i = 0; i < points.length; i++) {
-      if (points[i].point.x === pos.x && points[i].point.y === pos.y) {
+      if (
+        Math.abs(points[i].point.x - pos.x) < epsilon &&
+        Math.abs(points[i].point.y - pos.y) < epsilon
+      ) {
         return i;
       }
     }

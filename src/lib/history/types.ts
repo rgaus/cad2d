@@ -1,13 +1,18 @@
 import type {
   AnchorPointData,
+  ConstraintData,
   ConstraintEndpoint,
+  DatumComponent,
   Entity,
   GeometryComponent,
   Id,
   Polygon,
   PolygonSegment,
 } from '@/lib/entity';
+import type { ConstraintComponent } from '@/lib/entity/components/ConstraintComponent';
+import type { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import type { RotationData } from '@/lib/entity/components/RotationComponent';
+import type { FilterData } from '@/lib/entity/filters';
 import type { EllipseData } from '@/lib/entity/geometry/ellipse';
 import type { RectangleData } from '@/lib/entity/geometry/rectangle';
 import type { Length, SerializedLength, UnitType } from '@/lib/units/length';
@@ -203,6 +208,20 @@ export type PolygonBoundingBoxResizeEntry = {
 
 // ==================== CONVERSION ENTRIES ====================
 
+/** Constraint/filter/datum state migrated alongside a geometry conversion. */
+export type ConversionMigration = {
+  /** Constraints as they were attached to the source geometry. */
+  constraintsBefore?: Array<Entity<ConstraintComponent>>;
+  /** Constraints re-targeted at the converted polygon. */
+  constraintsAfter?: Array<Entity<ConstraintComponent>>;
+  /** Filters as they were attached to the source geometry. */
+  filtersBefore?: Array<Entity<FilterComponent>>;
+  /** Filters re-targeted at the converted polygon. */
+  filtersAfter?: Array<Entity<FilterComponent>>;
+  /** Datums created to preserve constraint endpoints which have no polygon equivalent. */
+  datums?: Array<Entity<DatumComponent>>;
+};
+
 /** Recorded when a rectangle is converted to a polygon. */
 export type RectangleToPolygonEntry<
   R extends Entity<GeometryComponent<RectangleData>> = Entity<GeometryComponent<RectangleData>>,
@@ -210,7 +229,7 @@ export type RectangleToPolygonEntry<
   type: 'rectangle-to-polygon';
   rectangle: R;
   polygon: Polygon;
-};
+} & ConversionMigration;
 
 /** Recorded when an ellipse is converted to a polygon. */
 export type EllipseToPolygonEntry<
@@ -219,7 +238,7 @@ export type EllipseToPolygonEntry<
   type: 'ellipse-to-polygon';
   ellipse: E;
   polygon: Polygon;
-};
+} & ConversionMigration;
 
 // ==================== PERPENDICULAR CONSTRAINT ENTRIES ====================
 
@@ -367,6 +386,22 @@ export type FilterChangeGeometryIdEntry = {
   afterGeometryId: Entity['id'];
 };
 
+/** Recorded when a filter's full data payload changes (eg. point index remapping). */
+export type FilterChangeDataEntry = {
+  type: 'filter-change-data';
+  id: Entity['id'];
+  beforeData: FilterData;
+  afterData: FilterData;
+};
+
+/** Recorded when a constraint's full data payload changes (eg. endpoint remapping). */
+export type ConstraintChangeDataEntry = {
+  type: 'constraint-change-data';
+  id: Entity['id'];
+  beforeData: ConstraintData;
+  afterData: ConstraintData;
+};
+
 // ==================== MIRROR FILTER ENTRIES ====================
 
 /** Recorded when a mirror filter's endpoint (pointA/pointB) is moved. */
@@ -440,6 +475,8 @@ export type UndoEntry =
   | SheetUnitPlacesEntry
   | FilterChangeOffsetEntry
   | FilterChangeGeometryIdEntry
+  | FilterChangeDataEntry
+  | ConstraintChangeDataEntry
   | MirrorFilterMoveEndpointsEntry
   | FrameMoveEntry
   | PatternRadialFilterMoveCenterEntry;
@@ -664,16 +701,18 @@ export namespace UndoEntry {
   export function rectangleToPolygon<R extends Entity<GeometryComponent<RectangleData>>>(
     rectangle: R,
     polygon: Polygon,
+    migration?: ConversionMigration,
   ): RectangleToPolygonEntry<R> {
-    return { type: 'rectangle-to-polygon', rectangle, polygon };
+    return { type: 'rectangle-to-polygon', rectangle, polygon, ...migration };
   }
 
   /** Creates an entry for converting an ellipse to a polygon. */
   export function ellipseToPolygon<E extends Entity<GeometryComponent<EllipseData>>>(
     ellipse: E,
     polygon: Polygon,
+    migration?: ConversionMigration,
   ): EllipseToPolygonEntry {
-    return { type: 'ellipse-to-polygon', ellipse, polygon };
+    return { type: 'ellipse-to-polygon', ellipse, polygon, ...migration };
   }
 
   /** Creates an entry for moving a perpendicular constraint's endpoints (pointA/pointCenter/pointC). */
@@ -885,6 +924,24 @@ export namespace UndoEntry {
       beforeGeometryId,
       afterGeometryId,
     };
+  }
+
+  /** Creates an entry recording that a filter's full data payload changed. */
+  export function filterChangeData(
+    filterId: Entity['id'],
+    beforeData: FilterData,
+    afterData: FilterData,
+  ): FilterChangeDataEntry {
+    return { type: 'filter-change-data', id: filterId, beforeData, afterData };
+  }
+
+  /** Creates an entry recording that a constraint's full data payload changed. */
+  export function constraintChangeData(
+    constraintId: Entity['id'],
+    beforeData: ConstraintData,
+    afterData: ConstraintData,
+  ): ConstraintChangeDataEntry {
+    return { type: 'constraint-change-data', id: constraintId, beforeData, afterData };
   }
 
   /** Creates an entry for moving a mirror filter's endpoints (pointA/pointB). */

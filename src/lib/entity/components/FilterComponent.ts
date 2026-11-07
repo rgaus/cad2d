@@ -49,6 +49,17 @@ export namespace FilterComponent {
     };
   }
 
+  /** Replaces the filter's entire data payload (rather than merging a partial). */
+  export function replaceData<E extends Entity<FilterComponent>>(geometry: E, data: FilterData): E {
+    return {
+      ...geometry,
+      components: {
+        ...geometry.components,
+        filter: { ...geometry.components.filter, data },
+      },
+    };
+  }
+
   export function updateOrder(
     geometry: Entity<FilterComponent>,
     order: number,
