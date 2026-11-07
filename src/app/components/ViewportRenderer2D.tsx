@@ -8,6 +8,7 @@ import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
 import { DatumLayers, WorkingDatumLayers } from '@/components/DatumRenderer';
 import { FilterLayers } from '@/components/FilterRenderer';
 import { FrameLayers } from '@/components/FrameRenderer';
+import { GearPreviewRenderer } from '@/components/GearPreviewRenderer';
 import { GeometryLayers } from '@/components/GeometryRenderer';
 import { HandleSprites } from '@/components/HandleSprites';
 import { SelectionBoxOverlay } from '@/components/SelectionBoxOverlay';
@@ -293,6 +294,7 @@ export default function ViewportRenderer2D({
   actionsManager,
   selectionManager,
 }: ViewportRenderer2DProps) {
+  const gearGeneratorAction = actionsManager.getAction('gear-generator');
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportControlsRef = useRef<ViewportControls | null>(null);
   const [viewportControlsState, setViewportControlsState] = useState<ViewportControlsState | null>(
@@ -800,6 +802,10 @@ export default function ViewportRenderer2D({
       <SingleLayerRenderer layers={WorkingRectangleLayers} layerName={layerName} />
       {/* Currently work in progress datum: */}
       <SingleLayerRenderer layers={WorkingDatumLayers} layerName={layerName} />
+
+      {layerName === RendererLayers.Overlays ? (
+        <GearPreviewRenderer action={gearGeneratorAction} />
+      ) : null}
 
       <SingleLayerRenderer layers={SnapsHintLayers} layerName={layerName} />
 
