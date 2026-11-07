@@ -24,6 +24,7 @@ import { ID_PREFIXES, getPrefixFromId } from '@/lib/entity/GeometryStore';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { FrameComponent } from '@/lib/entity/components/FrameComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import {
   ConstrainedTrack,
   type ConstrainedTrackPath,
@@ -178,7 +179,12 @@ function isEndpointOnEdge(
 /** A representation of all entities which can be moved. The type is a union, and the associated
  * namespace has utility functions for computing metrics about the given entity in a generic way. */
 type DragState =
-  | { state: 'geometry'; geometry: Entity<GeometryComponent & Partial<AnchorPointComponent>> }
+  | {
+      state: 'geometry';
+      geometry: Entity<
+        GeometryComponent & Partial<AnchorPointComponent> & Partial<RotationComponent>
+      >;
+    }
   | { state: 'datum'; entity: Entity<DatumComponent> }
   | { state: 'filter'; entity: Entity<FilterComponent> }
   | { state: 'frame'; entity: Entity<FrameComponent> };
@@ -188,21 +194,23 @@ namespace DragState {
   export function get(entity: Entity): DragState | null {
     if (Entity.hasComponent(entity, GeometryComponent)) {
       const geometry = Entity.pickComponent(entity, GeometryComponent);
-      // Preserve the anchor point component so anchored-space metrics (origin / bbox / resize) take
-      // the anchor offset into account.
-      if (Entity.hasComponent(entity, AnchorPointComponent)) {
-        return {
-          state: 'geometry',
-          geometry: {
-            id: geometry.id,
-            components: {
-              ...geometry.components,
-              anchorPoint: entity.components.anchorPoint,
-            },
+      // Preserve transform components so origin / bbox / resize metrics see the full render
+      // transform.
+      return {
+        state: 'geometry',
+        geometry: {
+          id: geometry.id,
+          components: {
+            ...geometry.components,
+            ...(Entity.hasComponent(entity, AnchorPointComponent)
+              ? { anchorPoint: entity.components.anchorPoint }
+              : {}),
+            ...(Entity.hasComponent(entity, RotationComponent)
+              ? { rotation: entity.components.rotation }
+              : {}),
           },
-        };
-      }
-      return { state: 'geometry', geometry };
+        },
+      };
     } else if (Entity.hasComponent(entity, DatumComponent)) {
       return { state: 'datum', entity };
     } else if (Entity.hasComponent(entity, FrameComponent)) {
