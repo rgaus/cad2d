@@ -34,6 +34,21 @@ function asLocalPoint(point: SheetPosition): GeometryRelativeSheetPosition {
   return new GeometryRelativeSheetPosition(point.x, point.y);
 }
 
+/** Returns the entity with a single component added (or replaced). */
+function addEntityComponent(entity: Entity, key: string, component: object): Entity {
+  return {
+    ...entity,
+    components: { ...entity.components, [key]: component },
+  } as Entity;
+}
+
+/** Returns the entity with a single component removed. */
+function removeEntityComponent(entity: Entity, key: string): Entity {
+  const components: Record<string, unknown> = { ...entity.components };
+  delete components[key];
+  return { ...entity, components } as Entity;
+}
+
 /** Events emitted by HistoryManager. */
 export type HistoryManagerEvents = {
   stacksChange: () => void;
@@ -286,9 +301,37 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           AnchorPointComponent.update(old, entry.afterAnchorPoint),
         );
         break;
+      case 'anchor-point-add':
+        this.geometryStore.updateByIdDirect(entry.id, (old) =>
+          addEntityComponent(
+            old,
+            AnchorPointComponent.key,
+            AnchorPointComponent.create(entry.afterAnchorPoint),
+          ),
+        );
+        break;
+      case 'anchor-point-remove':
+        this.geometryStore.updateByIdDirect(entry.id, (old) =>
+          removeEntityComponent(old, AnchorPointComponent.key),
+        );
+        break;
       case 'rotation-change':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, RotationComponent, (old) =>
           RotationComponent.update(old, entry.afterRotation),
+        );
+        break;
+      case 'rotation-add':
+        this.geometryStore.updateByIdDirect(entry.id, (old) =>
+          addEntityComponent(
+            old,
+            RotationComponent.key,
+            RotationComponent.create(entry.afterRotation.angle),
+          ),
+        );
+        break;
+      case 'rotation-remove':
+        this.geometryStore.updateByIdDirect(entry.id, (old) =>
+          removeEntityComponent(old, RotationComponent.key),
         );
         break;
       case 'polygon-insert-point':
@@ -967,9 +1010,37 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           AnchorPointComponent.update(old, entry.beforeAnchorPoint),
         );
         break;
+      case 'anchor-point-add':
+        this.geometryStore.updateByIdDirect(entry.id, (old) =>
+          removeEntityComponent(old, AnchorPointComponent.key),
+        );
+        break;
+      case 'anchor-point-remove':
+        this.geometryStore.updateByIdDirect(entry.id, (old) =>
+          addEntityComponent(
+            old,
+            AnchorPointComponent.key,
+            AnchorPointComponent.create(entry.beforeAnchorPoint),
+          ),
+        );
+        break;
       case 'rotation-change':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, RotationComponent, (old) =>
           RotationComponent.update(old, entry.beforeRotation),
+        );
+        break;
+      case 'rotation-add':
+        this.geometryStore.updateByIdDirect(entry.id, (old) =>
+          removeEntityComponent(old, RotationComponent.key),
+        );
+        break;
+      case 'rotation-remove':
+        this.geometryStore.updateByIdDirect(entry.id, (old) =>
+          addEntityComponent(
+            old,
+            RotationComponent.key,
+            RotationComponent.create(entry.beforeRotation.angle),
+          ),
         );
         break;
       case 'fill-color':

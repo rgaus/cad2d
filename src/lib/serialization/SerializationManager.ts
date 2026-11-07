@@ -11,11 +11,11 @@ import {
   RenderOrderComponent,
 } from '@/lib/entity';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { GeometryData } from '@/lib/entity/geometry';
 import type { Sheet } from '@/lib/sheet/Sheet';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import type { ToolType } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
-import { GeometryData } from '@/lib/entity/geometry';
 import { UndoEntry } from '../history/types';
 import { ParseSvgWarningError } from './ParseSvgWarningError';
 import { canLoad as canLoadSvg, parseSvg } from './deserialize';
@@ -139,7 +139,10 @@ export class SerializationManager {
       const parseResult = parseSvg(
         svg,
         this.getHistoryManager().generateStableId.bind(this.getHistoryManager()),
-        this.getGeometryStore().hasId.bind(this.getGeometryStore()),
+        // When replacing the whole sheet, existing ids are about to be cleared, so they must not
+        // force rewrites (which would desynchronize history, constraints, and filters). Fragments
+        // pasted into the current document still need collision handling.
+        eraseExisting ? () => false : this.getGeometryStore().hasId.bind(this.getGeometryStore()),
       );
       result.warnings = parseResult.warnings;
 
@@ -256,8 +259,14 @@ export class SerializationManager {
           }
         }
 
-        // Clear selection
+        // Restore selection, ignoring ids which no longer exist in the loaded document.
         selectionManager.clearSelection();
+        const restorableSelection = new Set(
+          (state.selection ?? []).filter((id) => geometryStore.hasId(id)),
+        );
+        if (restorableSelection.size > 0) {
+          selectionManager.selectAll(restorableSelection);
+        }
 
         // Restore viewport if available
         const viewportControls = this.getViewportControls();

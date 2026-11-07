@@ -88,12 +88,40 @@ export type AnchorPointMoveEntry = {
   afterAnchorPoint: AnchorPointData;
 };
 
+/** Recorded when an anchor point component is added to a geometry. */
+export type AnchorPointAddEntry = {
+  type: 'anchor-point-add';
+  id: Id;
+  afterAnchorPoint: AnchorPointData;
+};
+
+/** Recorded when an anchor point component is removed from a geometry. */
+export type AnchorPointRemoveEntry = {
+  type: 'anchor-point-remove';
+  id: Id;
+  beforeAnchorPoint: AnchorPointData;
+};
+
 /** Recorded when a geometry's rotation is changed. */
 export type RotationChangeEntry = {
   type: 'rotation-change';
   id: Id;
   beforeRotation: RotationData;
   afterRotation: RotationData;
+};
+
+/** Recorded when a rotation component is added to a geometry. */
+export type RotationAddEntry = {
+  type: 'rotation-add';
+  id: Id;
+  afterRotation: RotationData;
+};
+
+/** Recorded when a rotation component is removed from a geometry. */
+export type RotationRemoveEntry = {
+  type: 'rotation-remove';
+  id: Id;
+  beforeRotation: RotationData;
 };
 
 /** Recorded when a polygon is moved (all vertices shifted). */
@@ -445,7 +473,11 @@ export type UndoEntry =
   | RenderOrderEntry
   | LinkDimensionsEntry
   | AnchorPointMoveEntry
+  | AnchorPointAddEntry
+  | AnchorPointRemoveEntry
   | RotationChangeEntry
+  | RotationAddEntry
+  | RotationRemoveEntry
   | PolygonMoveEntry
   | RectangleMoveEntry
   | EllipseMoveEntry
@@ -688,6 +720,19 @@ export namespace UndoEntry {
     return { type: 'anchor-point-move', id, beforeAnchorPoint, afterAnchorPoint };
   }
 
+  /** Creates an entry for adding an anchor point component to a geometry. */
+  export function anchorPointAdd(id: Id, afterAnchorPoint: AnchorPointData): AnchorPointAddEntry {
+    return { type: 'anchor-point-add', id, afterAnchorPoint };
+  }
+
+  /** Creates an entry for removing an anchor point component from a geometry. */
+  export function anchorPointRemove(
+    id: Id,
+    beforeAnchorPoint: AnchorPointData,
+  ): AnchorPointRemoveEntry {
+    return { type: 'anchor-point-remove', id, beforeAnchorPoint };
+  }
+
   /** Creates an entry for changing a geometry's rotation. */
   export function rotationChange(
     id: Id,
@@ -695,6 +740,16 @@ export namespace UndoEntry {
     afterRotation: RotationData,
   ): RotationChangeEntry {
     return { type: 'rotation-change', id, beforeRotation, afterRotation };
+  }
+
+  /** Creates an entry for adding a rotation component to a geometry. */
+  export function rotationAdd(id: Id, afterRotation: RotationData): RotationAddEntry {
+    return { type: 'rotation-add', id, afterRotation };
+  }
+
+  /** Creates an entry for removing a rotation component from a geometry. */
+  export function rotationRemove(id: Id, beforeRotation: RotationData): RotationRemoveEntry {
+    return { type: 'rotation-remove', id, beforeRotation };
   }
 
   /** Creates an entry for converting a rectangle to a polygon. */

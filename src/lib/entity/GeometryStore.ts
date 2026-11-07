@@ -906,29 +906,50 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       const beforeColor = FillColorComponent.get(before);
       const afterColor = FillColorComponent.get(after);
       if (beforeColor !== afterColor) {
-        this.historyManager.apply(UndoEntry.fillColor(id, beforeColor, afterColor));
+        this.historyManager.push(UndoEntry.fillColor(id, beforeColor, afterColor));
       }
     }
 
-    // Track anchor point changes.
-    if (
-      Entity.hasComponent(before, AnchorPointComponent) &&
-      Entity.hasComponent(after, AnchorPointComponent)
-    ) {
-      const beforeAnchor = AnchorPointComponent.get(before);
-      const afterAnchor = AnchorPointComponent.get(after);
+    // Track anchor point additions, removals, and changes. The forward mutation has already been
+    // applied by updateByIdDirect, so push (not apply) to avoid replaying it a second time.
+    const beforeHasAnchor = Entity.hasComponent(before, AnchorPointComponent);
+    const afterHasAnchor = Entity.hasComponent(after, AnchorPointComponent);
+    if (!beforeHasAnchor && afterHasAnchor) {
+      this.historyManager.push(
+        UndoEntry.anchorPointAdd(
+          id,
+          AnchorPointComponent.get(after as Entity<AnchorPointComponent>),
+        ),
+      );
+    } else if (beforeHasAnchor && !afterHasAnchor) {
+      this.historyManager.push(
+        UndoEntry.anchorPointRemove(
+          id,
+          AnchorPointComponent.get(before as Entity<AnchorPointComponent>),
+        ),
+      );
+    } else if (beforeHasAnchor && afterHasAnchor) {
+      const beforeAnchor = AnchorPointComponent.get(before as Entity<AnchorPointComponent>);
+      const afterAnchor = AnchorPointComponent.get(after as Entity<AnchorPointComponent>);
       if (beforeAnchor !== afterAnchor) {
-        this.historyManager.apply(UndoEntry.anchorPointMove(id, beforeAnchor, afterAnchor));
+        this.historyManager.push(UndoEntry.anchorPointMove(id, beforeAnchor, afterAnchor));
       }
     }
 
-    // Track rotation changes.
-    if (
-      Entity.hasComponent(before, RotationComponent) &&
-      Entity.hasComponent(after, RotationComponent)
-    ) {
-      const beforeRotation = RotationComponent.get(before);
-      const afterRotation = RotationComponent.get(after);
+    // Track rotation additions, removals, and changes.
+    const beforeHasRotation = Entity.hasComponent(before, RotationComponent);
+    const afterHasRotation = Entity.hasComponent(after, RotationComponent);
+    if (!beforeHasRotation && afterHasRotation) {
+      this.historyManager.push(
+        UndoEntry.rotationAdd(id, RotationComponent.get(after as Entity<RotationComponent>)),
+      );
+    } else if (beforeHasRotation && !afterHasRotation) {
+      this.historyManager.push(
+        UndoEntry.rotationRemove(id, RotationComponent.get(before as Entity<RotationComponent>)),
+      );
+    } else if (beforeHasRotation && afterHasRotation) {
+      const beforeRotation = RotationComponent.get(before as Entity<RotationComponent>);
+      const afterRotation = RotationComponent.get(after as Entity<RotationComponent>);
       if (beforeRotation !== afterRotation) {
         this.historyManager.push(UndoEntry.rotationChange(id, beforeRotation, afterRotation));
       }

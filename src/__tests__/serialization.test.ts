@@ -869,7 +869,7 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.isValid).toBe(true);
-      expect(result.isFallback).toBe(true);
+      expect(result.isFallback).toBe(false);
       expect(result.state).not.toBeNull();
       expect(result.state!.version).toBe(CURRENT_VERSION);
       expect(result.state!.sheet.defaultUnit).toBe('cm');
@@ -885,7 +885,7 @@ describe('parseSvg', () => {
       </svg>`;
       const result = parseSvg(svg, generateStableId);
       expect(result.isValid).toBe(true);
-      expect(result.isFallback).toBe(false);
+      expect(result.isFallback).toBe(true);
       expect(result.state).toBeNull();
     });
 

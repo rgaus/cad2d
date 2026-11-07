@@ -22,6 +22,7 @@ import {
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
 import { Angle } from '@/lib/units/angle';
@@ -41,6 +42,7 @@ import { FilletFilter } from '../entity/filters/fillet';
 import { MirrorFilter } from '../entity/filters/mirror';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { ParseSvgWarningError } from './ParseSvgWarningError';
+import { decodeUndoStack, remapUndoEntryIds } from './history-codec';
 import { CAD2D_STATE_COMMENT_PREFIX, type SerializedState, migrateState } from './versions';
 
 /** Result of parsing an SVG file. */
@@ -72,6 +74,122 @@ export type ParseResult = {
 /** Converts a pixel coordinate to SheetPosition. */
 function pixelsToSheetPosition(x: number, y: number): SheetPosition {
   return new SheetPosition(x / SHEET_UNITS_TO_PIXELS, y / SHEET_UNITS_TO_PIXELS);
+}
+
+/** Determines the id prefix for an element which will be parsed as an entity. */
+function idPrefixForElement(
+  tagName: string | undefined,
+  attrs: Record<string, string | number | undefined>,
+): string {
+  const dataType = attrs['data-type'];
+  if (typeof dataType === 'string') {
+    switch (dataType) {
+      case 'rectangle':
+        return ID_PREFIXES.rectangle;
+      case 'ellipse':
+        return ID_PREFIXES.ellipse;
+      case 'polygon':
+        return ID_PREFIXES.polygon;
+      case 'datum':
+        return ID_PREFIXES.datum;
+      default:
+        if (dataType.endsWith('-filter')) {
+          return ID_PREFIXES.filter;
+        }
+        if (dataType.endsWith('-constraint')) {
+          return ID_PREFIXES.constraint;
+        }
+        break;
+    }
+  }
+
+  switch (tagName) {
+    case 'rect':
+      return ID_PREFIXES.rectangle;
+    case 'ellipse':
+      return ID_PREFIXES.ellipse;
+    case 'path':
+    case 'polygon':
+      return ID_PREFIXES.polygon;
+    default:
+      return ID_PREFIXES.polygon;
+  }
+}
+
+/**
+ * Resolves an entity id against a pre-computed collision map.
+ *
+ * All ids are registered up front (before any element is parsed) so references from constraints,
+ * filters, and history entries are consistently rewritten regardless of document order.
+ */
+function resolveEntityId(
+  rawId: string | undefined,
+  prefix: string,
+  generateId: (prefix?: string) => Id,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
+): Id {
+  if (typeof rawId !== 'undefined') {
+    const mapped = rewrittenIdMap.get(rawId);
+    if (mapped) {
+      return mapped;
+    }
+    if (!doesIdExist(rawId)) {
+      return rawId;
+    }
+  }
+
+  const generated = generateId(prefix);
+  if (typeof rawId !== 'undefined') {
+    rewrittenIdMap.set(rawId, generated);
+  }
+  return generated;
+}
+
+/**
+ * Pre-registers every entity id in the document, rewriting collisions (either with the existing
+ * store or with another element in the same document) before any parsing happens. This guarantees
+ * that references parsed earlier in the document still resolve to the final id.
+ */
+function registerEntityIds(
+  element: Node,
+  generateId: (prefix?: string) => Id,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
+  seenIds: Set<Id>,
+): void {
+  if (element.type !== 'element') {
+    return;
+  }
+
+  const tagName = element.tagName?.toLowerCase();
+  const attrs = element.properties ?? {};
+  const dataType = attrs['data-type'];
+  const isFilter = typeof dataType === 'string' && dataType.endsWith('-filter');
+  const isEntityElement =
+    typeof dataType === 'string' ||
+    tagName === 'rect' ||
+    tagName === 'ellipse' ||
+    tagName === 'path' ||
+    tagName === 'polygon';
+
+  if (isEntityElement) {
+    const candidate = isFilter ? (attrs['data-id'] ?? attrs.id) : attrs.id;
+    if (typeof candidate === 'string' && candidate.length > 0) {
+      if (doesIdExist(candidate) || seenIds.has(candidate)) {
+        rewrittenIdMap.set(candidate, generateId(idPrefixForElement(tagName, attrs)));
+      }
+      seenIds.add(candidate);
+    }
+  }
+
+  if (element.children) {
+    for (const child of element.children) {
+      if (typeof child !== 'string') {
+        registerEntityIds(child, generateId, rewrittenIdMap, doesIdExist, seenIds);
+      }
+    }
+  }
 }
 
 type TransformElementAttrs = {
@@ -125,6 +243,11 @@ function parseRenderOrder(
   return (lastRenderOrder ?? 0) + 1;
 }
 
+/** Parses an optional color attribute, preserving `undefined` when the attribute is missing. */
+function parseOptionalColor(color?: string): number | null | undefined {
+  return typeof color === 'undefined' ? undefined : parseColor(color);
+}
+
 /** Parses a hex color string to a number, or returns null for "none". */
 function parseColor(color?: string): number | null {
   if (typeof color === 'undefined' || color === 'transparent' || color === 'none') {
@@ -170,6 +293,7 @@ function parsePolygonPath(
     'data-closed'?: string;
     'data-open-at-index'?: string;
     'data-render-order'?: string;
+    'data-last-fill-color'?: string;
     d?: string;
   },
   generateId: (prefix?: string) => Id,
@@ -177,20 +301,13 @@ function parsePolygonPath(
   doesIdExist: (id: Id) => boolean,
   lastRenderOrder?: number,
 ): [Polygon, number] | null {
-  let id = element.id;
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    // Generate id if the id was missing or already exists
-    id = generateId(ID_PREFIXES.polygon);
-    if (typeof element.id !== 'undefined') {
-      rewrittenIdMap.set(element.id, id);
-    }
-  } else {
-    // Rewrite the id if it was previously marked as rewritten
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    element.id,
+    ID_PREFIXES.polygon,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const d = element.d || '';
   const fillColor = parseColor(element.fill);
@@ -302,6 +419,7 @@ function parsePolygonPath(
     throw new ParseSvgWarningError(`path#${id}: expected at least 2 points, got ${points.length}`);
   }
 
+  const lastFillColor = parseOptionalColor(element['data-last-fill-color']);
   const polygonTemplate = Polygon.create(points, {
     closed,
     fillColor,
@@ -314,6 +432,9 @@ function parsePolygonPath(
       ...polygonTemplate,
       components: {
         ...polygonTemplate.components,
+        ...(typeof lastFillColor !== 'undefined'
+          ? { geometry: { ...polygonTemplate.components.geometry, lastFillColor } }
+          : {}),
         ...parseTransformComponents(element),
         ...RenderOrderComponent.create(renderOrder),
       },
@@ -332,6 +453,7 @@ function parsePolygonPolygon(
     fill?: string;
     'data-open-at-index'?: string;
     'data-render-order'?: string;
+    'data-last-fill-color'?: string;
     points?: string;
   },
   generateId: (prefix?: string) => Id,
@@ -339,20 +461,13 @@ function parsePolygonPolygon(
   doesIdExist: (id: Id) => boolean,
   lastRenderOrder?: number,
 ): [Polygon, number] | null {
-  let id = element.id;
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    // Generate id if the id was missing or already exists
-    id = generateId(ID_PREFIXES.polygon);
-    if (typeof element.id !== 'undefined') {
-      rewrittenIdMap.set(element.id, id);
-    }
-  } else {
-    // Rewrite the id if it was previously marked as rewritten
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    element.id,
+    ID_PREFIXES.polygon,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const fillColor = parseColor(element.fill);
   const openAtIndex = parseInt(element['data-open-at-index'] || '0', 10);
@@ -405,6 +520,7 @@ function parsePolygonPolygon(
   // Duplicate the first point at the end, since it is a closed polygon
   points.push(points[0]);
 
+  const lastFillColor = parseOptionalColor(element['data-last-fill-color']);
   const polygonTemplate = Polygon.create(points, {
     closed: true,
     fillColor,
@@ -417,6 +533,9 @@ function parsePolygonPolygon(
       ...polygonTemplate,
       components: {
         ...polygonTemplate.components,
+        ...(typeof lastFillColor !== 'undefined'
+          ? { geometry: { ...polygonTemplate.components.geometry, lastFillColor } }
+          : {}),
         ...parseTransformComponents(element),
         ...RenderOrderComponent.create(renderOrder),
       },
@@ -444,20 +563,13 @@ function parseRectangle(
   doesIdExist: (id: Id) => boolean,
   lastRenderOrder?: number,
 ): [Rectangle, number] | null {
-  let id = element.id;
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    // Generate id if the id was missing or already exists
-    id = generateId(ID_PREFIXES.rectangle);
-    if (typeof element.id !== 'undefined') {
-      rewrittenIdMap.set(element.id, id);
-    }
-  } else {
-    // Rewrite the id if it was previously marked as rewritten
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    element.id,
+    ID_PREFIXES.rectangle,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const x = parseFloat(element.x || '0');
   const y = parseFloat(element.y || '0');
@@ -520,20 +632,13 @@ function parseEllipse(
   doesIdExist: (id: Id) => boolean,
   lastRenderOrder?: number,
 ): [Ellipse, number] | null {
-  let id = element.id;
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    // Generate id if the id was missing or already exists
-    id = generateId(ID_PREFIXES.ellipse);
-    if (typeof element.id !== 'undefined') {
-      rewrittenIdMap.set(element.id, id);
-    }
-  } else {
-    // Rewrite the id if it was previously marked as rewritten
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    element.id,
+    ID_PREFIXES.ellipse,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const cx = parseFloat(element.cx || '0');
   const cy = parseFloat(element.cy || '0');
@@ -588,18 +693,13 @@ function parseDatum(
   rewrittenIdMap: Map<Id, Id>,
   doesIdExist: (id: Id) => boolean,
 ): [Datum, number] | null {
-  let id = element.id;
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    id = generateId(ID_PREFIXES.datum);
-    if (typeof element.id !== 'undefined') {
-      rewrittenIdMap.set(element.id, id);
-    }
-  } else {
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    element.id,
+    ID_PREFIXES.datum,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const x = parseFloat(element['data-x'] || '0');
   const y = parseFloat(element['data-y'] || '0');
@@ -623,6 +723,22 @@ function parseDatum(
   ];
 }
 
+/** Applies the optional persisted filter ordering to a freshly parsed filter entity. */
+function applyFilterOrder<T extends Entity<FilterComponent>>(
+  entity: T,
+  attrs: Record<string, string | number>,
+): T {
+  const raw = attrs['data-filter-order'];
+  if (typeof raw === 'undefined') {
+    return entity;
+  }
+  const order = typeof raw === 'number' ? raw : parseInt(String(raw), 10);
+  if (Number.isNaN(order)) {
+    throw new ParseSvgWarningError(`filter#${entity.id}: data-filter-order is not a number`);
+  }
+  return FilterComponent.updateOrder(entity, order) as T;
+}
+
 /** Parses a <g data-type="mirror-filter"> element. */
 function parseMirrorFilter(
   attrs: Record<string, string | number>,
@@ -630,18 +746,13 @@ function parseMirrorFilter(
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => Id,
 ): MirrorFilter | null {
-  let id = (attrs['data-id'] as Id) ?? (attrs.id as Id);
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    id = generateId(ID_PREFIXES.filter);
-    if (typeof attrs['data-id'] !== 'undefined' || typeof attrs.id !== 'undefined') {
-      rewrittenIdMap.set(attrs['data-id'] as Id, id);
-    }
-  } else {
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    (attrs['data-id'] as Id) ?? (attrs.id as Id),
+    ID_PREFIXES.filter,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const geometryId = attrs['data-geometry-id'] as string | undefined;
   if (typeof geometryId === 'undefined') {
@@ -668,10 +779,13 @@ function parseMirrorFilter(
     );
   }
 
-  return {
-    id,
-    ...MirrorFilter.create(rewrittenIdMap.get(geometryId) ?? geometryId, pointA, pointB),
-  };
+  return applyFilterOrder(
+    {
+      id,
+      ...MirrorFilter.create(rewrittenIdMap.get(geometryId) ?? geometryId, pointA, pointB),
+    },
+    attrs,
+  );
 }
 
 /** Parses a <g data-type="pattern-filter"> element. */
@@ -681,18 +795,13 @@ function parsePatternFilter(
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => Id,
 ): PatternFilter | null {
-  let id = (attrs['data-id'] as Id) ?? (attrs.id as Id);
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    id = generateId(ID_PREFIXES.filter);
-    if (typeof attrs['data-id'] !== 'undefined' || typeof attrs.id !== 'undefined') {
-      rewrittenIdMap.set(attrs['data-id'] as Id, id);
-    }
-  } else {
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    (attrs['data-id'] as Id) ?? (attrs.id as Id),
+    ID_PREFIXES.filter,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const geometryId = attrs['data-geometry-id'] as string | undefined;
   if (typeof geometryId === 'undefined') {
@@ -723,15 +832,18 @@ function parsePatternFilter(
           `pattern-filter#${id}: non-numeric grid bounds/repeats, got ul=${upperLeft.x}x${upperLeft.y} lr=${lowerRight.x}x${lowerRight.y} repeats=${xRepeats}x${yRepeats}`,
         );
       }
-      return {
-        id,
-        ...PatternFilter.createGrid(
-          rewrittenIdMap.get(geometryId) ?? geometryId,
-          upperLeft,
-          lowerRight,
-          { xRepeats, yRepeats },
-        ),
-      };
+      return applyFilterOrder(
+        {
+          id,
+          ...PatternFilter.createGrid(
+            rewrittenIdMap.get(geometryId) ?? geometryId,
+            upperLeft,
+            lowerRight,
+            { xRepeats, yRepeats },
+          ),
+        },
+        attrs,
+      );
     }
     case 'radial': {
       const center = new SheetPosition(
@@ -750,15 +862,18 @@ function parsePatternFilter(
           `pattern-filter#${id}: non-numeric radial values, got center=${center.x}x${center.y} radius=${radius} count=${count}`,
         );
       }
-      return {
-        id,
-        ...PatternFilter.createRadial(
-          rewrittenIdMap.get(geometryId) ?? geometryId,
-          center,
-          radius,
-          { count },
-        ),
-      };
+      return applyFilterOrder(
+        {
+          id,
+          ...PatternFilter.createRadial(
+            rewrittenIdMap.get(geometryId) ?? geometryId,
+            center,
+            radius,
+            { count },
+          ),
+        },
+        attrs,
+      );
     }
     default:
       throw new ParseSvgWarningError(
@@ -775,18 +890,13 @@ function parseFilletOrChamferFilter(
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => Id,
 ): FilletFilter | ChamferFilter | null {
-  let id = (attrs['data-id'] as Id) ?? (attrs.id as Id);
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    id = generateId(ID_PREFIXES.filter);
-    if (typeof attrs['data-id'] !== 'undefined' || typeof attrs.id !== 'undefined') {
-      rewrittenIdMap.set(attrs['data-id'] as Id, id);
-    }
-  } else {
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    (attrs['data-id'] as Id) ?? (attrs.id as Id),
+    ID_PREFIXES.filter,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const geometryId = attrs['data-geometry-id'] as string | undefined;
   const geometryType = attrs['data-geometry-type'] as string | undefined;
@@ -838,16 +948,19 @@ function parseFilletOrChamferFilter(
         );
       }
 
-      return {
-        id,
-        ...(type === 'fillet' ? FilletFilter : ChamferFilter).createOnPolygon(
-          rewrittenIdMap.get(geometryId) ?? geometryId,
-          pointAIndex,
-          pointCenterIndex,
-          pointBIndex,
-          Length.fromSheetUnits(offsetType, offsetMagnitude),
-        ),
-      };
+      return applyFilterOrder(
+        {
+          id,
+          ...(type === 'fillet' ? FilletFilter : ChamferFilter).createOnPolygon(
+            rewrittenIdMap.get(geometryId) ?? geometryId,
+            pointAIndex,
+            pointCenterIndex,
+            pointBIndex,
+            Length.fromSheetUnits(offsetType, offsetMagnitude),
+          ),
+        },
+        attrs,
+      );
     case 'rectangle':
       const pointAKeyPoint = attrs['data-point-a-key-point'];
       if (!RectangleEndpoint.is(pointAKeyPoint)) {
@@ -870,16 +983,19 @@ function parseFilletOrChamferFilter(
         );
       }
 
-      return {
-        id,
-        ...(type === 'fillet' ? FilletFilter : ChamferFilter).createOnRectangle(
-          rewrittenIdMap.get(geometryId) ?? geometryId,
-          pointAKeyPoint,
-          pointCenterKeyPoint,
-          pointBKeyPoint,
-          Length.fromSheetUnits(offsetType, offsetMagnitude),
-        ),
-      };
+      return applyFilterOrder(
+        {
+          id,
+          ...(type === 'fillet' ? FilletFilter : ChamferFilter).createOnRectangle(
+            rewrittenIdMap.get(geometryId) ?? geometryId,
+            pointAKeyPoint,
+            pointCenterKeyPoint,
+            pointBKeyPoint,
+            Length.fromSheetUnits(offsetType, offsetMagnitude),
+          ),
+        },
+        attrs,
+      );
     default:
       geometryType satisfies never;
       return null;
@@ -978,20 +1094,13 @@ function parseConstraint(
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
 ): Entity<ConstraintComponent> | null {
-  let id = attrs.id as string | undefined;
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    // Generate id if the id was missing or already exists
-    id = generateId(ID_PREFIXES.constraint);
-    if (typeof attrs.id !== 'undefined') {
-      rewrittenIdMap.set(attrs.id as Id, id);
-    }
-  } else {
-    // Rewrite the id if it was previously marked as rewritten
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    attrs.id as string | undefined,
+    ID_PREFIXES.constraint,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const offset =
     typeof attrs['data-offset'] === 'number'
@@ -1060,20 +1169,13 @@ function parsePerpendicularConstraint(
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
 ): Entity<ConstraintComponent> | null {
-  let id = attrs.id as string | undefined;
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    // Generate id if the id was missing or already exists
-    id = generateId(ID_PREFIXES.constraint);
-    if (typeof attrs.id !== 'undefined') {
-      rewrittenIdMap.set(attrs.id as Id, id);
-    }
-  } else {
-    // Rewrite the id if it was previously marked as rewritten
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    attrs.id as string | undefined,
+    ID_PREFIXES.constraint,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
   const pointCenter = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-center');
@@ -1092,20 +1194,13 @@ function parseParallelConstraint(
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
 ): Entity<ConstraintComponent> | null {
-  let id = attrs.id as string | undefined;
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    // Generate id if the id was missing or already exists
-    id = generateId(ID_PREFIXES.constraint);
-    if (typeof attrs.id !== 'undefined') {
-      rewrittenIdMap.set(attrs.id as Id, id);
-    }
-  } else {
-    // Rewrite the id if it was previously marked as rewritten
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    attrs.id as string | undefined,
+    ID_PREFIXES.constraint,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
   const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
@@ -1125,18 +1220,13 @@ function parseHorizontalConstraint(
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
 ): Entity<ConstraintComponent> | null {
-  let id = attrs.id as string | undefined;
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    id = generateId(ID_PREFIXES.constraint);
-    if (typeof attrs.id !== 'undefined') {
-      rewrittenIdMap.set(attrs.id as Id, id);
-    }
-  } else {
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    attrs.id as string | undefined,
+    ID_PREFIXES.constraint,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
   const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
@@ -1154,18 +1244,13 @@ function parseVerticalConstraint(
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
 ): Entity<ConstraintComponent> | null {
-  let id = attrs.id as string | undefined;
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    id = generateId(ID_PREFIXES.constraint);
-    if (typeof attrs.id !== 'undefined') {
-      rewrittenIdMap.set(attrs.id as Id, id);
-    }
-  } else {
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    attrs.id as string | undefined,
+    ID_PREFIXES.constraint,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
   const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
@@ -1183,18 +1268,13 @@ function parseColinearConstraint(
   doesIdExist: (id: Id) => boolean,
   generateId: (prefix?: string) => string,
 ): Entity<ConstraintComponent> | null {
-  let id = attrs.id as string | undefined;
-  if (typeof id === 'undefined' || doesIdExist(id)) {
-    id = generateId(ID_PREFIXES.constraint);
-    if (typeof attrs.id !== 'undefined') {
-      rewrittenIdMap.set(attrs.id as Id, id);
-    }
-  } else {
-    const rewritten = rewrittenIdMap.get(id);
-    if (rewritten) {
-      id = rewritten;
-    }
-  }
+  const id = resolveEntityId(
+    attrs.id as string | undefined,
+    ID_PREFIXES.constraint,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
 
   const pointTarget = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-target');
   const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
@@ -1232,9 +1312,6 @@ export function parseSvg(
 
   // Check if this is a native cad2d file
   const stateInfo = extractStateComment(svg);
-  if (stateInfo !== null) {
-    result.isFallback = true;
-  }
 
   // Try to parse the SVG
   let parsed;
@@ -1257,6 +1334,13 @@ export function parseSvg(
   if (svgTag) {
     const parsedVersion = parseInt(`${svgTag.properties?.['data-cad2d-version'] ?? 0}`, 10);
     result.version = !Number.isNaN(parsedVersion) ? parsedVersion : null;
+  }
+
+  // Register every entity id up front so collision rewrites are known before any element (or
+  // reference, or history entry) is parsed, independent of document order.
+  const seenEntityIds = new Set<Id>();
+  for (const child of parsed.children) {
+    registerEntityIds(child, generateId, rewrittenIdMap, doesIdExist, seenEntityIds);
   }
 
   // Track render order for auto-incrementing when data-render-order is not set
@@ -1652,8 +1736,21 @@ export function parseSvg(
   // If we have a magic comment, parse and migrate the state
   if (stateInfo) {
     try {
-      result.state = migrateState(stateInfo.state);
+      const state = migrateState(stateInfo.state);
+
+      // History is stored JSON-safe via the history codec; rehydrate unit/position classes so
+      // restored undo/redo entries replay correctly. Ids are remapped to match collision rewrites.
+      state.history.undoStack = decodeUndoStack(state.history.undoStack as Array<unknown>).map(
+        (entry) => remapUndoEntryIds(entry, rewrittenIdMap),
+      );
+      state.history.redoStack = decodeUndoStack(state.history.redoStack as Array<unknown>).map(
+        (entry) => remapUndoEntryIds(entry, rewrittenIdMap),
+      );
+      state.selection = state.selection.map((id) => rewrittenIdMap.get(id as Id) ?? id);
+
+      result.state = state;
       result.isValid = true;
+      result.isFallback = false;
     } catch (e) {
       result.warnings.push(new ParseSvgWarningError(`Failed to migrate state: ${e}`));
       return result;
@@ -1665,6 +1762,7 @@ export function parseSvg(
       result.rectangles.length > 0 ||
       result.ellipses.length > 0 ||
       result.constraints.length > 0;
+    result.isFallback = result.isValid;
   }
 
   return result;

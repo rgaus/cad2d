@@ -44,6 +44,7 @@ import {
   computeDimensionLinePoints,
 } from '@/lib/viewport/dimension-line-utils';
 import { type SheetPosition } from '@/lib/viewport/types';
+import { encodeUndoStack } from './history-codec';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION, type SerializedState } from './versions';
 
 /** Converts a SheetPosition to pixels (world coordinates). */
@@ -111,6 +112,32 @@ function serializeTransformAttributes(entity: Entity): Array<string> {
   return attrs;
 }
 
+/** Serializes a rotation as an SVG `transform` attribute. Render shapes carry their rotation
+ * independently of the source geometry attributes so that external SVG viewers show the rotated
+ * filtered/mirrored output correctly. */
+function serializeRotationTransform(
+  angleDegrees: number,
+  originX: number,
+  originY: number,
+): string {
+  if (!Number.isFinite(angleDegrees) || angleDegrees % 360 === 0) {
+    return '';
+  }
+  return `transform="rotate(${angleDegrees} ${originX} ${originY})"`;
+}
+
+/** Serializes the preferred fill color that should be restored when an open polygon is filled
+ * again (eg. after a mirror filter is removed). */
+function serializeLastFillColor(polygon: Polygon): Array<string> {
+  const data = GeometryComponent.get(polygon);
+  if (data.type !== 'polygon' || typeof data.lastFillColor === 'undefined') {
+    return [];
+  }
+  const value =
+    data.lastFillColor === null ? 'none' : `#${data.lastFillColor.toString(16).padStart(6, '0')}`;
+  return [`data-last-fill-color="${value}"`];
+}
+
 /** Serializes a polygon to an SVG <path> element string. */
 export function serializePolygon(polygon: Polygon, options?: { hidden?: boolean }): string {
   const fillColor = colorToHex(FillColorComponent.getOptional(polygon) ?? null);
@@ -123,6 +150,7 @@ export function serializePolygon(polygon: Polygon, options?: { hidden?: boolean 
     `stroke-width="2"`,
     `data-open-at-index="${polygonData.openAtIndex}"`,
     `data-render-order="${RenderOrderComponent.get(polygon)}"`,
+    ...serializeLastFillColor(polygon),
     ...serializeTransformAttributes(polygon),
     options?.hidden ? 'display="none"' : '',
   ].filter((attr) => attr.length > 0);
@@ -563,6 +591,7 @@ export function serializeFilter(filter: Entity): string {
   const attrs: Array<string> = [
     `data-id="${filter.id}"`,
     `data-geometry-id="${(fd as any).geometryId}"`,
+    `data-filter-order="${(filter as any).components.filter.order}"`,
   ];
   switch (fd.type) {
     case 'mirror':
@@ -718,8 +747,9 @@ export function serializeToSvg(
             const y = rs.upperLeft.y * SHEET_UNITS_TO_PIXELS;
             const w = (rs.lowerRight.x - rs.upperLeft.x) * SHEET_UNITS_TO_PIXELS;
             const h = (rs.lowerRight.y - rs.upperLeft.y) * SHEET_UNITS_TO_PIXELS;
+            const transformAttr = serializeRotationTransform(rs.angleDegrees, x, y);
             renderShapesSvgParts.push(
-              `<rect x="${x}" y="${y}" width="${w}" height="${h}"${fillAttr} stroke="#000" stroke-width="1" />`,
+              `<rect x="${x}" y="${y}" width="${w}" height="${h}"${fillAttr} stroke="#000" stroke-width="1"${transformAttr.length > 0 ? ` ${transformAttr}` : ''} />`,
             );
             break;
           }
@@ -732,8 +762,9 @@ export function serializeToSvg(
             const cy = rs.center.y * SHEET_UNITS_TO_PIXELS;
             const rx = rs.radiusX * SHEET_UNITS_TO_PIXELS;
             const ry = rs.radiusY * SHEET_UNITS_TO_PIXELS;
+            const transformAttr = serializeRotationTransform(rs.angleDegrees, cx, cy);
             renderShapesSvgParts.push(
-              `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"${fillAttr} stroke="#000" stroke-width="1" />`,
+              `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}"${fillAttr} stroke="#000" stroke-width="1"${transformAttr.length > 0 ? ` ${transformAttr}` : ''} />`,
             );
             break;
           }
@@ -878,8 +909,12 @@ export function serializeToSvg(
     },
     selection: Array.from(selectedIds),
     history: {
-      undoStack: historyManager.getUndoStack(),
-      redoStack: historyManager.getRedoStack(),
+      undoStack: encodeUndoStack(
+        historyManager.getUndoStack(),
+      ) as unknown as SerializedState['history']['undoStack'],
+      redoStack: encodeUndoStack(
+        historyManager.getRedoStack(),
+      ) as unknown as SerializedState['history']['redoStack'],
       stableIdCounter: historyManager.getStableIdCounter(),
     },
     activeTool: activeTool as any,
