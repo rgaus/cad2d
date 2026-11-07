@@ -1546,7 +1546,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           // Intersection points are in rendered sheet space, so split the rendered outline. The
           // resulting segments are then mapped back into the existing polygon's raw local frame
           // before writing them back, preserving its id, components, filters, and constraints.
-          let polygonPoints = PolygonData.renderedSegments(polygonGeometry);
+          const polygonPoints = PolygonData.renderedSegments(polygonGeometry);
           console.log('PRE POINTS:', polygonPoints.slice(), intersectionsBySegmentIndex);
 
           const originalPolygonPointsLength = polygonPoints.length;
