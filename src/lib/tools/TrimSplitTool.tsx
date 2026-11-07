@@ -432,7 +432,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
           if (!GeometryComponent.isPolygon(geometry)) {
             return false;
           }
-          return GeometryComponent.projectToSheet(geometry).points.every((p, i) =>
+          return PolygonData.renderedSegments(geometry).every((p, i) =>
             PolygonSegment.equals(p, mainPoints[i]),
           );
         });
@@ -977,7 +977,7 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
       // ── Polygon ──────────────────────────────────────────────
       const polygon = geometryStore.getByIdWithComponent(sid, GeometryComponent);
       if (polygon !== null && GeometryComponent.isPolygon(polygon)) {
-        const points = GeometryComponent.projectToSheet(polygon).points;
+        const points = PolygonData.renderedSegments(polygon);
         const len = points.length;
 
         for (let i = 0; i < len; i += 1) {

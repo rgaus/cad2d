@@ -6,7 +6,8 @@ import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useGeometries } from '@/hooks/useEntities';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { FillColorComponent, GeometryComponent, PolygonSegment } from '@/lib/entity';
-import { type Geometry, GeometryData } from '@/lib/entity/geometry';
+import { type Geometry } from '@/lib/entity/geometry';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { BoundingBox, CohenSutherland } from '@/lib/math';
 import { drawRotatedEllipse, drawRotatedRectangle } from '@/lib/pixi-render-helpers';
 import { ListLayers, RendererLayers, shouldRenderProximityEdgeDetectors } from '@/lib/renderer';
@@ -821,9 +822,18 @@ const PolygonOverlay: React.FunctionComponent = () => {
   const idPolygonDataPairs = useMemo(
     () =>
       geometries.flatMap((g) => {
-        const data = GeometryComponent.projectToSheet<GeometryData>(g);
+        const data = GeometryComponent.get(g);
         if (data.type === 'polygon') {
-          return [[g.id, data] as const];
+          return [
+            [
+              g.id,
+              {
+                ...data,
+                position: new SheetPosition(0, 0),
+                points: PolygonData.renderedSegments(g),
+              },
+            ] as const,
+          ];
         } else {
           return [];
         }
@@ -946,7 +956,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
   return (
     <>
       {decoratedPolygons.map(([id, polygonData]) => {
-        const segments = polygonData.points;
+        const segments: Array<PolygonSegment> = polygonData.points;
 
         return (
           <Fragment key={id}>

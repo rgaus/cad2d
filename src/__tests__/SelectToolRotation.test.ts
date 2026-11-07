@@ -527,7 +527,7 @@ describe('SelectTool rotation-aware interactions', () => {
       );
       setRotation(b.id, 30);
       const bGeometry = geometryStore.getByIdWithComponent(b.id, GeometryComponent)!;
-      const renderedPoint = GeometryComponent.projectToSheet(bGeometry).points[1].point;
+      const renderedPoint = PolygonData.renderedSegments(bGeometry)[1].point;
       const rawPoint = PolygonData.rawSegments(bGeometry)[1].point;
       expect(rawPoint.x).not.toBeCloseTo(renderedPoint.x, 3);
 
@@ -566,8 +566,8 @@ describe('SelectTool rotation-aware interactions', () => {
         GeometryComponent,
         AnchorPointComponent,
       )!;
-      const beforeRendered = GeometryComponent.projectToSheet(before).points[0].point;
-      const beforeOtherRendered = GeometryComponent.projectToSheet(before).points[1].point;
+      const beforeRendered = PolygonData.renderedSegments(before)[0].point;
+      const beforeOtherRendered = PolygonData.renderedSegments(before)[1].point;
       const targetRendered = new SheetPosition(13, 9);
       const expectedRaw = rawPointFromRendered(before, targetRendered);
 
@@ -585,8 +585,8 @@ describe('SelectTool rotation-aware interactions', () => {
         GeometryComponent,
         AnchorPointComponent,
       )!;
-      const afterRendered = GeometryComponent.projectToSheet(after).points[0].point;
-      const afterOtherRendered = GeometryComponent.projectToSheet(after).points[1].point;
+      const afterRendered = PolygonData.renderedSegments(after)[0].point;
+      const afterOtherRendered = PolygonData.renderedSegments(after)[1].point;
       const afterRaw = PolygonData.rawSegments(after)[0].point;
 
       expect(afterRaw.x).toBeCloseTo(expectedRaw.x, 6);
@@ -665,7 +665,7 @@ describe('SelectTool rotation-aware interactions', () => {
       const beforePosition = GeometryComponent.get(before).position;
       expect(afterSegment.controlPoint.x).toBeCloseTo(expectedRaw.x - beforePosition.x, 6);
       expect(afterSegment.controlPoint.y).toBeCloseTo(expectedRaw.y - beforePosition.y, 6);
-      const afterRendered = GeometryComponent.projectToSheet(after).points[2] as {
+      const afterRendered = PolygonData.renderedSegments(after)[2] as {
         controlPoint: SheetPosition;
       };
       expect(afterRendered.controlPoint.x).toBeCloseTo(targetRendered.x, 6);
@@ -691,7 +691,7 @@ describe('SelectTool rotation-aware interactions', () => {
       const inserted = PolygonData.rawSegments(after)[1].point;
       expect(inserted.x).toBeCloseTo(expectedRaw.x, 6);
       expect(inserted.y).toBeCloseTo(expectedRaw.y, 6);
-      const insertedRendered = GeometryComponent.projectToSheet(after).points[1].point;
+      const insertedRendered = PolygonData.renderedSegments(after)[1].point;
       expect(insertedRendered.x).toBeCloseTo(clickRendered.x, 6);
       expect(insertedRendered.y).toBeCloseTo(clickRendered.y, 6);
     });
@@ -708,7 +708,7 @@ describe('SelectTool rotation-aware interactions', () => {
       );
       setRotation(b.id, 30);
       const bGeometry = geometryStore.getByIdWithComponent(b.id, GeometryComponent)!;
-      const sharedRendered = GeometryComponent.projectToSheet(bGeometry).points[0].point;
+      const sharedRendered = PolygonData.renderedSegments(bGeometry)[0].point;
 
       const a = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
@@ -745,7 +745,7 @@ describe('SelectTool rotation-aware interactions', () => {
       expect(afterBRaw.x).toBeCloseTo(expectedBRaw.x, 6);
       expect(afterBRaw.y).toBeCloseTo(expectedBRaw.y, 6);
       expect(afterBRaw.x).not.toBeCloseTo(afterARaw.x, 3);
-      const afterBRendered = GeometryComponent.projectToSheet(afterB).points[0].point;
+      const afterBRendered = PolygonData.renderedSegments(afterB)[0].point;
       expect(afterBRendered.x).toBeCloseTo(targetRendered.x, 6);
       expect(afterBRendered.y).toBeCloseTo(targetRendered.y, 6);
       ctrlSpy.mockRestore();

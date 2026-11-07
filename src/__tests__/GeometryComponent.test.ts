@@ -646,15 +646,12 @@ describe('GeometryComponent', () => {
         GeometryComponent,
         AnchorPointComponent,
       )!;
-      const world = GeometryComponent.projectToSheet(polygonGeometry);
-      expect(world.type).toBe('polygon');
-      if (world.type === 'polygon') {
-        expect(world.points.map((p: PolygonSegment) => `${p.point.x},${p.point.y}`)).toEqual([
-          '0,0',
-          '6,0',
-          '3,6',
-        ]);
-      }
+      const rendered = PolygonData.renderedSegments(polygonGeometry);
+      expect(rendered.map((p: PolygonSegment) => `${p.point.x},${p.point.y}`)).toEqual([
+        '0,0',
+        '6,0',
+        '3,6',
+      ]);
     });
 
     it('leaves geometry unchanged when it has no anchor point component', () => {
@@ -798,7 +795,7 @@ describe('GeometryComponent', () => {
     });
   });
 
-  describe('projectToSheet', () => {
+  describe('rendered projections', () => {
     it('projects a rectangle by applying its render transform', () => {
       const rectangle = geometryStore.addOrdered(
         ID_PREFIXES.rectangle,
@@ -820,17 +817,15 @@ describe('GeometryComponent', () => {
       )!;
 
       const raw = GeometryComponent.get(geometry);
-      const projected = GeometryComponent.projectToSheet(geometry);
+      const [shape] = GeometryComponent.getRenderShapes(geometry, sheet.defaultUnit);
       const expectedOrigin = Entity.generateRenderTransformFunction(geometry)(raw.origin);
 
-      expect(projected.type).toBe('rectangle');
-      if (projected.type !== 'rectangle') {
-        return;
-      }
-      expect(projected.origin.x).toBeCloseTo(expectedOrigin.x);
-      expect(projected.origin.y).toBeCloseTo(expectedOrigin.y);
-      expect(projected.width).toBe(raw.width);
-      expect(projected.height).toBe(raw.height);
+      expect(shape).toMatchObject({
+        shape: 'rectangle',
+        upperLeft: { x: expectedOrigin.x, y: expectedOrigin.y },
+        lowerRight: { x: expectedOrigin.x + raw.width, y: expectedOrigin.y + raw.height },
+        angleDegrees: 90,
+      });
     });
 
     it('projects an ellipse by applying its render transform', () => {
@@ -848,15 +843,16 @@ describe('GeometryComponent', () => {
       )!;
 
       const raw = GeometryComponent.get(geometry);
-      const projected = GeometryComponent.projectToSheet(geometry);
+      const [shape] = GeometryComponent.getRenderShapes(geometry, sheet.defaultUnit);
       const expectedCenter = Entity.generateRenderTransformFunction(geometry)(raw.center);
 
-      expect(projected.type).toBe('ellipse');
-      if (projected.type !== 'ellipse') {
-        return;
-      }
-      expect(projected.center.x).toBeCloseTo(expectedCenter.x);
-      expect(projected.center.y).toBeCloseTo(expectedCenter.y);
+      expect(shape).toMatchObject({
+        shape: 'ellipse',
+        center: { x: expectedCenter.x, y: expectedCenter.y },
+        radiusX: raw.radiusX,
+        radiusY: raw.radiusY,
+        angleDegrees: 90,
+      });
     });
 
     it('projects polygon points by applying their render transform', () => {
@@ -873,20 +869,15 @@ describe('GeometryComponent', () => {
         AnchorPointComponent,
       )!;
 
-      const raw = GeometryComponent.get(geometry);
       const rawSegments = PolygonData.rawSegments(geometry);
-      const projected = GeometryComponent.projectToSheet(geometry);
+      const renderedSegments = PolygonData.renderedSegments(geometry);
       const transform = Entity.generateRenderTransformFunction(geometry);
 
-      expect(projected.type).toBe('polygon');
-      if (projected.type !== 'polygon' || raw.type !== 'polygon') {
-        return;
-      }
-      expect(projected.points).toHaveLength(rawSegments.length);
+      expect(renderedSegments).toHaveLength(rawSegments.length);
       for (let i = 0; i < rawSegments.length; i += 1) {
         const expected = transform(rawSegments[i].point);
-        expect(projected.points[i].point.x).toBeCloseTo(expected.x);
-        expect(projected.points[i].point.y).toBeCloseTo(expected.y);
+        expect(renderedSegments[i].point.x).toBeCloseTo(expected.x);
+        expect(renderedSegments[i].point.y).toBeCloseTo(expected.y);
       }
     });
   });

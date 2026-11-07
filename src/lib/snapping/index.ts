@@ -12,7 +12,7 @@ import {
   type RectangleEndpoint,
 } from '@/lib/entity';
 import { type Geometry } from '@/lib/entity/geometry';
-import { type PolygonData } from '@/lib/entity/geometry/polygon';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { Angle, BoundingBox, Vector2, closestPointOnSegment } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { GeometryRelativeSheetPosition, SheetPosition } from '@/lib/viewport/types';
@@ -297,11 +297,11 @@ function snapNearestKeyPoint(
         break;
       }
       case 'polygon': {
-        const renderedPolygon = GeometryComponent.projectToSheet(
+        const renderedPoints = PolygonData.renderedSegments(
           geometry as Entity<GeometryComponent<PolygonData>>,
         );
-        for (let i = 0; i < renderedPolygon.points.length; i += 1) {
-          const point = renderedPolygon.points[i].point;
+        for (let i = 0; i < renderedPoints.length; i += 1) {
+          const point = renderedPoints[i].point;
           consider(
             Vector2.distance(pos, point),
             { type: 'locked-polygon', id: geometry.id, pointIndex: i },

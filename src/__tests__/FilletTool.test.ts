@@ -11,6 +11,7 @@ import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { FilletFilter, FilletFilterData } from '@/lib/entity/filters/fillet';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { Sheet } from '@/lib/sheet/Sheet';
@@ -545,7 +546,7 @@ describe('FilletTool', () => {
       },
     }));
     const geometry = geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!;
-    const rendered = GeometryComponent.projectToSheet(geometry).points;
+    const rendered = PolygonData.renderedSegments(geometry);
     const center = rendered[1].point;
     const previous = rendered[0].point;
     const next = rendered[2].point;

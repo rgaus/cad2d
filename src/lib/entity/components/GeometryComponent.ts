@@ -54,10 +54,6 @@ export type ProjectedPolygonData = Omit<PolygonData, 'position' | 'points'> & {
   points: Array<PolygonSegment<SheetPosition>>;
 };
 
-export type ProjectedGeometryData<D extends GeometryData> = D extends PolygonData
-  ? ProjectedPolygonData
-  : D;
-
 export type DestinationPoint =
   | {
       shapeIndex: number;
@@ -132,26 +128,15 @@ export namespace GeometryComponent {
     return geometry.components.geometry;
   }
 
-  /** Returns the geometry data projected into rendered sheet coordinates. */
-  export function projectToSheet<D extends GeometryData = GeometryData>(
-    geometry: Entity<GeometryComponent<D>>,
-  ): ProjectedGeometryData<D> {
-    const state = get(geometry);
-    if (state.type === 'polygon') {
-      // Polygon points are stored locally, so the projection is expressed as absolute rendered
-      // segments with a zero local frame. This matches the legacy shape of the projected data
-      // used by render-shape / filter / DCEL consumers.
-      return {
-        ...state,
-        position: new SheetPosition(0, 0),
-        points: PolygonData.renderedSegments(geometry as Entity<GeometryComponent<PolygonData>>),
-      } as ProjectedGeometryData<D>;
-    }
-    return get(
-      transform(geometry, (position) =>
-        GeometryRelativeSheetPosition.fromRawSheet(position, geometry).toSheet(geometry),
-      ),
-    ) as ProjectedGeometryData<D>;
+  /** Polygon data projected into absolute rendered sheet space, with a zero local frame. */
+  function renderedPolygonData(
+    polygon: Entity<GeometryComponent<PolygonData>>,
+  ): ProjectedPolygonData {
+    return {
+      ...get(polygon),
+      position: new SheetPosition(0, 0),
+      points: PolygonData.renderedSegments(polygon),
+    };
   }
 
   export function isPolygon(
@@ -350,53 +335,6 @@ export namespace GeometryComponent {
     }
   }
 
-  /**
-   * Returns true if a geometry entity and a render shape are geometrically
-   * identical (same type, same positions). Ignores metadata like `primary`
-   * and `key` on the render shape.
-   *
-   * Used during serialization to skip rendering a render shape that is a
-   * duplicate of the entity's own native SVG element.
-   */
-  export function isGeometricallyEqual(
-    geometry: Entity<GeometryComponent>,
-    renderShape: RenderShape,
-  ): boolean {
-    const data = GeometryComponent.projectToSheet(geometry);
-    switch (data.type) {
-      case 'polygon':
-        if (renderShape.shape !== 'polygon') {
-          return false;
-        }
-        return PolygonData.isGeometricallyEqualToRenderShape(data.points, data.closed, renderShape);
-      case 'rectangle': {
-        if (renderShape.shape !== 'rectangle') {
-          return false;
-        }
-        const corners = RectangleData.corners(data);
-        return (
-          corners.upperLeft.x === renderShape.upperLeft.x &&
-          corners.upperLeft.y === renderShape.upperLeft.y &&
-          corners.lowerRight.x === renderShape.lowerRight.x &&
-          corners.lowerRight.y === renderShape.lowerRight.y
-        );
-      }
-      case 'ellipse':
-        if (renderShape.shape !== 'ellipse') {
-          return false;
-        }
-        return (
-          data.center.x === renderShape.center.x &&
-          data.center.y === renderShape.center.y &&
-          data.radiusX === renderShape.radiusX &&
-          data.radiusY === renderShape.radiusY
-        );
-      default:
-        data satisfies never;
-        return false;
-    }
-  }
-
   /** Returns the oriented resize frame matching the geometry's current rotation. */
   export function getResizeFrame(geometry: Entity<GeometryComponent>): ResizeFrame {
     return {
@@ -561,22 +499,29 @@ export namespace GeometryComponent {
     // Render shapes are always expressed in anchored (rendered) space.
     const mapping =
       options.destinationPointMapping as GetRenderShapesOptions<GeometryData>['destinationPointMapping'];
-    const state = GeometryComponent.projectToSheet(geometry);
+    const state = get(geometry);
+    const renderPosition = Entity.generateRenderTransformFunction(geometry);
     switch (state.type) {
-      case 'polygon':
+      case 'polygon': {
+        const rendered = renderedPolygonData(geometry as Entity<GeometryComponent<PolygonData>>);
         shapes = [
-          RenderShape.polygon(geometry.id, state.points, { closed: state.closed, primary: true }),
+          RenderShape.polygon(geometry.id, rendered.points, {
+            closed: rendered.closed,
+            primary: true,
+          }),
         ];
         if (mapping) {
-          for (let i = 0; i < state.points.length; i += 1) {
+          for (let i = 0; i < rendered.points.length; i += 1) {
             mapping.set(i, [{ shapeIndex: 0, type: 'polygon', pointIndex: i }]);
           }
         }
         break;
+      }
       case 'rectangle': {
-        const corners = RectangleData.corners(state);
+        const upperLeft = renderPosition(state.origin);
+        const lowerRight = new SheetPosition(upperLeft.x + state.width, upperLeft.y + state.height);
         shapes = [
-          RenderShape.rectangle(geometry.id, corners.upperLeft, corners.lowerRight, {
+          RenderShape.rectangle(geometry.id, upperLeft, lowerRight, {
             primary: true,
             angleDegrees:
               RotationComponent.getOptional(geometry)?.angle?.toDegrees()?.magnitude ?? 0,
@@ -589,9 +534,10 @@ export namespace GeometryComponent {
         }
         break;
       }
-      case 'ellipse':
+      case 'ellipse': {
+        const center = renderPosition(state.center);
         shapes = [
-          RenderShape.ellipse(geometry.id, state.center, {
+          RenderShape.ellipse(geometry.id, center, {
             radiusX: state.radiusX,
             radiusY: state.radiusY,
             primary: true,
@@ -600,6 +546,7 @@ export namespace GeometryComponent {
           }),
         ];
         break;
+      }
       default:
         state satisfies never;
         throw new Error(
@@ -940,7 +887,7 @@ export namespace GeometryComponent {
         const polygonEntity = entity as Entity<GeometryComponent<PolygonData>>;
         const rawSegments = PolygonData.rawSegments(polygonEntity);
         const bounds = BoundingBox.fromPoints(rawSegments.map((s) => s.point));
-        const projectedPolygon = GeometryComponent.projectToSheet(polygonEntity);
+        const projectedPolygon = renderedPolygonData(polygonEntity);
         const isPolygonFilledDueToFilter = !geometryData.closed && 'fillColor' in entity.components;
         const pointXHandlers = ctx.makePolygonPointLengthHandlers(id, 'x');
         const pointYHandlers = ctx.makePolygonPointLengthHandlers(id, 'y');
@@ -1116,7 +1063,7 @@ export namespace GeometryComponent {
               if (!current || !GeometryComponent.isPolygon(current)) {
                 return;
               }
-              const projected = GeometryComponent.projectToSheet(current);
+              const projected = renderedPolygonData(current);
               const beforeRendered: SheetPosition = (projected.points[index] as any)[pointKey];
               const sheetVal = len.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
               const afterRendered: SheetPosition =

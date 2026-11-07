@@ -12,6 +12,7 @@ import {
   GeometryComponent,
   GetRenderShapesOptions,
 } from '../components/GeometryComponent';
+import { PolygonData } from '../geometry/polygon';
 import { RenderShape } from '../render-shape';
 
 export type PatternGridFilterData = {
@@ -321,11 +322,16 @@ export namespace PatternFilter {
     geometry: Entity<GeometryComponent>,
     filterData: PatternFilterData,
   ): 'unchanged' | 'filled' {
-    const polyData = GeometryComponent.projectToSheet(geometry);
-    if (polyData.type !== 'polygon' || polyData.closed) {
+    const state = GeometryComponent.get(geometry);
+    if (state.type !== 'polygon' || state.closed) {
       return 'unchanged';
     }
-    if (arePolygonEndpointsOnEdgeLine(filterData, polyData.points) !== null) {
+    if (
+      arePolygonEndpointsOnEdgeLine(
+        filterData,
+        PolygonData.renderedSegments(geometry as Entity<GeometryComponent<PolygonData>>),
+      ) !== null
+    ) {
       return 'filled';
     }
     return 'unchanged';

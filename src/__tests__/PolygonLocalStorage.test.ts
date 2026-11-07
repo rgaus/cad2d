@@ -124,11 +124,8 @@ describe('polygon stable local storage', () => {
     expect(bbox.width).toBeCloseTo(10);
     expect(bbox.height).toBeCloseTo(10);
 
-    const projected = GeometryComponent.projectToSheet(entity);
-    if (projected.type !== 'polygon') {
-      throw new Error('expected projected polygon');
-    }
-    const renderedBounds = BoundingBox.fromPoints(projected.points.map((segment) => segment.point));
+    const renderedSegments = PolygonData.renderedSegments(entity);
+    const renderedBounds = BoundingBox.fromPoints(renderedSegments.map((segment) => segment.point));
     expect(renderedBounds.position.x).toBeCloseTo(10);
     expect(renderedBounds.position.y).toBeCloseTo(20);
     expect(renderedBounds.width).toBeCloseTo(10);

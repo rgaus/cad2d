@@ -1186,28 +1186,25 @@ export class DCELShapeIndex {
     if (this.shapes.has(polygon.id)) {
       this.removePolygon(polygon.id);
     }
-    const renderedPolygon = GeometryComponent.projectToSheet(polygon);
+    const polygonData = GeometryComponent.get(polygon);
+    const renderedPoints = PolygonData.renderedSegments(polygon);
     const { positions, curveContexts, reversed } = this._polygonPoints(
-      renderedPolygon.points,
-      renderedPolygon.closed,
+      renderedPoints,
+      polygonData.closed,
     );
     this._registerShape(
       polygon.id,
       'polygon',
       positions,
       [],
-      renderedPolygon.closed,
+      polygonData.closed,
       reversed,
       curveContexts,
     );
 
     const tracked = this.shapes.get(polygon.id);
     if (tracked) {
-      const mappings = buildPolygonPointIndexMappings(
-        renderedPolygon.points,
-        renderedPolygon.closed,
-        reversed,
-      );
+      const mappings = buildPolygonPointIndexMappings(renderedPoints, polygonData.closed, reversed);
       tracked.polygonPointIndexToOriginalOrdinal = mappings.pointIndexToOriginalOrdinal;
       tracked.polygonOriginalOrdinalToPointIndex = mappings.originalOrdinalToPointIndex;
     }

@@ -888,8 +888,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       const geom = this.getGeometryStore().getByIdWithComponent(id, GeometryComponent);
       if (!geom || !GeometryComponent.isPolygon(geom)) continue;
 
-      const polygonData = GeometryComponent.projectToSheet(geom);
-      const pointCount = polygonData.points.length;
+      const polygonData = GeometryComponent.get(geom);
+      const points = PolygonData.renderedSegments(geom);
+      const pointCount = points.length;
       if (pointCount < 2) continue;
 
       // For closed polygons, we iterate all points (the last point connects back to the first).
@@ -897,9 +898,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       const lastEdgeIndex = polygonData.closed ? pointCount - 1 : pointCount - 2;
 
       for (let i = 0; i <= lastEdgeIndex; i++) {
-        const currentSeg = polygonData.points[i];
+        const currentSeg = points[i];
         const nextSegIndex = (i + 1) % pointCount;
-        const nextSeg = polygonData.points[nextSegIndex];
+        const nextSeg = points[nextSegIndex];
 
         let closest;
         if (nextSeg.type === 'arc-quadratic') {
@@ -957,10 +958,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const worldPos = screenPos.toWorld(viewportControls.getState().viewport);
     const sheetPos = worldPos.toSheet();
     const polygonData = GeometryComponent.get(polygonGeom);
-    const worldPolygonData = GeometryComponent.projectToSheet(polygonGeom);
-    const beforeRenderedPoint = worldPolygonData.points[segmentIndex].point;
-    const localBeforePoint = polygonData.points[segmentIndex].point;
-    const beforePoint = new SheetPosition(localBeforePoint.x, localBeforePoint.y);
+    const renderedPoints = PolygonData.renderedSegments(polygonGeom);
+    const beforeRenderedPoint = renderedPoints[segmentIndex].point;
 
     this.draggingPolygonId = polygonId;
     this.draggingSegmentIndex = segmentIndex;
@@ -3097,9 +3096,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const quadPolygonData = GeometryComponent.projectToSheet(geom);
-    const pointSegment = quadPolygonData.points[segmentIndex];
-    const arcSegment = quadPolygonData.points[segmentIndex + 1];
+    const quadPoints = PolygonData.renderedSegments(geom);
+    const pointSegment = quadPoints[segmentIndex];
+    const arcSegment = quadPoints[segmentIndex + 1];
     if (
       !pointSegment ||
       !arcSegment ||
@@ -3128,9 +3127,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return;
     }
 
-    const cubicPolygonData = GeometryComponent.projectToSheet(geom);
-    const pointSegment = cubicPolygonData.points[segmentIndex];
-    const arcSegment = cubicPolygonData.points[segmentIndex + 1];
+    const cubicPoints = PolygonData.renderedSegments(geom);
+    const pointSegment = cubicPoints[segmentIndex];
+    const arcSegment = cubicPoints[segmentIndex + 1];
     if (
       !pointSegment ||
       !arcSegment ||

@@ -5,6 +5,7 @@ import { DEFAULT_COLOR } from '../colors';
 import { FillColorComponent } from '../components/FillColorComponent';
 import { FilterComponent } from '../components/FilterComponent';
 import { GeometryComponent, GetRenderShapesOptions } from '../components/GeometryComponent';
+import { PolygonData } from '../geometry/polygon';
 import { RenderShape } from '../render-shape';
 
 export type MirrorFilterData = {
@@ -134,11 +135,16 @@ export namespace MirrorFilter {
     geometry: Entity<GeometryComponent>,
     filterData: MirrorFilterData,
   ): 'unchanged' | 'filled' {
-    const polyData = GeometryComponent.projectToSheet(geometry);
-    if (polyData.type !== 'polygon' || polyData.closed) {
+    const state = GeometryComponent.get(geometry);
+    if (state.type !== 'polygon' || state.closed) {
       return 'unchanged';
     }
-    if (arePolygonEndpointsOnMirrorLine(filterData, polyData.points)) {
+    if (
+      arePolygonEndpointsOnMirrorLine(
+        filterData,
+        PolygonData.renderedSegments(geometry as Entity<GeometryComponent<PolygonData>>),
+      )
+    ) {
       return 'filled';
     }
     return 'unchanged';
