@@ -343,8 +343,8 @@ describe('ShapePreview', () => {
       const { doc } = renderPreview(geometry);
       const marker = doc.querySelector('[data-preview-anchor="true"]')!;
 
-      expect(numberAttr(marker, 'x') + numberAttr(marker, 'width') / 2).toBeCloseTo(expectedX);
-      expect(numberAttr(marker, 'y') + numberAttr(marker, 'height') / 2).toBeCloseTo(expectedY);
+      expect(numberAttr(marker, 'cx')).toBeCloseTo(expectedX);
+      expect(numberAttr(marker, 'cy')).toBeCloseTo(expectedY);
     });
   });
 });

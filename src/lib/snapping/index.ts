@@ -127,7 +127,11 @@ function snapToGrid(pos: SheetPosition, gridSize: number): SheetPosition {
  * Snaps the end point to the nearest multiple of {@link angleDegrees} from the start point.
  * Preserves the distance from start to end.
  */
-function snapToAngle(start: SheetPosition, end: SheetPosition, angleDegrees = 15): SheetPosition {
+export function snapToAngle(
+  start: SheetPosition,
+  end: SheetPosition,
+  angleDegrees = 15,
+): SheetPosition {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const dist = Math.sqrt(dx * dx + dy * dy);

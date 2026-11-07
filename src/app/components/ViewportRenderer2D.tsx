@@ -1206,6 +1206,14 @@ export default function ViewportRenderer2D({
           </HoverTooltip>
         ) : null}
 
+        {activeTool.type === 'select' && visibleTooltip === 'rotate-geometry' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+              ctrl
+            </KeyboardShortcut>
+          </HoverTooltip>
+        ) : null}
+
         {activeTool.type === 'select' && visibleTooltip === 'geometry-fill' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">

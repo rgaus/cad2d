@@ -1083,4 +1083,125 @@ describe('SelectTool rotation-aware interactions', () => {
       expect(Math.max(...ys)).toBeGreaterThanOrEqual(localTwo.y);
     });
   });
+
+  describe('rotation handle', () => {
+    function startRotation(geometryId: string, startSheet: SheetPosition) {
+      const startScreen = startSheet.toScreen(viewportControls.getState().viewport);
+      selectTool.onRotationHandlePointerDown(viewportControls, geometryId, startScreen);
+      return startScreen;
+    }
+
+    function endScreenAtAngle(pivot: SheetPosition, angleDegrees: number, distance = 5) {
+      const radians = (angleDegrees * Math.PI) / 180;
+      return new SheetPosition(
+        pivot.x + Math.cos(radians) * distance,
+        pivot.y + Math.sin(radians) * distance,
+      ).toScreen(viewportControls.getState().viewport);
+    }
+
+    it('rotates a geometry, shows the tooltip, and records one history event on release', () => {
+      const ctrlSpy = jest.spyOn(toolManager, 'getCtrlHeld').mockReturnValue(true);
+      const rectangle = addRotatedRectangle(
+        new SheetPosition(10, 10),
+        new SheetPosition(14, 12),
+        0,
+      );
+      const pivot = GeometryComponent.getOrigin(rectangle);
+      const tooltipListener = jest.fn();
+      selectTool.on('tooltipVisibilityChanged', tooltipListener);
+      const undoDepth = historyManager.getUndoStack().length;
+
+      startRotation(rectangle.id, new SheetPosition(pivot.x, pivot.y - 5));
+      expect(tooltipListener).toHaveBeenLastCalledWith('rotate-geometry');
+
+      const end = endScreenAtAngle(pivot, 0);
+      moveTo(end);
+      const midDrag = geometryStore.getByIdWithComponent(rectangle.id, RotationComponent)!;
+      expect(RotationComponent.get(midDrag).angle.toDegrees().magnitude).toBeCloseTo(90);
+      expect(historyManager.getUndoStack()).toHaveLength(undoDepth);
+
+      commitAt(end);
+      expect(tooltipListener).toHaveBeenLastCalledWith(null);
+      const after = geometryStore.getByIdWithComponent(rectangle.id, RotationComponent)!;
+      expect(RotationComponent.get(after).angle.toDegrees().magnitude).toBeCloseTo(90);
+      expect(historyManager.getUndoStack().at(-1)?.type).toBe('rotation-change');
+
+      historyManager.undo();
+      const undone = geometryStore.getByIdWithComponent(rectangle.id, RotationComponent)!;
+      expect(RotationComponent.get(undone).angle.toDegrees().magnitude).toBeCloseTo(0);
+      ctrlSpy.mockRestore();
+      selectTool.off('tooltipVisibilityChanged', tooltipListener);
+    });
+
+    it('snaps pointer direction when ctrl is not held and leaves it free when held', () => {
+      const rectangle = addRotatedRectangle(
+        new SheetPosition(10, 10),
+        new SheetPosition(14, 12),
+        0,
+      );
+      const pivot = GeometryComponent.getOrigin(rectangle);
+
+      const ctrlSpy = jest.spyOn(toolManager, 'getCtrlHeld').mockReturnValue(false);
+      startRotation(rectangle.id, new SheetPosition(pivot.x, pivot.y - 5));
+      let end = endScreenAtAngle(pivot, -50);
+      moveTo(end);
+      let current = geometryStore.getByIdWithComponent(rectangle.id, RotationComponent)!;
+      expect(RotationComponent.get(current).angle.toDegrees().magnitude).toBeCloseTo(45);
+      commitAt(end);
+      ctrlSpy.mockRestore();
+
+      const ctrlHeldSpy = jest.spyOn(toolManager, 'getCtrlHeld').mockReturnValue(true);
+      const freeRectangle = addRotatedRectangle(
+        new SheetPosition(20, 10),
+        new SheetPosition(24, 12),
+        0,
+      );
+      const freePivot = GeometryComponent.getOrigin(freeRectangle);
+      startRotation(freeRectangle.id, new SheetPosition(freePivot.x, freePivot.y - 5));
+      end = endScreenAtAngle(freePivot, -50);
+      moveTo(end);
+      current = geometryStore.getByIdWithComponent(freeRectangle.id, RotationComponent)!;
+      expect(RotationComponent.get(current).angle.toDegrees().magnitude).toBeCloseTo(90 - 50);
+      commitAt(end);
+      ctrlHeldSpy.mockRestore();
+    });
+
+    it('normalizes the angle into [0, 360)', () => {
+      const ctrlSpy = jest.spyOn(toolManager, 'getCtrlHeld').mockReturnValue(true);
+      const rectangle = addRotatedRectangle(
+        new SheetPosition(10, 10),
+        new SheetPosition(14, 12),
+        0,
+      );
+      const pivot = GeometryComponent.getOrigin(rectangle);
+
+      startRotation(rectangle.id, new SheetPosition(pivot.x, pivot.y - 5));
+      const end = endScreenAtAngle(pivot, -100);
+      moveTo(end);
+      const current = geometryStore.getByIdWithComponent(rectangle.id, RotationComponent)!;
+      expect(RotationComponent.get(current).angle.toDegrees().magnitude).toBeCloseTo(350);
+      commitAt(end);
+      ctrlSpy.mockRestore();
+    });
+
+    it('restores the original rotation and creates no history on cancel', () => {
+      const ctrlSpy = jest.spyOn(toolManager, 'getCtrlHeld').mockReturnValue(true);
+      const rectangle = addRotatedRectangle(
+        new SheetPosition(10, 10),
+        new SheetPosition(14, 12),
+        20,
+      );
+      const pivot = GeometryComponent.getOrigin(rectangle);
+      const undoDepth = historyManager.getUndoStack().length;
+
+      startRotation(rectangle.id, new SheetPosition(pivot.x, pivot.y - 5));
+      moveTo(endScreenAtAngle(pivot, 0));
+      selectTool.cancelActiveDrag();
+
+      const current = geometryStore.getByIdWithComponent(rectangle.id, RotationComponent)!;
+      expect(RotationComponent.get(current).angle.toDegrees().magnitude).toBeCloseTo(20);
+      expect(historyManager.getUndoStack()).toHaveLength(undoDepth);
+      ctrlSpy.mockRestore();
+    });
+  });
 });

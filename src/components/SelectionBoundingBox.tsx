@@ -1,4 +1,4 @@
-import { Graphics } from 'pixi.js';
+import { FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { OrientedBoundingBox } from '@/lib/math';
 import { drawRotatedRectangle } from '@/lib/pixi-render-helpers';
@@ -9,13 +9,18 @@ import { OrientedRect, SheetPosition } from '@/lib/viewport/types';
 import { HandleSprites } from './HandleSprites';
 import { LinearResizer } from './LinearResizer';
 
+/** Length in pixels of the rotation handle tail above the selection box. */
+export const ROTATION_HANDLE_TAIL_LENGTH_PX = 24;
+
 type SelectionBoundingBoxProps = {
   boundingBox: OrientedRect<SheetPosition>;
   viewportScale: number;
+  showRotationHandle?: boolean;
   onLinearResizerPointerDown?: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
   onCornerHandlePointerDown?: (
     corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
   ) => void;
+  onRotationHandlePointerDown?: (event: FederatedPointerEvent) => void;
 };
 
 /** A utility for rendering a selection bounding box around a geometry given the geometry's
@@ -23,8 +28,10 @@ type SelectionBoundingBoxProps = {
 export const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxProps> = ({
   boundingBox,
   viewportScale,
+  showRotationHandle,
   onLinearResizerPointerDown,
   onCornerHandlePointerDown,
+  onRotationHandlePointerDown,
 }) => {
   const outsetBoundingBox = useMemo(
     () =>
@@ -41,6 +48,53 @@ export const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxP
   const polygonBoundsPoints = useMemo(
     () => OrientedBoundingBox.cornersToArray(outsetBoundingBox),
     [outsetBoundingBox],
+  );
+
+  const rotationHandle = useMemo(() => {
+    const topCenter = new SheetPosition(
+      (polygonBoundsCorners.upperLeft.x + polygonBoundsCorners.upperRight.x) / 2,
+      (polygonBoundsCorners.upperLeft.y + polygonBoundsCorners.upperRight.y) / 2,
+    );
+    const bottomCenter = new SheetPosition(
+      (polygonBoundsCorners.lowerLeft.x + polygonBoundsCorners.lowerRight.x) / 2,
+      (polygonBoundsCorners.lowerLeft.y + polygonBoundsCorners.lowerRight.y) / 2,
+    );
+    const dx = topCenter.x - bottomCenter.x;
+    const dy = topCenter.y - bottomCenter.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance === 0) {
+      return null;
+    }
+
+    const tailLength = ROTATION_HANDLE_TAIL_LENGTH_PX / SHEET_UNITS_TO_PIXELS / viewportScale;
+    return {
+      topCenter,
+      tailEnd: new SheetPosition(
+        topCenter.x + (dx / distance) * tailLength,
+        topCenter.y + (dy / distance) * tailLength,
+      ),
+    };
+  }, [polygonBoundsCorners, viewportScale]);
+
+  const drawRotationTail = useCallback(
+    (graphics: Graphics) => {
+      graphics.clear();
+      if (!rotationHandle) {
+        return;
+      }
+
+      graphics.setStrokeStyle({ color: SELECTION_COLOR, width: 1 / viewportScale });
+      graphics.moveTo(
+        rotationHandle.topCenter.x * SHEET_UNITS_TO_PIXELS,
+        rotationHandle.topCenter.y * SHEET_UNITS_TO_PIXELS,
+      );
+      graphics.lineTo(
+        rotationHandle.tailEnd.x * SHEET_UNITS_TO_PIXELS,
+        rotationHandle.tailEnd.y * SHEET_UNITS_TO_PIXELS,
+      );
+      graphics.stroke();
+    },
+    [rotationHandle, viewportScale],
   );
 
   const drawPolygonSelection = useCallback(
@@ -65,6 +119,18 @@ export const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxP
   return (
     <pixiContainer>
       <pixiGraphics draw={drawPolygonSelection} eventMode="none" />
+
+      {showRotationHandle && rotationHandle ? (
+        <>
+          <pixiGraphics draw={drawRotationTail} eventMode="none" />
+          <HandleSprites
+            points={[rotationHandle.tailEnd]}
+            handleTexture={SelectionCornerHandleTexture.get()}
+            viewportScale={viewportScale}
+            onHandlePointerDown={(event) => onRotationHandlePointerDown?.(event)}
+          />
+        </>
+      ) : null}
 
       <LinearResizer
         startPosition={polygonBoundsCorners.upperLeft}

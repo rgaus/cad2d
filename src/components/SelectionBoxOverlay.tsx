@@ -1,8 +1,9 @@
-import { Graphics } from 'pixi.js';
+import { FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { BoundingBoxVisibleComponent, Entity, GeometryComponent } from '@/lib/entity';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { RenderShape } from '@/lib/entity/render-shape';
 import { BoundingBox, OrientedBoundingBox } from '@/lib/math';
 import {
@@ -13,7 +14,7 @@ import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { SELECTION_COLOR } from '@/lib/textures';
 import { SELECTED_OUTSET_PX } from '@/lib/tools/SelectTool';
 import { UnitType } from '@/lib/units/length';
-import { OrientedRect, Rect, SheetPosition } from '@/lib/viewport/types';
+import { OrientedRect, Rect, ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 import { SelectionBoundingBox } from './SelectionBoundingBox';
 
 /** Overlay that renders the selection bounding box(es) for selected geometries.
@@ -101,6 +102,26 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
     return [selectionBbox, showOutline ? selectionOutline : null];
   }, [hideBbox, selectedEntities, filtersByGeometryId, sheetDefaultUnit]);
 
+  const rotationTarget =
+    selectedEntities.length === 1 &&
+    Entity.hasComponent(selectedEntities[0], GeometryComponent) &&
+    Entity.hasComponent(selectedEntities[0], RotationComponent)
+      ? selectedEntities[0]
+      : null;
+
+  const onRotationHandlePointerDown = useCallback(
+    (event: FederatedPointerEvent) => {
+      if (viewportControls && activeTool.type === 'select' && rotationTarget) {
+        activeTool.onRotationHandlePointerDown?.(
+          viewportControls,
+          rotationTarget.id,
+          new ScreenPosition(event.clientX, event.clientY),
+        );
+      }
+    },
+    [rotationTarget, viewportControls, activeTool],
+  );
+
   const onCornerHandlePointerDown = useCallback(
     (corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => {
       if (viewportControls && activeTool.type === 'select') {
@@ -184,8 +205,10 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
         <SelectionBoundingBox
           boundingBox={selectionBbox}
           viewportScale={viewportScale}
+          showRotationHandle={rotationTarget !== null}
           onLinearResizerPointerDown={onLinearResizerPointerDown}
           onCornerHandlePointerDown={onCornerHandlePointerDown}
+          onRotationHandlePointerDown={onRotationHandlePointerDown}
         />
       ) : null}
 

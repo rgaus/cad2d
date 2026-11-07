@@ -54,7 +54,9 @@ import {
   applySnapping,
   applySnappingLineSeries,
   applySnappingOnConstrainedTrack,
+  snapToAngle,
 } from '@/lib/snapping';
+import { Angle } from '@/lib/units/angle';
 import { type UnitType } from '@/lib/units/length';
 import { SHEET_UNITS_TO_PIXELS } from '../sheet/Sheet';
 import { ViewportControls } from '../viewport/ViewportControls';
@@ -90,7 +92,7 @@ export type SelectToolEvents = {
 /** The pixels offset the selected bounded box is rendered from the actual bounding box. */
 export const SELECTED_OUTSET_PX = 16;
 
-export type VisibleTooltip = 'add-point' | 'geometry-fill' | null;
+export type VisibleTooltip = 'add-point' | 'geometry-fill' | 'rotate-geometry' | null;
 
 /** Timeout before a tooltip shows up next to a user's mouse giving them hints on what they can do
  * with the geometry - alt drag to duplicate, etc */
@@ -275,6 +277,11 @@ function renderedPointToRaw(
 ): SheetPosition {
   const raw = applyToPoint(inverse(Entity.generateRenderMatrix(geometry)), rendered);
   return new SheetPosition(raw.x, raw.y);
+}
+
+function normalizeAngleDegrees(angleDegrees: number): number {
+  const normalized = angleDegrees % 360;
+  return normalized < 0 ? normalized + 360 : normalized;
 }
 
 function pointsClose(a: SheetPosition, b: SheetPosition): boolean {
@@ -578,6 +585,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   private resizeOriginalEntities: Map<Id, Entity> | null = null;
   /** Original oriented selection frame at start of resize. */
   private resizeOriginalFrame: SelectionResizeFrame | null = null;
+  /** Active rotation-handle drag state. */
+  private activeRotationDrag: {
+    geometryId: Id;
+    beforeRotation: ReturnType<typeof RotationComponent.get>;
+    pivot: SheetPosition;
+    startPointerAngleRadians: number;
+  } | null = null;
   /** Full original geometries for each locked point, used for anchor compensation / cancel. */
   private originalVertexGeometries: Map<Id, Entity> = new Map();
 
@@ -758,6 +772,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.resizeOriginalGroupStates = null;
     this.resizeOriginalEntities = null;
     this.resizeOriginalFrame = null;
+    this.activeRotationDrag = null;
     this.originalVertexGeometries.clear();
     this.emit('dragStateChange', null);
   }
@@ -2499,6 +2514,98 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     // Don't cancel the event, let it propegate to handleMouseDown too.
     return false;
+  }
+
+  /** Starts rotating a single geometry via the rotation handle above the selection box. */
+  onRotationHandlePointerDown(
+    viewportControls: ViewportControls,
+    geometryId: Id,
+    screenPos: ScreenPosition,
+  ): void {
+    const entity = this.getGeometryStore().getById(geometryId);
+    if (
+      !entity ||
+      !Entity.hasComponent(entity, GeometryComponent) ||
+      !Entity.hasComponent(entity, RotationComponent)
+    ) {
+      return;
+    }
+
+    const pivot = GeometryComponent.getOrigin(entity);
+    const sheet = screenPos.toWorld(viewportControls.getState().viewport).toSheet();
+    this.activeRotationDrag = {
+      geometryId,
+      beforeRotation: { ...RotationComponent.get(entity) },
+      pivot,
+      startPointerAngleRadians: Math.atan2(sheet.y - pivot.y, sheet.x - pivot.x),
+    };
+    this.showTooltip('rotate-geometry');
+
+    this.activeDragListener = createDragListener({
+      viewportControls,
+      onMove: (sp) => {
+        const drag = this.activeRotationDrag;
+        if (!drag) {
+          return;
+        }
+
+        const viewport = viewportControls.getState().viewport;
+        const pointer = sp.toWorld(viewport).toSheet();
+        const snapped = this.toolManager.getCtrlHeld()
+          ? pointer
+          : snapToAngle(drag.pivot, pointer, 15);
+        const pointerAngle = Math.atan2(snapped.y - drag.pivot.y, snapped.x - drag.pivot.x);
+        const deltaDegrees = ((pointerAngle - drag.startPointerAngleRadians) * 180) / Math.PI;
+        const nextDegrees = normalizeAngleDegrees(
+          drag.beforeRotation.angle.toDegrees().magnitude + deltaDegrees,
+        );
+
+        this.getGeometryStore().updateByIdWithComponentDirect(
+          drag.geometryId,
+          RotationComponent,
+          (geometry) => RotationComponent.update(geometry, { angle: Angle.degrees(nextDegrees) }),
+        );
+      },
+      onCommit: () => {
+        const drag = this.activeRotationDrag;
+        this.activeRotationDrag = null;
+        this.activeDragListener = null;
+        this.cancelTooltip();
+        this.clearDragState();
+
+        if (!drag) {
+          return;
+        }
+        const afterEntity = this.getGeometryStore().getById(drag.geometryId);
+        if (!afterEntity || !Entity.hasComponent(afterEntity, RotationComponent)) {
+          return;
+        }
+        const afterRotation = RotationComponent.get(afterEntity);
+        if (
+          afterRotation.angle.toDegrees().magnitude ===
+          drag.beforeRotation.angle.toDegrees().magnitude
+        ) {
+          return;
+        }
+        this.getHistoryManager().push(
+          UndoEntry.rotationChange(drag.geometryId, drag.beforeRotation, afterRotation),
+        );
+      },
+      onCancel: () => {
+        const drag = this.activeRotationDrag;
+        if (drag) {
+          this.getGeometryStore().updateByIdWithComponentDirect(
+            drag.geometryId,
+            RotationComponent,
+            (geometry) => RotationComponent.update(geometry, { angle: drag.beforeRotation.angle }),
+          );
+        }
+        this.activeRotationDrag = null;
+        this.activeDragListener = null;
+        this.cancelTooltip();
+        this.clearDragState();
+      },
+    });
   }
 
   /** Starts resizing one or more geometries via a corner or edge handle of the bounding box. */
