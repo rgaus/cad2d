@@ -49,12 +49,6 @@ export const GearPreviewRenderer: React.FunctionComponent<GearPreviewRendererPro
         return;
       }
 
-      event.preventDefault();
-      event.stopPropagation();
-      if (event.nativeEvent instanceof Event) {
-        event.nativeEvent.stopPropagation();
-      }
-
       const viewport = viewportControls.getState().viewport;
       const pointer = new ScreenPosition(event.clientX, event.clientY).toWorld(viewport).toSheet();
       const originalCenter = action.getState().params.center;
