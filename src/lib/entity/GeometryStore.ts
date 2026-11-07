@@ -116,6 +116,24 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * maintaining eventual consistency.
    */
   private _debouncedDcelUpdaters = new Map<Id, ReturnType<typeof debounce>>();
+
+  /** Immediately applies all pending debounced DCEL updates. */
+  flushDcelUpdates(): void {
+    const updaters = Array.from(this._debouncedDcelUpdaters.values());
+    this._debouncedDcelUpdaters.clear();
+    for (const updater of updaters) {
+      updater.flush();
+    }
+  }
+
+  private _cancelDcelUpdate(id: Id): void {
+    const updater = this._debouncedDcelUpdaters.get(id);
+    if (updater) {
+      updater.cancel();
+      this._debouncedDcelUpdaters.delete(id);
+    }
+  }
+
   private _syncDcelUpdate(entity: Entity, immediate?: boolean): void {
     if (
       !Entity.hasComponent(entity, GeometryComponent) &&
@@ -640,9 +658,12 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Removes all geometry (polygons, rectangles, ellipses, constraints) from the store and resets the DCEL index. */
   clearAll(): void {
+    for (const updater of this._debouncedDcelUpdaters.values()) {
+      updater.cancel();
+    }
+    this._debouncedDcelUpdaters.clear();
     this.geometryById.clear();
     this.dcelIndex = new DCELShapeIndex();
-    this._debouncedDcelUpdaters.clear();
   }
 
   /** When changing the positioning of an open polygon which could be mirrored / patterned via a
@@ -1483,6 +1504,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * place. Use this when a mouse cursor is moving a point / etc and that point is in a known good
    * position.*/
   reconstrain(sheetUnit: UnitType, fixedPositions: Array<SheetPosition>) {
+    this.flushDcelUpdates();
     // Step 1: Compute all constraints by resolving any user defined constraints against the DCEL
     // index.
     const { engineConstraints, positions } = this.dcelIndex.computeEngineConstraints(
