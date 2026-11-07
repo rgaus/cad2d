@@ -1,7 +1,5 @@
-import { RenderShape } from '@/lib/entity/render-shape';
 import { type FieldOptionsList } from '@/lib/selection/fields';
 import { type SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
-import { UnitType } from '@/lib/units/length';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
 import { AnchorPointComponent } from './components/AnchorPointComponent';
 import { ConstraintComponent } from './components/ConstraintComponent';
@@ -15,6 +13,8 @@ import { RenderOrderComponent } from './components/RenderOrderComponent';
 import { EllipseData } from './geometry/ellipse';
 import { PolygonData } from './geometry/polygon';
 import { RectangleData } from './geometry/rectangle';
+import { UnitType } from '@/lib/units/length';
+import { RenderShape } from '@/lib/entity/render-shape';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -143,11 +143,10 @@ export namespace Entity {
   }
 
   /** Given an {@link Entity}, compute the transform function to take the entity and project it into
-   * where it should be rendered, based on any transformations like anchor point, rotation, etc. */
+    * where it should be rendered, based on any transformations like anchor point, rotation, etc. */
   export function generateRenderTransformFunction(entity: Entity) {
     if (Entity.hasComponent(entity, AnchorPointComponent)) {
-      return (position: SheetPosition) =>
-        AnchorPointComponent.generateRenderTransformFunction(entity)(position);
+      return (position: SheetPosition) => AnchorPointComponent.generateRenderTransformFunction(entity)(position);
     }
 
     return (position: SheetPosition) => position;

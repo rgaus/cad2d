@@ -336,9 +336,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
             result.push({
               type: 'rectangle',
               id: g.id,
-              segments: pointsToSegments(
-                rectangleToPolygon(geomData.origin, geomData.width, geomData.height),
-              ),
+              segments: pointsToSegments(rectangleToPolygon(geomData.origin, geomData.width, geomData.height)),
             });
             break;
           }
@@ -1204,11 +1202,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
     // The converted polygon is created in anchored (rendered) space with a default anchor, so the rendered
     // position of the rectangle is preserved.
-    const points = rectangleToPolygon(
-      rectangleData.origin,
-      rectangleData.width,
-      rectangleData.height,
-    );
+    const points = rectangleToPolygon(rectangleData.origin, rectangleData.width, rectangleData.height);
     const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
 
     const polygonTemplate = Polygon.create(points, {

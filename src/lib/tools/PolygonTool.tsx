@@ -12,14 +12,12 @@ import {
 import { QuerySegmentIntersectionPoint } from '@/lib/entity/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
-import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
 } from '@/lib/entity/constraints';
 import { LinearConstraintData } from '@/lib/entity/constraints/linear';
-import { GeometryData } from '@/lib/entity/geometry';
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
 import { DeCasteljau, Vector2, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import {
@@ -34,7 +32,6 @@ import {
   type WorkingPolygonSource,
 } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
-import { getGridAtScale } from '@/lib/viewport/grid';
 import {
   CubicCurve,
   LineSegment,
@@ -43,7 +40,10 @@ import {
   SheetPosition,
   type ViewportState,
 } from '@/lib/viewport/types';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { getGridAtScale } from '@/lib/viewport/grid';
 import { BaseTool } from './BaseTool';
+import { GeometryData } from '@/lib/entity/geometry';
 
 export type PolygonToolEndpoint = {
   polygonId: Id;

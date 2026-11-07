@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { BoundingBoxVisibleComponent, Entity, GeometryComponent } from '@/lib/entity';
-import { RenderShape } from '@/lib/entity/render-shape';
 import { BoundingBox } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { SELECTION_COLOR } from '@/lib/textures';
@@ -11,6 +10,7 @@ import { SELECTED_OUTSET_PX } from '@/lib/tools/SelectTool';
 import { UnitType } from '@/lib/units/length';
 import { Rect, SheetPosition } from '@/lib/viewport/types';
 import { SelectionBoundingBox } from './SelectionBoundingBox';
+import { RenderShape } from '@/lib/entity/render-shape';
 
 /** Overlay that renders the selection bounding box(es) for selected geometries.
  *

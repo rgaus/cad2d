@@ -1,5 +1,5 @@
-import { BoundingBox } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
+import { BoundingBox } from '@/lib/math';
 import { PolygonSegment } from './geometry/polygon';
 
 export type RenderShapePolygon = {

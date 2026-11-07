@@ -7,10 +7,10 @@ import type {
   Polygon,
   PolygonSegment,
 } from '@/lib/entity';
-import type { EllipseData } from '@/lib/entity/geometry/ellipse';
-import type { RectangleData } from '@/lib/entity/geometry/rectangle';
 import type { Length, SerializedLength, UnitType } from '@/lib/units/length';
 import type { SheetPosition } from '@/lib/viewport/types';
+import type { EllipseData } from '@/lib/entity/geometry/ellipse';
+import type { RectangleData } from '@/lib/entity/geometry/rectangle';
 
 export type TransactionEntity = {
   type: 'transaction';

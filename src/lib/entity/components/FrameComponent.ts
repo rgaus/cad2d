@@ -3,8 +3,8 @@ import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { Length, UnitType } from '@/lib/units/length';
 import { KeyPoints, Rect, SheetPosition } from '@/lib/viewport/types';
-import { RenderShape } from '../render-shape';
 import { Entity, type EntityComponent, ResizeParams } from '../types';
+import { RenderShape } from '../render-shape';
 
 export type FrameData = { upperLeft: SheetPosition; lowerRight: SheetPosition };
 
@@ -86,10 +86,7 @@ export namespace FrameComponent {
     });
   }
 
-  export function getRenderShapes(
-    entity: Entity<FrameComponent>,
-    _sheetDefaultUnit: UnitType,
-  ): Array<RenderShape> {
+  export function getRenderShapes(entity: Entity<FrameComponent>, _sheetDefaultUnit: UnitType): Array<RenderShape> {
     const p = FrameComponent.get(entity);
     return [RenderShape.rectangle(entity.id, p.upperLeft, p.lowerRight, { primary: true })];
   }

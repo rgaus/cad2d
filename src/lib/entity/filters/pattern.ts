@@ -469,7 +469,9 @@ export namespace PatternFilter {
                     renderShape.position.y + offsetY,
                   );
 
-                  copies.push(RenderShape.point(key, translatedPoint, { primary: false }));
+                  copies.push(
+                    RenderShape.point(key, translatedPoint, { primary: false }),
+                  );
                   break;
                 }
                 default:
