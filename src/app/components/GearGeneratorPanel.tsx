@@ -51,6 +51,8 @@ const NumberField: React.FunctionComponent<NumberFieldProps> = ({
       max={max}
       onFocus={() => setDraft(String(value))}
       onBlur={() => setDraft(null)}
+      onKeyDown={(event) => event.stopPropagation()}
+      onKeyUp={(event) => event.stopPropagation()}
       onChange={(event) => {
         const nextText = event.currentTarget.value;
         setDraft(nextText);
