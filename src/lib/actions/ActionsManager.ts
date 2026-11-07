@@ -7,12 +7,14 @@ import { type Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { ApplyFilterToGeometryAction } from './ApplyFilterToGeometryAction';
+import { BaseAction } from './BaseAction';
 import { ConvertToPolygonAction } from './ConvertToPolygonAction';
 import { CopyAction } from './CopyAction';
 import { DeleteSelectedAction } from './DeleteSelectedAction';
 import { DifferenceAction } from './DifferenceAction';
 import { FlipHorizontalAction } from './FlipHorizontalAction';
 import { FlipVerticalAction } from './FlipVerticalAction';
+import { GearGeneratorAction } from './GearGeneratorAction';
 import { IntersectionAction } from './IntersectionAction';
 import { LoadAction } from './LoadAction';
 import { LowerAction } from './LowerAction';
@@ -55,6 +57,7 @@ const ACTIONS = [
   ToggleLinkDimensionsAction,
   ConvertToPolygonAction,
   ApplyFilterToGeometryAction,
+  GearGeneratorAction,
   SheetSettingsAction,
 ];
 const ACTIONS_BY_TYPE = {
@@ -81,6 +84,7 @@ const ACTIONS_BY_TYPE = {
   'toggle-link-dimensions': ToggleLinkDimensionsAction,
   'convert-to-polygon': ConvertToPolygonAction,
   'apply-filter-to-geometry': ApplyFilterToGeometryAction,
+  'gear-generator': GearGeneratorAction,
   'sheet-settings': SheetSettingsAction,
 };
 export type ActionType = keyof typeof ACTIONS_BY_TYPE;
@@ -117,10 +121,13 @@ export class ActionsManager extends EventEmitter<ActionManagerEvents> {
     this.historyManager = historyManager;
 
     this.actions = ACTIONS.map((ActionClass) => {
-      const action = new ActionClass(this);
-      action.on('disabledChange', (disabled) =>
-        this.emit('actionDisabledChange', action.type, disabled),
-      );
+      const action = new (ActionClass as new (manager: ActionsManager) => BaseAction)(
+        this,
+      ) as Action;
+      const typedAction = action as unknown as BaseAction;
+      typedAction.on('disabledChange', (disabled: boolean) => {
+        this.emit('actionDisabledChange', action.type as ActionType, disabled);
+      });
       return action;
     });
 
