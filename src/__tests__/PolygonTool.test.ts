@@ -13,7 +13,9 @@ import {
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { HistoryManager } from '@/lib/history/HistoryManager';
@@ -25,6 +27,7 @@ import { PolygonTool } from '@/lib/tools/PolygonTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { WorkingLinearConstraint } from '@/lib/tools/types';
+import { Angle } from '@/lib/units/angle';
 import { Length, MillimetersType } from '@/lib/units/length';
 import {
   ScreenPosition,
@@ -3127,6 +3130,158 @@ describe('PolygonTool', () => {
       const workingPoints = geometryStore.workingPolygon!.points;
       expect(workingPoints[0].point.x).toBeCloseTo(0, 2);
       expect(workingPoints[0].point.y).toBeCloseTo(10, 2);
+    });
+  });
+  describe('transformed geometry updates', () => {
+    function addTransformedPolygon(geometryStore: GeometryStore) {
+      const polygon = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([makePoint(0, 0), makePoint(10, 0), makePoint(10, 10)], {
+          closed: false,
+          fillColor: null,
+          openAtIndex: 0,
+        }),
+      );
+      geometryStore.updateById(polygon.id, (g) => ({
+        ...g,
+        components: {
+          ...g.components,
+          ...RotationComponent.create(Angle.degrees(30)),
+        },
+      }));
+      geometryStore.updateByIdWithComponent(polygon.id, AnchorPointComponent, (g) =>
+        AnchorPointComponent.update(g, { keyPoint: 'Point 1', offset: new SheetPosition(1, 2) }),
+      );
+      geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(polygon.id, new SheetPosition(-20, 0), new SheetPosition(-20, 10)),
+      );
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+          ConstraintEndpoint.point(new SheetPosition(50, 50)),
+          Length.centimeters(1),
+        ),
+      );
+      geometryStore.flushDcelUpdates();
+      return { polygonId: polygon.id, constraintId: constraint.id };
+    }
+
+    it('extends a rotated, anchored polygon in place and keeps its components', () => {
+      const { polygonId, constraintId } = addTransformedPolygon(geometryStore);
+      const before = geometryStore.getByIdWithComponent(polygonId, GeometryComponent)!;
+      const rendered = PolygonData.renderedSegments(
+        before as Entity<GeometryComponent<PolygonData>>,
+      );
+      const last = rendered.at(-1)!.point;
+      const newPoint = new SheetPosition(last.x + 5, last.y + 5);
+      const points = [...rendered, { type: 'point' as const, point: newPoint }];
+
+      (polygonTool as any).constrainedLengths = [];
+      (polygonTool as any).committedIntersections = new Array(points.length - 1)
+        .fill([])
+        .map(() => []);
+      (polygonTool as any).completePolygon(
+        {
+          points,
+          previewPoint: null,
+          pendingArcEndPoint: null,
+          source: {
+            type: 'existing-polygon',
+            polygonId,
+            isStartPoint: false,
+            autoClosePoint: rendered[0].point,
+          },
+        },
+        true,
+        true,
+      );
+
+      const after = geometryStore.getByIdWithComponents(
+        polygonId,
+        GeometryComponent,
+        RotationComponent,
+        AnchorPointComponent,
+      )!;
+      expect(after).not.toBeNull();
+      expect(RotationComponent.get(after).angle.toDegrees().magnitude).toBeCloseTo(30);
+      expect(AnchorPointComponent.get(after).keyPoint).toBe('Point 1');
+      expect(AnchorPointComponent.get(after).offset.x).toBeCloseTo(1);
+      expect(AnchorPointComponent.get(after).offset.y).toBeCloseTo(2);
+      expect(geometryStore.findFiltersByGeometryId(polygonId)).toHaveLength(1);
+      expect(geometryStore.getByIdWithComponent(constraintId, ConstraintComponent)).not.toBeNull();
+      const afterRendered = PolygonData.renderedSegments(
+        after as Entity<GeometryComponent<PolygonData>>,
+      );
+      expect(afterRendered.at(-1)!.point.x).toBeCloseTo(newPoint.x, 6);
+      expect(afterRendered.at(-1)!.point.y).toBeCloseTo(newPoint.y, 6);
+    });
+
+    it('splits an intersected rotated, anchored polygon in place and keeps its components', () => {
+      const { polygonId, constraintId } = addTransformedPolygon(geometryStore);
+      const before = geometryStore.getByIdWithComponent(polygonId, GeometryComponent)!;
+      const rendered = PolygonData.renderedSegments(
+        before as Entity<GeometryComponent<PolygonData>>,
+      );
+      const start = rendered[0].point;
+      const end = rendered[1].point;
+      const mid = new SheetPosition((start.x + end.x) / 2, (start.y + end.y) / 2);
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const length = Math.hypot(dx, dy);
+      const p0 = new SheetPosition(mid.x - (dy / length) * 3, mid.y + (dx / length) * 3);
+      const p1 = new SheetPosition(mid.x + (dy / length) * 3, mid.y - (dx / length) * 3);
+
+      (polygonTool as any).constrainedLengths = [];
+      (polygonTool as any).committedIntersections = [
+        [
+          {
+            point: mid,
+            tOnSegment: 0.5,
+            uOnDcelEdge: 0.5,
+            originPos: start,
+            destPos: end,
+            originId: 'origin',
+            destId: 'dest',
+            geometries: [{ id: polygonId, segmentIndex: 0 }],
+          },
+        ],
+      ];
+      (polygonTool as any).completePolygon(
+        {
+          points: [
+            { type: 'point', point: p0 },
+            { type: 'point', point: p1 },
+          ],
+          previewPoint: null,
+          pendingArcEndPoint: null,
+          source: { type: 'empty' },
+        },
+        false,
+        true,
+      );
+
+      const after = geometryStore.getByIdWithComponents(
+        polygonId,
+        GeometryComponent,
+        RotationComponent,
+        AnchorPointComponent,
+      )!;
+      expect(after).not.toBeNull();
+      expect(RotationComponent.get(after).angle.toDegrees().magnitude).toBeCloseTo(30);
+      expect(AnchorPointComponent.get(after).keyPoint).toBe('Point 1');
+      expect(geometryStore.findFiltersByGeometryId(polygonId)).toHaveLength(1);
+      expect(geometryStore.getByIdWithComponent(constraintId, ConstraintComponent)).not.toBeNull();
+      const afterRendered = PolygonData.renderedSegments(
+        after as Entity<GeometryComponent<PolygonData>>,
+      );
+      expect(
+        afterRendered.some(
+          (segment) =>
+            Math.abs(segment.point.x - mid.x) < 1e-6 && Math.abs(segment.point.y - mid.y) < 1e-6,
+        ),
+      ).toBe(true);
     });
   });
 });

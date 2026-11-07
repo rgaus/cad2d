@@ -23,7 +23,7 @@ import { LinearConstraintData } from '@/lib/entity/constraints/linear';
 import { GeometryData } from '@/lib/entity/geometry';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
-import { DeCasteljau, Vector2, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
+import { DeCasteljau, Vector2 } from '@/lib/math';
 import {
   type SnappingLineSeriesOptions,
   type SnappingOptions,
@@ -1523,32 +1523,30 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         }
 
         // Step 2: For each intersected geometry id, add in new points
-        for (const [id, intersectionsBySegmentIndex] of committedIntersectionByGeometryId) {
-          const geometry = geometryStore.getById(id);
+        for (const [originalId, intersectionsBySegmentIndex] of committedIntersectionByGeometryId) {
+          let geometry = geometryStore.getById(originalId);
           if (!geometry || !Entity.hasComponent(geometry, GeometryComponent)) {
             continue;
           }
 
-          const geomData = GeometryComponent.get<GeometryData>(geometry);
-          let polygonPoints: Array<PolygonSegment>;
-          let polygonClosed = true;
-          switch (geomData.type) {
-            case 'ellipse':
-              polygonPoints = ellipseToPolygon(geomData.center, geomData.radiusX, geomData.radiusY);
-              break;
-            case 'rectangle': {
-              polygonPoints = rectangleToPolygon(geomData.origin, geomData.width, geomData.height);
-              break;
-            }
-            case 'polygon':
-              polygonPoints = PolygonData.rawSegments(
-                geometry as Entity<GeometryComponent<PolygonData>>,
-              );
-              polygonClosed = geomData.closed;
-              break;
-            default:
-              continue;
+          const originalData = GeometryComponent.get<GeometryData>(geometry);
+          if (originalData.type === 'ellipse') {
+            geometry = geometryStore.convertEllipseToPolygon(originalId);
+          } else if (originalData.type === 'rectangle') {
+            geometry = geometryStore.convertRectangleToPolygon(originalId);
           }
+          const converted = geometryStore.getByIdWithComponent(geometry.id, GeometryComponent);
+          if (!converted || !GeometryComponent.isPolygon(converted)) {
+            continue;
+          }
+
+          const polygonGeometry = converted;
+          const polygonData = GeometryComponent.get(polygonGeometry);
+          const polygonClosed = polygonData.closed;
+          // Intersection points are in rendered sheet space, so split the rendered outline. The
+          // resulting segments are then mapped back into the existing polygon's raw local frame
+          // before writing them back, preserving its id, components, filters, and constraints.
+          let polygonPoints = PolygonData.renderedSegments(polygonGeometry);
           console.log('PRE POINTS:', polygonPoints.slice(), intersectionsBySegmentIndex);
 
           const originalPolygonPointsLength = polygonPoints.length;
@@ -1634,14 +1632,17 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
           console.log('POST POINTS:', polygonPoints);
 
-          geometryStore.deleteById(id);
-          geometryStore.addOrdered(
-            ID_PREFIXES.polygon,
-            Polygon.create(polygonPoints, {
-              fillColor: FillColorComponent.getOptional(geometry) ?? null,
-              closed: polygonClosed,
-            }),
+          const localPoints = polygonPoints.map((segment) =>
+            PolygonSegment.transform(segment, (point) =>
+              point.toGeometryRelativeSheetPosition(polygonGeometry),
+            ),
           );
+          geometryStore.updateByIdWithComponent(geometry.id, GeometryComponent, (old) => {
+            if (!GeometryComponent.isPolygon(old)) {
+              return old;
+            }
+            return GeometryComponent.update(old, { points: localPoints, closed: polygonClosed });
+          });
         }
 
         // Step 3: For the newly drawn polygon itself, add in new points
