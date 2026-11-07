@@ -23,7 +23,7 @@ import {
 } from '@/lib/tools/types';
 import { VertexId } from '../dcel';
 import { HistoryManager } from '../history/HistoryManager';
-import { UndoEntry } from '../history/types';
+import { type ConversionMigration, UndoEntry } from '../history/types';
 import { ellipseToPolygon, rectangleToPolygon } from '../math';
 import { UnitType } from '../units/length';
 import {
@@ -38,6 +38,7 @@ import { FilterComponent } from './components/FilterComponent';
 import { RotationComponent } from './components/RotationComponent';
 import {
   Constraint,
+  type ConstraintData,
   ConstraintEndpoint,
   HorizontalConstraint,
   VerticalConstraint,
@@ -45,7 +46,7 @@ import {
 import { Ellipse } from './ellipse';
 import { type Geometry, type GeometryData } from './geometry';
 import { EllipseData } from './geometry/ellipse';
-import { PolygonData } from './geometry/polygon';
+import { PolygonData, PolygonSegment } from './geometry/polygon';
 import { RectangleData } from './geometry/rectangle';
 import {
   AnchorPointComponent,
@@ -62,7 +63,7 @@ import {
   RectangleEndpoint,
   RenderOrderComponent,
 } from './index';
-import { Polygon, type PolygonSegment } from './polygon';
+import { Polygon } from './polygon';
 
 export const ID_PREFIXES = {
   polygon: 'ply' as const,
@@ -614,23 +615,14 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         this.deleteByIdDirect(constraintGeom.id);
       }
 
-      // Record and cascade delete attached filters
+      // Record and cascade delete every filter attached to this geometry. This includes
+      // fillet/chamfer filters, which store their target geometry id just like mirror/pattern and
+      // must not be left dangling after the shape is deleted.
       for (const filterGeom of this.listWithComponent(FilterComponent)) {
         const filter = FilterComponent.get(filterGeom);
-        switch (filter.type) {
-          case 'mirror':
-          case 'pattern':
-            if (filter.geometryId === id) {
-              this.historyManager.push(UndoEntry.deleteGeometry(filterGeom));
-              this.deleteByIdDirect(filterGeom.id);
-            }
-            break;
-          case 'fillet':
-          case 'chamfer':
-            break;
-          default:
-            filter satisfies never;
-            break;
+        if (filter.geometryId === id) {
+          this.historyManager.push(UndoEntry.deleteGeometry(filterGeom));
+          this.deleteByIdDirect(filterGeom.id);
         }
       }
 
@@ -1237,90 +1229,80 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
 
   /** Takes the passed rectangle, deletes it, and converts it to a polygon. Records as a single
    * atomic conversion operation. */
-  convertRectangleToPolygon(rectangleId: Id, options?: { insertConstraints?: boolean }): Polygon {
-    const geometry = this.getByIdWithComponents(
-      rectangleId,
-      GeometryComponent,
-      FillColorComponent,
-      RenderOrderComponent,
-      AnchorPointComponent,
-    );
+  convertRectangleToPolygon(
+    rectangleId: Id,
+    options?: { insertConstraints?: boolean; migrateFilters?: boolean },
+  ): Polygon {
+    const geometry = this.getByIdWithComponent(rectangleId, GeometryComponent);
     if (!geometry) {
       throw new Error(
         `GeometryStore.convertRectangleToPolygon: Cannot find geometry ${rectangleId}`,
       );
     }
-    const rectangleData = GeometryComponent.projectToSheet<GeometryData>(geometry);
+    const rectangleData = GeometryComponent.get(geometry);
     if (rectangleData.type !== 'rectangle') {
       throw new Error(
         `GeometryStore.convertRectangleToPolygon: GeometryComponent data for geometry ${rectangleId} is not of type rectangle, found ${rectangleData.type}`,
       );
     }
 
-    // The converted polygon is created in anchored (rendered) space with a default anchor, so the rendered
-    // position of the rectangle is preserved.
-    const points = rectangleToPolygon(
-      rectangleData.origin,
-      rectangleData.width,
-      rectangleData.height,
+    // Bake the visible orientation (anchor + rotation) into the polygon's raw points. The new
+    // polygon has no rotation component, so its raw points are its rendered points. Corner order
+    // is preserved (upperLeft, upperRight, lowerRight, lowerLeft), which keeps rectangle keypoint
+    // based constraints/filters mappable by index.
+    const render = Entity.generateRenderTransformFunction(geometry);
+    const rawCorners = RectangleData.cornersArray(rectangleData);
+    const points: Array<PolygonSegment> = rawCorners.map((corner) => ({
+      type: 'point',
+      point: render(corner),
+    }));
+    points.push({ type: 'point', point: points[0].point });
+    const polygon = this.finalizePolygonConversion(
+      geometry,
+      points,
+      'rectangle',
+      options?.migrateFilters ?? true,
     );
-    const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
 
-    const polygonTemplate = Polygon.create(points, {
-      closed: true,
-      fillColor: FillColorComponent.get(geometry),
-      openAtIndex: 0,
-    });
-    const polygon: Polygon = {
-      id,
-      ...polygonTemplate,
-      components: {
-        ...polygonTemplate.components,
-        ...RenderOrderComponent.create(RenderOrderComponent.get(geometry)),
-      },
-    };
-
-    this.historyManager.applyTransaction(
-      'polygon-to-rectangle',
-      () => {
-        this.historyManager.apply(UndoEntry.rectangleToPolygon(geometry, polygon));
-
-        // Optionally add horizontal/vertical constraints for each edge (a rectangle has
-        // top/bottom horizontal, left/right vertical)
-        const insertConstraints = options?.insertConstraints ?? true;
-        if (insertConstraints) {
-          this.add(
-            ID_PREFIXES.constraint,
-            HorizontalConstraint.create(
-              ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-              ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-            ),
-          );
-          this.add(
-            ID_PREFIXES.constraint,
-            VerticalConstraint.create(
-              ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
-              ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
-            ),
-          );
-          this.add(
-            ID_PREFIXES.constraint,
-            HorizontalConstraint.create(
-              ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
-              ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
-            ),
-          );
-          this.add(
-            ID_PREFIXES.constraint,
-            VerticalConstraint.create(
-              ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
-              ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
-            ),
-          );
-        }
-      },
-      { collapseIfSingle: true },
-    );
+    // The implicit edge constraints are only axis-aligned for an unrotated rectangle. Rotated
+    // rectangles bake their angle into the polygon points, so adding horizontal/vertical
+    // constraints would fight the visible orientation.
+    const angleDegrees =
+      RotationComponent.getOptional(geometry)?.angle?.toDegrees()?.magnitude ?? 0;
+    const insertConstraints =
+      (options?.insertConstraints ?? true) && Math.abs(angleDegrees % 360) < 1e-9;
+    if (insertConstraints) {
+      this.historyManager.applyTransaction('rectangle-to-polygon-constraints', () => {
+        this.add(
+          ID_PREFIXES.constraint,
+          HorizontalConstraint.create(
+            ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+            ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+          ),
+        );
+        this.add(
+          ID_PREFIXES.constraint,
+          VerticalConstraint.create(
+            ConstraintEndpoint.lockedToPolygon(polygon.id, 1),
+            ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
+          ),
+        );
+        this.add(
+          ID_PREFIXES.constraint,
+          HorizontalConstraint.create(
+            ConstraintEndpoint.lockedToPolygon(polygon.id, 2),
+            ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
+          ),
+        );
+        this.add(
+          ID_PREFIXES.constraint,
+          VerticalConstraint.create(
+            ConstraintEndpoint.lockedToPolygon(polygon.id, 3),
+            ConstraintEndpoint.lockedToPolygon(polygon.id, 0),
+          ),
+        );
+      });
+    }
 
     return polygon;
   }
@@ -1360,50 +1342,212 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   /** Takes the passed ellipse, deletes it, and converts it to a polygon. Records as a single
    * atomic conversion operation. */
   convertEllipseToPolygon(ellipseId: Id): Polygon {
-    const geometry = this.getByIdWithComponents(
-      ellipseId,
-      GeometryComponent,
-      FillColorComponent,
-      RenderOrderComponent,
-      AnchorPointComponent,
-    ) as Ellipse | null;
+    const geometry = this.getByIdWithComponent(ellipseId, GeometryComponent);
     if (!geometry) {
       throw new Error(`GeometryStore.convertEllipseToPolygon: Cannot find geometry ${ellipseId}`);
     }
-    const ellipseData = GeometryComponent.get<GeometryData>(geometry);
+    const ellipseData = GeometryComponent.get(geometry);
     if (ellipseData.type !== 'ellipse') {
       throw new Error(
         `GeometryStore.convertEllipseToPolygon: GeometryComponent data for geoemtry ${ellipseId} is not of type ellipse, found ${ellipseData.type}`,
       );
     }
-    // The converted polygon is created in anchored (rendered) space with a default anchor, so the rendered
-    // position of the ellipse is preserved.
-    const offset = GeometryComponent.getAnchorPointOffset(geometry);
+
+    // Bake anchor + rotation into the polygon points. The ellipse-to-polygon segment order
+    // (top, right, bottom, left, top) is preserved so ellipse keypoint constraints can be
+    // remapped to the matching polygon point indexes.
+    const render = Entity.generateRenderTransformFunction(geometry);
     const points = ellipseToPolygon(
-      new SheetPosition(ellipseData.center.x - offset.x, ellipseData.center.y - offset.y),
+      ellipseData.center,
       ellipseData.radiusX,
       ellipseData.radiusY,
-    );
-    const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
+    ).map((segment) => PolygonSegment.transform(segment, (point) => render(point)));
 
+    return this.finalizePolygonConversion(geometry, points, 'ellipse', true);
+  }
+
+  /**
+   * Creates the converted polygon, migrates any constraints/filters which reference the source
+   * geometry onto it, and records the whole conversion (plus migration) as one atomic history
+   * entry.
+   */
+  private finalizePolygonConversion(
+    source: Entity<GeometryComponent>,
+    points: Array<PolygonSegment<SheetPosition>>,
+    sourceType: 'rectangle' | 'ellipse',
+    migrateFilters: boolean,
+  ): Polygon {
+    const id = this.historyManager.generateStableId(ID_PREFIXES.polygon);
+    const fillColor = FillColorComponent.getOptional(source);
     const polygonTemplate = Polygon.create(points, {
       closed: true,
-      fillColor: FillColorComponent.get(geometry),
+      fillColor,
       openAtIndex: 0,
     });
-    const polygon: Polygon = {
+
+    const components: Record<string, unknown> = { ...polygonTemplate.components };
+    if (Entity.hasComponent(source, RenderOrderComponent)) {
+      components.renderOrder = RenderOrderComponent.get(source);
+    }
+    const linkDimensions = LinkDimensionsComponent.getOptional(source);
+    if (typeof linkDimensions === 'boolean') {
+      components.linkDimensions = linkDimensions;
+    }
+    const polygon = {
       id,
       ...polygonTemplate,
-      components: {
-        ...polygonTemplate.components,
-        ...RenderOrderComponent.create(RenderOrderComponent.get(geometry)),
+      components,
+    } as unknown as Polygon;
+
+    const migration = this.buildConversionMigration(source, polygon, sourceType, migrateFilters);
+    const entry =
+      sourceType === 'rectangle'
+        ? UndoEntry.rectangleToPolygon(
+            source as Entity<GeometryComponent<RectangleData>>,
+            polygon,
+            migration,
+          )
+        : UndoEntry.ellipseToPolygon(
+            source as Entity<GeometryComponent<EllipseData>>,
+            polygon,
+            migration,
+          );
+
+    this.historyManager.applyTransaction(
+      sourceType === 'rectangle' ? 'rectangle-to-polygon' : 'ellipse-to-polygon',
+      () => {
+        this.historyManager.apply(entry);
       },
+      { collapseIfSingle: true },
+    );
+
+    return polygon;
+  }
+
+  /**
+   * Builds the constraint/filter migration state for a shape conversion. Constraints are re-targeted
+   * to equivalent polygon point indexes (or a datum for key points with no polygon vertex), and
+   * fillet/chamfer filters are converted from rectangle-keypoint form to polygon-index form.
+   */
+  private buildConversionMigration(
+    source: Entity<GeometryComponent>,
+    polygon: Polygon,
+    sourceType: 'rectangle' | 'ellipse',
+    migrateFilters: boolean,
+  ): ConversionMigration {
+    const indexByKeyPoint = new Map<string, number>();
+    if (sourceType === 'rectangle') {
+      RectangleEndpoint.CORNERS.forEach((corner, index) => indexByKeyPoint.set(corner, index));
+    } else {
+      ['top', 'right', 'bottom', 'left'].forEach((label, index) =>
+        indexByKeyPoint.set(label, index),
+      );
+    }
+
+    const datums: Array<Entity<DatumComponent>> = [];
+    const datumIdsByKey = new Map<string, Id>();
+    const datumEndpointFor = (endpoint: ConstraintEndpoint): ConstraintEndpoint | null => {
+      const position = this.resolveConstraintEndpoint(endpoint);
+      if (!position) {
+        return null;
+      }
+      const key = `${endpoint.type}:${'point' in endpoint ? endpoint.point : 'pointIndex' in endpoint ? endpoint.pointIndex : ''}`;
+      let datumId = datumIdsByKey.get(key);
+      if (typeof datumId === 'undefined') {
+        datumId = this.historyManager.generateStableId(ID_PREFIXES.datum);
+        datums.push({
+          id: datumId,
+          components: DatumComponent.create(position),
+        });
+        datumIdsByKey.set(key, datumId);
+      }
+      return ConstraintEndpoint.lockedToDatum(datumId);
     };
 
-    this.addDirect(polygon);
-    this.deleteByIdDirect(ellipseId);
-    this.historyManager.push(UndoEntry.ellipseToPolygon(geometry, polygon));
-    return polygon;
+    const mapEndpoint = (endpoint: ConstraintEndpoint): ConstraintEndpoint => {
+      if (endpoint.type === 'point' || endpoint.type === 'locked-datum') {
+        return endpoint;
+      }
+      if (endpoint.id !== source.id) {
+        return endpoint;
+      }
+      switch (endpoint.type) {
+        case 'locked-rectangle': {
+          const index = indexByKeyPoint.get(endpoint.point);
+          if (typeof index === 'number' && sourceType === 'rectangle') {
+            return ConstraintEndpoint.lockedToPolygon(polygon.id, index);
+          }
+          return datumEndpointFor(endpoint) ?? endpoint;
+        }
+        case 'locked-ellipse': {
+          const index = indexByKeyPoint.get(endpoint.point);
+          if (typeof index === 'number' && sourceType === 'ellipse') {
+            return ConstraintEndpoint.lockedToPolygon(polygon.id, index);
+          }
+          return datumEndpointFor(endpoint) ?? endpoint;
+        }
+        case 'locked-polygon':
+          // A polygon endpoint which references a rectangle/ellipse id cannot be mapped by index;
+          // pin it to a datum at its current rendered position.
+          return datumEndpointFor(endpoint) ?? endpoint;
+        default:
+          endpoint satisfies never;
+          return endpoint;
+      }
+    };
+
+    const constraintsBefore = this.findConstraintsByGeometryId(source.id);
+    const constraintsAfter: Array<Entity<ConstraintComponent>> = [];
+    for (const constraint of constraintsBefore) {
+      let after: Entity<ConstraintComponent> = constraint;
+      for (const key of Constraint.getPositionKeys(constraint)) {
+        const endpoint = Constraint.getEndpoint(constraint, key);
+        if (!endpoint) {
+          continue;
+        }
+        const mapped = mapEndpoint(endpoint);
+        if (!ConstraintEndpoint.equal(mapped, endpoint)) {
+          after = ConstraintComponent.update(after, { [key]: mapped } as Partial<ConstraintData>);
+        }
+      }
+      constraintsAfter.push(after);
+    }
+
+    const filtersBefore = migrateFilters ? this.findFiltersByGeometryId(source.id) : [];
+    const filtersAfter: Array<Entity<FilterComponent>> = [];
+    for (const filter of filtersBefore) {
+      const data = FilterComponent.get(filter);
+      if (data.type === 'mirror' || data.type === 'pattern') {
+        filtersAfter.push(FilterComponent.update(filter, { geometryId: polygon.id }));
+        continue;
+      }
+
+      if (data.type === 'fillet' || data.type === 'chamfer') {
+        if (data.geometryType === 'polygon') {
+          filtersAfter.push(FilterComponent.update(filter, { geometryId: polygon.id }));
+          continue;
+        }
+        const center = indexByKeyPoint.get(data.pointCenterKeyPoint);
+        const a = indexByKeyPoint.get(data.pointAKeyPoint);
+        const b = indexByKeyPoint.get(data.pointBKeyPoint);
+        if (typeof center === 'number' && typeof a === 'number' && typeof b === 'number') {
+          filtersAfter.push(
+            FilterComponent.update(filter, {
+              geometryId: polygon.id,
+              geometryType: 'polygon',
+              pointAIndex: a,
+              pointCenterIndex: center,
+              pointBIndex: b,
+            } as any),
+          );
+        }
+        // A fillet/chamfer whose center keypoint has no polygon vertex equivalent (eg. `center`)
+        // cannot be migrated; it is intentionally dropped so it can never target a shape type
+        // which no longer exists.
+      }
+    }
+
+    return { constraintsBefore, constraintsAfter, filtersBefore, filtersAfter, datums };
   }
 
   // ==================== CONSTRAINT ENDPOINT RESOLUTION ====================
