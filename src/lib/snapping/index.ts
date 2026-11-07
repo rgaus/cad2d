@@ -32,16 +32,16 @@ export type SnappingOptions = SnapToFilterOptions & {
  * {@link applySnappingLineSeries} for that.
  */
 export function applySnapping(pos: SheetPosition, options: SnappingOptions): SheetPosition {
+  if (options.ctrlHeld) {
+    return pos;
+  }
+
   if (options.selectedGeometryFilters) {
     const threshold = KEY_POINT_SNAP_THRESHOLD_PX / (SHEET_UNITS_TO_PIXELS * options.viewportScale);
     const filterSnapped = snapToFilters(pos, options.selectedGeometryFilters, threshold, options);
     if (filterSnapped) {
       return filterSnapped;
     }
-  }
-
-  if (options.ctrlHeld) {
-    return pos;
   }
 
   return snapToNearestGrid(pos, options.primaryGridSize, options.secondaryGridSize);
@@ -383,45 +383,31 @@ function snapToLineWhereIntersectsGrid(
     options?.secondaryGridSize,
   );
 
-  // Find where the grid lines and snap line intersect
+  // Find where the grid lines and snap line intersect. Axis-aligned snap lines only intersect one
+  // family of grid lines (the other family is parallel), so track each family independently.
   const slope = lineSlope(pointA, pointB);
   const horizontalIntersections = lineLineIntersection(pointA, slope, gridSnapped, 0);
   const verticalIntersections = lineLineIntersection(pointA, slope, gridSnapped, Infinity);
-  if (horizontalIntersections === 'coincident' && verticalIntersections === 'coincident') {
+
+  const candidates: Array<SheetPosition> = [];
+  if (horizontalIntersections !== 'coincident') {
+    candidates.push(...horizontalIntersections);
+  }
+  if (verticalIntersections !== 'coincident') {
+    candidates.push(...verticalIntersections);
+  }
+
+  if (candidates.length === 0) {
     return lineSnapped;
   }
-  if (
-    horizontalIntersections === 'coincident' &&
-    verticalIntersections !== 'coincident' &&
-    verticalIntersections.length > 0
-  ) {
-    return verticalIntersections[0];
-  }
-  if (
-    verticalIntersections === 'coincident' &&
-    horizontalIntersections !== 'coincident' &&
-    horizontalIntersections.length > 0
-  ) {
-    return horizontalIntersections[0];
-  }
 
-  if (
-    horizontalIntersections !== 'coincident' &&
-    verticalIntersections !== 'coincident' &&
-    horizontalIntersections.length > 0 &&
-    verticalIntersections.length > 0
-  ) {
-    if (
-      Vector2.distance(lineSnapped, horizontalIntersections[0]) <
-      Vector2.distance(lineSnapped, verticalIntersections[0])
-    ) {
-      return horizontalIntersections[0];
-    } else {
-      return verticalIntersections[0];
+  let best = candidates[0];
+  for (const candidate of candidates) {
+    if (Vector2.distance(lineSnapped, candidate) < Vector2.distance(lineSnapped, best)) {
+      best = candidate;
     }
   }
-
-  return result.point;
+  return best;
 }
 
 type SnapToFilterOptions = SnapToLineWhereIntersectsGridOptions;
@@ -435,6 +421,20 @@ function snapToFilters(
   threshold: number,
   options: SnapToFilterOptions,
 ): SheetPosition | null {
+  let best: SheetPosition | null = null;
+  let bestDistance = Infinity;
+
+  const consider = (candidate: SheetPosition | null) => {
+    if (!candidate) {
+      return;
+    }
+    const distance = Vector2.distance(pos, candidate);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = candidate;
+    }
+  };
+
   for (const filter of filters) {
     const filterData = FilterComponent.get(filter);
     switch (filterData.type) {
@@ -442,21 +442,20 @@ function snapToFilters(
       case 'chamfer':
         continue;
       case 'mirror': {
-        const snapped = snapToLineWhereIntersectsGrid(
-          pos,
-          filterData.pointA,
-          filterData.pointB,
-          threshold,
-          options,
+        consider(
+          snapToLineWhereIntersectsGrid(
+            pos,
+            filterData.pointA,
+            filterData.pointB,
+            threshold,
+            options,
+          ),
         );
-        if (snapped) {
-          return snapped;
-        }
         continue;
       }
       case 'pattern': {
         switch (filterData.mode) {
-          case 'grid':
+          case 'grid': {
             if (!Entity.hasComponent(filter, FrameComponent)) {
               continue;
             }
@@ -466,52 +465,36 @@ function snapToFilters(
                 BoundingBox.fromPoints([frameData.upperLeft, frameData.lowerRight]),
               ),
             );
-            for (let i = 0; i < corners.length - 1; i += 1) {
+            for (let i = 0; i < corners.length; i += 1) {
               const start = corners[i];
-              const end = corners[i + 1];
-              const snapped = snapToLineWhereIntersectsGrid(pos, start, end, threshold, options);
-              if (snapped) {
-                return snapped;
-              }
+              const end = corners[(i + 1) % corners.length];
+              consider(snapToLineWhereIntersectsGrid(pos, start, end, threshold, options));
             }
-            continue;
-          case 'radial':
+            break;
+          }
+          case 'radial': {
             const [upperLeft, upperRight] = PatternFilter.getRadialCornerPoints(filterData);
 
-            const leftSnapped = snapToLineWhereIntersectsGrid(
-              pos,
-              filterData.center,
-              upperLeft,
-              threshold,
-              options,
+            consider(
+              snapToLineWhereIntersectsGrid(pos, filterData.center, upperLeft, threshold, options),
             );
-            if (leftSnapped) {
-              return leftSnapped;
-            }
-
-            const rightSnapped = snapToLineWhereIntersectsGrid(
-              pos,
-              filterData.center,
-              upperRight,
-              threshold,
-              options,
+            consider(
+              snapToLineWhereIntersectsGrid(pos, filterData.center, upperRight, threshold, options),
             );
-            if (rightSnapped) {
-              return rightSnapped;
-            }
-
-            continue;
+            break;
+          }
           default:
             filterData satisfies never;
-            continue;
+            break;
         }
+        break;
       }
       default:
         filterData satisfies never;
         continue;
     }
   }
-  return null;
+  return best;
 }
 
 /**
