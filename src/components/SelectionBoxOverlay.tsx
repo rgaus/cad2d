@@ -5,6 +5,7 @@ import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelec
 import { BoundingBoxVisibleComponent, Entity, GeometryComponent } from '@/lib/entity';
 import { RenderShape } from '@/lib/entity/render-shape';
 import { BoundingBox, OrientedBoundingBox } from '@/lib/math';
+import { computeSelectionResizeFrame } from '@/lib/selection/resize-frame';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { SELECTION_COLOR } from '@/lib/textures';
 import { SELECTED_OUTSET_PX } from '@/lib/tools/SelectTool';
@@ -87,14 +88,9 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
       },
     );
 
-    const orientedBoundingBoxes = entityBoundingBoxes.flatMap((b) => (b[0] ? [b[0]] : []));
-    const selectionBbox =
-      selectedEntities.length === 1
-        ? (orientedBoundingBoxes[0] ?? null)
-        : (() => {
-            const union = OrientedBoundingBox.union(orientedBoundingBoxes);
-            return union ? OrientedBoundingBox.fromRect(union) : null;
-          })();
+    // Use the shared resize-frame calculation so the handles and SelectTool agree on the frame.
+    const selectionFrame = computeSelectionResizeFrame(selectedEntities);
+    const selectionBbox = selectionFrame?.bbox ?? null;
     const selectionBboxAABB = selectionBbox ? OrientedBoundingBox.toRect(selectionBbox) : null;
     const selectionOutline = BoundingBox.union(
       entityBoundingBoxes.flatMap((b) => (b[1] ? [b[1]] : [])),
