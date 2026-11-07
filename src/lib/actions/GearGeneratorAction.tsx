@@ -1,10 +1,18 @@
 import { Cog } from 'lucide-react';
 import React from 'react';
-import { ConstraintEndpoint, Datum, LinearConstraint, Polygon, PolygonSegment } from '@/lib/entity';
+import {
+  ConstraintEndpoint,
+  Datum,
+  FillColorComponent,
+  LinearConstraint,
+  Polygon,
+  PolygonSegment,
+} from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { PatternFilter, PatternRadialFilterData } from '@/lib/entity/filters/pattern';
 import { RenderShape } from '@/lib/entity/render-shape';
+import { UndoEntry } from '@/lib/history/types';
 import { round } from '@/lib/math';
 import { Angle } from '@/lib/units/angle';
 import { Length, type UnitType } from '@/lib/units/length';
@@ -18,6 +26,8 @@ const INVOLUTE_SEGMENTS = 16;
 const TIP_ARC_SEGMENTS = 8;
 /** Maximum number of teeth the generator supports. */
 export const GEAR_MAX_TEETH = 200;
+/** Default gear fill color (#cbd5e1). */
+export const DEFAULT_GEAR_FILL_COLOR = 0xcbd5e1;
 
 export type GearPitchMode = 'module' | 'diametral-pitch';
 
@@ -32,6 +42,8 @@ export type GearParams = {
   profileShift: number;
   /** Total backlash in module units. */
   backlash: number;
+  /** Fill color of the generated gear. */
+  fillColor: number;
   /** Absolute sheet-space center of the gear. */
   center: SheetPosition;
 };
@@ -72,12 +84,18 @@ export type GearPreview = {
   shapes: Array<RenderShape>;
 };
 
+export type GearPreviewInteraction = {
+  hovered: boolean;
+  dragging: boolean;
+};
+
 export type GearGeneratorState = {
   panelVisible: boolean;
   params: GearParams;
   metrics: GearMetrics | null;
   validation: GearValidation;
   preview: GearPreview | null;
+  previewInteraction: GearPreviewInteraction;
 };
 
 export type GearGeneratorActionEvents = {
@@ -96,6 +114,7 @@ export function defaultGearParams(): GearParams {
     dedendumCoefficient: 1.25,
     profileShift: 0,
     backlash: 0,
+    fillColor: DEFAULT_GEAR_FILL_COLOR,
     center: new SheetPosition(0, 0),
   };
 }
@@ -388,6 +407,7 @@ export class GearGeneratorAction extends BaseAction<GearGeneratorActionEvents> {
   #validation: GearValidation = validateGearParams(this.#params);
   #profile: GearToothProfile | null = null;
   #preview: GearPreview | null = null;
+  #previewInteraction: GearPreviewInteraction = { hovered: false, dragging: false };
 
   constructor(actionsManager: ActionsManager) {
     super(actionsManager);
@@ -408,6 +428,7 @@ export class GearGeneratorAction extends BaseAction<GearGeneratorActionEvents> {
   open(): void {
     this.getSheet().hideSheetSettingsPanel();
     this.#panelVisible = true;
+    this.#previewInteraction = { hovered: false, dragging: false };
     this.emit('panelVisibilityChange', true);
     this.recompute();
   }
@@ -417,6 +438,7 @@ export class GearGeneratorAction extends BaseAction<GearGeneratorActionEvents> {
       return;
     }
     this.#panelVisible = false;
+    this.#previewInteraction = { hovered: false, dragging: false };
     this.emit('panelVisibilityChange', false);
     this.recompute();
   }
@@ -428,6 +450,7 @@ export class GearGeneratorAction extends BaseAction<GearGeneratorActionEvents> {
       metrics: this.#metrics,
       validation: this.#validation,
       preview: this.#preview,
+      previewInteraction: this.#previewInteraction,
     };
   }
 
@@ -442,6 +465,39 @@ export class GearGeneratorAction extends BaseAction<GearGeneratorActionEvents> {
 
   setCenter(center: SheetPosition): void {
     this.updateParams({ center });
+  }
+
+  /** Records a completed preview move so undo/redo can restore the center position. */
+  commitCenterMove(before: SheetPosition, after: SheetPosition): void {
+    if (before.x === after.x && before.y === after.y) {
+      return;
+    }
+    this.getHistoryManager().push(
+      UndoEntry.external(
+        () => this.setCenter(after),
+        () => this.setCenter(before),
+      ),
+    );
+  }
+
+  setPreviewHovered(hovered: boolean): void {
+    this.updatePreviewInteraction({ hovered });
+  }
+
+  setPreviewDragging(dragging: boolean): void {
+    this.updatePreviewInteraction({ dragging });
+  }
+
+  private updatePreviewInteraction(partial: Partial<GearPreviewInteraction>): void {
+    const next = { ...this.#previewInteraction, ...partial };
+    if (
+      next.hovered === this.#previewInteraction.hovered &&
+      next.dragging === this.#previewInteraction.dragging
+    ) {
+      return;
+    }
+    this.#previewInteraction = next;
+    this.emitState();
   }
 
   setPitchMode(pitchMode: GearPitchMode): void {
@@ -466,10 +522,17 @@ export class GearGeneratorAction extends BaseAction<GearGeneratorActionEvents> {
     const profile = this.#profile;
 
     historyManager.applyTransaction('create-gear', () => {
-      const polygon = geometryStore.addOrdered(
-        ID_PREFIXES.polygon,
-        Polygon.create(profile.segments, { closed: false, openAtIndex: 0 }),
-      );
+      const polygonTemplate = Polygon.create(profile.segments, {
+        closed: false,
+        openAtIndex: 0,
+      });
+      const polygon = geometryStore.addOrdered(ID_PREFIXES.polygon, {
+        ...polygonTemplate,
+        components: {
+          ...polygonTemplate.components,
+          ...FillColorComponent.create(params.fillColor),
+        },
+      });
 
       geometryStore.add(
         ID_PREFIXES.filter,

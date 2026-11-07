@@ -103,9 +103,10 @@ export function decodeUndoEntry(value: EncodedValue): UndoEntry {
   return decodeValue(value) as UndoEntry;
 }
 
-/** Encodes an undo/redo stack into JSON-safe values. */
+/** Encodes an undo/redo stack into JSON-safe values. External entries hold callbacks for
+ * transient UI state and are omitted from persisted history. */
 export function encodeUndoStack(stack: Array<UndoEntry>): Array<EncodedValue> {
-  return stack.map((entry) => encodeUndoEntry(entry));
+  return stack.filter((entry) => entry.type !== 'external').map((entry) => encodeUndoEntry(entry));
 }
 
 /** Decodes an undo/redo stack from its JSON-safe representation. */

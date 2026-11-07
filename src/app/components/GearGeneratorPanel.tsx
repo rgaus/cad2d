@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import AngleInput from '@/components/ui/AngleInput';
 import { Button } from '@/components/ui/Button';
+import ColorInput from '@/components/ui/ColorInput';
 import FloatingPanel from '@/components/ui/FloatingPanel';
 import { Input } from '@/components/ui/Input';
 import LabeledRow from '@/components/ui/LabeledRow';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/ToggleGroup';
 import {
+  DEFAULT_GEAR_FILL_COLOR,
   GearGeneratorAction,
   GearGeneratorState,
   GearPitchMode,
@@ -167,6 +169,17 @@ const GearGeneratorPanel: React.FunctionComponent<GearGeneratorPanelProps> = ({ 
             trailing="×m"
             step={0.01}
             min={0}
+          />
+        </LabeledRow>
+
+        <LabeledRow label="Fill:">
+          <ColorInput
+            value={state.params.fillColor}
+            onChange={(fillColor) =>
+              action.updateParams({
+                fillColor: fillColor ?? DEFAULT_GEAR_FILL_COLOR,
+              })
+            }
           />
         </LabeledRow>
 

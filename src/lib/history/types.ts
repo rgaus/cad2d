@@ -450,6 +450,14 @@ export type PatternRadialFilterMoveCenterEntry = {
   afterCenter: SheetPosition;
 };
 
+/** An entry whose forward/reverse behavior is supplied by a callback. Used for transient state
+ * which is not stored as geometry (for example, a live generator preview). */
+export type ExternalEntry = {
+  type: 'external';
+  applyForward: () => void;
+  applyReverse: () => void;
+};
+
 /** Recorded when a frame's upper left / lower right is moved. */
 export type FrameMoveEntry = {
   type: 'frame-move';
@@ -511,7 +519,8 @@ export type UndoEntry =
   | ConstraintChangeDataEntry
   | MirrorFilterMoveEndpointsEntry
   | FrameMoveEntry
-  | PatternRadialFilterMoveCenterEntry;
+  | PatternRadialFilterMoveCenterEntry
+  | ExternalEntry;
 
 export namespace UndoEntry {
   /** Creates a raw transaction, useful with historyManager.push. Most likely you want {@link HistoryManager.applyTransaction} instead. */
@@ -1047,5 +1056,9 @@ export namespace UndoEntry {
       afterUpperLeft,
       afterLowerRight,
     };
+  }
+  /** Creates an entry whose forward and reverse behavior are supplied by callbacks. */
+  export function external(applyForward: () => void, applyReverse: () => void): ExternalEntry {
+    return { type: 'external', applyForward, applyReverse };
   }
 }

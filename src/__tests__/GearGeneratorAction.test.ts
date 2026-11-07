@@ -10,6 +10,7 @@ import {
   ConstraintComponent,
   ConstraintEndpoint,
   DatumComponent,
+  FillColorComponent,
   GeometryComponent,
 } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
@@ -153,6 +154,7 @@ describe('GearGeneratorAction', () => {
       .filter((geometry) => GeometryComponent.get(geometry).type === 'polygon');
     expect(polygons).toHaveLength(1);
     expect(GeometryComponent.get(polygons[0]).closed).toBe(false);
+    expect(FillColorComponent.getOptional(polygons[0])).toBe(0xcbd5e1);
 
     const filters = geometryStore.listWithComponent(FilterComponent);
     expect(filters).toHaveLength(1);
@@ -181,6 +183,38 @@ describe('GearGeneratorAction', () => {
 
     expect(action.getState().panelVisible).toBe(false);
     expect(action.getState().preview).toBeNull();
+  });
+
+  it('persists a custom fill color', async () => {
+    const action = actionsManager.getAction('gear-generator');
+    await action.execute();
+
+    action.updateParams({ fillColor: 0x123456 });
+    action.create();
+
+    const polygon = geometryStore
+      .listWithComponent(GeometryComponent)
+      .find((geometry) => GeometryComponent.get(geometry).type === 'polygon');
+    expect(polygon).toBeDefined();
+    expect(FillColorComponent.getOptional(polygon!)).toBe(0x123456);
+  });
+
+  it('records preview center moves for undo and redo', async () => {
+    const action = actionsManager.getAction('gear-generator');
+    await action.execute();
+
+    const originalCenter = action.getState().params.center;
+    const movedCenter = new SheetPosition(12, 34);
+    action.setCenter(movedCenter);
+    action.commitCenterMove(originalCenter, movedCenter);
+
+    historyManager.undo();
+    expect(action.getState().params.center.x).toBe(originalCenter.x);
+    expect(action.getState().params.center.y).toBe(originalCenter.y);
+
+    historyManager.redo();
+    expect(action.getState().params.center.x).toBe(movedCenter.x);
+    expect(action.getState().params.center.y).toBe(movedCenter.y);
   });
 
   it('removes all generated entities on undo', async () => {

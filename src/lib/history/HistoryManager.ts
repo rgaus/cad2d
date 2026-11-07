@@ -262,6 +262,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
 
   /** Applies the forward (redo) side of an entry. */
   private applyForward(entry: UndoEntry): void {
+    if (entry.type === 'external') {
+      entry.applyForward();
+      return;
+    }
     if (!this.geometryStore) {
       return;
     }
@@ -772,6 +776,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
 
   /** Applies the reverse (undo) side of an entry. */
   private applyReverse(entry: UndoEntry): void {
+    if (entry.type === 'external') {
+      entry.applyReverse();
+      return;
+    }
     if (!this.geometryStore) {
       return;
     }
