@@ -1,4 +1,4 @@
-import { BoundingBox, CornerReplacement } from '@/lib/math';
+import { BoundingBox, CornerReplacement, rotatePointAround } from '@/lib/math';
 import { Length } from '@/lib/units/length';
 import type { UnitType } from '@/lib/units/length';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
@@ -11,8 +11,8 @@ import {
   RectangleEndpoint,
 } from '..';
 import { FilterComponent } from '../components/FilterComponent';
-import { ChamferFilterData } from './chamfer';
 import { RenderShape } from '../render-shape';
+import { ChamferFilterData } from './chamfer';
 
 export type FilletFilterData =
   | {
@@ -85,11 +85,27 @@ export namespace FilletFilter {
     if (bData.type !== 'fillet') {
       return false;
     }
+    if (
+      aData.geometryId !== bData.geometryId ||
+      aData.geometryType !== bData.geometryType ||
+      aData.offset.type !== bData.offset.type ||
+      aData.offset.magnitude !== bData.offset.magnitude
+    ) {
+      return false;
+    }
+    if (aData.geometryType === 'polygon') {
+      return (
+        bData.geometryType === 'polygon' &&
+        aData.pointAIndex === bData.pointAIndex &&
+        aData.pointCenterIndex === bData.pointCenterIndex &&
+        aData.pointBIndex === bData.pointBIndex
+      );
+    }
     return (
-      aData.geometryId === bData.geometryId &&
-      aData.geometryType === bData.geometryType &&
-      aData.offset.type === bData.offset.type &&
-      aData.offset.magnitude === bData.offset.magnitude
+      bData.geometryType === 'rectangle' &&
+      aData.pointAKeyPoint === bData.pointAKeyPoint &&
+      aData.pointCenterKeyPoint === bData.pointCenterKeyPoint &&
+      aData.pointBKeyPoint === bData.pointBKeyPoint
     );
   }
 
@@ -114,6 +130,11 @@ export namespace FilletFilter {
         LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>
       >;
       let closed = false;
+      // Rectangle render shapes are stored in a local frame around `upperLeft` and are rotated by
+      // `angleDegrees` when rendered. Apply the corner replacement in that local frame, then rotate
+      // the resulting geometry around the rectangle origin to produce rendered sheet space.
+      let rotationOrigin: SheetPosition | null = null;
+      let rotationAngle = 0;
 
       switch (renderShape.shape) {
         case 'rectangle': {
@@ -127,15 +148,17 @@ export namespace FilletFilter {
                 factory,
               ).segments;
               closed = true;
+              rotationOrigin = renderShape.upperLeft;
+              rotationAngle = renderShape.angleDegrees;
               break;
             case 'polygon':
               console.warn(
                 'GeometryComponent.getRenderShapes: applying fillet/chamfer - geoemtryType of polygon cannot apply to renderShape of rectangle, skipping...',
               );
-              return [];
+              return [renderShape];
             default:
               filterData satisfies never;
-              return [];
+              return [renderShape];
           }
           break;
         }
@@ -158,7 +181,7 @@ export namespace FilletFilter {
             case 'rectangle': {
               // Skip non corner points
               if (!RectangleCorner.is(filterData.pointCenterKeyPoint)) {
-                return [];
+                return [renderShape];
               }
 
               // Find the viewport segment index whose end is the center vertex
@@ -178,7 +201,7 @@ export namespace FilletFilter {
                 }
               }
               if (centerPtIndex === null) {
-                return [];
+                return [renderShape];
               }
               const cornerIndex = (centerPtIndex - 1 + viewportSegs.length) % viewportSegs.length;
 
@@ -207,7 +230,7 @@ export namespace FilletFilter {
             }
             default:
               filterData satisfies never;
-              return [];
+              return [renderShape];
           }
           break;
         }
@@ -223,6 +246,10 @@ export namespace FilletFilter {
           );
       }
 
+      if (resultSegs.length === 0) {
+        return [renderShape];
+      }
+
       // Convert viewport segments back to PolygonSegment[]
       const newPoints: Array<PolygonSegment> = [];
       const [firstPoint] = PolygonSegment.fromLineSegmentOrCurve(resultSegs[0]);
@@ -232,7 +259,17 @@ export namespace FilletFilter {
         newPoints.push(polySeg);
       }
 
-      return [RenderShape.polygon(key, newPoints, { closed, primary: renderShape.primary })];
+      const rotateOrigin = rotationOrigin;
+      const renderedPoints =
+        rotateOrigin !== null && rotationAngle !== 0
+          ? newPoints.map((segment) =>
+              PolygonSegment.transform(segment, (point) =>
+                rotatePointAround(point, rotateOrigin, rotationAngle),
+              ),
+            )
+          : newPoints;
+
+      return [RenderShape.polygon(key, renderedPoints, { closed, primary: renderShape.primary })];
     });
   }
 }

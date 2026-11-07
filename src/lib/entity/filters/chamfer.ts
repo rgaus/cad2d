@@ -74,14 +74,30 @@ export namespace ChamferFilter {
   ) {
     const aData = FilterComponent.get(a);
     const bData = FilterComponent.get(b);
-    if (bData.type !== 'fillet') {
+    if (bData.type !== 'chamfer') {
       return false;
     }
+    if (
+      aData.geometryId !== bData.geometryId ||
+      aData.geometryType !== bData.geometryType ||
+      aData.offset.type !== bData.offset.type ||
+      aData.offset.magnitude !== bData.offset.magnitude
+    ) {
+      return false;
+    }
+    if (aData.geometryType === 'polygon') {
+      return (
+        bData.geometryType === 'polygon' &&
+        aData.pointAIndex === bData.pointAIndex &&
+        aData.pointCenterIndex === bData.pointCenterIndex &&
+        aData.pointBIndex === bData.pointBIndex
+      );
+    }
     return (
-      aData.geometryId === bData.geometryId &&
-      aData.geometryType === bData.geometryType &&
-      aData.offset.type === bData.offset.type &&
-      aData.offset.magnitude === bData.offset.magnitude
+      bData.geometryType === 'rectangle' &&
+      aData.pointAKeyPoint === bData.pointAKeyPoint &&
+      aData.pointCenterKeyPoint === bData.pointCenterKeyPoint &&
+      aData.pointBKeyPoint === bData.pointBKeyPoint
     );
   }
 
