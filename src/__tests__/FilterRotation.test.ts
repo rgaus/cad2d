@@ -1,9 +1,8 @@
-import { Ellipse, Entity, GeometryComponent, Polygon, Rectangle } from '@/lib/entity';
+import { Ellipse, GeometryComponent, Polygon, Rectangle } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
-import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
-import { ChamferFilter, type ChamferFilterData } from '@/lib/entity/filters/chamfer';
+import { ChamferFilter } from '@/lib/entity/filters/chamfer';
 import { FilletFilter, type FilletFilterData } from '@/lib/entity/filters/fillet';
 import { getIndicatorGeometryPaths } from '@/lib/entity/filters/indicator-geometry';
 import { MirrorFilter, type MirrorFilterData } from '@/lib/entity/filters/mirror';
