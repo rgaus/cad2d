@@ -63,6 +63,19 @@ sheet space. `RenderShape`s and filters remain in rendered sheet space.
 `getOrigin` and `getRenderOrigin` intentionally remain absolute-space functions because they are
 inputs to the render matrix itself.
 
+### Anchor and rotation invariant
+
+The anchor key point plus anchor offset maps to the geometry's raw natural origin. Rotation then
+pivots around that same raw natural origin. In other words, with raw origin `O`, key point `K`
+(geometry-relative), and anchor offset `A`:
+
+```text
+renderTransform(O + K + A) = O
+```
+
+The anchor handle is rendered at `O`, and `RotationComponent` rotates around `O`. This is the
+intended anchor-as-rotation-center behavior.
+
 ## Key Constants
 
 - **`SHEET_UNITS_TO_PIXELS = 64`** -- 1 sheet unit = 64 pixels. All geometry is stored in sheet units, converted to pixels for rendering.

@@ -1,8 +1,10 @@
-import { Ellipse, GeometryComponent, Polygon, Rectangle } from '@/lib/entity';
+import { Ellipse, Entity, GeometryComponent, Polygon, Rectangle } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
+import { Angle } from '@/lib/units/angle';
 import { SheetPosition } from '@/lib/viewport/types';
 
 function makePoint(x: number, y: number) {
@@ -149,5 +151,30 @@ describe('AnchorPointComponent', () => {
       expect(anchor.offset.x).toBe(5);
       expect(anchor.offset.y).toBe(6);
     });
+  });
+
+  it('maps the anchor key point plus offset to the raw origin and rotates around it', () => {
+    const rectangle = geometryStore.addOrdered(
+      ID_PREFIXES.rectangle,
+      Rectangle.create(new SheetPosition(0, 0), new SheetPosition(4, 2)),
+    );
+    geometryStore.updateByIdWithComponent(rectangle.id, AnchorPointComponent, (g) =>
+      AnchorPointComponent.update(g, {
+        keyPoint: 'center',
+        offset: new SheetPosition(2, 0),
+      }),
+    );
+    geometryStore.updateByIdWithComponent(rectangle.id, RotationComponent, (g) =>
+      RotationComponent.update(g, { angle: Angle.degrees(45) }),
+    );
+    const geometry = getAnchorGeometry(rectangle.id);
+
+    const origin = GeometryComponent.getOrigin(geometry);
+    const anchorOffset = AnchorPointComponent.computeAssociatedGeometryOffset(geometry);
+    const anchorTarget = new SheetPosition(origin.x + anchorOffset.x, origin.y + anchorOffset.y);
+    const transformed = Entity.generateRenderTransformFunction(geometry)(anchorTarget);
+
+    expect(transformed.x).toBeCloseTo(origin.x);
+    expect(transformed.y).toBeCloseTo(origin.y);
   });
 });
