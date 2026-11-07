@@ -1,11 +1,13 @@
 import { FlipVertical } from 'lucide-react';
 import React from 'react';
 import { Entity, GeometryComponent } from '@/lib/entity';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { EllipseData } from '@/lib/entity/geometry/ellipse';
 import { PolygonData, PolygonSegment } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
-import { Flip } from '@/lib/math';
-import { GeometryRelativeSheetPosition, type Rect, SheetPosition } from '@/lib/viewport/types';
+import { Flip, rotatePointAround } from '@/lib/math';
+import { Angle } from '@/lib/units/angle';
+import { type Rect, SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 
@@ -61,63 +63,94 @@ export class FlipVerticalAction extends BaseAction {
     historyManager.applyTransaction('flip-vertical', () => {
       for (const id of selectedIds) {
         const polyGeom = geometryStore.getByIdWithComponent(id, GeometryComponent);
-        if (polyGeom) {
-          const polyData = GeometryComponent.get(polyGeom);
-          // The selection center is in anchored space; geometry is stored raw.
-          const rawCenterY = centerY + GeometryComponent.getAnchorPointOffset(polyGeom).y;
-          if (polyData.type === 'polygon') {
-            geometryStore.updateById(id, (old) => {
-              const data = GeometryComponent.get(old as Entity<GeometryComponent<PolygonData>>);
-              const position = data.position;
-              return GeometryComponent.update(old as Entity<GeometryComponent<PolygonData>>, {
-                points: data.points.map((segment) =>
-                  PolygonSegment.transform(segment, (local) => {
-                    const absolute = new SheetPosition(position.x + local.x, position.y + local.y);
-                    const flipped = Flip.vertical(absolute, rawCenterY);
-                    return new GeometryRelativeSheetPosition(
-                      flipped.x - position.x,
-                      flipped.y - position.y,
-                    );
-                  }),
+        if (!polyGeom) {
+          continue;
+        }
+        const polyData = GeometryComponent.get(polyGeom);
+        const angleDegrees =
+          RotationComponent.getOptional(polyGeom)?.angle.toDegrees().magnitude ?? 0;
+        const anchorOffset = GeometryComponent.getAnchorPointOffset(polyGeom);
+        const render = Entity.generateRenderTransformFunction(polyGeom);
+
+        if (polyData.type === 'polygon') {
+          geometryStore.updateById(id, (old) => {
+            const rendered = PolygonData.renderedSegments(
+              old as Entity<GeometryComponent<PolygonData>>,
+            );
+            // Reflect the rendered outline, then map it back through the geometry's full render
+            // transform (anchor + rotation) so the stored raw points stay in the local frame.
+            return GeometryComponent.update(old as Entity<GeometryComponent<PolygonData>>, {
+              points: rendered.map((segment) =>
+                PolygonSegment.transform(segment, (renderedPoint) =>
+                  Flip.vertical(renderedPoint, centerY).toGeometryRelativeSheetPosition(
+                    old as Entity<GeometryComponent>,
+                  ),
                 ),
-              });
+              ),
             });
-            continue;
-          }
+          });
+          continue;
+        }
 
-          if (polyData.type === 'rectangle') {
-            const corners = RectangleData.corners(polyData);
-            const flippedUl = Flip.vertical(corners.upperLeft, rawCenterY);
-            const flippedUr = Flip.vertical(corners.upperRight, rawCenterY);
-            const flippedLr = Flip.vertical(corners.lowerRight, rawCenterY);
-            const flippedLl = Flip.vertical(corners.lowerLeft, rawCenterY);
+        if (polyData.type === 'rectangle') {
+          // A reflection reverses the local frame. Rotating by the negated angle restores the
+          // reflected orientation, and shifting the raw origin to the reflected corner keeps the
+          // rendered rectangle in place.
+          const newAngle = -angleDegrees;
+          const vx = -Math.sin((angleDegrees * Math.PI) / 180);
+          const vy = Math.cos((angleDegrees * Math.PI) / 180);
+          const reflectedVx = vx;
+          const reflectedVy = -vy;
+          const reflectedOrigin = Flip.vertical(render(polyData.origin), centerY);
+          const rotatedAnchor = rotatePointAround(anchorOffset, new SheetPosition(0, 0), newAngle);
+          const newOrigin = new SheetPosition(
+            reflectedOrigin.x + reflectedVx * polyData.height + rotatedAnchor.x,
+            reflectedOrigin.y + reflectedVy * polyData.height + rotatedAnchor.y,
+          );
 
-            const xs = [flippedUl.x, flippedUr.x, flippedLr.x, flippedLl.x];
-            const ys = [flippedUl.y, flippedUr.y, flippedLr.y, flippedLl.y];
-            const newUl = new SheetPosition(Math.min(...xs), Math.min(...ys));
-            const newLr = new SheetPosition(Math.max(...xs), Math.max(...ys));
-
-            geometryStore.updateById(id, (old) =>
-              GeometryComponent.update(old as Entity<GeometryComponent<RectangleData>>, {
-                origin: newUl,
-                width: newLr.x - newUl.x,
-                height: newLr.y - newUl.y,
-              }),
+          geometryStore.updateById(id, (old) => {
+            const updated = GeometryComponent.update(
+              old as Entity<GeometryComponent<RectangleData>>,
+              {
+                origin: newOrigin,
+                width: polyData.width,
+                height: polyData.height,
+              },
             );
-            continue;
-          }
+            if (!Entity.hasComponent(updated, RotationComponent)) {
+              return updated;
+            }
+            return RotationComponent.update(updated as Entity<RotationComponent>, {
+              angle: Angle.degrees(newAngle),
+            });
+          });
+          continue;
+        }
 
-          if (polyData.type === 'ellipse') {
-            const ellipse = polyData;
-            const newCenter = Flip.vertical(ellipse.center, rawCenterY);
+        if (polyData.type === 'ellipse') {
+          const newAngle = -angleDegrees;
+          const reflectedCenter = Flip.vertical(render(polyData.center), centerY);
+          const rotatedAnchor = rotatePointAround(anchorOffset, new SheetPosition(0, 0), newAngle);
+          const newCenter = new SheetPosition(
+            reflectedCenter.x + rotatedAnchor.x,
+            reflectedCenter.y + rotatedAnchor.y,
+          );
 
-            geometryStore.updateById(id, (old) =>
-              GeometryComponent.update(old as Entity<GeometryComponent<EllipseData>>, {
+          geometryStore.updateById(id, (old) => {
+            const updated = GeometryComponent.update(
+              old as Entity<GeometryComponent<EllipseData>>,
+              {
                 center: newCenter,
-              }),
+              },
             );
-            continue;
-          }
+            if (!Entity.hasComponent(updated, RotationComponent)) {
+              return updated;
+            }
+            return RotationComponent.update(updated as Entity<RotationComponent>, {
+              angle: Angle.degrees(newAngle),
+            });
+          });
+          continue;
         }
       }
     });

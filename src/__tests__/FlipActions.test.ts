@@ -1,11 +1,22 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { Ellipse, GeometryComponent, Polygon, type PolygonSegment, Rectangle } from '@/lib/entity';
+import {
+  Ellipse,
+  Entity,
+  GeometryComponent,
+  Polygon,
+  type PolygonSegment,
+  Rectangle,
+} from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
+import { Angle } from '@/lib/units/angle';
 import { SheetPosition } from '@/lib/viewport/types';
 
 describe('FlipHorizontalAction', () => {
@@ -161,6 +172,109 @@ describe('FlipHorizontalAction', () => {
     expect(poly1Data[0].point.y).toBeCloseTo(0);
     expect(poly2Data[0].point.x).toBeCloseTo(4);
     expect(poly2Data[0].point.y).toBeCloseTo(0);
+  });
+
+  it('flips a rotated, anchored rectangle in rendered space and reflects its angle', async () => {
+    const { id: rectId } = geometryStore.addOrdered(
+      ID_PREFIXES.rectangle,
+      Rectangle.create(new SheetPosition(10, 10), new SheetPosition(14, 12)),
+    );
+    geometryStore.updateByIdWithComponent(rectId, RotationComponent, (g) =>
+      RotationComponent.update(g, { angle: Angle.degrees(30) }),
+    );
+    geometryStore.updateByIdWithComponent(rectId, AnchorPointComponent, (g) =>
+      AnchorPointComponent.update(g, { keyPoint: 'upperLeft', offset: new SheetPosition(1, 2) }),
+    );
+    selectionManager.select(rectId);
+
+    const before = geometryStore.getByIdWithComponents(
+      rectId,
+      GeometryComponent,
+      RotationComponent,
+      AnchorPointComponent,
+    )!;
+    const bbox = Entity.boundingBoxInSheet(before);
+    const centerX = bbox.position.x + bbox.width / 2;
+    const beforeRender = Entity.generateRenderTransformFunction(before);
+    const beforeCorners = RectangleData.corners(GeometryComponent.get(before) as RectangleData);
+    const beforeRendered = {
+      upperLeft: beforeRender(beforeCorners.upperLeft),
+      upperRight: beforeRender(beforeCorners.upperRight),
+      lowerRight: beforeRender(beforeCorners.lowerRight),
+      lowerLeft: beforeRender(beforeCorners.lowerLeft),
+    };
+
+    await actionsManager.execute('flip-horizontal');
+
+    const after = geometryStore.getByIdWithComponents(
+      rectId,
+      GeometryComponent,
+      RotationComponent,
+      AnchorPointComponent,
+    )!;
+    expect(RotationComponent.get(after).angle.toDegrees().magnitude).toBeCloseTo(-30);
+    expect(AnchorPointComponent.get(after).offset.x).toBeCloseTo(1);
+    expect(AnchorPointComponent.get(after).offset.y).toBeCloseTo(2);
+    const afterRender = Entity.generateRenderTransformFunction(after);
+    const afterCorners = RectangleData.corners(GeometryComponent.get(after) as RectangleData);
+    const afterRendered = {
+      upperLeft: afterRender(afterCorners.upperLeft),
+      upperRight: afterRender(afterCorners.upperRight),
+      lowerRight: afterRender(afterCorners.lowerRight),
+      lowerLeft: afterRender(afterCorners.lowerLeft),
+    };
+    const reflect = (point: SheetPosition) => new SheetPosition(2 * centerX - point.x, point.y);
+    const expected = Object.values(beforeRendered)
+      .map(reflect)
+      .map((point) => `${point.x.toFixed(6)},${point.y.toFixed(6)}`)
+      .sort();
+    const actual = Object.values(afterRendered)
+      .map((point) => `${point.x.toFixed(6)},${point.y.toFixed(6)}`)
+      .sort();
+    expect(actual).toEqual(expected);
+  });
+
+  it('flips a rotated, anchored ellipse in rendered space and reflects its angle', async () => {
+    const { id: ellipseId } = geometryStore.addOrdered(
+      ID_PREFIXES.ellipse,
+      Ellipse.create(new SheetPosition(5, 5), { radiusX: 3, radiusY: 2 }),
+    );
+    geometryStore.updateByIdWithComponent(ellipseId, RotationComponent, (g) =>
+      RotationComponent.update(g, { angle: Angle.degrees(25) }),
+    );
+    geometryStore.updateByIdWithComponent(ellipseId, AnchorPointComponent, (g) =>
+      AnchorPointComponent.update(g, { keyPoint: 'center', offset: new SheetPosition(-1, 0.5) }),
+    );
+    selectionManager.select(ellipseId);
+
+    const before = geometryStore.getByIdWithComponents(
+      ellipseId,
+      GeometryComponent,
+      RotationComponent,
+      AnchorPointComponent,
+    )!;
+    const bbox = Entity.boundingBoxInSheet(before);
+    const centerX = bbox.position.x + bbox.width / 2;
+    const beforeRender = Entity.generateRenderTransformFunction(before);
+    const beforeCenter = beforeRender(
+      (GeometryComponent.get(before) as { center: SheetPosition }).center,
+    );
+
+    await actionsManager.execute('flip-horizontal');
+
+    const after = geometryStore.getByIdWithComponents(
+      ellipseId,
+      GeometryComponent,
+      RotationComponent,
+      AnchorPointComponent,
+    )!;
+    expect(RotationComponent.get(after).angle.toDegrees().magnitude).toBeCloseTo(-25);
+    const afterRender = Entity.generateRenderTransformFunction(after);
+    const afterCenter = afterRender(
+      (GeometryComponent.get(after) as { center: SheetPosition }).center,
+    );
+    expect(afterCenter.x).toBeCloseTo(2 * centerX - beforeCenter.x);
+    expect(afterCenter.y).toBeCloseTo(beforeCenter.y);
   });
 
   it('undo restores original positions after flip', async () => {
@@ -349,6 +463,66 @@ describe('FlipVerticalAction', () => {
     expect(poly1Data[0].point.y).toBeCloseTo(16);
     expect(poly2Data[0].point.x).toBeCloseTo(0);
     expect(poly2Data[0].point.y).toBeCloseTo(4);
+  });
+
+  it('flips a rotated, anchored rectangle vertically in rendered space and reflects its angle', async () => {
+    const { id: rectId } = geometryStore.addOrdered(
+      ID_PREFIXES.rectangle,
+      Rectangle.create(new SheetPosition(10, 10), new SheetPosition(14, 12)),
+    );
+    geometryStore.updateByIdWithComponent(rectId, RotationComponent, (g) =>
+      RotationComponent.update(g, { angle: Angle.degrees(30) }),
+    );
+    geometryStore.updateByIdWithComponent(rectId, AnchorPointComponent, (g) =>
+      AnchorPointComponent.update(g, { keyPoint: 'upperLeft', offset: new SheetPosition(1, 2) }),
+    );
+    selectionManager.select(rectId);
+
+    const before = geometryStore.getByIdWithComponents(
+      rectId,
+      GeometryComponent,
+      RotationComponent,
+      AnchorPointComponent,
+    )!;
+    const bbox = Entity.boundingBoxInSheet(before);
+    const centerY = bbox.position.y + bbox.height / 2;
+    const beforeRender = Entity.generateRenderTransformFunction(before);
+    const beforeCorners = RectangleData.corners(GeometryComponent.get(before) as RectangleData);
+    const beforeRendered = {
+      upperLeft: beforeRender(beforeCorners.upperLeft),
+      upperRight: beforeRender(beforeCorners.upperRight),
+      lowerRight: beforeRender(beforeCorners.lowerRight),
+      lowerLeft: beforeRender(beforeCorners.lowerLeft),
+    };
+
+    await actionsManager.execute('flip-vertical');
+
+    const after = geometryStore.getByIdWithComponents(
+      rectId,
+      GeometryComponent,
+      RotationComponent,
+      AnchorPointComponent,
+    )!;
+    expect(RotationComponent.get(after).angle.toDegrees().magnitude).toBeCloseTo(-30);
+    expect(AnchorPointComponent.get(after).offset.x).toBeCloseTo(1);
+    expect(AnchorPointComponent.get(after).offset.y).toBeCloseTo(2);
+    const afterRender = Entity.generateRenderTransformFunction(after);
+    const afterCorners = RectangleData.corners(GeometryComponent.get(after) as RectangleData);
+    const afterRendered = {
+      upperLeft: afterRender(afterCorners.upperLeft),
+      upperRight: afterRender(afterCorners.upperRight),
+      lowerRight: afterRender(afterCorners.lowerRight),
+      lowerLeft: afterRender(afterCorners.lowerLeft),
+    };
+    const reflect = (point: SheetPosition) => new SheetPosition(point.x, 2 * centerY - point.y);
+    const expected = Object.values(beforeRendered)
+      .map(reflect)
+      .map((point) => `${point.x.toFixed(6)},${point.y.toFixed(6)}`)
+      .sort();
+    const actual = Object.values(afterRendered)
+      .map((point) => `${point.x.toFixed(6)},${point.y.toFixed(6)}`)
+      .sort();
+    expect(actual).toEqual(expected);
   });
 
   it('undo restores original positions after flip', async () => {
