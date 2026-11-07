@@ -18,13 +18,18 @@ import {
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
+import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { type SplitPoint, type TrimSegment, TrimSplitTool } from '@/lib/tools/TrimSplitTool';
+import { Angle } from '@/lib/units/angle';
 import { Length } from '@/lib/units/length';
 import {
   ScreenPosition,
@@ -90,6 +95,18 @@ function simulateMouseDown(
 ) {
   toolManager.handleMouseMove(new ScreenPosition(x, y), viewport);
   toolManager.handleMouseDown(new ScreenPosition(x, y), viewport);
+}
+
+function addRotatedRectangle(geometryStore: GeometryStore, angleDegrees: number) {
+  const rectangle = geometryStore.addOrdered(
+    ID_PREFIXES.rectangle,
+    Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10)),
+  );
+  geometryStore.updateByIdWithComponent(rectangle.id, RotationComponent, (g) =>
+    RotationComponent.update(g, { angle: Angle.degrees(angleDegrees) }),
+  );
+  geometryStore.flushDcelUpdates();
+  return geometryStore.getByIdWithComponent(rectangle.id, GeometryComponent)!;
 }
 
 describe('TrimSplitTool', () => {
@@ -1116,6 +1133,135 @@ describe('TrimSplitTool', () => {
           );
         }),
       ).toBeDefined();
+    });
+
+    describe('rotated geometry', () => {
+      it('includes rendered rectangle and ellipse rotation in getAllGeometryAsSegments', () => {
+        const rectangle = addRotatedRectangle(geometryStore, 45);
+        const ellipse = geometryStore.addOrdered(
+          ID_PREFIXES.ellipse,
+          Ellipse.create(new SheetPosition(20, 20), { radiusX: 4, radiusY: 1 }),
+        );
+        geometryStore.updateByIdWithComponent(ellipse.id, RotationComponent, (g) =>
+          RotationComponent.update(g, { angle: Angle.degrees(90) }),
+        );
+
+        const all = geometryStore.getAllGeometryAsSegments();
+        const rectangleSegments = all.find((entry) => entry.id === rectangle.id)!;
+        const rendered = Entity.generateRenderTransformFunction(rectangle);
+        const corners = RectangleData.corners(
+          GeometryComponent.get(rectangle as Entity<GeometryComponent<RectangleData>>),
+        );
+        expect(rectangleSegments.segments).toHaveLength(4);
+        expect(rectangleSegments.segments[0].segment.start.x).toBeCloseTo(
+          rendered(corners.upperLeft).x,
+        );
+        expect(rectangleSegments.segments[0].segment.start.y).toBeCloseTo(
+          rendered(corners.upperLeft).y,
+        );
+        expect(rectangleSegments.segments[1].segment.start.x).toBeCloseTo(
+          rendered(corners.upperRight).x,
+        );
+
+        const ellipseGeometry = geometryStore.getByIdWithComponent(ellipse.id, GeometryComponent)!;
+        const ellipseSegments = all.find((entry) => entry.id === ellipse.id)!;
+        const expectedFirst = GeometryComponent.getRenderShapes(ellipseGeometry, 'in')[0];
+        const expectedPoints = expectedFirst.shape === 'ellipse' ? expectedFirst : null;
+        expect(expectedPoints).not.toBeNull();
+        expect(ellipseSegments.segments.length).toBeGreaterThan(0);
+        expect(ellipseSegments.segments[0].segment.start.x).toBeGreaterThan(19);
+      });
+
+      it('splits a rotated rectangle at a rendered intersection point', async () => {
+        addRotatedRectangle(geometryStore, 45);
+        geometryStore.addOrdered(
+          ID_PREFIXES.polygon,
+          Polygon.create([makePoint(5, -1), makePoint(5, 15)], { closed: false }),
+        );
+
+        const events = subscribeToEvents(trimSplitTool, ['splitPointOrTrimSegmentChange']);
+        simulateMouseMove(
+          toolManager,
+          sheetToScreen(5, 5, viewport).x,
+          sheetToScreen(5, 5, viewport).y,
+          viewport,
+        );
+        const data = (await events.waitFor('splitPointOrTrimSegmentChange')) as SplitPoint;
+        expect(data.type).toBe('split-point');
+        expect(data.point.x).toBeCloseTo(5);
+        expect(data.point.y).toBeCloseTo(5);
+
+        toolManager.handleMouseDown(
+          new ScreenPosition(sheetToScreen(5, 5, viewport).x, sheetToScreen(5, 5, viewport).y),
+          viewport,
+        );
+
+        const polygons = geometryStore
+          .listWithComponent(GeometryComponent)
+          .filter(GeometryComponent.isPolygon);
+        expect(polygons.length).toBeGreaterThanOrEqual(1);
+        expect(
+          polygons.some((polygon) =>
+            PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>).some(
+              (segment) =>
+                segment.type === 'point' &&
+                Math.abs(segment.point.x - 5) < 1e-6 &&
+                Math.abs(segment.point.y - 5) < 1e-6,
+            ),
+          ),
+        ).toBe(true);
+        expect(
+          polygons.every(
+            (polygon) =>
+              !Entity.hasComponent(polygon, RotationComponent) ||
+              Math.abs(
+                RotationComponent.get(polygon as Entity<RotationComponent>).angle.toDegrees()
+                  .magnitude,
+              ) < 1e-9,
+          ),
+        ).toBe(true);
+      });
+
+      it('bakes rotation and preserves filters when trimming a rotated rectangle', () => {
+        const rectangle = addRotatedRectangle(geometryStore, 45);
+        geometryStore.add(
+          ID_PREFIXES.filter,
+          MirrorFilter.create(rectangle.id, new SheetPosition(-20, 0), new SheetPosition(-20, 10)),
+        );
+        const render = Entity.generateRenderTransformFunction(rectangle);
+        const corners = RectangleData.corners(
+          GeometryComponent.get(rectangle as Entity<GeometryComponent<RectangleData>>),
+        );
+        const upperLeft = render(corners.upperLeft);
+        const upperRight = render(corners.upperRight);
+        const midpoint = new SheetPosition(
+          (upperLeft.x + upperRight.x) / 2,
+          (upperLeft.y + upperRight.y) / 2,
+        );
+
+        toolManager.handleMouseMove(sheetToScreen(midpoint.x, midpoint.y, viewport), viewport);
+        toolManager.handleMouseDown(sheetToScreen(midpoint.x, midpoint.y, viewport), viewport);
+
+        const polygons = geometryStore
+          .listWithComponent(GeometryComponent)
+          .filter(GeometryComponent.isPolygon);
+        expect(polygons.length).toBeGreaterThanOrEqual(1);
+        const filters = geometryStore.listWithComponent(FilterComponent);
+        expect(filters).toHaveLength(1);
+        expect(
+          polygons.some((polygon) => polygon.id === FilterComponent.get(filters[0]).geometryId),
+        ).toBe(true);
+        expect(
+          polygons.every(
+            (polygon) =>
+              !Entity.hasComponent(polygon, RotationComponent) ||
+              Math.abs(
+                RotationComponent.get(polygon as Entity<RotationComponent>).angle.toDegrees()
+                  .magnitude,
+              ) < 1e-9,
+          ),
+        ).toBe(true);
+      });
     });
   });
 });

@@ -1,19 +1,8 @@
 import { SquaresUnite } from 'lucide-react';
-import { type Geom, union } from 'polyclip-ts';
 import React from 'react';
-import {
-  Entity,
-  FillColorComponent,
-  GeometryComponent,
-  Polygon,
-  type PolygonSegment,
-} from '@/lib/entity';
-import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
-import { arcToLineSegments, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
-import { SheetPosition } from '@/lib/viewport/types';
-import { GeometryData } from '../entity/geometry';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
+import { executeBooleanOperation } from './boolean-operation';
 
 export class UnionAction extends BaseAction {
   type = 'union' as const;
@@ -38,140 +27,12 @@ export class UnionAction extends BaseAction {
   private updateDisabled: () => void;
 
   async execute() {
-    const geometryStore = this.getGeometryStore();
-    const selectionManager = this.getSelectionManager();
-    const historyManager = this.getHistoryManager();
-    const selectedIds = selectionManager.getSelectedIds();
-
-    if (selectedIds.length < 2) {
-      return;
-    }
-
-    const extractedPolygons: Array<Array<SheetPosition>> = [];
-    let firstFillColor: number | null = null;
-
-    for (const id of selectedIds) {
-      const geometry = geometryStore.getById(id);
-      if (!geometry) continue;
-      if (Entity.hasComponent(geometry, GeometryComponent)) {
-        const geomData = GeometryComponent.projectToSheet<GeometryData>(geometry);
-        if (geomData.type === 'polygon') {
-          const points = this.extractPointsFromSegments(geomData.points);
-          extractedPolygons.push(points);
-          if (firstFillColor === null) {
-            firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
-          }
-        } else if (geomData.type === 'rectangle') {
-          const points = this.extractPointsFromSegments(
-            rectangleToPolygon(geomData.origin, geomData.width, geomData.height),
-          );
-          extractedPolygons.push(points);
-          if (firstFillColor === null) {
-            firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
-          }
-        } else if (geomData.type === 'ellipse') {
-          const points = this.extractPointsFromSegments(
-            ellipseToPolygon(geomData.center, geomData.radiusX, geomData.radiusY),
-          );
-          extractedPolygons.push(points);
-          if (firstFillColor === null) {
-            firstFillColor = FillColorComponent.getOptional(geometry) ?? null;
-          }
-        }
-      }
-    }
-
-    if (extractedPolygons.length < 2) {
-      return;
-    }
-
-    const clipPolys = extractedPolygons.map(
-      (pts) => [pts.map((p) => [p.x, p.y] as [number, number])], // wrap in array for polyclip-ts format
-    );
-
-    const result = union(...(clipPolys as [Geom, Geom]));
-
-    if (result.length === 0 || result[0].length === 0) {
-      return;
-    }
-
-    selectionManager.clearSelection();
-
-    const newPolygonIds = historyManager.applyTransaction('boolean-union', () => {
-      // 1. Delete old geometries
-      for (const id of selectedIds) {
-        geometryStore.deleteById(id);
-      }
-
-      // 2. Add new boolean operation results
-      const ids: Array<string> = [];
-      for (const polygon of result) {
-        const newPoints: Array<PolygonSegment> = polygon[0].map(([x, y]) => ({
-          type: 'point' as const,
-          point: new SheetPosition(x, y),
-        }));
-        const newPolygon = geometryStore.addOrdered(
-          ID_PREFIXES.polygon,
-          Polygon.create(newPoints, {
-            closed: true,
-            fillColor: firstFillColor,
-            openAtIndex: 0,
-          }),
-        );
-        ids.push(newPolygon.id);
-      }
-      return ids;
+    executeBooleanOperation({
+      operation: 'union',
+      geometryStore: this.getGeometryStore(),
+      selectionManager: this.getSelectionManager(),
+      historyManager: this.getHistoryManager(),
+      sheetDefaultUnit: this.getSheet().defaultUnit,
     });
-
-    selectionManager.selectAll(new Set(newPolygonIds));
-
-    selectionManager.selectAll(new Set(newPolygonIds));
-  }
-
-  private extractPointsFromSegments(segments: Array<PolygonSegment>): Array<SheetPosition> {
-    const points: Array<SheetPosition> = [];
-    let prevPoint: SheetPosition | null = null;
-
-    for (const seg of segments) {
-      if (seg.type === 'point') {
-        if (prevPoint === null || !this.positionsEqual(seg.point, prevPoint)) {
-          points.push(seg.point);
-        }
-        prevPoint = seg.point;
-      } else if (seg.type === 'arc-quadratic') {
-        if (prevPoint !== null) {
-          const curve = { start: prevPoint, end: seg.point, controlPoint: seg.controlPoint };
-          const sampled = arcToLineSegments(curve);
-          for (let i = 1; i < sampled.length; i++) {
-            if (!this.positionsEqual(sampled[i], points[points.length - 1])) {
-              points.push(sampled[i]);
-            }
-          }
-        }
-        prevPoint = seg.point;
-      } else if (seg.type === 'arc-cubic') {
-        if (prevPoint !== null) {
-          const curve = {
-            start: prevPoint,
-            end: seg.point,
-            controlPointA: seg.controlPointA,
-            controlPointB: seg.controlPointB,
-          };
-          const sampled = arcToLineSegments(curve);
-          for (let i = 1; i < sampled.length; i++) {
-            if (!this.positionsEqual(sampled[i], points[points.length - 1])) {
-              points.push(sampled[i]);
-            }
-          }
-        }
-        prevPoint = seg.point;
-      }
-    }
-
-    return points;
-  }
-
-  private positionsEqual(a: SheetPosition, b: SheetPosition): boolean {
-    return a.x === b.x && a.y === b.y;
   }
 }

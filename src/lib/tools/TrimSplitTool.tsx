@@ -17,6 +17,7 @@ import {
 import { type DCELShapeIndex } from '@/lib/entity/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { UndoEntry } from '@/lib/history/types';
 import {
@@ -415,8 +416,13 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
     const constraintsByPosition = constraintInfo.constraintsByPosition;
     const removedVertexColinearInfo = constraintInfo.removedVertexColinearInfo;
 
+    const filtersToMigrate = shapeIds.flatMap((sid) => geometryStore.findFiltersByGeometryId(sid));
+
     historyManager.applyTransaction('trim-segment', () => {
       // === Phase 1: Create new boundary and offcut polygons ===
+      // New polygons are constructed from rendered DCEL positions, so any anchor/rotation is
+      // intentionally baked into their raw points. Components which don't depend on the transform
+      // (fill, render order, mirror/pattern filters) are carried over below.
       // We create the new geometry FIRST so we can build a position map
       // and re-link constraints before the old shapes are deleted.
 
@@ -445,6 +451,21 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
         mainPolygonId = mainGeo.id;
       } else {
         mainPolygonId = mainPolygonAlreadyExists.id;
+      }
+
+      if (typeof mainPolygonId !== 'undefined') {
+        for (const filter of filtersToMigrate) {
+          const data = FilterComponent.get(filter);
+          if (data.type !== 'mirror' && data.type !== 'pattern') {
+            continue;
+          }
+          geometryStore.add(ID_PREFIXES.filter, {
+            components: FilterComponent.create(
+              { ...data, geometryId: mainPolygonId },
+              filter.components.filter.order,
+            ),
+          });
+        }
       }
 
       const offcutInfos: Array<{ id: Id; points: Array<PolygonSegment> }> = [];

@@ -24,7 +24,7 @@ import {
 import { VertexId } from '../dcel';
 import { HistoryManager } from '../history/HistoryManager';
 import { type ConversionMigration, UndoEntry } from '../history/types';
-import { ellipseToPolygon, rectangleToPolygon } from '../math';
+import { ellipseToPolygon } from '../math';
 import { UnitType } from '../units/length';
 import {
   CubicCurve,
@@ -64,6 +64,7 @@ import {
   RenderOrderComponent,
 } from './index';
 import { Polygon } from './polygon';
+import { RenderShape } from './render-shape';
 
 export const ID_PREFIXES = {
   polygon: 'ply' as const,
@@ -349,37 +350,22 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
     }> = [];
     for (const g of this.geometryById.values()) {
       if (Entity.hasComponent(g, GeometryComponent)) {
-        const geomData = GeometryComponent.projectToSheet<GeometryData>(g);
-        switch (geomData.type) {
-          case 'polygon':
-            result.push({
-              type: 'polygon',
-              id: g.id,
-              segments: pointsToSegments(geomData.points),
-            });
-            break;
-          case 'rectangle': {
-            result.push({
-              type: 'rectangle',
-              id: g.id,
-              segments: pointsToSegments(
-                rectangleToPolygon(geomData.origin, geomData.width, geomData.height),
-              ),
-            });
-            break;
-          }
-          case 'ellipse':
-            result.push({
-              type: 'ellipse',
-              id: g.id,
-              segments: pointsToSegments(
-                ellipseToPolygon(geomData.center, geomData.radiusX, geomData.radiusY),
-              ),
-            });
-            break;
-          default:
-            break;
+        const geomData = GeometryComponent.get<GeometryData>(g);
+        // Intersection / trim queries operate in rendered sheet space, so use the same oriented
+        // outline that is drawn on screen for rectangles and ellipses.
+        const shapes = GeometryComponent.getRenderShapes(
+          g as Entity<GeometryComponent & Partial<AnchorPointComponent>>,
+          'in',
+        );
+        const primary = shapes.find((shape) => shape.primary) ?? shapes[0];
+        if (!primary) {
+          continue;
         }
+        result.push({
+          type: geomData.type,
+          id: g.id,
+          segments: pointsToSegments(RenderShape.toPolygonSegments(primary)),
+        });
       } else if (Entity.hasComponent(g, DatumComponent)) {
         result.push({ type: 'datum', id: g.id, segments: [] });
       }

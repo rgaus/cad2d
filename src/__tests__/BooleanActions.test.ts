@@ -1,11 +1,27 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { Entity, FillColorComponent, GeometryComponent, Polygon, Rectangle } from '@/lib/entity';
+import {
+  ConstraintComponent,
+  ConstraintEndpoint,
+  Ellipse,
+  Entity,
+  FillColorComponent,
+  GeometryComponent,
+  LinearConstraint,
+  Polygon,
+  Rectangle,
+  RenderOrderComponent,
+} from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
+import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
+import { Angle } from '@/lib/units/angle';
+import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 
 describe('BooleanActions', () => {
@@ -29,6 +45,30 @@ describe('BooleanActions', () => {
     );
     actionsManager.setToolManager(toolManager);
   });
+
+  function resultBounds(geometry: Entity<GeometryComponent<PolygonData>>) {
+    const points = PolygonData.rawSegments(geometry).map((segment) => segment.point);
+    return {
+      minX: Math.min(...points.map((p) => p.x)),
+      maxX: Math.max(...points.map((p) => p.x)),
+      minY: Math.min(...points.map((p) => p.y)),
+      maxY: Math.max(...points.map((p) => p.y)),
+    };
+  }
+
+  function addRotatedRectangle(angleDegrees: number) {
+    const rectangle = geometryStore.addOrdered(
+      ID_PREFIXES.rectangle,
+      Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+        fillColor: 0x0000ff,
+        linkDimensions: false,
+      }),
+    );
+    geometryStore.updateByIdWithComponent(rectangle.id, RotationComponent, (g) =>
+      RotationComponent.update(g, { angle: Angle.degrees(angleDegrees) }),
+    );
+    return rectangle;
+  }
 
   describe('UnionAction', () => {
     it('unions two overlapping rectangles into a combined polygon', async () => {
@@ -110,6 +150,62 @@ describe('BooleanActions', () => {
 
       // Result should have first polygon's color (blue)
       expect(FillColorComponent.getOptional(resultPolygon)).toBe(0x0000ff);
+    });
+    it('unions a rotated rectangle using its rendered outline', async () => {
+      const rotated = addRotatedRectangle(45);
+      const unrotated = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+          fillColor: 0x00ff00,
+          linkDimensions: false,
+        }),
+      );
+      geometryStore.setRenderOrder(rotated.id, 7);
+      const constraint = geometryStore.add(
+        ID_PREFIXES.constraint,
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rotated.id, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(20, 20)),
+          Length.centimeters(1),
+        ),
+      );
+      geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(rotated.id, new SheetPosition(-20, 0), new SheetPosition(-20, 10)),
+      );
+
+      selectionManager.select(rotated.id);
+      selectionManager.select(unrotated.id);
+
+      await actionsManager.execute('union');
+
+      const result = geometryStore
+        .listWithComponent(GeometryComponent)
+        .find(GeometryComponent.isPolygon) as Entity<GeometryComponent<PolygonData>>;
+      expect(result).toBeDefined();
+      const bounds = resultBounds(result);
+      expect(bounds.minX).toBeLessThan(-7);
+      expect(bounds.maxX).toBeCloseTo(10, 5);
+      expect(bounds.minY).toBeCloseTo(0, 5);
+      expect(bounds.maxY).toBeGreaterThan(14);
+      expect(
+        RenderOrderComponent.get(
+          geometryStore.getByIdWithComponent(result.id, RenderOrderComponent)!,
+        ),
+      ).toBe(7);
+
+      const migratedConstraint = geometryStore.getByIdWithComponent(
+        constraint.id,
+        ConstraintComponent,
+      );
+      expect(migratedConstraint).not.toBeNull();
+      const data = ConstraintComponent.get(migratedConstraint!);
+      expect(data.type).toBe('linear');
+      expect((data as { pointA: { type: string } }).pointA.type).toBe('locked-datum');
+
+      const migratedFilters = geometryStore.listWithComponent(FilterComponent);
+      expect(migratedFilters).toHaveLength(1);
+      expect(FilterComponent.get(migratedFilters[0]).geometryId).toBe(result.id);
     });
   });
 
@@ -251,6 +347,28 @@ describe('BooleanActions', () => {
       // One polygon should be entirely in the left region, the other in the right
       expect((l0AllLeft && l1AllRight) || (l0AllRight && l1AllLeft)).toBe(true);
     });
+    it('subtracts from a rotated rectangle using its rendered outline', async () => {
+      const rotated = addRotatedRectangle(45);
+      const unrotated = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+          fillColor: 0x00ff00,
+          linkDimensions: false,
+        }),
+      );
+      selectionManager.select(rotated.id);
+      selectionManager.select(unrotated.id);
+
+      await actionsManager.execute('difference');
+
+      const result = geometryStore
+        .listWithComponent(GeometryComponent)
+        .find(GeometryComponent.isPolygon) as Entity<GeometryComponent<PolygonData>>;
+      expect(result).toBeDefined();
+      const bounds = resultBounds(result);
+      expect(bounds.minX).toBeLessThan(-7);
+      expect(bounds.maxY).toBeGreaterThan(14);
+    });
   });
 
   describe('IntersectionAction', () => {
@@ -333,6 +451,66 @@ describe('BooleanActions', () => {
 
       // Result should have first polygon's color (blue)
       expect(FillColorComponent.getOptional(resultPolygon)).toBe(0x0000ff);
+    });
+    it('intersects a rotated rectangle using its rendered outline', async () => {
+      const rotated = addRotatedRectangle(45);
+      const unrotated = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(10, 10), {
+          fillColor: 0x00ff00,
+          linkDimensions: false,
+        }),
+      );
+      selectionManager.select(rotated.id);
+      selectionManager.select(unrotated.id);
+
+      await actionsManager.execute('intersection');
+
+      const result = geometryStore
+        .listWithComponent(GeometryComponent)
+        .find(GeometryComponent.isPolygon) as Entity<GeometryComponent<PolygonData>>;
+      expect(result).toBeDefined();
+      const bounds = resultBounds(result);
+      expect(bounds.minX).toBeCloseTo(0, 5);
+      expect(bounds.maxX).toBeCloseTo(Math.sqrt(50), 5);
+      expect(bounds.minY).toBeCloseTo(0, 5);
+      expect(bounds.maxY).toBeCloseTo(10, 5);
+    });
+
+    it('intersects a rotated ellipse using its rendered outline', async () => {
+      const ellipse = geometryStore.addOrdered(
+        ID_PREFIXES.ellipse,
+        Ellipse.create(new SheetPosition(5, 5), {
+          radiusX: 4,
+          radiusY: 1,
+          fillColor: 0x0000ff,
+          linkDimensions: false,
+        }),
+      );
+      geometryStore.updateByIdWithComponent(ellipse.id, RotationComponent, (g) =>
+        RotationComponent.update(g, { angle: Angle.degrees(90) }),
+      );
+      const box = geometryStore.addOrdered(
+        ID_PREFIXES.rectangle,
+        Rectangle.create(new SheetPosition(0, 0), new SheetPosition(5.5, 10), {
+          fillColor: 0x00ff00,
+          linkDimensions: false,
+        }),
+      );
+      selectionManager.select(ellipse.id);
+      selectionManager.select(box.id);
+
+      await actionsManager.execute('intersection');
+
+      const result = geometryStore
+        .listWithComponent(GeometryComponent)
+        .find(GeometryComponent.isPolygon) as Entity<GeometryComponent<PolygonData>>;
+      expect(result).toBeDefined();
+      const bounds = resultBounds(result);
+      expect(bounds.minX).toBeGreaterThan(3.9);
+      expect(bounds.maxX).toBeLessThanOrEqual(5.5 + 1e-6);
+      expect(bounds.minY).toBeGreaterThan(0.5);
+      expect(bounds.maxY).toBeLessThan(9.5);
     });
   });
 });
