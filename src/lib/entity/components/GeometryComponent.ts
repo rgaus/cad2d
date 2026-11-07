@@ -14,13 +14,13 @@ import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
 import { RectangleData } from '../geometry/rectangle';
 import { RectangleEndpoint } from '../rectangle';
+import { RenderShape } from '../render-shape';
 import { Entity, type EntityComponent, ResizeParams } from '../types';
 import { AnchorPointComponent } from './AnchorPointComponent';
 import { ConstraintComponent } from './ConstraintComponent';
 import { FilterComponent } from './FilterComponent';
 import { FrameComponent } from './FrameComponent';
 import { LinkDimensionsComponent } from './LinkDimensionsComponent';
-import { RenderShape } from '../render-shape';
 
 export type GetRenderShapesOptions<D extends GeometryData = GeometryData> = {
   /** Defaults to true. When set to false, a non closed polygon which would become closed (ie,
@@ -174,9 +174,7 @@ export namespace GeometryComponent {
    * Key points that are added as verticies within the DCEL and available for a user to snap other
    * entities like constraints to. These are expressed in anchored (rendered) space.
    **/
-  export function keyPoints(
-    geometry: Entity<GeometryComponent>,
-  ): KeyPoints<SheetPosition, string> {
+  export function keyPoints(geometry: Entity<GeometryComponent>): KeyPoints<SheetPosition, string> {
     if (Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
       // Translate the geometry into anchored space, then drop the anchor so the recursive call
       // below reads plain (unanchored) geometry.
@@ -278,9 +276,7 @@ export namespace GeometryComponent {
   }
 
   /** Origin in anchored (rendered) space. */
-  export function getRenderOrigin(
-    geometry: Entity<GeometryComponent>,
-  ): SheetPosition {
+  export function getRenderOrigin(geometry: Entity<GeometryComponent>): SheetPosition {
     let working = geometry;
     if (Entity.hasComponents(working, GeometryComponent, AnchorPointComponent)) {
       const translated = GeometryComponent.transform(

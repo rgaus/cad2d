@@ -11,8 +11,8 @@ import {
   RectangleEndpoint,
 } from '..';
 import { FilterComponent } from '../components/FilterComponent';
-import { ChamferFilterData } from './chamfer';
 import { RenderShape } from '../render-shape';
+import { ChamferFilterData } from './chamfer';
 
 export type FilletFilterData =
   | {

@@ -4,10 +4,7 @@ import { Entity, type Polygon, PolygonSegment, RectangleEndpoint } from '..';
 import { DEFAULT_COLOR } from '../colors';
 import { FillColorComponent } from '../components/FillColorComponent';
 import { FilterComponent } from '../components/FilterComponent';
-import {
-  GeometryComponent,
-  GetRenderShapesOptions,
-} from '../components/GeometryComponent';
+import { GeometryComponent, GetRenderShapesOptions } from '../components/GeometryComponent';
 import { RenderShape } from '../render-shape';
 
 export type MirrorFilterData = {

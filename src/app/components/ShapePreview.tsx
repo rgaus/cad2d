@@ -11,12 +11,12 @@ import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { Filter } from '@/lib/entity/filters';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
+import { RenderShape } from '@/lib/entity/render-shape';
 import {
   type ShapePreviewEditingDimension,
   type ShapePreviewHighlight,
 } from '@/lib/selection/ShapePreviewManager';
 import { Sheet } from '@/lib/sheet/Sheet';
-import { RenderShape } from '@/lib/entity/render-shape';
 
 export { type ShapePreviewEditingDimension, type ShapePreviewHighlight };
 

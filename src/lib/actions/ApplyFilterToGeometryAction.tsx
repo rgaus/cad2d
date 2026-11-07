@@ -28,9 +28,9 @@ import { PolygonData, PolygonSegment } from '@/lib/entity/geometry/polygon';
 import { type RectangleEndpoint } from '@/lib/entity/rectangle';
 import { CornerReplacement, type CornerSegmentFactory, Vector2, mod } from '@/lib/math';
 import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
+import { RenderShape } from '../entity/render-shape';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
-import { RenderShape } from '../entity/render-shape';
 
 type CornerState =
   | {
@@ -452,7 +452,9 @@ export class ApplyFilterToGeometryAction extends BaseAction {
         // Point shapes are zero size
         // TODO: I'm not 100% sure about this, validate there isn't a case where this will get hit
         // in practice
-        console.warn('WARNING: ApplyFilterToGeometryAction.addRenderShapeAsGeometry: Skipping renderShape.shape of "point".');
+        console.warn(
+          'WARNING: ApplyFilterToGeometryAction.addRenderShapeAsGeometry: Skipping renderShape.shape of "point".',
+        );
         return undefined;
       default:
         renderShape satisfies never;

@@ -24,11 +24,6 @@ import {
   type VerticalConstraintData,
 } from '@/lib/entity/constraints';
 import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/entity/datum';
-import {
-  CONSTRAINT_COLOR,
-  CONSTRAINT_LINE_WIDTH_PX,
-  computeDimensionLinePoints,
-} from '@/lib/viewport/dimension-line-utils';
 import { GeometryData } from '@/lib/entity/geometry';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { type Sheet } from '@/lib/sheet/Sheet';
@@ -41,6 +36,11 @@ import {
   MetersType,
   MillimetersType,
 } from '@/lib/units/length';
+import {
+  CONSTRAINT_COLOR,
+  CONSTRAINT_LINE_WIDTH_PX,
+  computeDimensionLinePoints,
+} from '@/lib/viewport/dimension-line-utils';
 import { type SheetPosition } from '@/lib/viewport/types';
 import { CAD2D_STATE_COMMENT_PREFIX, CURRENT_VERSION, type SerializedState } from './versions';
 
