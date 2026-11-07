@@ -324,20 +324,24 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       const prevData = GeometryComponent.get(current);
       const magnitude = value.toSheetUnits(this.sheetDefaultUnit).magnitude;
       const segments = prevData.points.map((s, i) => {
-        if (axis === 'x') {
-          // First point of closed polygons updates the first and last points
-          if (prevData.closed && index === 0 && (i === 0 || i === prevData.points.length - 1)) {
-            return { ...s, point: new SheetPosition(magnitude, s.point.y) };
-          }
-          if (i === index) {
-            return { ...s, point: new SheetPosition(magnitude, s.point.y) };
-          }
+        const shouldUpdate =
+          axis === 'x'
+            ? // First point of closed polygons updates the first and last points
+              (prevData.closed && index === 0 && (i === 0 || i === prevData.points.length - 1)) ||
+              i === index
+            : i === index;
+        if (!shouldUpdate) {
           return s;
         }
-        if (i !== index) {
-          return s;
-        }
-        return { ...s, point: new SheetPosition(s.point.x, magnitude) };
+        const rendered = s.point.toSheet(current);
+        const nextRendered =
+          axis === 'x'
+            ? new SheetPosition(magnitude, rendered.y)
+            : new SheetPosition(rendered.x, magnitude);
+        return {
+          ...s,
+          point: nextRendered.toGeometryRelativeSheetPosition(current),
+        };
       });
       return { points: segments };
     };

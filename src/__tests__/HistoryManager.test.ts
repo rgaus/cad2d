@@ -14,11 +14,12 @@ import {
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { UndoEntry } from '@/lib/history/types';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
 import { Length } from '@/lib/units/length';
-import { SheetPosition } from '@/lib/viewport/types';
+import { type Position, SheetPosition } from '@/lib/viewport/types';
 
 function makeRectangle(overrides: {
   id: string;
@@ -254,7 +255,7 @@ describe('HistoryManager', () => {
       const beforePoint = new SheetPosition(1, 2);
       const afterPoint = new SheetPosition(2, 3);
 
-      const segments: Array<PolygonSegment> = [
+      const segments: Array<PolygonSegment<Position>> = [
         ...GeometryComponent.get(
           geometryStore
             .listWithComponent(GeometryComponent)
@@ -302,7 +303,7 @@ describe('HistoryManager', () => {
   });
 
   describe('apply / polygon-translate / undo / redo', () => {
-    it('translates all points of a linear polygon by the given delta', () => {
+    it('translates the stable position and preserves absolute geometry', () => {
       const polygon = geometryStore.addOrdered(
         ID_PREFIXES.polygon,
         Polygon.create(
@@ -316,96 +317,64 @@ describe('HistoryManager', () => {
 
       historyManager.apply(UndoEntry.polygonTranslate(polygon.id, 3, 2));
 
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[0].point.x,
-      ).toBe(3);
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[0].point.y,
-      ).toBe(2);
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[1].point.x,
-      ).toBe(13);
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[1].point.y,
-      ).toBe(7);
+      let data = GeometryComponent.get(
+        geometryStore
+          .listWithComponent(GeometryComponent)
+          .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
+      );
+      expect(data.position.x).toBe(3);
+      expect(data.position.y).toBe(2);
+      // Local points are unchanged by a pure translation.
+      expect(data.points[0].point.x).toBe(0);
+      expect(data.points[1].point.x).toBe(10);
+      // Absolute geometry moved with the position.
+      let raw = PolygonData.rawSegments(
+        geometryStore
+          .listWithComponent(GeometryComponent)
+          .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
+      );
+      expect(raw[0].point.x).toBe(3);
+      expect(raw[0].point.y).toBe(2);
+      expect(raw[1].point.x).toBe(13);
+      expect(raw[1].point.y).toBe(7);
 
       historyManager.undo();
 
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[0].point.x,
-      ).toBe(0);
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[0].point.y,
-      ).toBe(0);
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[1].point.x,
-      ).toBe(10);
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[1].point.y,
-      ).toBe(5);
+      data = GeometryComponent.get(
+        geometryStore
+          .listWithComponent(GeometryComponent)
+          .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
+      );
+      raw = PolygonData.rawSegments(
+        geometryStore
+          .listWithComponent(GeometryComponent)
+          .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
+      );
+      expect(data.position.x).toBe(0);
+      expect(data.position.y).toBe(0);
+      expect(raw[0].point.x).toBe(0);
+      expect(raw[0].point.y).toBe(0);
+      expect(raw[1].point.x).toBe(10);
+      expect(raw[1].point.y).toBe(5);
 
       historyManager.redo();
 
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[0].point.x,
-      ).toBe(3);
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[0].point.y,
-      ).toBe(2);
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[1].point.x,
-      ).toBe(13);
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[1].point.y,
-      ).toBe(7);
+      data = GeometryComponent.get(
+        geometryStore
+          .listWithComponent(GeometryComponent)
+          .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
+      );
+      raw = PolygonData.rawSegments(
+        geometryStore
+          .listWithComponent(GeometryComponent)
+          .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
+      );
+      expect(data.position.x).toBe(3);
+      expect(data.position.y).toBe(2);
+      expect(raw[0].point.x).toBe(3);
+      expect(raw[0].point.y).toBe(2);
+      expect(raw[1].point.x).toBe(13);
+      expect(raw[1].point.y).toBe(7);
     });
 
     it('translates control points of arc segments along with main points', () => {
@@ -432,23 +401,23 @@ describe('HistoryManager', () => {
 
       historyManager.apply(UndoEntry.polygonTranslate(polygon.id, 5, -3));
 
-      const pts = (
-        GeometryComponent.get(
-          geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon)[0],
-        ) as any
-      ).points;
-      expect(pts[0].point.x).toBe(5);
-      expect(pts[0].point.y).toBe(-3);
-      expect(pts[1].point.x).toBe(15);
-      expect(pts[1].point.y).toBe(-3);
-      expect(pts[2].point.x).toBe(25);
-      expect(pts[2].point.y).toBe(-3);
+      const raw = PolygonData.rawSegments(
+        geometryStore
+          .listWithComponent(GeometryComponent)
+          .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
+      );
+      expect(raw[0].point.x).toBe(5);
+      expect(raw[0].point.y).toBe(-3);
+      expect(raw[1].point.x).toBe(15);
+      expect(raw[1].point.y).toBe(-3);
+      expect(raw[2].point.x).toBe(25);
+      expect(raw[2].point.y).toBe(-3);
 
-      const q = pts[1] as any;
+      const q = raw[1] as any;
       expect(q.controlPoint.x).toBe(10);
       expect(q.controlPoint.y).toBe(7);
 
-      const c = pts[2] as any;
+      const c = raw[2] as any;
       expect(c.controlPointA.x).toBe(17);
       expect(c.controlPointA.y).toBe(5);
       expect(c.controlPointB.x).toBe(23);
@@ -456,37 +425,23 @@ describe('HistoryManager', () => {
 
       historyManager.undo();
 
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[0].point.x,
-      ).toBe(0);
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[0].point.y,
-      ).toBe(0);
+      const undone = PolygonData.rawSegments(
+        geometryStore
+          .listWithComponent(GeometryComponent)
+          .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
+      );
+      expect(undone[0].point.x).toBe(0);
+      expect(undone[0].point.y).toBe(0);
 
       historyManager.redo();
 
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[0].point.x,
-      ).toBe(5);
-      expect(
-        GeometryComponent.get(
-          geometryStore
-            .listWithComponent(GeometryComponent)
-            .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
-        ).points[0].point.y,
-      ).toBe(-3);
+      const redone = PolygonData.rawSegments(
+        geometryStore
+          .listWithComponent(GeometryComponent)
+          .filter((g): g is Polygon => GeometryComponent.isPolygon(g))[0],
+      );
+      expect(redone[0].point.x).toBe(5);
+      expect(redone[0].point.y).toBe(-3);
     });
   });
 

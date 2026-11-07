@@ -45,8 +45,15 @@ coordinate system. The origin `(0, 0)` is the geometry's raw natural origin:
 - ellipse: raw `center`
 - polygon: raw bounding-box upper-left
 
-Raw geometry data is still stored in absolute `SheetPosition`s. These absolute values define the
-geometry-relative origin. Conversion is explicit:
+Raw geometry storage varies by shape type:
+
+- rectangle: absolute `origin` (upper-left)
+- ellipse: absolute `center`
+- polygon: a stable absolute `position` plus `GeometryRelativeSheetPosition` points stored locally
+  relative to that position. The position is chosen as the raw bounding-box upper-left at creation
+  and is deliberately not re-centered after edits.
+
+These absolute values define the geometry-relative origin. Conversion is explicit:
 
 - `GeometryRelativeSheetPosition.fromRawSheet(position, geometry)` converts a raw absolute
   `SheetPosition` into geometry-relative coordinates by subtracting the raw origin.

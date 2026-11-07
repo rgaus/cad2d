@@ -1,4 +1,5 @@
 import { type PolygonSegment } from '../entity/geometry/polygon';
+import { type Position } from '../viewport/types';
 
 /** The height of each polygon point row in pixels, keyed by segment type. Used to compute the
  * {@link SplitPointIndicator} position and to translate openAtIndex drag deltas into point indexes. */
@@ -20,9 +21,9 @@ export const POINT_ROW_HEIGHT_PX_BY_TYPE: { [key in PolygonSegment['type']]: num
  * @param initialPoints - The polygon's points captured at the start of the drag.
  * @param deltaYPx - The accumulated vertical drag distance in pixels.
  */
-export function computeOpenAtIndex(
+export function computeOpenAtIndex<P extends Position>(
   initialOpenAtIndex: number,
-  initialPoints: Array<PolygonSegment>,
+  initialPoints: Array<PolygonSegment<P>>,
   deltaYPx: number,
 ): number {
   // The last valid index is the final displayed row. Dragging past the end falls back to it

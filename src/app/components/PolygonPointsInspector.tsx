@@ -11,12 +11,13 @@ import {
   SelectValue,
 } from '@/components/ui/Select';
 import { type PolygonSegment } from '@/lib/entity';
-import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { OpenAtIndexState } from '@/lib/selection/SelectionInspectorManager';
+import { type PolygonPointsData } from '@/lib/selection/fields';
 import { POINT_ROW_HEIGHT_PX_BY_TYPE } from '@/lib/selection/polygon-point-row';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { Length, type UnitType } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
+import { type Position } from '@/lib/viewport/types';
 import { type ShapePreviewHighlight } from './ShapePreview';
 
 export { POINT_ROW_HEIGHT_PX_BY_TYPE };
@@ -77,7 +78,7 @@ export type PointRowRefs = {
 };
 
 type PointRowProps = {
-  segment: PolygonSegment;
+  segment: PolygonSegment<Position>;
   index: number;
   sheetUnitPlaces: Sheet['unitPlaces'];
   sheetDefaultUnit: UnitType;
@@ -319,7 +320,7 @@ const PointRow = memo<PointRowProps>(
 PointRow.displayName = 'PointRow';
 
 type PolygonPointsInspectorProps = {
-  data: PolygonData;
+  data: PolygonPointsData;
   sheetUnitPlaces: Sheet['unitPlaces'];
   sheetDefaultUnit: UnitType;
   pointInputRefs?: Map<number, PointRowRefs>;

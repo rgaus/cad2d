@@ -26,7 +26,13 @@ import { HistoryManager } from '../history/HistoryManager';
 import { UndoEntry } from '../history/types';
 import { ellipseToPolygon, rectangleToPolygon } from '../math';
 import { UnitType } from '../units/length';
-import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '../viewport/types';
+import {
+  CubicCurve,
+  GeometryRelativeSheetPosition,
+  LineSegment,
+  QuadraticCurve,
+  SheetPosition,
+} from '../viewport/types';
 import { DCELShapeIndex } from './DCELShapeIndex';
 import { FilterComponent } from './components/FilterComponent';
 import { RotationComponent } from './components/RotationComponent';
@@ -798,9 +804,18 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       switch (beforeData.type) {
         case 'polygon': {
           const afterPolyData = afterData as typeof beforeData;
-          if (afterPolyData.points !== beforeData.points) {
+          if (
+            afterPolyData.points !== beforeData.points ||
+            afterPolyData.position !== beforeData.position
+          ) {
             this.historyManager.push(
-              UndoEntry.polygonMove(id, beforeData.points, afterPolyData.points),
+              UndoEntry.polygonMove(
+                id,
+                beforeData.points,
+                afterPolyData.points,
+                beforeData.position,
+                afterPolyData.position,
+              ),
             );
           }
           if (beforeData.closed !== afterPolyData.closed) {
@@ -986,7 +1001,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
       const geomData = GeometryComponent.get(g);
       if (geomData.type !== 'polygon') continue;
       if (excludePolygonId && g.id === excludePolygonId) continue;
-      const points = geomData.points;
+      const points = PolygonData.rawSegments(g as Entity<GeometryComponent<PolygonData>>);
       for (let i = 0; i < points.length; i++) {
         const seg = points[i];
         if (seg.type === 'point' && seg.point.x === point.x && seg.point.y === point.y) {
@@ -1691,14 +1706,17 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
               // The DCEL works in anchored space; convert back to raw stored coordinates. This
               // intentionally preserves the legacy anchor-only conversion (bug-for-bug parity).
               const offset = GeometryComponent.getAnchorPointOffset(old);
-              const toRaw = (position: SheetPosition) =>
-                new SheetPosition(position.x + offset.x, position.y + offset.y);
+              const toLocal = (position: SheetPosition) =>
+                new GeometryRelativeSheetPosition(
+                  position.x + offset.x - geomData.position.x,
+                  position.y + offset.y - geomData.position.y,
+                );
               const points = geomData.points.slice();
               for (const { update, position } of updates) {
                 // FIXME: address typing, make shape update a proper enum
                 points[(update as any).pointIndex] = {
                   ...points[(update as any).pointIndex],
-                  point: toRaw(position),
+                  point: toLocal(position),
                 };
               }
               // When the constraint solver moves the first vertex of a closed

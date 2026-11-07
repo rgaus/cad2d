@@ -47,6 +47,17 @@ export type GetRenderShapesOptions<D extends GeometryData = GeometryData> = {
   >;
 };
 
+/** PolygonData as projected into absolute rendered sheet space. The `position` is a zero local
+ * frame and `points` are absolute rendered sheet segments. */
+export type ProjectedPolygonData = Omit<PolygonData, 'position' | 'points'> & {
+  position: SheetPosition;
+  points: Array<PolygonSegment<SheetPosition>>;
+};
+
+export type ProjectedGeometryData<D extends GeometryData> = D extends PolygonData
+  ? ProjectedPolygonData
+  : D;
+
 export type DestinationPoint =
   | {
       shapeIndex: number;
@@ -71,7 +82,7 @@ export namespace GeometryComponent {
   export const key: keyof GeometryComponent = 'geometry';
 
   export function createPolygon(
-    points: Array<PolygonSegment>,
+    points: Array<PolygonSegment<SheetPosition>>,
     options?: { closed?: boolean; openAtIndex?: number },
   ): GeometryComponent<PolygonData> {
     if (points.length < 2) {
@@ -80,12 +91,7 @@ export namespace GeometryComponent {
       );
     }
     return {
-      geometry: {
-        type: 'polygon',
-        points,
-        closed: options?.closed ?? points[0].point === points.at(-1)!.point,
-        openAtIndex: options?.openAtIndex ?? 0,
-      },
+      geometry: PolygonData.fromAbsoluteSegments(points, options),
     };
   }
 
@@ -129,12 +135,23 @@ export namespace GeometryComponent {
   /** Returns the geometry data projected into rendered sheet coordinates. */
   export function projectToSheet<D extends GeometryData = GeometryData>(
     geometry: Entity<GeometryComponent<D>>,
-  ): D {
+  ): ProjectedGeometryData<D> {
+    const state = get(geometry);
+    if (state.type === 'polygon') {
+      // Polygon points are stored locally, so the projection is expressed as absolute rendered
+      // segments with a zero local frame. This matches the legacy shape of the projected data
+      // used by render-shape / filter / DCEL consumers.
+      return {
+        ...state,
+        position: new SheetPosition(0, 0),
+        points: PolygonData.renderedSegments(geometry as Entity<GeometryComponent<PolygonData>>),
+      } as ProjectedGeometryData<D>;
+    }
     return get(
       transform(geometry, (position) =>
         GeometryRelativeSheetPosition.fromRawSheet(position, geometry).toSheet(geometry),
       ),
-    );
+    ) as ProjectedGeometryData<D>;
   }
 
   export function isPolygon(
@@ -845,10 +862,26 @@ export namespace GeometryComponent {
       }
       case 'polygon': {
         const id = entity.id;
-        const bounds = BoundingBox.fromPoints(geometryData.points.map((s) => s.point));
+        const polygonEntity = entity as Entity<GeometryComponent<PolygonData>>;
+        const rawSegments = PolygonData.rawSegments(polygonEntity);
+        const bounds = BoundingBox.fromPoints(rawSegments.map((s) => s.point));
+        const projectedPolygon = GeometryComponent.projectToSheet(polygonEntity);
         const isPolygonFilledDueToFilter = !geometryData.closed && 'fillColor' in entity.components;
         const pointXHandlers = ctx.makePolygonPointLengthHandlers(id, 'x');
         const pointYHandlers = ctx.makePolygonPointLengthHandlers(id, 'y');
+        const toLocalSegments = (
+          current: Entity<GeometryComponent<PolygonData>>,
+          segments: Array<PolygonSegment<SheetPosition>>,
+        ): Array<PolygonSegment<GeometryRelativeSheetPosition>> => {
+          const position = GeometryComponent.get(current).position;
+          return segments.map((segment) =>
+            PolygonSegment.transform(
+              segment,
+              (point) =>
+                new GeometryRelativeSheetPosition(point.x - position.x, point.y - position.y),
+            ),
+          );
+        };
         return [
           Fields.row('position', [
             Fields.labelled(
@@ -863,10 +896,9 @@ export namespace GeometryComponent {
                   if (!current || !GeometryComponent.isPolygon(current)) {
                     return null;
                   }
-                  const currentGeom = GeometryComponent.get(current);
                   const newX = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
                   const currentBounds = BoundingBox.fromPoints(
-                    currentGeom.points.map((s) => s.point),
+                    PolygonData.rawSegments(current).map((s) => s.point),
                   );
                   const deltaX = newX - currentBounds.position.x;
                   if (deltaX === 0) {
@@ -876,7 +908,11 @@ export namespace GeometryComponent {
                     current,
                     (p) => new SheetPosition(p.x + deltaX, p.y),
                   );
-                  return { points: GeometryComponent.get(translated).points };
+                  const translatedData = GeometryComponent.get(translated);
+                  return {
+                    position: translatedData.position,
+                    points: translatedData.points,
+                  };
                 }),
               ),
             ),
@@ -892,10 +928,9 @@ export namespace GeometryComponent {
                   if (!current || !GeometryComponent.isPolygon(current)) {
                     return null;
                   }
-                  const currentGeom = GeometryComponent.get(current);
                   const newY = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
                   const currentBounds = BoundingBox.fromPoints(
-                    currentGeom.points.map((s) => s.point),
+                    PolygonData.rawSegments(current).map((s) => s.point),
                   );
                   const deltaY = newY - currentBounds.position.y;
                   if (deltaY === 0) {
@@ -905,7 +940,11 @@ export namespace GeometryComponent {
                     current,
                     (p) => new SheetPosition(p.x, p.y + deltaY),
                   );
-                  return { points: GeometryComponent.get(translated).points };
+                  const translatedData = GeometryComponent.get(translated);
+                  return {
+                    position: translatedData.position,
+                    points: translatedData.points,
+                  };
                 }),
               ),
             ),
@@ -927,10 +966,10 @@ export namespace GeometryComponent {
                     if (!current || !GeometryComponent.isPolygon(current)) {
                       return null;
                     }
-                    const currentGeom = GeometryComponent.get(current);
                     const w = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                    const currentRawSegments = PolygonData.rawSegments(current);
                     const currentBounds = BoundingBox.fromPoints(
-                      currentGeom.points.map((s) => s.point),
+                      currentRawSegments.map((s) => s.point),
                     );
                     if (w === currentBounds.width) {
                       return null;
@@ -941,10 +980,9 @@ export namespace GeometryComponent {
                       height: currentBounds.height,
                     };
                     return {
-                      points: BoundingBox.interpolatePoints(
-                        currentGeom.points,
-                        currentBounds,
-                        newBounds,
+                      points: toLocalSegments(
+                        current,
+                        BoundingBox.interpolatePoints(currentRawSegments, currentBounds, newBounds),
                       ),
                     };
                   },
@@ -968,10 +1006,10 @@ export namespace GeometryComponent {
                     if (!current || !GeometryComponent.isPolygon(current)) {
                       return null;
                     }
-                    const currentGeom = GeometryComponent.get(current);
                     const h = value.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
+                    const currentRawSegments = PolygonData.rawSegments(current);
                     const currentBounds = BoundingBox.fromPoints(
-                      currentGeom.points.map((s) => s.point),
+                      currentRawSegments.map((s) => s.point),
                     );
                     if (h === currentBounds.height) {
                       return null;
@@ -982,10 +1020,9 @@ export namespace GeometryComponent {
                       height: h,
                     };
                     return {
-                      points: BoundingBox.interpolatePoints(
-                        currentGeom.points,
-                        currentBounds,
-                        newBounds,
+                      points: toLocalSegments(
+                        current,
+                        BoundingBox.interpolatePoints(currentRawSegments, currentBounds, newBounds),
                       ),
                     };
                   },
@@ -994,7 +1031,7 @@ export namespace GeometryComponent {
               ),
             ),
           ]),
-          Fields.polygonPoints('points', geometryData, isPolygonFilledDueToFilter, {
+          Fields.polygonPoints('points', projectedPolygon, isPolygonFilledDueToFilter, {
             onPointXChange: pointXHandlers.onChange,
             onPointYChange: pointYHandlers.onChange,
             onPointXBlur: pointXHandlers.onBlur,
@@ -1004,15 +1041,26 @@ export namespace GeometryComponent {
               if (!current || !GeometryComponent.isPolygon(current)) {
                 return;
               }
-              const polygonData = GeometryComponent.get(current);
-              const beforePoint = (polygonData.points[index] as any)[pointKey];
+              const projected = GeometryComponent.projectToSheet(current);
+              const beforeRendered: SheetPosition = (projected.points[index] as any)[pointKey];
               const sheetVal = len.toSheetUnits(ctx.sheetDefaultUnit).magnitude;
-              const afterPoint =
+              const afterRendered: SheetPosition =
                 axis === 'x'
-                  ? new SheetPosition(sheetVal, beforePoint.y)
-                  : new SheetPosition(beforePoint.x, sheetVal);
+                  ? new SheetPosition(sheetVal, beforeRendered.y)
+                  : new SheetPosition(beforeRendered.x, sheetVal);
+              const currentForInverse = current as Entity<
+                GeometryComponent & Partial<AnchorPointComponent>
+              >;
+              const beforePoint = beforeRendered.toGeometryRelativeSheetPosition(currentForInverse);
+              const afterPoint = afterRendered.toGeometryRelativeSheetPosition(currentForInverse);
               ctx.historyManager.apply(
-                UndoEntry.polygonMoveControlPoint(id, index, pointKey, beforePoint, afterPoint),
+                UndoEntry.polygonMoveControlPoint(
+                  id,
+                  index,
+                  pointKey,
+                  new SheetPosition(beforePoint.x, beforePoint.y),
+                  new SheetPosition(afterPoint.x, afterPoint.y),
+                ),
               );
             },
             onDeletePoint: (index) => {
@@ -1031,9 +1079,9 @@ export namespace GeometryComponent {
               if (!current || !GeometryComponent.isPolygon(current)) {
                 return;
               }
-              const polygonData = GeometryComponent.get(current);
-              const seg = polygonData.points[index];
-              const nextSeg = polygonData.points[index + 1];
+              const rawSegments = PolygonData.rawSegments(current);
+              const seg = rawSegments[index];
+              const nextSeg = rawSegments[index + 1];
               if (!seg || !nextSeg) {
                 return;
               }

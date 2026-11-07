@@ -25,6 +25,7 @@ import { ChamferFilter } from '@/lib/entity/filters/chamfer';
 import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { BoundingBox } from '@/lib/math';
 import {
@@ -641,8 +642,7 @@ describe('SelectionInspectorManager', () => {
       if (!entity || !GeometryComponent.isPolygon(entity)) {
         throw new Error('expected a polygon');
       }
-      const data = GeometryComponent.get(entity);
-      return BoundingBox.fromPoints(data.points.map((s) => s.point));
+      return BoundingBox.fromPoints(PolygonData.rawSegments(entity).map((s) => s.point));
     }
 
     it('has position and dimensions rows with no link or convert buttons', () => {
@@ -943,8 +943,7 @@ describe('SelectionInspectorManager', () => {
         if (!entity || !GeometryComponent.isPolygon(entity)) {
           throw new Error('expected a polygon');
         }
-        const data = GeometryComponent.get(entity);
-        return BoundingBox.fromPoints(data.points.map((s) => s.point));
+        return BoundingBox.fromPoints(PolygonData.rawSegments(entity).map((s) => s.point));
       };
 
       const xField = getLeafFromRowLabel(sim.fields, 'position', 'x');

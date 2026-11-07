@@ -27,6 +27,7 @@ import {
 } from '@/lib/entity/constraints';
 import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/entity/datum';
 import { GeometryData } from '@/lib/entity/geometry';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { type UnitType } from '@/lib/units/length';
@@ -126,10 +127,11 @@ export function serializePolygon(polygon: Polygon, options?: { hidden?: boolean 
     options?.hidden ? 'display="none"' : '',
   ].filter((attr) => attr.length > 0);
 
-  if (polygonData.closed && polygonData.points.every((p) => p.type === 'point')) {
+  const rawSegments = PolygonData.rawSegments(polygon);
+  if (polygonData.closed && rawSegments.every((p) => p.type === 'point')) {
     // For closed fully linear polygons, render as a polygon element
     // This is a more compact / human readable representation, especially for large polygons
-    const pointsString = polygonData.points
+    const pointsString = rawSegments
       .slice(0, -1 /* don't serialize last duplicate closed point */)
       .map((p) => {
         const pos = positionToPixels(p.point);
@@ -138,7 +140,7 @@ export function serializePolygon(polygon: Polygon, options?: { hidden?: boolean 
       .join(' ');
     return `<polygon id="${polygon.id}" ${attrs.join(' ')} points="${pointsString}"/>`;
   } else {
-    let d = segmentsToPathData(polygonData.points);
+    let d = segmentsToPathData(rawSegments);
     if (polygonData.closed) {
       return `<path id="${polygon.id}" ${attrs.join(' ')} d="${d} Z"/>`;
     } else {

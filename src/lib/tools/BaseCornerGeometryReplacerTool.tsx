@@ -287,34 +287,34 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         if (!geometry) {
           return;
         }
-        const polygon = GeometryComponent.get(geometry as Entity<GeometryComponent<PolygonData>>);
+        const polygonPoints = PolygonData.rawSegments(geometry);
 
         let previousIndex = rawEndpoint.pointIndex - 1;
         while (previousIndex < 0) {
-          previousIndex += polygon.points.length;
+          previousIndex += polygonPoints.length;
         }
         // Skip indices that are at the same position as the center (closing duplicate).
-        const centerPoint = polygon.points[rawEndpoint.pointIndex].point;
+        const centerPoint = polygonPoints[rawEndpoint.pointIndex].point;
         while (
-          polygon.points[previousIndex].point.x === centerPoint.x &&
-          polygon.points[previousIndex].point.y === centerPoint.y
+          polygonPoints[previousIndex].point.x === centerPoint.x &&
+          polygonPoints[previousIndex].point.y === centerPoint.y
         ) {
           previousIndex -= 1;
           while (previousIndex < 0) {
-            previousIndex += polygon.points.length;
+            previousIndex += polygonPoints.length;
           }
         }
         let nextIndex = rawEndpoint.pointIndex + 1;
-        while (nextIndex >= polygon.points.length) {
-          nextIndex -= polygon.points.length;
+        while (nextIndex >= polygonPoints.length) {
+          nextIndex -= polygonPoints.length;
         }
         while (
-          polygon.points[nextIndex].point.x === centerPoint.x &&
-          polygon.points[nextIndex].point.y === centerPoint.y
+          polygonPoints[nextIndex].point.x === centerPoint.x &&
+          polygonPoints[nextIndex].point.y === centerPoint.y
         ) {
           nextIndex += 1;
-          while (nextIndex >= polygon.points.length) {
-            nextIndex -= polygon.points.length;
+          while (nextIndex >= polygonPoints.length) {
+            nextIndex -= polygonPoints.length;
           }
         }
 
@@ -330,8 +330,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           pointAIndex: previousIndex,
           pointBIndex: nextIndex,
           centerPos: pos,
-          pointAPos: polygon.points[previousIndex].point,
-          pointBPos: polygon.points[nextIndex].point,
+          pointAPos: polygonPoints[previousIndex].point,
+          pointBPos: polygonPoints[nextIndex].point,
         };
         this.state = { type: 'awaiting-distance', active, currentOffset: this.lastCommittedOffset };
         this.emit('currentOffsetChange', {
@@ -456,34 +456,34 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           this.emit('pendingCornerChange', null);
           return;
         }
-        const polygon = GeometryComponent.get(geometry);
-        const centerPoint = polygon.points[keyPointEndpoint.pointIndex].point;
+        const polygonPoints = PolygonData.rawSegments(geometry);
+        const centerPoint = polygonPoints[keyPointEndpoint.pointIndex].point;
 
         let previousIndex = keyPointEndpoint.pointIndex - 1;
         while (previousIndex < 0) {
-          previousIndex += polygon.points.length;
+          previousIndex += polygonPoints.length;
         }
         while (
-          polygon.points[previousIndex].point.x === centerPoint.x &&
-          polygon.points[previousIndex].point.y === centerPoint.y
+          polygonPoints[previousIndex].point.x === centerPoint.x &&
+          polygonPoints[previousIndex].point.y === centerPoint.y
         ) {
           previousIndex -= 1;
           while (previousIndex < 0) {
-            previousIndex += polygon.points.length;
+            previousIndex += polygonPoints.length;
           }
         }
 
         let nextIndex = keyPointEndpoint.pointIndex + 1;
-        while (nextIndex >= polygon.points.length) {
-          nextIndex -= polygon.points.length;
+        while (nextIndex >= polygonPoints.length) {
+          nextIndex -= polygonPoints.length;
         }
         while (
-          polygon.points[nextIndex].point.x === centerPoint.x &&
-          polygon.points[nextIndex].point.y === centerPoint.y
+          polygonPoints[nextIndex].point.x === centerPoint.x &&
+          polygonPoints[nextIndex].point.y === centerPoint.y
         ) {
           nextIndex += 1;
-          while (nextIndex >= polygon.points.length) {
-            nextIndex -= polygon.points.length;
+          while (nextIndex >= polygonPoints.length) {
+            nextIndex -= polygonPoints.length;
           }
         }
 
@@ -493,9 +493,9 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           return;
         }
 
-        const previous = polygon.points[previousIndex];
-        const current = polygon.points[keyPointEndpoint.pointIndex];
-        const next = polygon.points[nextIndex];
+        const previous = polygonPoints[previousIndex];
+        const current = polygonPoints[keyPointEndpoint.pointIndex];
+        const next = polygonPoints[nextIndex];
         if (current.type !== 'point' || next.type !== 'point') {
           // To add a corner decoration, it must be a corner made up of two line segments,
           // not an already existing curve.

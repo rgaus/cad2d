@@ -522,9 +522,10 @@ describe('TrimSplitTool', () => {
         .filter((g) => GeometryComponent.isPolygon(g as Entity<GeometryComponent>));
       expect(polygons).toHaveLength(3);
 
-      const polygonDatas = polygons.map((p) =>
-        GeometryComponent.get(p as Entity<GeometryComponent<PolygonData>>),
-      );
+      const polygonDatas = polygons.map((p) => ({
+        ...GeometryComponent.get(p as Entity<GeometryComponent<PolygonData>>),
+        points: PolygonData.rawSegments(p as Entity<GeometryComponent<PolygonData>>),
+      }));
 
       const closedPolygon = polygonDatas.find((p) => p.closed)!;
       expect(closedPolygon).toBeDefined();
@@ -573,9 +574,10 @@ describe('TrimSplitTool', () => {
         .filter((g) => GeometryComponent.isPolygon(g as Entity<GeometryComponent>));
       expect(polygons).toHaveLength(1);
 
-      const polygonData = GeometryComponent.get(
-        polygons[0] as Entity<GeometryComponent<PolygonData>>,
-      );
+      const polygonData = {
+        ...GeometryComponent.get(polygons[0] as Entity<GeometryComponent<PolygonData>>),
+        points: PolygonData.rawSegments(polygons[0] as Entity<GeometryComponent<PolygonData>>),
+      };
 
       expect(polygonData.closed).toStrictEqual(false);
       expect(polygonData.points).toHaveLength(2);
@@ -605,9 +607,10 @@ describe('TrimSplitTool', () => {
         .filter((g) => GeometryComponent.isPolygon(g as Entity<GeometryComponent>));
       expect(polygons).toHaveLength(4);
 
-      const polygonDatas = polygons.map((p) =>
-        GeometryComponent.get(p as Entity<GeometryComponent<PolygonData>>),
-      );
+      const polygonDatas = polygons.map((p) => ({
+        ...GeometryComponent.get(p as Entity<GeometryComponent<PolygonData>>),
+        points: PolygonData.rawSegments(p as Entity<GeometryComponent<PolygonData>>),
+      }));
 
       const closedPolygon = polygonDatas.find((p) => p.closed)!;
       expect(closedPolygon).toBeDefined();
@@ -708,9 +711,10 @@ describe('TrimSplitTool', () => {
         .filter((g) => GeometryComponent.isPolygon(g as Entity<GeometryComponent>));
       expect(geometries).toHaveLength(1);
 
-      const polygon = GeometryComponent.get(
-        geometries[0] as Entity<GeometryComponent<PolygonData>>,
-      );
+      const polygon = {
+        ...GeometryComponent.get(geometries[0] as Entity<GeometryComponent<PolygonData>>),
+        points: PolygonData.rawSegments(geometries[0] as Entity<GeometryComponent<PolygonData>>),
+      };
 
       expect(polygon.closed).toStrictEqual(true);
       const closedPoints = polygon.points
@@ -974,13 +978,13 @@ describe('TrimSplitTool', () => {
 
       // Make sure both rectangles were converted into polygons properly.
       const upperLeftPoly = polygons.find((p) =>
-        GeometryComponent.get(p as Entity<GeometryComponent<PolygonData>>).points.some(
+        PolygonData.rawSegments(p as Entity<GeometryComponent<PolygonData>>).some(
           (seg) => seg.type === 'point' && seg.point.x === 0 && seg.point.y === 0,
         ),
       );
       expect(upperLeftPoly).toBeDefined();
       const lowerRightPoly = polygons.find((p) =>
-        GeometryComponent.get(p as Entity<GeometryComponent<PolygonData>>).points.some(
+        PolygonData.rawSegments(p as Entity<GeometryComponent<PolygonData>>).some(
           (seg) => seg.type === 'point' && seg.point.x === 5 && seg.point.y === 5,
         ),
       );
@@ -988,12 +992,12 @@ describe('TrimSplitTool', () => {
 
       // Make sure new points were added to bpth rectangle polygons.
       expect(
-        GeometryComponent.get(upperLeftPoly as Entity<GeometryComponent<PolygonData>>).points.find(
+        PolygonData.rawSegments(upperLeftPoly as Entity<GeometryComponent<PolygonData>>).find(
           (seg) => seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
         ),
       ).toBeDefined();
       expect(
-        GeometryComponent.get(lowerRightPoly as Entity<GeometryComponent<PolygonData>>).points.find(
+        PolygonData.rawSegments(lowerRightPoly as Entity<GeometryComponent<PolygonData>>).find(
           (seg) => seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
         ),
       ).toBeDefined();
@@ -1066,13 +1070,13 @@ describe('TrimSplitTool', () => {
 
       // Make sure new points were again added to bpth rectangle polygons.
       expect(
-        GeometryComponent.get(upperLeftPoly as Entity<GeometryComponent<PolygonData>>).points.find(
+        PolygonData.rawSegments(upperLeftPoly as Entity<GeometryComponent<PolygonData>>).find(
           (seg): seg is PointSegment =>
             seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
         ),
       ).toBeDefined();
       expect(
-        GeometryComponent.get(lowerRightPoly as Entity<GeometryComponent<PolygonData>>).points.find(
+        PolygonData.rawSegments(lowerRightPoly as Entity<GeometryComponent<PolygonData>>).find(
           (seg): seg is PointSegment =>
             seg.type === 'point' && seg.point.x === 10 && seg.point.y === 5,
         ),

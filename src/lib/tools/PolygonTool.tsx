@@ -12,12 +12,15 @@ import {
 import { QuerySegmentIntersectionPoint } from '@/lib/entity/DCELShapeIndex';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
+import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import {
   ConstraintEndpoint,
   LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
   LinearConstraint,
 } from '@/lib/entity/constraints';
 import { LinearConstraintData } from '@/lib/entity/constraints/linear';
+import { GeometryData } from '@/lib/entity/geometry';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { type KeyCombo, KeyComboDetector, mapIndexToKeyCombo } from '@/lib/index-mapper';
 import { DeCasteljau, Vector2, ellipseToPolygon, rectangleToPolygon } from '@/lib/math';
 import {
@@ -32,18 +35,17 @@ import {
   type WorkingPolygonSource,
 } from '@/lib/tools/types';
 import { Length } from '@/lib/units/length';
+import { getGridAtScale } from '@/lib/viewport/grid';
 import {
   CubicCurve,
+  GeometryRelativeSheetPosition,
   LineSegment,
   QuadraticCurve,
   ScreenPosition,
   SheetPosition,
   type ViewportState,
 } from '@/lib/viewport/types';
-import { FilterComponent } from '@/lib/entity/components/FilterComponent';
-import { getGridAtScale } from '@/lib/viewport/grid';
 import { BaseTool } from './BaseTool';
-import { GeometryData } from '@/lib/entity/geometry';
 
 export type PolygonToolEndpoint = {
   polygonId: Id;
@@ -397,6 +399,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
         }
 
         case 'hovering-polygon-endpoint': {
+          const isStartPoint = this.state.isStartPoint;
           const sheetPos = worldPos.toSheet();
           const snapped = this.applySnapping(sheetPos);
 
@@ -411,20 +414,21 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           if (polygonData.closed) {
             return wp;
           }
+          const polygonPoints = PolygonData.rawSegments(polygon);
 
           const source: WorkingPolygonSource = {
             type: 'existing-polygon',
             polygonId: this.state.polygonId,
-            isStartPoint: this.state.isStartPoint,
-            autoClosePoint: this.state.isStartPoint
-              ? polygonData.points[polygonData.points.length - 1].point
-              : polygonData.points[0].point,
+            isStartPoint: isStartPoint,
+            autoClosePoint: isStartPoint
+              ? polygonPoints[polygonPoints.length - 1].point
+              : polygonPoints[0].point,
           };
 
           // 1. Determine the points list for the new working polygon entry
           let pointsCopy: Array<PolygonSegment>;
           let pendingPointWorkingConstraint: WorkingConstraint;
-          if (this.state.isStartPoint) {
+          if (isStartPoint) {
             this.setState({
               state: 'drawing-line',
               isHoveringFirstHandle: false,
@@ -432,15 +436,15 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               intersection: createEmptyIntersectionData(),
               pointIndex: 0,
               pendingStartPoint: snapped,
-              pendingEndPoint: polygonData.points[0].point,
+              pendingEndPoint: polygonPoints[0].point,
             });
 
-            pointsCopy = [{ type: 'point', point: snapped }, ...polygonData.points];
+            pointsCopy = [{ type: 'point', point: snapped }, ...polygonPoints];
 
             pendingPointWorkingConstraint = {
               type: 'linear',
               pointA: { type: 'point', point: snapped },
-              pointB: { type: 'point', point: polygonData.points[0].point },
+              pointB: { type: 'point', point: polygonPoints[0].point },
               constrainedLength: null,
               connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
               disabled: false,
@@ -452,17 +456,17 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               isHoveringFirstHandle: false,
               altHeld: false,
               intersection: createEmptyIntersectionData(),
-              pointIndex: polygonData.points.length,
-              pendingStartPoint: polygonData.points.at(-1)!.point,
+              pointIndex: polygonPoints.length,
+              pendingStartPoint: polygonPoints.at(-1)!.point,
               pendingEndPoint: snapped,
             });
 
-            pointsCopy = [...polygonData.points, { type: 'point', point: snapped }];
+            pointsCopy = [...polygonPoints, { type: 'point', point: snapped }];
 
             pendingPointWorkingConstraint = {
               type: 'linear',
               pointA: { type: 'point', point: snapped },
-              pointB: { type: 'point', point: polygonData.points.at(-1)!.point },
+              pointB: { type: 'point', point: polygonPoints.at(-1)!.point },
               constrainedLength: null,
               connectorLineOffsetPx: LINEAR_CONSTRAINT_DEFAULT_CONNECTOR_LINE_OFFSET_PX,
               disabled: false,
@@ -471,7 +475,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           }
 
           this.committedIntersections = new Array(
-            polygonData.points.length - 1 /* convert points -> segments */,
+            polygonPoints.length - 1 /* convert points -> segments */,
           ).fill([]);
           this.emit('committedIntersectionsChanged', []);
 
@@ -480,11 +484,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
           const geometryStore = this.getGeometryStore();
           this.constrainedLengths = [];
           let workingConstraints: Array<WorkingConstraint> = [];
-          for (
-            let i = 0;
-            i < polygonData.points.length - 1 /* convert points -> segments */;
-            i += 1
-          ) {
+          for (let i = 0; i < polygonPoints.length - 1 /* convert points -> segments */; i += 1) {
             const matchingConstraintGeom = geometryStore
               .listWithComponent(ConstraintComponent)
               .find((g): g is Entity<ConstraintComponent<LinearConstraintData>> => {
@@ -519,7 +519,7 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             this.constrainedLengths.push(length);
           }
           // Add final "pending point" working constraint at the end
-          if (source.isStartPoint) {
+          if (isStartPoint) {
             workingConstraints.unshift(pendingPointWorkingConstraint);
             this.constrainedLengths.unshift(null);
           } else {
@@ -1541,7 +1541,9 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               break;
             }
             case 'polygon':
-              polygonPoints = geomData.points;
+              polygonPoints = PolygonData.rawSegments(
+                geometry as Entity<GeometryComponent<PolygonData>>,
+              );
               polygonClosed = geomData.closed;
               break;
             default:
@@ -1732,9 +1734,19 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
               return old;
             }
 
-            // First, update the geometry points
+            // First, update the geometry points. Working points are in absolute sheet space,
+            // while stored polygon points are local to the stable position.
+            const currentData = GeometryComponent.get(old);
+            const position = currentData.position;
+            const localPoints = pointsCopyWithIntersections.map((segment) =>
+              PolygonSegment.transform(
+                segment,
+                (point) =>
+                  new GeometryRelativeSheetPosition(point.x - position.x, point.y - position.y),
+              ),
+            );
             const updated = GeometryComponent.update(old, {
-              points: pointsCopyWithIntersections,
+              points: localPoints,
               closed,
             });
 

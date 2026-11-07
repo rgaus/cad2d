@@ -11,7 +11,7 @@ import type { RotationData } from '@/lib/entity/components/RotationComponent';
 import type { EllipseData } from '@/lib/entity/geometry/ellipse';
 import type { RectangleData } from '@/lib/entity/geometry/rectangle';
 import type { Length, SerializedLength, UnitType } from '@/lib/units/length';
-import type { SheetPosition } from '@/lib/viewport/types';
+import type { Position, SheetPosition } from '@/lib/viewport/types';
 
 export type TransactionEntity = {
   type: 'transaction';
@@ -95,8 +95,10 @@ export type RotationChangeEntry = {
 export type PolygonMoveEntry = {
   type: 'polygon-move';
   id: Id;
-  beforeSegments: Array<PolygonSegment>;
-  afterSegments: Array<PolygonSegment>;
+  beforeSegments: Array<PolygonSegment<Position>>;
+  afterSegments: Array<PolygonSegment<Position>>;
+  beforePosition?: SheetPosition;
+  afterPosition?: SheetPosition;
 };
 
 /** Recorded when a rectangle is moved or resized. */
@@ -159,8 +161,10 @@ export type PolygonInsertPointEntry = {
   id: Id;
   segmentIndex: number;
   newPoint: SheetPosition;
-  beforeSegments: Array<PolygonSegment>;
-  afterSegments: Array<PolygonSegment>;
+  beforeSegments: Array<PolygonSegment<Position>>;
+  afterSegments: Array<PolygonSegment<Position>>;
+  beforePosition?: SheetPosition;
+  afterPosition?: SheetPosition;
 };
 
 /** Recorded when a polygon is opened or closed. */
@@ -191,8 +195,10 @@ export type PolygonTranslateEntry = {
 export type PolygonBoundingBoxResizeEntry = {
   type: 'polygon-bounding-box-resize';
   id: Id;
-  beforeSegments: Array<PolygonSegment>;
-  afterSegments: Array<PolygonSegment>;
+  beforeSegments: Array<PolygonSegment<Position>>;
+  afterSegments: Array<PolygonSegment<Position>>;
+  beforePosition?: SheetPosition;
+  afterPosition?: SheetPosition;
 };
 
 // ==================== CONVERSION ENTRIES ====================
@@ -455,10 +461,19 @@ export namespace UndoEntry {
   /** Creates an entry for resizing a polygon's bounding box (scaling from upper-left corner). */
   export function polygonBoundingBoxResize(
     id: Id,
-    beforeSegments: Array<PolygonSegment>,
-    afterSegments: Array<PolygonSegment>,
+    beforeSegments: Array<PolygonSegment<Position>>,
+    afterSegments: Array<PolygonSegment<Position>>,
+    beforePosition?: SheetPosition,
+    afterPosition?: SheetPosition,
   ): PolygonBoundingBoxResizeEntry {
-    return { type: 'polygon-bounding-box-resize', id, beforeSegments, afterSegments };
+    return {
+      type: 'polygon-bounding-box-resize',
+      id,
+      beforeSegments,
+      afterSegments,
+      beforePosition,
+      afterPosition,
+    };
   }
 
   /** Creates an entry for inserting a geometry into the store. */
@@ -469,10 +484,19 @@ export namespace UndoEntry {
   /** Creates an entry for moving all vertices of a polygon (full polygon translation). */
   export function polygonMove(
     id: Id,
-    beforeSegments: Array<PolygonSegment>,
-    afterSegments: Array<PolygonSegment>,
+    beforeSegments: Array<PolygonSegment<Position>>,
+    afterSegments: Array<PolygonSegment<Position>>,
+    beforePosition?: SheetPosition,
+    afterPosition?: SheetPosition,
   ): PolygonMoveEntry {
-    return { type: 'polygon-move', id, beforeSegments, afterSegments };
+    return {
+      type: 'polygon-move',
+      id,
+      beforeSegments,
+      afterSegments,
+      beforePosition,
+      afterPosition,
+    };
   }
 
   /** Creates an entry for moving a single vertex of a polygon. */
@@ -520,8 +544,10 @@ export namespace UndoEntry {
     id: Id,
     segmentIndex: number,
     newPoint: SheetPosition,
-    beforeSegments: Array<PolygonSegment>,
-    afterSegments: Array<PolygonSegment>,
+    beforeSegments: Array<PolygonSegment<Position>>,
+    afterSegments: Array<PolygonSegment<Position>>,
+    beforePosition?: SheetPosition,
+    afterPosition?: SheetPosition,
   ): PolygonInsertPointEntry {
     return {
       type: 'polygon-insert-point',
@@ -530,6 +556,8 @@ export namespace UndoEntry {
       newPoint,
       beforeSegments,
       afterSegments,
+      beforePosition,
+      afterPosition,
     };
   }
 

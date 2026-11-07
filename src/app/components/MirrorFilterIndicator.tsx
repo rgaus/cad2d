@@ -5,6 +5,7 @@ import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { Entity, GeometryComponent } from '@/lib/entity';
 import { type GeometryData } from '@/lib/entity/geometry';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { Vector2 } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
@@ -88,15 +89,18 @@ export default function MirrorFilterIndicator({
         const geometryData = GeometryComponent.get<GeometryData>(targetGeometry);
         switch (geometryData.type) {
           case 'polygon': {
-            const pts = geometryData.points.map((s) => ({
+            const polygonSegments = PolygonData.renderedSegments(
+              targetGeometry as Entity<GeometryComponent<PolygonData>>,
+            );
+            const pts = polygonSegments.map((s) => ({
               x: s.point.x * SHEET_UNITS_TO_PIXELS,
               y: s.point.y * SHEET_UNITS_TO_PIXELS,
             }));
 
             if (pts.length >= 2) {
               graphics.moveTo(pts[0].x, pts[0].y);
-              for (let i = 1; i < geometryData.points.length; i++) {
-                const seg = geometryData.points[i];
+              for (let i = 1; i < polygonSegments.length; i++) {
+                const seg = polygonSegments[i];
                 switch (seg.type) {
                   case 'point':
                     graphics.lineTo(

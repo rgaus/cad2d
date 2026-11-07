@@ -13,7 +13,7 @@ import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointCompone
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { FilletFilter } from '@/lib/entity/filters/fillet';
 import { MirrorFilter } from '@/lib/entity/filters/mirror';
-import { PolygonSegment } from '@/lib/entity/geometry/polygon';
+import { PolygonData, PolygonSegment } from '@/lib/entity/geometry/polygon';
 import type { QuadraticBezierSegment } from '@/lib/entity/geometry/polygon';
 import {
   RenderShapeEllipse,
@@ -874,6 +874,7 @@ describe('GeometryComponent', () => {
       )!;
 
       const raw = GeometryComponent.get(geometry);
+      const rawSegments = PolygonData.rawSegments(geometry);
       const projected = GeometryComponent.projectToSheet(geometry);
       const transform = Entity.generateRenderTransformFunction(geometry);
 
@@ -881,9 +882,9 @@ describe('GeometryComponent', () => {
       if (projected.type !== 'polygon' || raw.type !== 'polygon') {
         return;
       }
-      expect(projected.points).toHaveLength(raw.points.length);
-      for (let i = 0; i < raw.points.length; i += 1) {
-        const expected = transform(raw.points[i].point);
+      expect(projected.points).toHaveLength(rawSegments.length);
+      for (let i = 0; i < rawSegments.length; i += 1) {
+        const expected = transform(rawSegments[i].point);
         expect(projected.points[i].point.x).toBeCloseTo(expected.x);
         expect(projected.points[i].point.y).toBeCloseTo(expected.y);
       }

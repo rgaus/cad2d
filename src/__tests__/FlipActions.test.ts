@@ -1,6 +1,7 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import { Ellipse, GeometryComponent, Polygon, type PolygonSegment, Rectangle } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { Sheet } from '@/lib/sheet/Sheet';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
@@ -153,13 +154,13 @@ describe('FlipHorizontalAction', () => {
     expect(poly1Geom).not.toBeNull();
     expect(poly2Geom).not.toBeNull();
 
-    const poly1Data = GeometryComponent.get(poly1Geom!);
-    const poly2Data = GeometryComponent.get(poly2Geom!);
+    const poly1Data = PolygonData.rawSegments(poly1Geom!);
+    const poly2Data = PolygonData.rawSegments(poly2Geom!);
 
-    expect(poly1Data.points[0].point.x).toBeCloseTo(16);
-    expect(poly1Data.points[0].point.y).toBeCloseTo(0);
-    expect(poly2Data.points[0].point.x).toBeCloseTo(4);
-    expect(poly2Data.points[0].point.y).toBeCloseTo(0);
+    expect(poly1Data[0].point.x).toBeCloseTo(16);
+    expect(poly1Data[0].point.y).toBeCloseTo(0);
+    expect(poly2Data[0].point.x).toBeCloseTo(4);
+    expect(poly2Data[0].point.y).toBeCloseTo(0);
   });
 
   it('undo restores original positions after flip', async () => {
@@ -341,13 +342,13 @@ describe('FlipVerticalAction', () => {
     expect(poly1Geom).not.toBeNull();
     expect(poly2Geom).not.toBeNull();
 
-    const poly1Data = GeometryComponent.get(poly1Geom!);
-    const poly2Data = GeometryComponent.get(poly2Geom!);
+    const poly1Data = PolygonData.rawSegments(poly1Geom!);
+    const poly2Data = PolygonData.rawSegments(poly2Geom!);
 
-    expect(poly1Data.points[0].point.x).toBeCloseTo(0);
-    expect(poly1Data.points[0].point.y).toBeCloseTo(16);
-    expect(poly2Data.points[0].point.x).toBeCloseTo(0);
-    expect(poly2Data.points[0].point.y).toBeCloseTo(4);
+    expect(poly1Data[0].point.x).toBeCloseTo(0);
+    expect(poly1Data[0].point.y).toBeCloseTo(16);
+    expect(poly2Data[0].point.x).toBeCloseTo(0);
+    expect(poly2Data[0].point.y).toBeCloseTo(4);
   });
 
   it('undo restores original positions after flip', async () => {

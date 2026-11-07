@@ -14,6 +14,7 @@ import {
   KeyPoints,
   LineSegment,
   OrientedRect,
+  Position,
   QuadraticCurve,
   Rect,
   SheetPosition,
@@ -32,36 +33,41 @@ import {
 import { type Entity, ResizeParams } from '../types';
 
 /** A straight line segment from one point to the next. */
-export type PointSegment = {
+export type PointSegment<P extends Position = SheetPosition> = {
   type: 'point';
-  point: SheetPosition;
+  point: P;
 };
 
 /** A quadratic Bezier arc. The user alt+clicks to place the arc endpoint,
  * then clicks to place the quadratic Bezier control point directly.
  * The curve passes near but not through the control point. */
-export type QuadraticBezierSegment = {
+export type QuadraticBezierSegment<P extends Position = SheetPosition> = {
   type: 'arc-quadratic';
-  point: SheetPosition;
-  controlPoint: SheetPosition;
+  point: P;
+  controlPoint: P;
 };
 
 /** A cubic Bezier arc where the user places both off-curve control points.
  * The curve passes through neither control point. */
-export type CubicBezierSegment = {
+export type CubicBezierSegment<P extends Position = SheetPosition> = {
   type: 'arc-cubic';
-  point: SheetPosition;
-  controlPointA: SheetPosition;
-  controlPointB: SheetPosition;
+  point: P;
+  controlPointA: P;
+  controlPointB: P;
 };
 
 /** A segment of a polygon — either a straight line or an arc. */
-export type PolygonSegment = PointSegment | QuadraticBezierSegment | CubicBezierSegment;
+export type PolygonSegment<P extends Position = SheetPosition> =
+  | PointSegment<P>
+  | QuadraticBezierSegment<P>
+  | CubicBezierSegment<P>;
 
 /** A completed polygon with an id, segments, and closed state. */
 export type PolygonData = {
   type: 'polygon';
-  points: Array<PolygonSegment>;
+  /** Raw absolute local-frame origin. Polygon points are stored relative to this position. */
+  position: SheetPosition;
+  points: Array<PolygonSegment<GeometryRelativeSheetPosition>>;
   closed: boolean;
   openAtIndex: number;
 
@@ -70,6 +76,57 @@ export type PolygonData = {
 };
 
 export namespace PolygonData {
+  /** Builds polygon data from absolute sheet-space segments, choosing the raw bounding-box
+   * upper-left (matching the legacy natural origin) as the stable local-frame position. */
+  export function fromAbsoluteSegments(
+    points: Array<PolygonSegment<SheetPosition>>,
+    options?: { closed?: boolean; openAtIndex?: number },
+  ): PolygonData {
+    if (points.length === 0) {
+      throw new Error('PolygonData.fromAbsoluteSegments: points.length must be >= 1');
+    }
+    const xs = points.map((segment) => segment.point.x);
+    const ys = points.map((segment) => segment.point.y);
+    const position = new SheetPosition(Math.min(...xs), Math.min(...ys));
+    return {
+      type: 'polygon',
+      position,
+      points: points.map((segment) =>
+        PolygonSegment.transform(
+          segment,
+          (point) => new GeometryRelativeSheetPosition(point.x - position.x, point.y - position.y),
+        ),
+      ),
+      closed: options?.closed ?? points[0].point === points.at(-1)!.point,
+      openAtIndex: options?.openAtIndex ?? 0,
+    };
+  }
+
+  /** Returns the polygon segments in raw absolute sheet coordinates by adding `position` to each
+   * local point. */
+  export function rawSegments(
+    geometry: Entity<GeometryComponent<PolygonData>>,
+  ): Array<PolygonSegment<SheetPosition>> {
+    const polygonData = GeometryComponent.get(geometry);
+    const { position } = polygonData;
+    return polygonData.points.map((segment) =>
+      PolygonSegment.transform(
+        segment,
+        (point) => new SheetPosition(position.x + point.x, position.y + point.y),
+      ),
+    );
+  }
+
+  /** Returns the polygon segments projected into rendered sheet coordinates. */
+  export function renderedSegments(
+    geometry: Entity<GeometryComponent<PolygonData>>,
+  ): Array<PolygonSegment<SheetPosition>> {
+    const polygonData = GeometryComponent.get(geometry);
+    return polygonData.points.map((segment) =>
+      PolygonSegment.transform(segment, (point) => point.toSheet(geometry)),
+    );
+  }
+
   export function rawKeyPoints(
     geometry: Entity<GeometryComponent<PolygonData>>,
   ): KeyPoints<
@@ -85,14 +142,14 @@ export namespace PolygonData {
       points.reverse();
     }
 
-    const toRelative = (position: SheetPosition) =>
-      GeometryRelativeSheetPosition.fromRawSheet(position, geometry);
     return {
-      perimeter: points.map(toRelative),
+      perimeter: points,
       perimeterLabels: points.map((_, index) => `Point ${index + 1}` as const),
       extras: {
+        // The raw natural origin is the stable local-frame zero, even after edits move the
+        // polygon's actual bounding box away from it.
         boundingBoxUpperLeft: new GeometryRelativeSheetPosition(0, 0),
-        centroid: toRelative(PolygonData.centroid(geometry)),
+        centroid: PolygonData.centroid(geometry),
       },
     };
   }
@@ -102,16 +159,21 @@ export namespace PolygonData {
    * as a straight line between its endpoint vertices. For open polygons the ring is implicitly
    * closed from the last point back to the first. Degenerate polygons with ~zero enclosed area
    * (eg. a single point or collinear points) fall back to the average of the vertices.
+   *
+   * The result is expressed in local geometry coordinates.
    */
-  export function centroid(geometry: Entity<GeometryComponent<PolygonData>>): SheetPosition {
+  export function centroid(
+    geometry: Entity<GeometryComponent<PolygonData>>,
+  ): GeometryRelativeSheetPosition {
     const { points } = GeometryComponent.get(geometry);
     if (points.length === 0) {
       throw new Error('PolygonData.centroid: cannot compute centroid of polygon with 0 points!');
     }
-    return mathCentroid(points.map((p) => p.point));
+    const result = mathCentroid(points.map((p) => p.point));
+    return new GeometryRelativeSheetPosition(result.x, result.y);
   }
 
-  function rawBoundingBox(polygonData: PolygonData): Rect<SheetPosition> {
+  function localBoundingBox(polygonData: PolygonData): Rect<GeometryRelativeSheetPosition> {
     if (polygonData.points.length === 0) {
       throw new Error(
         'PolygonData.boundingBox: cannot compute bounding box of polygon with 0 points!',
@@ -121,25 +183,37 @@ export namespace PolygonData {
     return BoundingBox.fromPoints(polygonData.points.map((segment) => segment.point));
   }
 
+  function rawBoundingBox(polygonData: PolygonData): Rect<SheetPosition> {
+    const local = localBoundingBox(polygonData);
+    return {
+      position: new SheetPosition(
+        polygonData.position.x + local.position.x,
+        polygonData.position.y + local.position.y,
+      ),
+      width: local.width,
+      height: local.height,
+    };
+  }
+
   export function boundingBox(
     geometry: Entity<GeometryComponent<PolygonData>>,
   ): Rect<GeometryRelativeSheetPosition> {
-    const raw = rawBoundingBox(GeometryComponent.get(geometry));
+    const local = localBoundingBox(GeometryComponent.get(geometry));
     return {
-      position: new GeometryRelativeSheetPosition(0, 0),
-      width: raw.width,
-      height: raw.height,
+      position: new GeometryRelativeSheetPosition(local.position.x, local.position.y),
+      width: local.width,
+      height: local.height,
     };
   }
 
   export function orientedBoundingBox(
     polygonData: PolygonData,
   ): OrientedRect<GeometryRelativeSheetPosition> {
-    const raw = rawBoundingBox(polygonData);
+    const local = localBoundingBox(polygonData);
     return {
-      position: new GeometryRelativeSheetPosition(0, 0),
-      width: raw.width,
-      height: raw.height,
+      position: new GeometryRelativeSheetPosition(local.position.x, local.position.y),
+      width: local.width,
+      height: local.height,
       angleDegrees: 0,
     };
   }
@@ -164,20 +238,28 @@ export namespace PolygonData {
       return null;
     }
 
+    const requestedLocalPoint =
+      newPointPosition.type === 'point'
+        ? new GeometryRelativeSheetPosition(
+            newPointPosition.point.x - polygon.position.x,
+            newPointPosition.point.y - polygon.position.y,
+          )
+        : null;
+
     let updatedGeometry: G | null = null;
 
     switch (nextSegment.type) {
       case 'point': {
-        let insertPoint: SheetPosition;
+        let insertPoint: GeometryRelativeSheetPosition;
         if (newPointPosition.type === 't') {
           insertPoint = Vector2.lerp(segment.point, nextSegment.point, newPointPosition.t);
         } else {
-          insertPoint = newPointPosition.point;
+          insertPoint = requestedLocalPoint!;
         }
         updatedGeometry = GeometryComponent.update(geometry, {
           points: [
             ...polygon.points.slice(0, segmentIndex + 1),
-            { type: 'point', point: insertPoint } as PointSegment,
+            { type: 'point', point: insertPoint } as PointSegment<GeometryRelativeSheetPosition>,
             ...polygon.points.slice(segmentIndex + 1),
           ],
         });
@@ -193,7 +275,7 @@ export namespace PolygonData {
         if (newPointPosition.type === 't') {
           t = newPointPosition.t;
         } else {
-          t = closestPointOnQuadraticCurve(curve, newPointPosition.point).t;
+          t = closestPointOnQuadraticCurve(curve, requestedLocalPoint!).t;
         }
         const [leftCurve, rightCurve] = DeCasteljau.splitQuadraticBezier(curve, t);
 
@@ -204,12 +286,12 @@ export namespace PolygonData {
               type: 'arc-quadratic',
               point: leftCurve.end,
               controlPoint: leftCurve.controlPoint,
-            } as QuadraticBezierSegment,
+            } as QuadraticBezierSegment<GeometryRelativeSheetPosition>,
             {
               type: 'arc-quadratic',
               point: rightCurve.end,
               controlPoint: rightCurve.controlPoint,
-            } as QuadraticBezierSegment,
+            } as QuadraticBezierSegment<GeometryRelativeSheetPosition>,
             ...polygon.points.slice(segmentIndex + 2),
           ],
         });
@@ -226,7 +308,7 @@ export namespace PolygonData {
         if (newPointPosition.type === 't') {
           t = newPointPosition.t;
         } else {
-          t = closestPointOnCubicCurve(curve, newPointPosition.point).t;
+          t = closestPointOnCubicCurve(curve, requestedLocalPoint!).t;
         }
         const [leftCurve, rightCurve] = DeCasteljau.splitCubicBezier(curve, t);
 
@@ -238,13 +320,13 @@ export namespace PolygonData {
               point: leftCurve.end,
               controlPointA: leftCurve.controlPointA,
               controlPointB: leftCurve.controlPointB,
-            } as CubicBezierSegment,
+            } as CubicBezierSegment<GeometryRelativeSheetPosition>,
             {
               type: 'arc-cubic',
               point: rightCurve.end,
               controlPointA: rightCurve.controlPointA,
               controlPointB: rightCurve.controlPointB,
-            } as CubicBezierSegment,
+            } as CubicBezierSegment<GeometryRelativeSheetPosition>,
             ...polygon.points.slice(segmentIndex + 2),
           ],
         });
@@ -384,26 +466,23 @@ export namespace PolygonData {
     translatePoint: (input: SheetPosition) => SheetPosition,
   ): E {
     const polygon = GeometryComponent.get(geometry);
-    const newPoints = polygon.points.map((seg) => {
-      const newSeg: typeof seg = { ...seg };
-      newSeg.point = translatePoint(seg.point);
-      if (PolygonSegment.isQuadratic(seg)) {
-        (newSeg as QuadraticBezierSegment).controlPoint = translatePoint(seg.controlPoint);
-      }
-      if (PolygonSegment.isCubic(seg)) {
-        (newSeg as CubicBezierSegment).controlPointA = translatePoint(seg.controlPointA);
-        (newSeg as CubicBezierSegment).controlPointB = translatePoint(seg.controlPointB);
-      }
-      return newSeg;
-    });
-    return GeometryComponent.update(geometry, { points: newPoints });
+    const oldPosition = polygon.position;
+    const newPosition = translatePoint(oldPosition);
+    const mapPoint = (point: GeometryRelativeSheetPosition) => {
+      const absolute = new SheetPosition(oldPosition.x + point.x, oldPosition.y + point.y);
+      const translated = translatePoint(absolute);
+      return new GeometryRelativeSheetPosition(
+        translated.x - newPosition.x,
+        translated.y - newPosition.y,
+      );
+    };
+
+    const newPoints = polygon.points.map((seg) => PolygonSegment.transform(seg, mapPoint));
+    return GeometryComponent.update(geometry, { position: newPosition, points: newPoints });
   }
 
   export function getOrigin(geometry: Entity<GeometryComponent<PolygonData>>): SheetPosition {
-    const state = GeometryComponent.get(geometry);
-    const xs = state.points.map((p) => p.point.x);
-    const ys = state.points.map((p) => p.point.y);
-    return new SheetPosition(Math.min(...xs), Math.min(...ys));
+    return GeometryComponent.get(geometry).position;
   }
 
   /**
@@ -436,6 +515,8 @@ export namespace PolygonData {
       return false;
     }
     return (
+      aData.position.x === bData.position.x &&
+      aData.position.y === bData.position.y &&
       aData.points.length === bData.points.length &&
       aData.points.every((aps, index) => {
         const bps = bData.points[index];
@@ -469,8 +550,7 @@ export namespace PolygonData {
   ): E | null {
     const state = GeometryComponent.get(geometry);
     if (!originalBBox) {
-      const pointsArray = state.points.map((seg) => seg.point);
-      originalBBox = BoundingBox.fromPoints(pointsArray);
+      originalBBox = rawBoundingBox(state);
     }
 
     // FIXME: get rid of layout state, all its functionality should be handled now by the
@@ -489,28 +569,16 @@ export namespace PolygonData {
       );
     };
 
-    const newPoints = state.points.map((seg) => {
-      const newSeg: typeof seg = { ...seg };
-      newSeg.point = mapPoint(seg.point);
-      if (PolygonSegment.isQuadratic(seg)) {
-        (newSeg as QuadraticBezierSegment).controlPoint = mapPoint(
-          (seg as typeof seg & { controlPoint: SheetPosition }).controlPoint,
+    const newPoints = state.points.map((seg) =>
+      PolygonSegment.transform(seg, (local) => {
+        const absolute = new SheetPosition(state.position.x + local.x, state.position.y + local.y);
+        const mapped = mapPoint(absolute);
+        return new GeometryRelativeSheetPosition(
+          mapped.x - state.position.x,
+          mapped.y - state.position.y,
         );
-      }
-      if (PolygonSegment.isCubic(seg)) {
-        const cubicSeg = seg as typeof seg & {
-          controlPointA: SheetPosition;
-          controlPointB: SheetPosition;
-        };
-        const newCubicSeg = newSeg as typeof seg & {
-          controlPointA: SheetPosition;
-          controlPointB: SheetPosition;
-        };
-        newCubicSeg.controlPointA = mapPoint(cubicSeg.controlPointA);
-        newCubicSeg.controlPointB = mapPoint(cubicSeg.controlPointB);
-      }
-      return newSeg;
-    });
+      }),
+    );
 
     return GeometryComponent.update(geometry, { points: newPoints });
   }
@@ -518,23 +586,19 @@ export namespace PolygonData {
 
 export namespace PolygonSegment {
   /** Type guard to check if a polygon segment is a quadratic bezier */
-  export function isPoint(
-    c: PointSegment | QuadraticBezierSegment | CubicBezierSegment,
-  ): c is PointSegment {
+  export function isPoint<P extends Position>(c: PolygonSegment<P>): c is PointSegment<P> {
     return 'point' in c;
   }
 
   /** Type guard to check if a polygon segment is a quadratic bezier */
-  export function isQuadratic(
-    c: PointSegment | QuadraticBezierSegment | CubicBezierSegment,
-  ): c is QuadraticBezierSegment {
+  export function isQuadratic<P extends Position>(
+    c: PolygonSegment<P>,
+  ): c is QuadraticBezierSegment<P> {
     return 'controlPoint' in c && !('controlPointA' in c);
   }
 
   /** Type guard to check if a polygon segment is a cubic bezier */
-  export function isCubic(
-    c: PointSegment | QuadraticBezierSegment | CubicBezierSegment,
-  ): c is CubicBezierSegment {
+  export function isCubic<P extends Position>(c: PolygonSegment<P>): c is CubicBezierSegment<P> {
     return 'controlPointA' in c && !('controlPoint' in c);
   }
 
@@ -542,11 +606,11 @@ export namespace PolygonSegment {
    * Converts a polygon segment to the requested type, preserving naturally-mapping control points
    * and defaulting any newly-introduced control points to the segment's `.point` value.
    */
-  export function changePointType(
-    segment: PolygonSegment,
-    previousSegment: PolygonSegment,
+  export function changePointType<P extends Position>(
+    segment: PolygonSegment<P>,
+    previousSegment: PolygonSegment<P>,
     type: PolygonSegment['type'],
-  ): PolygonSegment {
+  ): PolygonSegment<P> {
     switch (type) {
       case 'point':
         return { type: 'point', point: segment.point };
@@ -582,7 +646,7 @@ export namespace PolygonSegment {
   }
 
   /** Are two {@link PolygonSegment}s 100% equal? */
-  export function equals(a: PolygonSegment, b: PolygonSegment): boolean {
+  export function equals<P extends Position>(a: PolygonSegment<P>, b: PolygonSegment<P>): boolean {
     if (a.type !== b.type) {
       return false;
     }
@@ -594,25 +658,25 @@ export namespace PolygonSegment {
         return true;
       case 'arc-quadratic':
         return (
-          a.controlPoint.x === (b as QuadraticBezierSegment).controlPoint.x &&
-          a.controlPoint.y === (b as QuadraticBezierSegment).controlPoint.y
+          a.controlPoint.x === (b as QuadraticBezierSegment<P>).controlPoint.x &&
+          a.controlPoint.y === (b as QuadraticBezierSegment<P>).controlPoint.y
         );
       case 'arc-cubic':
         return (
-          a.controlPointA.x === (b as CubicBezierSegment).controlPointA.x &&
-          a.controlPointA.y === (b as CubicBezierSegment).controlPointA.y &&
-          a.controlPointB.x === (b as CubicBezierSegment).controlPointB.x &&
-          a.controlPointB.y === (b as CubicBezierSegment).controlPointB.y
+          a.controlPointA.x === (b as CubicBezierSegment<P>).controlPointA.x &&
+          a.controlPointA.y === (b as CubicBezierSegment<P>).controlPointA.y &&
+          a.controlPointB.x === (b as CubicBezierSegment<P>).controlPointB.x &&
+          a.controlPointB.y === (b as CubicBezierSegment<P>).controlPointB.y
         );
     }
   }
 
   /** Apply the given transform function to all {@link SheetPosition}s contained within the
    * passed {@link PolygonSegment. */
-  export function transform(
-    segment: PolygonSegment,
-    apply: (old: SheetPosition) => SheetPosition,
-  ): PolygonSegment {
+  export function transform<P extends Position, Q extends Position>(
+    segment: PolygonSegment<P>,
+    apply: (old: P) => Q,
+  ): PolygonSegment<Q> {
     switch (segment.type) {
       case 'point':
         return { ...segment, point: apply(segment.point) };
@@ -632,26 +696,26 @@ export namespace PolygonSegment {
     }
   }
 
-  export function toLineSegmentOrCurve(
-    prevPoint: SheetPosition,
-    segment: PointSegment,
-  ): LineSegment<SheetPosition>;
-  export function toLineSegmentOrCurve(
-    prevPoint: SheetPosition,
-    segment: QuadraticBezierSegment,
-  ): QuadraticCurve<SheetPosition>;
-  export function toLineSegmentOrCurve(
-    prevPoint: SheetPosition,
-    segment: CubicBezierSegment,
-  ): CubicCurve<SheetPosition>;
-  export function toLineSegmentOrCurve(
-    prevPoint: SheetPosition,
-    segment: PolygonSegment,
-  ): LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>;
-  export function toLineSegmentOrCurve(
-    prevPoint: SheetPosition,
-    segment: PolygonSegment,
-  ): LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition> {
+  export function toLineSegmentOrCurve<P extends Position>(
+    prevPoint: P,
+    segment: PointSegment<P>,
+  ): LineSegment<P>;
+  export function toLineSegmentOrCurve<P extends Position>(
+    prevPoint: P,
+    segment: QuadraticBezierSegment<P>,
+  ): QuadraticCurve<P>;
+  export function toLineSegmentOrCurve<P extends Position>(
+    prevPoint: P,
+    segment: CubicBezierSegment<P>,
+  ): CubicCurve<P>;
+  export function toLineSegmentOrCurve<P extends Position>(
+    prevPoint: P,
+    segment: PolygonSegment<P>,
+  ): LineSegment<P> | QuadraticCurve<P> | CubicCurve<P>;
+  export function toLineSegmentOrCurve<P extends Position>(
+    prevPoint: P,
+    segment: PolygonSegment<P>,
+  ): LineSegment<P> | QuadraticCurve<P> | CubicCurve<P> {
     switch (segment.type) {
       case 'point':
         return { start: prevPoint, end: segment.point };
@@ -667,9 +731,9 @@ export namespace PolygonSegment {
     }
   }
 
-  export function fromLineSegmentOrCurve(
-    c: LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>,
-  ): [SheetPosition, PolygonSegment] {
+  export function fromLineSegmentOrCurve<P extends Position>(
+    c: LineSegment<P> | QuadraticCurve<P> | CubicCurve<P>,
+  ): [P, PolygonSegment<P>] {
     if (QuadraticCurve.isQuadraticCurve(c)) {
       return [c.start, { type: 'arc-quadratic', controlPoint: c.controlPoint, point: c.end }];
     } else if (CubicCurve.isCubicCurve(c)) {
@@ -700,7 +764,9 @@ export namespace PolygonSegment {
    * its endpoint. This function shifts the `.point` values by one position in the
    * reversed array so that the new first element is a proper moveTo start point.
    */
-  export function reverseList(segments: Array<PolygonSegment>): Array<PolygonSegment> {
+  export function reverseList<P extends Position>(
+    segments: Array<PolygonSegment<P>>,
+  ): Array<PolygonSegment<P>> {
     if (segments.length <= 1) {
       if (segments.length === 0) {
         return [];
@@ -709,7 +775,7 @@ export namespace PolygonSegment {
     }
 
     const n = segments.length;
-    const reversed: Array<PolygonSegment> = [];
+    const reversed: Array<PolygonSegment<P>> = [];
 
     // The last point of the original path becomes the moveTo start of the reversed path.
     reversed.push({ type: 'point' as const, point: segments[n - 1].point });

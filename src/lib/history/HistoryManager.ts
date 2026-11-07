@@ -15,11 +15,24 @@ import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
+import { PolygonData, type PolygonSegment } from '@/lib/entity/geometry/polygon';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { Length } from '@/lib/units/length';
-import { SheetPosition } from '@/lib/viewport/types';
+import { GeometryRelativeSheetPosition, type Position, SheetPosition } from '@/lib/viewport/types';
 import { FilterComponent } from '../entity/components/FilterComponent';
 import { UndoEntry } from './types';
+
+/** History polygon segment payloads are stored in the polygon's local frame. Accept either local
+ * GRS points or plain sheet-space points (used by legacy callers) and normalize to local GRS. */
+function asLocalSegments(
+  segments: Array<PolygonSegment<Position>>,
+): Array<PolygonSegment<GeometryRelativeSheetPosition>> {
+  return segments as Array<PolygonSegment<GeometryRelativeSheetPosition>>;
+}
+
+function asLocalPoint(point: SheetPosition): GeometryRelativeSheetPosition {
+  return new GeometryRelativeSheetPosition(point.x, point.y);
+}
 
 /** Events emitted by HistoryManager. */
 export type HistoryManagerEvents = {
@@ -283,7 +296,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           if (!GeometryComponent.isPolygon(old)) {
             return old;
           }
-          return GeometryComponent.update(old, { points: entry.afterSegments });
+          return GeometryComponent.update(old, {
+            points: asLocalSegments(entry.afterSegments),
+            ...(entry.afterPosition ? { position: entry.afterPosition } : {}),
+          });
         });
         break;
       case 'polygon-move':
@@ -291,7 +307,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           if (!GeometryComponent.isPolygon(old)) {
             return old;
           }
-          const updated = GeometryComponent.update(old, { points: entry.afterSegments });
+          const updated = GeometryComponent.update(old, {
+            points: asLocalSegments(entry.afterSegments),
+            ...(entry.afterPosition ? { position: entry.afterPosition } : {}),
+          });
           return this.geometryStore!.resyncGeometryFillColor(updated);
         });
         break;
@@ -314,7 +333,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           const segments = [...data.points];
           segments[entry.segmentIndex] = {
             ...segments[entry.segmentIndex],
-            point: entry.afterPoint,
+            point: asLocalPoint(entry.afterPoint),
           };
           const updated = GeometryComponent.update(old, { points: segments });
           return this.geometryStore!.resyncGeometryFillColor(updated);
@@ -329,7 +348,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           const data = GeometryComponent.get(old);
           const segments = [...data.points];
           const seg = segments[entry.segmentIndex] as any;
-          segments[entry.segmentIndex] = { ...seg, [entry.pointKey]: entry.afterPoint };
+          segments[entry.segmentIndex] = {
+            ...seg,
+            [entry.pointKey]: asLocalPoint(entry.afterPoint),
+          };
           const updated = GeometryComponent.update(old, { points: segments });
           return this.geometryStore!.resyncGeometryFillColor(updated);
         });
@@ -345,7 +367,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
             const segments = [...data.points];
             segments[move.segmentIndex] = {
               ...segments[move.segmentIndex],
-              point: move.afterPoint,
+              point: asLocalPoint(move.afterPoint),
             };
             const updated = GeometryComponent.update(old, { points: segments });
             return this.geometryStore!.resyncGeometryFillColor(updated);
@@ -554,33 +576,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           if (!GeometryComponent.isPolygon(old)) {
             return old;
           }
-          const data = GeometryComponent.get(old);
-          const translate = (p: SheetPosition): SheetPosition => {
-            return new SheetPosition(p.x + entry.deltaX, p.y + entry.deltaY);
-          };
-          const points = data.points.map((seg) => {
-            switch (seg.type) {
-              case 'point': {
-                return { ...seg, point: translate(seg.point) };
-              }
-              case 'arc-quadratic': {
-                return {
-                  ...seg,
-                  point: translate(seg.point),
-                  controlPoint: translate(seg.controlPoint),
-                };
-              }
-              case 'arc-cubic': {
-                return {
-                  ...seg,
-                  point: translate(seg.point),
-                  controlPointA: translate(seg.controlPointA),
-                  controlPointB: translate(seg.controlPointB),
-                };
-              }
-            }
-          });
-          return GeometryComponent.update(old, { points });
+          return PolygonData.translate(
+            old,
+            (p) => new SheetPosition(p.x + entry.deltaX, p.y + entry.deltaY),
+          );
         });
         break;
       }
@@ -589,7 +588,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           if (!GeometryComponent.isPolygon(old)) {
             return old;
           }
-          return GeometryComponent.update(old, { points: entry.afterSegments });
+          return GeometryComponent.update(old, {
+            points: asLocalSegments(entry.afterSegments),
+            ...(entry.afterPosition ? { position: entry.afterPosition } : {}),
+          });
         });
         break;
       case 'sheet-width':
@@ -726,7 +728,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           if (!GeometryComponent.isPolygon(old)) {
             return old;
           }
-          return GeometryComponent.update(old, { points: entry.beforeSegments });
+          return GeometryComponent.update(old, {
+            points: asLocalSegments(entry.beforeSegments),
+            ...(entry.beforePosition ? { position: entry.beforePosition } : {}),
+          });
         });
         break;
       case 'polygon-move':
@@ -734,7 +739,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           if (!GeometryComponent.isPolygon(old)) {
             return old;
           }
-          const updated = GeometryComponent.update(old, { points: entry.beforeSegments });
+          const updated = GeometryComponent.update(old, {
+            points: asLocalSegments(entry.beforeSegments),
+            ...(entry.beforePosition ? { position: entry.beforePosition } : {}),
+          });
 
           return this.geometryStore!.resyncGeometryFillColor(updated);
         });
@@ -758,7 +766,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           const segments = [...data.points];
           segments[entry.segmentIndex] = {
             ...segments[entry.segmentIndex],
-            point: entry.beforePoint,
+            point: asLocalPoint(entry.beforePoint),
           };
           const updated = GeometryComponent.update(old, { points: segments });
           return this.geometryStore!.resyncGeometryFillColor(updated);
@@ -773,7 +781,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           const data = GeometryComponent.get(old);
           const segments = [...data.points];
           const seg = segments[entry.segmentIndex] as any;
-          segments[entry.segmentIndex] = { ...seg, [entry.pointKey]: entry.beforePoint };
+          segments[entry.segmentIndex] = {
+            ...seg,
+            [entry.pointKey]: asLocalPoint(entry.beforePoint),
+          };
           return GeometryComponent.update(old, { points: segments });
         });
         break;
@@ -788,7 +799,7 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
             const segments = [...data.points];
             segments[move.segmentIndex] = {
               ...segments[move.segmentIndex],
-              point: move.beforePoint,
+              point: asLocalPoint(move.beforePoint),
             };
             const updated = GeometryComponent.update(old, { points: segments });
             return this.geometryStore!.resyncGeometryFillColor(updated);
@@ -1019,33 +1030,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           if (!GeometryComponent.isPolygon(old)) {
             return old;
           }
-          const data = GeometryComponent.get(old);
-          const translate = (p: SheetPosition): SheetPosition => {
-            return new SheetPosition(p.x - entry.deltaX, p.y - entry.deltaY);
-          };
-          const points = data.points.map((seg) => {
-            switch (seg.type) {
-              case 'point': {
-                return { ...seg, point: translate(seg.point) };
-              }
-              case 'arc-quadratic': {
-                return {
-                  ...seg,
-                  point: translate(seg.point),
-                  controlPoint: translate(seg.controlPoint),
-                };
-              }
-              case 'arc-cubic': {
-                return {
-                  ...seg,
-                  point: translate(seg.point),
-                  controlPointA: translate(seg.controlPointA),
-                  controlPointB: translate(seg.controlPointB),
-                };
-              }
-            }
-          });
-          return GeometryComponent.update(old, { points });
+          return PolygonData.translate(
+            old,
+            (p) => new SheetPosition(p.x - entry.deltaX, p.y - entry.deltaY),
+          );
         });
         break;
       }
@@ -1054,7 +1042,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           if (!GeometryComponent.isPolygon(old)) {
             return old;
           }
-          return GeometryComponent.update(old, { points: entry.beforeSegments });
+          return GeometryComponent.update(old, {
+            points: asLocalSegments(entry.beforeSegments),
+            ...(entry.beforePosition ? { position: entry.beforePosition } : {}),
+          });
         });
         break;
       case 'sheet-width':

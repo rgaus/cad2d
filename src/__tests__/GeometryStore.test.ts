@@ -2,6 +2,7 @@ import {
   Datum,
   DatumComponent,
   Ellipse,
+  Entity,
   FillColorComponent,
   GeometryComponent,
   type PointSegment,
@@ -11,6 +12,7 @@ import {
 import { ConstraintComponent } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { ConstraintEndpoint, LinearConstraint } from '@/lib/entity/constraints';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { subscribeToEvents } from '@/lib/subscribe-to-events';
@@ -43,10 +45,11 @@ describe('GeometryStore', () => {
       );
       expect(store.listWithComponent(GeometryComponent)).toHaveLength(1);
       expect(store.listWithComponent(GeometryComponent)[0].id).toBe(polygon.id);
-      expect(GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points).toEqual([
-        makePoint(0, 0),
-        makePoint(1, 0),
-      ]);
+      expect(
+        PolygonData.rawSegments(
+          store.listWithComponent(GeometryComponent)[0] as Entity<GeometryComponent<PolygonData>>,
+        ),
+      ).toEqual([makePoint(0, 0), makePoint(1, 0)]);
     });
 
     it('generates a stable id for new polygons', () => {
@@ -226,7 +229,9 @@ describe('GeometryStore', () => {
         GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points,
       ).toHaveLength(5);
       expect(
-        GeometryComponent.get(store.listWithComponent(GeometryComponent)[0]).points[1].point,
+        PolygonData.rawSegments(
+          store.listWithComponent(GeometryComponent)[0] as Entity<GeometryComponent<PolygonData>>,
+        )[1].point,
       ).toEqual(new SheetPosition(5, 0));
     });
 

@@ -1,11 +1,11 @@
 import { FlipHorizontal } from 'lucide-react';
 import React from 'react';
-import { Entity, GeometryComponent, type PolygonSegment } from '@/lib/entity';
+import { Entity, GeometryComponent } from '@/lib/entity';
 import { EllipseData } from '@/lib/entity/geometry/ellipse';
-import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { PolygonData, PolygonSegment } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { Flip } from '@/lib/math';
-import { type Rect, SheetPosition } from '@/lib/viewport/types';
+import { GeometryRelativeSheetPosition, type Rect, SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 
@@ -68,8 +68,18 @@ export class FlipHorizontalAction extends BaseAction {
           if (polyData.type === 'polygon') {
             geometryStore.updateById(id, (old) => {
               const data = GeometryComponent.get(old as Entity<GeometryComponent<PolygonData>>);
+              const position = data.position;
               return GeometryComponent.update(old as Entity<GeometryComponent<PolygonData>>, {
-                points: flipPolygonPoints(data.points, rawCenterX),
+                points: data.points.map((segment) =>
+                  PolygonSegment.transform(segment, (local) => {
+                    const absolute = new SheetPosition(position.x + local.x, position.y + local.y);
+                    const flipped = Flip.horizontal(absolute, rawCenterX);
+                    return new GeometryRelativeSheetPosition(
+                      flipped.x - position.x,
+                      flipped.y - position.y,
+                    );
+                  }),
+                ),
               });
             });
             continue;
@@ -112,29 +122,4 @@ export class FlipHorizontalAction extends BaseAction {
       }
     });
   }
-}
-
-function flipPolygonPoints(points: Array<PolygonSegment>, centerX: number): Array<PolygonSegment> {
-  return points.map((seg) => {
-    switch (seg.type) {
-      case 'point':
-        return {
-          ...seg,
-          point: Flip.horizontal(seg.point, centerX),
-        };
-      case 'arc-quadratic':
-        return {
-          ...seg,
-          point: Flip.horizontal(seg.point, centerX),
-          controlPoint: Flip.horizontal(seg.controlPoint, centerX),
-        };
-      case 'arc-cubic':
-        return {
-          ...seg,
-          point: Flip.horizontal(seg.point, centerX),
-          controlPointA: Flip.horizontal(seg.controlPointA, centerX),
-          controlPointB: Flip.horizontal(seg.controlPointB, centerX),
-        };
-    }
-  });
 }

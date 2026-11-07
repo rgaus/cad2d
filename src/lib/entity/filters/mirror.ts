@@ -242,7 +242,7 @@ export namespace MirrorFilter {
           break;
         }
         case 'polygon': {
-          const mirroredPoints = renderShape.points.map((segment) => {
+          const mirroredPoints: Array<PolygonSegment> = renderShape.points.map((segment) => {
             const mirroredPoint = mirrorPointOverLine(
               segment.point,
               filterData.pointA,

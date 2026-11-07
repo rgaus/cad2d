@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import type { ConstraintEndpoint, Entity } from '@/lib/entity';
-import type { PolygonData } from '@/lib/entity/geometry/polygon';
+import type { PolygonSegment } from '@/lib/entity/geometry/polygon';
 import type { Angle } from '@/lib/units/angle';
 import type { Length } from '@/lib/units/length';
+import type { Position } from '@/lib/viewport/types';
 
 /**
  * Event handlers that can be attached to a {@link FieldLeaf}. Every handler is optional; the
@@ -59,7 +60,15 @@ export type PolygonPointsHandlers = {
   onCloseOpenMouseLeave?: () => void;
 };
 
-type PolygonSegmentType = PolygonData['points'][number]['type'];
+type PolygonSegmentType = PolygonSegment['type'];
+
+/** The polygon data required to render the inline point editor, in either local or projected
+ * coordinates. */
+export type PolygonPointsData = {
+  points: Array<PolygonSegment<Position>>;
+  closed: boolean;
+  openAtIndex: number;
+};
 
 /** A non-textual field label (rendered as an inline icon instead of a string). */
 export type FieldIcon = { type: 'icon'; icon: ReactNode };
@@ -100,7 +109,7 @@ export type FieldLeaf =
   | {
       type: 'polygon-points';
       key: string;
-      value: PolygonData;
+      value: PolygonPointsData;
       isPolygonFilledDueToFilter: boolean;
       handlers: PolygonPointsHandlers;
     }
@@ -178,7 +187,7 @@ export type FieldOptions =
   | {
       type: 'polygon-points';
       key: string;
-      value: Array<PolygonData>;
+      value: Array<PolygonPointsData>;
       isPolygonFilledDueToFilter: boolean;
       handlers: Array<PolygonPointsHandlers>;
     }
@@ -380,7 +389,7 @@ export namespace Fields {
   /** Build the inline polygon point editor field. */
   export function polygonPoints(
     key: string,
-    value: PolygonData,
+    value: PolygonPointsData,
     isPolygonFilledDueToFilter: boolean,
     handlers?: PolygonPointsHandlers,
   ): FieldOptions {

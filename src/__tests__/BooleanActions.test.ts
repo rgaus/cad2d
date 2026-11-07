@@ -67,57 +67,45 @@ describe('BooleanActions', () => {
 
       // Polygon should have 4 unique corners (closed polygon has 5 points - first/last same)
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>),
       ).toHaveLength(5);
       // First point equals last point (closed polygon)
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[0]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[0].point.x,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[0]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[0].point.y,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[4]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[4].point.x,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[4]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[4].point.y,
       ).toBeCloseTo(0);
       // The 4 unique corners in order
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[0]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[0].point.x,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[0]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[0].point.y,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[1]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[1].point.x,
       ).toBeCloseTo(15);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[1]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[1].point.y,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[2]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[2].point.x,
       ).toBeCloseTo(15);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[2]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[2].point.y,
       ).toBeCloseTo(10);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[3]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[3].point.x,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[3]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[3].point.y,
       ).toBeCloseTo(10);
 
       // Result should have first polygon's color (blue)
@@ -162,57 +150,45 @@ describe('BooleanActions', () => {
 
       // Polygon should be the remaining left portion (0,0), (5,0), (5,10), (0,10) - closed has 5 points
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>),
       ).toHaveLength(5);
       // First point equals last point (closed polygon)
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[0]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[0].point.x,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[0]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[0].point.y,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[4]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[4].point.x,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[4]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[4].point.y,
       ).toBeCloseTo(0);
       // The 4 unique corners in order
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[0]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[0].point.x,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[0]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[0].point.y,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[1]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[1].point.x,
       ).toBeCloseTo(5);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[1]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[1].point.y,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[2]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[2].point.x,
       ).toBeCloseTo(5);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[2]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[2].point.y,
       ).toBeCloseTo(10);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[3]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[3].point.x,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[3]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[3].point.y,
       ).toBeCloseTo(10);
 
       // Result should have first polygon's color (blue)
@@ -262,12 +238,12 @@ describe('BooleanActions', () => {
       // Verify the x-coordinates span the correct ranges
       // Left island points should all have x <= 7
       // Right island points should all have x >= 13
-      const p0Xs = GeometryComponent.get(
+      const p0Xs = PolygonData.rawSegments(
         resultPolygons[0] as Entity<GeometryComponent<PolygonData>>,
-      ).points.map((p) => p.point.x);
-      const p1Xs = GeometryComponent.get(
+      ).map((p) => p.point.x);
+      const p1Xs = PolygonData.rawSegments(
         resultPolygons[1] as Entity<GeometryComponent<PolygonData>>,
-      ).points.map((p) => p.point.x);
+      ).map((p) => p.point.x);
       const l0AllLeft = p0Xs.every((x: number) => x <= 7.001);
       const l0AllRight = p0Xs.every((x: number) => x >= 12.999);
       const l1AllLeft = p1Xs.every((x: number) => x <= 7.001);
@@ -314,57 +290,45 @@ describe('BooleanActions', () => {
 
       // Polygon should be the overlapping region (5,0), (10,0), (10,10), (5,10) - closed has 5 points
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>),
       ).toHaveLength(5);
       // First point equals last point (closed polygon)
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[0]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[0].point.x,
       ).toBeCloseTo(5);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[0]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[0].point.y,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[4]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[4].point.x,
       ).toBeCloseTo(5);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[4]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[4].point.y,
       ).toBeCloseTo(0);
       // The 4 unique corners in order
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[0]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[0].point.x,
       ).toBeCloseTo(5);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[0]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[0].point.y,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[1]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[1].point.x,
       ).toBeCloseTo(10);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[1]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[1].point.y,
       ).toBeCloseTo(0);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[2]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[2].point.x,
       ).toBeCloseTo(10);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[2]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[2].point.y,
       ).toBeCloseTo(10);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[3]
-          .point.x,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[3].point.x,
       ).toBeCloseTo(5);
       expect(
-        GeometryComponent.get(resultPolygon as Entity<GeometryComponent<PolygonData>>).points[3]
-          .point.y,
+        PolygonData.rawSegments(resultPolygon as Entity<GeometryComponent<PolygonData>>)[3].point.y,
       ).toBeCloseTo(10);
 
       // Result should have first polygon's color (blue)

@@ -27,10 +27,16 @@ import { type PatternFilterData } from '@/lib/entity/filters/pattern';
 import { PolygonData, PolygonSegment } from '@/lib/entity/geometry/polygon';
 import { type RectangleEndpoint } from '@/lib/entity/rectangle';
 import { CornerReplacement, type CornerSegmentFactory, Vector2, mod } from '@/lib/math';
-import { CubicCurve, LineSegment, QuadraticCurve, SheetPosition } from '@/lib/viewport/types';
+import {
+  CubicCurve,
+  GeometryRelativeSheetPosition,
+  LineSegment,
+  QuadraticCurve,
+  SheetPosition,
+} from '@/lib/viewport/types';
+import { RenderShape } from '../entity/render-shape';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
-import { RenderShape } from '../entity/render-shape';
 
 type CornerState =
   | {
@@ -386,17 +392,25 @@ export class ApplyFilterToGeometryAction extends BaseAction {
         return g;
       }
       const polygon = g as Entity<GeometryComponent<PolygonData>>;
-      // Render shapes are anchored-space; convert back to raw stored coordinates.
+      // Render shapes are anchored-space; convert back to raw stored coordinates, then into the
+      // polygon's local frame.
       const offset = GeometryComponent.getAnchorPointOffset(g);
-      const points =
+      const position = GeometryComponent.get(polygon).position;
+      const rawPoints =
         offset.x === 0 && offset.y === 0
           ? merged.points
           : merged.points.map((segment) =>
               PolygonSegment.transform(
                 segment,
-                (position) => new SheetPosition(position.x + offset.x, position.y + offset.y),
+                (point) => new SheetPosition(point.x + offset.x, point.y + offset.y),
               ),
             );
+      const points = rawPoints.map((segment) =>
+        PolygonSegment.transform(
+          segment,
+          (point) => new GeometryRelativeSheetPosition(point.x - position.x, point.y - position.y),
+        ),
+      );
       const withMergedPoints = GeometryComponent.update(polygon, {
         points,
         closed: true,
@@ -452,7 +466,9 @@ export class ApplyFilterToGeometryAction extends BaseAction {
         // Point shapes are zero size
         // TODO: I'm not 100% sure about this, validate there isn't a case where this will get hit
         // in practice
-        console.warn('WARNING: ApplyFilterToGeometryAction.addRenderShapeAsGeometry: Skipping renderShape.shape of "point".');
+        console.warn(
+          'WARNING: ApplyFilterToGeometryAction.addRenderShapeAsGeometry: Skipping renderShape.shape of "point".',
+        );
         return undefined;
       default:
         renderShape satisfies never;
@@ -737,14 +753,14 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     polygon: Entity<GeometryComponent<PolygonData>>,
     filter: FilletFilterData | ChamferFilterData,
   ): CornerState | null {
-    const polygonData = GeometryComponent.get(polygon);
+    const rawSegments = PolygonData.rawSegments(polygon);
 
     // Compute bounding box to infer the original rectangle's corner positions
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
-    for (const pt of polygonData.points) {
+    for (const pt of rawSegments) {
       if (pt.point.x < minX) {
         minX = pt.point.x;
       }
@@ -778,40 +794,40 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     }
 
     // Find the center position in the current polygon
-    const centerIndex = this.findPointIndexByPos(polygonData.points, centerPos);
+    const centerIndex = this.findPointIndexByPos(rawSegments, centerPos);
     if (centerIndex < 0) {
       // Corner was already filleted away
       return null;
     }
 
-    const centerPoint = polygonData.points[centerIndex].point;
+    const centerPoint = rawSegments[centerIndex].point;
 
     // Traverse to find non-collocated adjacent vertices (same as tool's handleMouseDown)
     let pointAIndex = centerIndex - 1;
     while (pointAIndex < 0) {
-      pointAIndex += polygonData.points.length;
+      pointAIndex += rawSegments.length;
     }
     while (
-      polygonData.points[pointAIndex].point.x === centerPoint.x &&
-      polygonData.points[pointAIndex].point.y === centerPoint.y
+      rawSegments[pointAIndex].point.x === centerPoint.x &&
+      rawSegments[pointAIndex].point.y === centerPoint.y
     ) {
       pointAIndex -= 1;
       while (pointAIndex < 0) {
-        pointAIndex += polygonData.points.length;
+        pointAIndex += rawSegments.length;
       }
     }
 
     let pointBIndex = centerIndex + 1;
-    while (pointBIndex >= polygonData.points.length) {
-      pointBIndex -= polygonData.points.length;
+    while (pointBIndex >= rawSegments.length) {
+      pointBIndex -= rawSegments.length;
     }
     while (
-      polygonData.points[pointBIndex].point.x === centerPoint.x &&
-      polygonData.points[pointBIndex].point.y === centerPoint.y
+      rawSegments[pointBIndex].point.x === centerPoint.x &&
+      rawSegments[pointBIndex].point.y === centerPoint.y
     ) {
       pointBIndex += 1;
-      while (pointBIndex >= polygonData.points.length) {
-        pointBIndex -= polygonData.points.length;
+      while (pointBIndex >= rawSegments.length) {
+        pointBIndex -= rawSegments.length;
       }
     }
 
@@ -822,8 +838,8 @@ export class ApplyFilterToGeometryAction extends BaseAction {
       pointAIndex,
       pointBIndex,
       centerPos,
-      pointAPos: polygonData.points[pointAIndex].point,
-      pointBPos: polygonData.points[pointBIndex].point,
+      pointAPos: rawSegments[pointAIndex].point,
+      pointBPos: rawSegments[pointBIndex].point,
     };
   }
 
@@ -849,6 +865,7 @@ export class ApplyFilterToGeometryAction extends BaseAction {
         }
         geometry = result;
         polygonData = GeometryComponent.get(geometry);
+        const rawSegments = PolygonData.rawSegments(geometry);
 
         centerIndex = pending.centerIndex;
         pointAIndex = pending.pointAIndex;
@@ -873,7 +890,7 @@ export class ApplyFilterToGeometryAction extends BaseAction {
               if (!centerDatumId) {
                 const datum = geometryStore.addOrdered(
                   ID_PREFIXES.datum,
-                  Datum.create(polygonData.points[pending.centerIndex].point),
+                  Datum.create(rawSegments[pending.centerIndex].point),
                 );
                 centerDatumId = datum.id;
               }
@@ -934,10 +951,11 @@ export class ApplyFilterToGeometryAction extends BaseAction {
         });
         geometryId = geometry.id;
         polygonData = GeometryComponent.get(geometry);
+        const convertedRawSegments = PolygonData.rawSegments(geometry);
 
         // Find all three point indices by position in new polygon
-        for (let i = 0; i < polygonData.points.length - 1; i += 1) {
-          const p = polygonData.points[i].point;
+        for (let i = 0; i < convertedRawSegments.length - 1; i += 1) {
+          const p = convertedRawSegments[i].point;
           if (p.x === resolvedCenter.x && p.y === resolvedCenter.y) {
             centerIndex = i;
           }
@@ -1012,14 +1030,14 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     step1: ResolveGeometryAndIndicesResults,
     offset: number,
   ): ValidateOffsetResults | null {
-    const polygonData = step1.polygonData;
+    const rawSegments = PolygonData.rawSegments(step1.polygon);
     const centerIndex = step1.centerIndex;
     const pointAIndex = step1.pointAIndex;
     const pointBIndex = step1.pointBIndex;
 
-    const centerPos = polygonData.points[centerIndex].point;
-    const pointAPos = polygonData.points[pointAIndex].point;
-    const pointBPos = polygonData.points[pointBIndex].point;
+    const centerPos = rawSegments[centerIndex].point;
+    const pointAPos = rawSegments[pointAIndex].point;
+    const pointBPos = rawSegments[pointBIndex].point;
 
     const lenA = Vector2.dist(centerPos, pointAPos);
     const lenB = Vector2.dist(centerPos, pointBPos);
@@ -1088,7 +1106,7 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     const splitAPos = Vector2.lerp(step2.centerPos, step2.pointAPos, step2.offset / step2.lenA);
     const splitBPos = Vector2.lerp(step2.centerPos, step2.pointBPos, step2.offset / step2.lenB);
 
-    const currentPoints = GeometryComponent.get(geometry).points;
+    const currentPoints = PolygonData.rawSegments(geometry);
     const splitAIdx = this.findPointIndexByPos(currentPoints, splitAPos);
     const splitBIdx = this.findPointIndexByPos(currentPoints, splitBPos);
     const centerIdxFirst = this.findPointIndexByPos(currentPoints, step2.centerPos);
@@ -1117,7 +1135,7 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     const geometryStore = this.getGeometryStore();
     const geometryId = step1.geometryId;
 
-    const preSplitPoints = step1.polygonData.points;
+    const preSplitPoints = PolygonData.rawSegments(step1.polygon);
 
     const viewportSegs: Array<
       LineSegment<SheetPosition> | QuadraticCurve<SheetPosition> | CubicCurve<SheetPosition>
@@ -1152,8 +1170,19 @@ export class ApplyFilterToGeometryAction extends BaseAction {
       if (!Entity.hasComponent(old, GeometryComponent)) {
         return old;
       }
+      const currentData = GeometryComponent.get(old as Entity<GeometryComponent<PolygonData>>);
+      const localPoints = newPoints.map((segment) =>
+        PolygonSegment.transform(
+          segment,
+          (point) =>
+            new GeometryRelativeSheetPosition(
+              point.x - currentData.position.x,
+              point.y - currentData.position.y,
+            ),
+        ),
+      );
       return GeometryComponent.update(old as Entity<GeometryComponent<PolygonData>>, {
-        points: newPoints,
+        points: localPoints,
       });
     });
 
@@ -1184,9 +1213,9 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     if (!finalPoly) {
       return;
     }
-    const finalPoints = GeometryComponent.get(
+    const finalPoints = PolygonData.rawSegments(
       finalPoly as Entity<GeometryComponent<PolygonData>>,
-    ).points;
+    );
 
     const farAIdx = this.findPointIndexByPos(finalPoints, step2.pointAPos);
     const splitAFinalIdx = this.findPointIndexByPos(finalPoints, step3.splitAPos);

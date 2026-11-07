@@ -24,6 +24,7 @@ import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { PatternFilter, PatternRadialFilterData } from '@/lib/entity/filters/pattern';
+import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
@@ -225,8 +226,12 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      expect(GeometryComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 1);
-      expect(GeometryComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 1);
+      expect(
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).toBeCloseTo(2, 1);
+      expect(
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0].point.y,
+      ).toBeCloseTo(3, 1);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -270,8 +275,12 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      expect(GeometryComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 10);
-      expect(GeometryComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 10);
+      expect(
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).toBeCloseTo(2, 10);
+      expect(
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0].point.y,
+      ).toBeCloseTo(3, 10);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -316,11 +325,18 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      expect(GeometryComponent.get(polygon).points[0].point.x).toBeCloseTo(2, 1);
-      expect(GeometryComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 1);
       expect(
-        (GeometryComponent.get(polygon).points[1] as { controlPoint: SheetPosition }).controlPoint
-          .x,
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).toBeCloseTo(2, 1);
+      expect(
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0].point.y,
+      ).toBeCloseTo(3, 1);
+      expect(
+        (
+          PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[1] as {
+            controlPoint: SheetPosition;
+          }
+        ).controlPoint.x,
       ).toBeCloseTo(3, 1);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
@@ -359,10 +375,10 @@ describe('SelectTool', () => {
       if (polyData.type !== 'polygon') {
         throw new Error('Expected polygon');
       }
-      const beforeP0 = polyData.points[0].point;
+      const beforeP0 = PolygonData.rawSegments(polyGeom)[0].point;
 
       // Start a polygon fill drag (which also captures attached filter pairs)
-      const startScreen = polyData.points[0].point.toScreen(viewportControls.getState().viewport);
+      const startScreen = beforeP0.toScreen(viewportControls.getState().viewport);
       selectTool.handleGeometryFillPointerDown(
         new ScreenPosition(startScreen.x, startScreen.y),
         viewportControls,
@@ -381,8 +397,9 @@ describe('SelectTool', () => {
       if (afterPolyData.type !== 'polygon') {
         throw new Error('Expected polygon');
       }
-      expect(afterPolyData.points[0].point.x).toBeCloseTo(beforeP0.x + 5, 0);
-      expect(afterPolyData.points[0].point.y).toBeCloseTo(beforeP0.y + 5, 0);
+      const afterPolyPoints = PolygonData.rawSegments(afterPolyGeom);
+      expect(afterPolyPoints[0].point.x).toBeCloseTo(beforeP0.x + 5, 0);
+      expect(afterPolyPoints[0].point.y).toBeCloseTo(beforeP0.y + 5, 0);
 
       // Mirror filter endpoints should have moved by the same delta
       const afterFilter = FilterComponent.get(
@@ -398,14 +415,14 @@ describe('SelectTool', () => {
 
       // Undo — both polygon and filter should return to original positions
       historyManager.undo();
-      const undonePoly = GeometryComponent.get(
-        geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!,
-      );
+      const undonePolyGeom = geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!;
+      const undonePoly = GeometryComponent.get(undonePolyGeom);
       if (undonePoly.type !== 'polygon') {
         throw new Error('Expected polygon');
       }
-      expect(undonePoly.points[0].point.x).toBeCloseTo(beforeP0.x, 0);
-      expect(undonePoly.points[0].point.y).toBeCloseTo(beforeP0.y, 0);
+      const undonePolyPoints = PolygonData.rawSegments(undonePolyGeom);
+      expect(undonePolyPoints[0].point.x).toBeCloseTo(beforeP0.x, 0);
+      expect(undonePolyPoints[0].point.y).toBeCloseTo(beforeP0.y, 0);
 
       const undoneFilter = FilterComponent.get(
         geometryStore.getByIdWithComponent(filter.id, FilterComponent)!,
@@ -420,14 +437,14 @@ describe('SelectTool', () => {
 
       // Redo — both should move again
       historyManager.redo();
-      const redonePoly = GeometryComponent.get(
-        geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!,
-      );
+      const redonePolyGeom = geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!;
+      const redonePoly = GeometryComponent.get(redonePolyGeom);
       if (redonePoly.type !== 'polygon') {
         throw new Error('Expected polygon');
       }
-      expect(redonePoly.points[0].point.x).toBeCloseTo(beforeP0.x + 5, 0);
-      expect(redonePoly.points[0].point.y).toBeCloseTo(beforeP0.y + 5, 0);
+      const redonePolyPoints = PolygonData.rawSegments(redonePolyGeom);
+      expect(redonePolyPoints[0].point.x).toBeCloseTo(beforeP0.x + 5, 0);
+      expect(redonePolyPoints[0].point.y).toBeCloseTo(beforeP0.y + 5, 0);
 
       const redoneFilter = FilterComponent.get(
         geometryStore.getByIdWithComponent(filter.id, FilterComponent)!,
@@ -493,8 +510,12 @@ describe('SelectTool', () => {
       const beforePolygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const beforeFirst = GeometryComponent.get(beforePolygon).points[0].point.x;
-      const beforeLast = GeometryComponent.get(beforePolygon).points[3].point.x;
+      const beforeFirst = PolygonData.rawSegments(
+        beforePolygon as Entity<GeometryComponent<PolygonData>>,
+      )[0].point.x;
+      const beforeLast = PolygonData.rawSegments(
+        beforePolygon as Entity<GeometryComponent<PolygonData>>,
+      )[3].point.x;
       expect(beforeFirst).toBe(beforeLast);
 
       selectTool.onVertexPointerDown(
@@ -509,8 +530,12 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const deltaX = GeometryComponent.get(polygon).points[0].point.x - beforeFirst;
-      const deltaLastX = GeometryComponent.get(polygon).points[3].point.x - beforeLast;
+      const deltaX =
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0].point.x -
+        beforeFirst;
+      const deltaLastX =
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[3].point.x -
+        beforeLast;
       expect(deltaX).toBe(deltaLastX);
       expect(deltaX).not.toBe(0);
 
@@ -552,8 +577,10 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const firstDelta = GeometryComponent.get(polygon).points[0].point.x - 10;
-      const lastDelta = GeometryComponent.get(polygon).points[3].point.x - 10;
+      const firstDelta =
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0].point.x - 10;
+      const lastDelta =
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[3].point.x - 10;
       expect(firstDelta).not.toBe(0);
       expect(lastDelta).toBe(0);
 
@@ -592,36 +619,33 @@ describe('SelectTool', () => {
       upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
 
       // The vertex snapped onto the mirror line (y == 5), not the raw 5.05
-      const livePolygon = GeometryComponent.get(
-        geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!,
-      );
+      const livePolygonGeom = geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!;
+      const livePolygon = GeometryComponent.get(livePolygonGeom);
       if (livePolygon.type !== 'polygon') {
         throw new Error('Expected polygon');
       }
-      const liveY = livePolygon.points[0].point.y;
+      const liveY = PolygonData.rawSegments(livePolygonGeom)[0].point.y;
       expect(liveY).toBeCloseTo(5, 3);
 
       // Undo returns the vertex to its original position
       historyManager.undo();
-      const undone = GeometryComponent.get(
-        geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!,
-      );
+      const undoneGeom = geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!;
+      const undone = GeometryComponent.get(undoneGeom);
       if (undone.type !== 'polygon') {
         throw new Error('Expected polygon');
       }
-      expect(undone.points[0].point.y).toBeCloseTo(10, 3);
+      expect(PolygonData.rawSegments(undoneGeom)[0].point.y).toBeCloseTo(10, 3);
 
       // Redo must restore the SNAPPED position so the vertex stays exactly on the
       // mirror line (and the filter's dynamic fill-sync can engage).
       historyManager.redo();
-      const redone = GeometryComponent.get(
-        geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!,
-      );
+      const redoneGeom = geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!;
+      const redone = GeometryComponent.get(redoneGeom);
       if (redone.type !== 'polygon') {
         throw new Error('Expected polygon');
       }
-      expect(redone.points[0].point.y).toBe(liveY);
-      expect(redone.points[0].point.y).toBeCloseTo(5, 3);
+      expect(PolygonData.rawSegments(redoneGeom)[0].point.y).toBe(liveY);
+      expect(PolygonData.rawSegments(redoneGeom)[0].point.y).toBeCloseTo(5, 3);
     });
   });
 
@@ -680,8 +704,12 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      expect(GeometryComponent.get(polygon).points[3].point.x).toBeCloseTo(3, 1);
-      expect(GeometryComponent.get(polygon).points[3].point.y).toBeCloseTo(5, 1);
+      expect(
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[3].point.x,
+      ).toBeCloseTo(3, 1);
+      expect(
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[3].point.y,
+      ).toBeCloseTo(5, 1);
 
       upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
     });
@@ -715,8 +743,12 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      expect(GeometryComponent.get(polygon).points[1].point.x).toBeCloseTo(5, 1);
-      expect(GeometryComponent.get(polygon).points[1].point.y).toBeCloseTo(3, 1);
+      expect(
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[1].point.x,
+      ).toBeCloseTo(5, 1);
+      expect(
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[1].point.y,
+      ).toBeCloseTo(3, 1);
 
       upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
     });
@@ -752,8 +784,12 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      expect(GeometryComponent.get(polygon).points[0].point.x).toBeCloseTo(3, 10);
-      expect(GeometryComponent.get(polygon).points[0].point.y).toBeCloseTo(3, 10);
+      expect(
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).toBeCloseTo(3, 10);
+      expect(
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0].point.y,
+      ).toBeCloseTo(3, 10);
     });
   });
 
@@ -813,8 +849,10 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const topLeft = GeometryComponent.get(polygon).points[0].point;
-      const topRight = GeometryComponent.get(polygon).points[1].point;
+      const topLeft = PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0]
+        .point;
+      const topRight = PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[1]
+        .point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
       expect(topRight.x).toBeCloseTo(7, 1);
@@ -853,8 +891,11 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const topLeft = GeometryComponent.get(polygon).points[0].point;
-      const bottomRight = GeometryComponent.get(polygon).points[2].point;
+      const topLeft = PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0]
+        .point;
+      const bottomRight = PolygonData.rawSegments(
+        polygon as Entity<GeometryComponent<PolygonData>>,
+      )[2].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(1, 1);
       expect(bottomRight.x).toBeCloseTo(5, 1);
@@ -893,8 +934,10 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const topLeft = GeometryComponent.get(polygon).points[0].point;
-      const topRight = GeometryComponent.get(polygon).points[1].point;
+      const topLeft = PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0]
+        .point;
+      const topRight = PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[1]
+        .point;
       expect(topLeft.x).toBeCloseTo(1, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
       expect(topRight.x).toBeCloseTo(5, 1);
@@ -933,8 +976,11 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const topLeft = GeometryComponent.get(polygon).points[0].point;
-      const bottomRight = GeometryComponent.get(polygon).points[2].point;
+      const topLeft = PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0]
+        .point;
+      const bottomRight = PolygonData.rawSegments(
+        polygon as Entity<GeometryComponent<PolygonData>>,
+      )[2].point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
       expect(bottomRight.x).toBeCloseTo(5, 1);
@@ -975,7 +1021,9 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const bottomLeft = GeometryComponent.get(polygon).points[3].point;
+      const bottomLeft = PolygonData.rawSegments(
+        polygon as Entity<GeometryComponent<PolygonData>>,
+      )[3].point;
       expect(bottomLeft.x).toBeCloseTo(3, 1);
       expect(bottomLeft.y).toBeCloseTo(5, 1);
 
@@ -1014,7 +1062,8 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const topLeft = GeometryComponent.get(polygon).points[0].point;
+      const topLeft = PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>)[0]
+        .point;
       expect(topLeft.x).toBeCloseTo(3, 1);
       expect(topLeft.y).toBeCloseTo(3, 1);
 
@@ -1062,8 +1111,12 @@ describe('SelectTool', () => {
         const polygon = geometryStore
           .listWithComponent(GeometryComponent)
           .find((p) => p.id === polygonId)!;
-        const topRight = GeometryComponent.get(polygon).points[1].point;
-        const bottomLeft = GeometryComponent.get(polygon).points[3].point;
+        const topRight = PolygonData.rawSegments(
+          polygon as Entity<GeometryComponent<PolygonData>>,
+        )[1].point;
+        const bottomLeft = PolygonData.rawSegments(
+          polygon as Entity<GeometryComponent<PolygonData>>,
+        )[3].point;
 
         // With alt-held, center of bbox (4,4) is used as pin.
         // Moving top-right corner to x=7, y=3 gives scaleX = 3, scaleY = 1.
@@ -1114,9 +1167,15 @@ describe('SelectTool', () => {
         const polygon = geometryStore
           .listWithComponent(GeometryComponent)
           .find((p) => p.id === polygonId)!;
-        const topLeft = GeometryComponent.get(polygon).points[0].point;
-        const topRight = GeometryComponent.get(polygon).points[1].point;
-        const bottomRight = GeometryComponent.get(polygon).points[2].point;
+        const topLeft = PolygonData.rawSegments(
+          polygon as Entity<GeometryComponent<PolygonData>>,
+        )[0].point;
+        const topRight = PolygonData.rawSegments(
+          polygon as Entity<GeometryComponent<PolygonData>>,
+        )[1].point;
+        const bottomRight = PolygonData.rawSegments(
+          polygon as Entity<GeometryComponent<PolygonData>>,
+        )[2].point;
 
         expect(topLeft.x).toBeCloseTo(1, 1);
         expect(topRight.x).toBeCloseTo(7, 1);
@@ -1162,8 +1221,12 @@ describe('SelectTool', () => {
         const polygon = geometryStore
           .listWithComponent(GeometryComponent)
           .find((p) => p.id === polygonId)!;
-        const topRight = GeometryComponent.get(polygon).points[1].point;
-        const bottomLeft = GeometryComponent.get(polygon).points[3].point;
+        const topRight = PolygonData.rawSegments(
+          polygon as Entity<GeometryComponent<PolygonData>>,
+        )[1].point;
+        const bottomLeft = PolygonData.rawSegments(
+          polygon as Entity<GeometryComponent<PolygonData>>,
+        )[3].point;
 
         // NOTE: Due to coordinate conversion complexity between client/screen/world/sheet
         // coordinates and the SELECTED_OUTSET_PX offset handling, the actual resulting
@@ -1531,10 +1594,18 @@ describe('SelectTool', () => {
       const updatedPolygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygon.id)!;
-      expect(GeometryComponent.get(updatedPolygon).points).toHaveLength(4);
+      expect(
+        PolygonData.rawSegments(updatedPolygon as Entity<GeometryComponent<PolygonData>>),
+      ).toHaveLength(4);
       // The new point should be exactly at the passed position (7, 3)
-      expect(GeometryComponent.get(updatedPolygon).points[1].point.x).toBe(7);
-      expect(GeometryComponent.get(updatedPolygon).points[1].point.y).toBe(3);
+      expect(
+        PolygonData.rawSegments(updatedPolygon as Entity<GeometryComponent<PolygonData>>)[1].point
+          .x,
+      ).toBe(7);
+      expect(
+        PolygonData.rawSegments(updatedPolygon as Entity<GeometryComponent<PolygonData>>)[1].point
+          .y,
+      ).toBe(3);
     });
 
     it('does not insert point for arc segments', () => {
@@ -1564,7 +1635,9 @@ describe('SelectTool', () => {
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === arcPolygon.id)!;
       // Should still have 3 points since arcs can't be split via this method
-      expect(GeometryComponent.get(polygon).points).toHaveLength(3);
+      expect(
+        PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>),
+      ).toHaveLength(3);
     });
   });
 
@@ -1652,12 +1725,18 @@ describe('SelectTool', () => {
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === squareId)!;
 
-      expect(GeometryComponent.get(triangle).points[0].point.x).not.toBe(sharedX);
-      expect(GeometryComponent.get(square).points[0].point.x).toBe(
-        GeometryComponent.get(triangle).points[0].point.x,
+      expect(
+        PolygonData.rawSegments(triangle as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).not.toBe(sharedX);
+      expect(
+        PolygonData.rawSegments(square as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).toBe(
+        PolygonData.rawSegments(triangle as Entity<GeometryComponent<PolygonData>>)[0].point.x,
       );
-      expect(GeometryComponent.get(square).points[0].point.y).toBe(
-        GeometryComponent.get(triangle).points[0].point.y,
+      expect(
+        PolygonData.rawSegments(square as Entity<GeometryComponent<PolygonData>>)[0].point.y,
+      ).toBe(
+        PolygonData.rawSegments(triangle as Entity<GeometryComponent<PolygonData>>)[0].point.y,
       );
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
@@ -1723,10 +1802,18 @@ describe('SelectTool', () => {
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === squareId)!;
 
-      expect(GeometryComponent.get(triangle).points[0].point.x).toBe(sharedX);
-      expect(GeometryComponent.get(triangle).points[0].point.y).toBe(sharedY);
-      expect(GeometryComponent.get(square).points[0].point.x).toBe(sharedX);
-      expect(GeometryComponent.get(square).points[0].point.y).toBe(sharedY);
+      expect(
+        PolygonData.rawSegments(triangle as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).toBe(sharedX);
+      expect(
+        PolygonData.rawSegments(triangle as Entity<GeometryComponent<PolygonData>>)[0].point.y,
+      ).toBe(sharedY);
+      expect(
+        PolygonData.rawSegments(square as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).toBe(sharedX);
+      expect(
+        PolygonData.rawSegments(square as Entity<GeometryComponent<PolygonData>>)[0].point.y,
+      ).toBe(sharedY);
     });
 
     it('records combined history entry when multiple polygons are moved', () => {
@@ -1842,9 +1929,15 @@ describe('SelectTool', () => {
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygon2Id)!;
 
-      expect(GeometryComponent.get(polygon1).points[0].point.x).not.toBe(10);
-      expect(GeometryComponent.get(polygon2).points[0].point.x).toBe(20);
-      expect(GeometryComponent.get(polygon2).points[0].point.y).toBe(20);
+      expect(
+        PolygonData.rawSegments(polygon1 as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).not.toBe(10);
+      expect(
+        PolygonData.rawSegments(polygon2 as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).toBe(20);
+      expect(
+        PolygonData.rawSegments(polygon2 as Entity<GeometryComponent<PolygonData>>)[0].point.y,
+      ).toBe(20);
 
       upHandler!({ clientX: moveScreenX, clientY: moveScreenY } as MouseEvent);
     });
@@ -1895,30 +1988,42 @@ describe('SelectTool', () => {
       // Both polygons' shared vertices should have moved.
       let tri = geometryStore.getByIdWithComponent(triangle.id, GeometryComponent)!;
       let sq = geometryStore.getByIdWithComponent(square.id, GeometryComponent)!;
-      expect(GeometryComponent.get(tri).points[0].point.x).not.toBe(sharedX);
-      expect(GeometryComponent.get(sq).points[0].point.x).toBe(
-        GeometryComponent.get(tri).points[0].point.x,
+      expect(
+        PolygonData.rawSegments(tri as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).not.toBe(sharedX);
+      expect(PolygonData.rawSegments(sq as Entity<GeometryComponent<PolygonData>>)[0].point.x).toBe(
+        PolygonData.rawSegments(tri as Entity<GeometryComponent<PolygonData>>)[0].point.x,
       );
-      expect(GeometryComponent.get(sq).points[0].point.y).toBe(
-        GeometryComponent.get(tri).points[0].point.y,
+      expect(PolygonData.rawSegments(sq as Entity<GeometryComponent<PolygonData>>)[0].point.y).toBe(
+        PolygonData.rawSegments(tri as Entity<GeometryComponent<PolygonData>>)[0].point.y,
       );
 
       // Undo: both should revert to the original shared position.
       historyManager.undo();
       tri = geometryStore.getByIdWithComponent(triangle.id, GeometryComponent)!;
       sq = geometryStore.getByIdWithComponent(square.id, GeometryComponent)!;
-      expect(GeometryComponent.get(tri).points[0].point.x).toBe(sharedX);
-      expect(GeometryComponent.get(tri).points[0].point.y).toBe(sharedY);
-      expect(GeometryComponent.get(sq).points[0].point.x).toBe(sharedX);
-      expect(GeometryComponent.get(sq).points[0].point.y).toBe(sharedY);
+      expect(
+        PolygonData.rawSegments(tri as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).toBe(sharedX);
+      expect(
+        PolygonData.rawSegments(tri as Entity<GeometryComponent<PolygonData>>)[0].point.y,
+      ).toBe(sharedY);
+      expect(PolygonData.rawSegments(sq as Entity<GeometryComponent<PolygonData>>)[0].point.x).toBe(
+        sharedX,
+      );
+      expect(PolygonData.rawSegments(sq as Entity<GeometryComponent<PolygonData>>)[0].point.y).toBe(
+        sharedY,
+      );
 
       // Redo: both should return to the dragged position.
       historyManager.redo();
       tri = geometryStore.getByIdWithComponent(triangle.id, GeometryComponent)!;
       sq = geometryStore.getByIdWithComponent(square.id, GeometryComponent)!;
-      expect(GeometryComponent.get(tri).points[0].point.x).not.toBe(sharedX);
-      expect(GeometryComponent.get(sq).points[0].point.x).toBe(
-        GeometryComponent.get(tri).points[0].point.x,
+      expect(
+        PolygonData.rawSegments(tri as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).not.toBe(sharedX);
+      expect(PolygonData.rawSegments(sq as Entity<GeometryComponent<PolygonData>>)[0].point.x).toBe(
+        PolygonData.rawSegments(tri as Entity<GeometryComponent<PolygonData>>)[0].point.x,
       );
     });
   });
@@ -2885,10 +2990,18 @@ describe('SelectTool', () => {
 
       expect(duplicate).toBeDefined();
       expect(original).toBeDefined();
-      expect(GeometryComponent.get(duplicate!).points[0].point.x).not.toBe(originalX);
-      expect(GeometryComponent.get(duplicate!).points[0].point.y).not.toBe(originalY);
-      expect(GeometryComponent.get(original!).points[0].point.x).toBe(originalX);
-      expect(GeometryComponent.get(original!).points[0].point.y).toBe(originalY);
+      expect(
+        PolygonData.rawSegments(duplicate! as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).not.toBe(originalX);
+      expect(
+        PolygonData.rawSegments(duplicate! as Entity<GeometryComponent<PolygonData>>)[0].point.y,
+      ).not.toBe(originalY);
+      expect(
+        PolygonData.rawSegments(original! as Entity<GeometryComponent<PolygonData>>)[0].point.x,
+      ).toBe(originalX);
+      expect(
+        PolygonData.rawSegments(original! as Entity<GeometryComponent<PolygonData>>)[0].point.y,
+      ).toBe(originalY);
     });
 
     it('duplicates rectangle on alt-drag and moves the duplicate', () => {
@@ -3664,7 +3777,9 @@ describe('SelectTool', () => {
       const origPoly = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const origPoints = GeometryComponent.get(origPoly).points;
+      const origPoints = PolygonData.rawSegments(
+        origPoly as Entity<GeometryComponent<PolygonData>>,
+      );
       const origMinX = Math.min(...origPoints.map((p: PolygonSegment) => p.point.x));
       const origMinY = Math.min(...origPoints.map((p: PolygonSegment) => p.point.y));
 
@@ -3684,7 +3799,7 @@ describe('SelectTool', () => {
       const polygon = geometryStore
         .listWithComponent(GeometryComponent)
         .find((p) => p.id === polygonId)!;
-      const newPoints = GeometryComponent.get(polygon).points;
+      const newPoints = PolygonData.rawSegments(polygon as Entity<GeometryComponent<PolygonData>>);
 
       // The bounding box origin (min x, min y) should be on grid
       const newMinX = Math.min(...newPoints.map((p: PolygonSegment) => p.point.x));
@@ -4747,7 +4862,7 @@ describe('SelectTool', () => {
       const polyAfter = geometryStore.getByIdWithComponent(poly.id, GeometryComponent);
       expect(polyAfter).not.toBeNull();
 
-      const p0 = GeometryComponent.get(polyAfter!).points[0];
+      const p0 = PolygonData.rawSegments(polyAfter! as Entity<GeometryComponent<PolygonData>>)[0];
 
       // pointA at index 0 started at (10, 0).
       // An unconstrained drag from (15,3) to (25,3) would move everything by (+10, 0),
