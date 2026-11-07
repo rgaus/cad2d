@@ -5,9 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HoverTooltip } from '@/components/ui/HoverTooltip';
 import { Input } from '@/components/ui/Input';
 import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
-import { Entity, FillColorComponent, Id, Polygon, RenderOrderComponent } from '@/lib/entity';
+import { Id } from '@/lib/entity';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
-import { BoundingBox } from '@/lib/math';
+import {
+  type RenderOrderOverlap,
+  findRenderOrderOverlaps,
+} from '@/lib/entity/render-order-overlaps';
 import { cn } from '@/lib/utils';
 
 type InputSize = 'xs' | 'sm' | 'default' | 'lg';
@@ -85,54 +88,11 @@ const RenderOrderSlider: React.FunctionComponent<{
     setMax((oldMax) => Math.max(oldMax, maxRenderOrder));
   }, [maxRenderOrder, maxRenderOrderFreq, value]);
 
-  const intersectingGeometries = useMemo(() => {
+  const intersectingGeometries = useMemo<Array<RenderOrderOverlap>>(() => {
     if (!geometryId) {
       return [];
     }
-
-    // Step 1: Compute bounding box
-    const geometry = geometryStore.getRenderableGeometryById(geometryId);
-    if (!geometry) {
-      return [];
-    }
-    const bounds = Entity.boundingBox(geometry);
-    if (!bounds) {
-      return [];
-    }
-
-    // Step 2: Get all geometries which intersect bounding box
-    const results: Array<{
-      id: Polygon['id'];
-      renderOrder: RenderOrderComponent['renderOrder'];
-      color: string;
-    }> = [];
-    for (const other of geometryStore.listRenderableGeometries()) {
-      if (other.id === geometry.id) {
-        continue;
-      }
-      const otherBounds = Entity.boundingBox(other);
-      if (!otherBounds) {
-        continue;
-      }
-
-      const otherRenderOrder = Entity.hasComponent(other, RenderOrderComponent)
-        ? RenderOrderComponent.get(other)
-        : null;
-      const otherFillColor = FillColorComponent.getOptional(other);
-      if (
-        BoundingBox.intersects(bounds, otherBounds) &&
-        otherFillColor !== null &&
-        otherRenderOrder !== null
-      ) {
-        results.push({
-          id: other.id,
-          renderOrder: otherRenderOrder,
-          color: `#${otherFillColor?.toString(16)}`,
-        });
-      }
-    }
-
-    return results;
+    return findRenderOrderOverlaps(geometryStore, geometryId);
   }, [geometryStore, geometryId]);
 
   return (

@@ -1,8 +1,15 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
-import { ConstraintEndpoint, PointSegment, Polygon, Rectangle } from '@/lib/entity';
+import {
+  ConstraintEndpoint,
+  GeometryComponent,
+  PointSegment,
+  Polygon,
+  Rectangle,
+} from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { FilletFilter, FilletFilterData } from '@/lib/entity/filters/fillet';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
@@ -12,6 +19,7 @@ import { CornerState } from '@/lib/tools/BaseCornerGeometryReplacerTool';
 import { FilletFilterTool } from '@/lib/tools/FilletFilterTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
+import { Angle } from '@/lib/units/angle';
 import { CentimetersType, Length } from '@/lib/units/length';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import { ScreenPosition, SheetPosition, type ViewportState } from '@/lib/viewport/types';
@@ -521,5 +529,40 @@ describe('FilletTool', () => {
 
     // Make sure that after this there is only one fillet (ie, the original one)
     expect(geometryStore.listWithComponent(FilterComponent)).toHaveLength(1);
+  });
+  it('previews a rotated polygon corner using rendered positions', async () => {
+    const polygon = geometryStore.addOrdered(
+      ID_PREFIXES.polygon,
+      Polygon.create([makePoint(0, 0), makePoint(100, 0), makePoint(100, 100), makePoint(0, 0)], {
+        closed: true,
+      }),
+    );
+    geometryStore.updateById(polygon.id, (g) => ({
+      ...g,
+      components: {
+        ...g.components,
+        ...RotationComponent.create(Angle.degrees(30)),
+      },
+    }));
+    const geometry = geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!;
+    const rendered = GeometryComponent.projectToSheet(geometry).points;
+    const center = rendered[1].point;
+    const previous = rendered[0].point;
+    const next = rendered[2].point;
+
+    const events = subscribeToEvents(filletTool, ['pendingCornerChange']);
+    toolManager.handleMouseMove(sheetToScreen(center.x, center.y, viewport), viewport);
+    const event = await events.waitFor<CornerState | null>('pendingCornerChange');
+
+    expect(event?.mode).toBe('polygon');
+    if (event?.mode !== 'polygon') {
+      throw new Error('Expected polygon corner');
+    }
+    expect(event.centerPos.x).toBeCloseTo(center.x, 6);
+    expect(event.centerPos.y).toBeCloseTo(center.y, 6);
+    expect(event.pointAPos.x).toBeCloseTo(previous.x, 6);
+    expect(event.pointAPos.y).toBeCloseTo(previous.y, 6);
+    expect(event.pointBPos.x).toBeCloseTo(next.x, 6);
+    expect(event.pointBPos.y).toBeCloseTo(next.y, 6);
   });
 });

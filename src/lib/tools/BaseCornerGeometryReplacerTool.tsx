@@ -287,7 +287,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         if (!geometry) {
           return;
         }
-        const polygonPoints = PolygonData.rawSegments(geometry);
+        const polygonPoints = PolygonData.renderedSegments(geometry);
 
         let previousIndex = rawEndpoint.pointIndex - 1;
         while (previousIndex < 0) {
@@ -456,7 +456,7 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
           this.emit('pendingCornerChange', null);
           return;
         }
-        const polygonPoints = PolygonData.rawSegments(geometry);
+        const polygonPoints = PolygonData.renderedSegments(geometry);
         const centerPoint = polygonPoints[keyPointEndpoint.pointIndex].point;
 
         let previousIndex = keyPointEndpoint.pointIndex - 1;

@@ -344,4 +344,58 @@ describe('ConvertToPolygonAction', () => {
     const action = actionsManager.getAction('convert-to-polygon');
     expect(action.disabled).toBe(false);
   });
+  it('converts every selected rectangle and ellipse', async () => {
+    const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+    const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
+    geometryStore.addDirect(
+      makeRectangle({
+        id: rectId,
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 20),
+      }),
+    );
+    geometryStore.addDirect(
+      makeEllipse({
+        id: ellipseId,
+        center: new SheetPosition(30, 30),
+        radiusX: 5,
+        radiusY: 8,
+      }),
+    );
+    selectionManager.select(rectId).select(ellipseId);
+
+    await actionsManager.execute('convert-to-polygon');
+
+    expect(geometryStore.getByIdWithComponent(rectId, GeometryComponent)).toBeNull();
+    expect(geometryStore.getByIdWithComponent(ellipseId, GeometryComponent)).toBeNull();
+    const polygons = geometryStore
+      .listWithComponent(GeometryComponent)
+      .filter(GeometryComponent.isPolygon);
+    expect(polygons).toHaveLength(2);
+    expect(selectionManager.getSelectedIds()).toHaveLength(2);
+    expect(new Set(selectionManager.getSelectedIds())).toEqual(new Set(polygons.map((p) => p.id)));
+  });
+
+  it('is enabled when multiple rectangles and ellipses are selected', () => {
+    const rectId = historyManager.generateStableId(ID_PREFIXES.rectangle);
+    const ellipseId = historyManager.generateStableId(ID_PREFIXES.ellipse);
+    geometryStore.addDirect(
+      makeRectangle({
+        id: rectId,
+        upperLeft: new SheetPosition(0, 0),
+        lowerRight: new SheetPosition(10, 20),
+      }),
+    );
+    geometryStore.addDirect(
+      makeEllipse({
+        id: ellipseId,
+        center: new SheetPosition(30, 30),
+        radiusX: 5,
+        radiusY: 8,
+      }),
+    );
+    selectionManager.select(rectId).select(ellipseId);
+
+    expect(actionsManager.getAction('convert-to-polygon').disabled).toBe(false);
+  });
 });

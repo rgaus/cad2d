@@ -255,4 +255,49 @@ describe('OpenClosePolygonAction', () => {
     const action = actionsManager.getAction('open-close-polygon');
     expect(action.disabled).toBe(false);
   });
+  it('toggles every selected polygon', async () => {
+    const closedId = historyManager.generateStableId(ID_PREFIXES.polygon);
+    const openId = historyManager.generateStableId(ID_PREFIXES.polygon);
+    geometryStore.addDirect(
+      makePolygon({
+        id: closedId,
+        points: makeClosedPolygonPoints(),
+        closed: true,
+        fillColor: null,
+      }),
+    );
+    geometryStore.addDirect(
+      makePolygon({
+        id: openId,
+        points: makeOpenPolygonPoints(),
+        closed: false,
+        fillColor: null,
+      }),
+    );
+    selectionManager.select(closedId).select(openId);
+
+    await actionsManager.execute('open-close-polygon');
+
+    expect(
+      GeometryComponent.get(geometryStore.getByIdWithComponent(closedId, GeometryComponent)!)
+        .closed,
+    ).toBe(false);
+    expect(
+      GeometryComponent.get(geometryStore.getByIdWithComponent(openId, GeometryComponent)!).closed,
+    ).toBe(true);
+  });
+
+  it('is enabled when multiple polygons are selected', () => {
+    const firstId = historyManager.generateStableId(ID_PREFIXES.polygon);
+    const secondId = historyManager.generateStableId(ID_PREFIXES.polygon);
+    geometryStore.addDirect(
+      makePolygon({ id: firstId, points: makeClosedPolygonPoints(), closed: true }),
+    );
+    geometryStore.addDirect(
+      makePolygon({ id: secondId, points: makeClosedPolygonPoints(), closed: true }),
+    );
+    selectionManager.select(firstId).select(secondId);
+
+    expect(actionsManager.getAction('open-close-polygon').disabled).toBe(false);
+  });
 });

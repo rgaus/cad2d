@@ -520,6 +520,36 @@ describe('SelectTool rotation-aware interactions', () => {
       return geometryStore.getByIdWithComponent(polygon.id, GeometryComponent)!;
     }
 
+    it('matches points by their rendered positions across rotations', () => {
+      const b = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create([point(12, 10), point(14, 10), point(14, 12)], { closed: false }),
+      );
+      setRotation(b.id, 30);
+      const bGeometry = geometryStore.getByIdWithComponent(b.id, GeometryComponent)!;
+      const renderedPoint = GeometryComponent.projectToSheet(bGeometry).points[1].point;
+      const rawPoint = PolygonData.rawSegments(bGeometry)[1].point;
+      expect(rawPoint.x).not.toBeCloseTo(renderedPoint.x, 3);
+
+      const a = geometryStore.addOrdered(
+        ID_PREFIXES.polygon,
+        Polygon.create(
+          [
+            point(renderedPoint.x, renderedPoint.y),
+            point(renderedPoint.x + 4, renderedPoint.y),
+            point(renderedPoint.x + 4, renderedPoint.y + 2),
+          ],
+          { closed: false },
+        ),
+      );
+
+      const renderedMatches = geometryStore.findMatchingPoints(renderedPoint, a.id);
+      expect(renderedMatches).toContainEqual({ polygonId: b.id, segmentIndex: 1 });
+
+      const rawMatches = geometryStore.findMatchingPoints(rawPoint, a.id);
+      expect(rawMatches.some((match) => match.polygonId === b.id)).toBe(false);
+    });
+
     it('converts a dragged vertex through the full inverse render transform', () => {
       const ctrlSpy = jest.spyOn(toolManager, 'getCtrlHeld').mockReturnValue(true);
       const polygon = addRotatedPolygon(

@@ -21,8 +21,7 @@ export class OpenClosePolygonAction extends BaseAction {
       const g = geometryStore.getByIdWithComponent(id, GeometryComponent);
       return g !== null && GeometryComponent.get(g).type === 'polygon';
     });
-    const nonPolygonCount = selectedIds.length - polygonIds.length;
-    this.disabled = !(polygonIds.length === 1 && nonPolygonCount === 0);
+    this.disabled = polygonIds.length === 0;
   };
 
   type = 'open-close-polygon' as const;
@@ -52,13 +51,15 @@ export class OpenClosePolygonAction extends BaseAction {
           continue;
         }
         const data = geomData;
-        if (data.points.length < 3) return;
+        if (data.points.length < 3) {
+          continue;
+        }
         if (data.closed) {
           historyManager.apply(UndoEntry.polygonClose(id, true, false));
         } else {
           historyManager.apply(UndoEntry.polygonClose(id, false, true));
         }
-        return;
+        continue;
       }
     });
   }

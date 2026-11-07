@@ -24,15 +24,7 @@ export class ConvertToPolygonAction extends BaseAction {
       const g = geometryStore.getByIdWithComponent(id, GeometryComponent);
       return g !== null && GeometryComponent.get(g).type === 'ellipse';
     });
-    const polygonIds = selectedIds.filter((id) => {
-      const g = geometryStore.getByIdWithComponent(id, GeometryComponent);
-      return g !== null && GeometryComponent.get(g).type === 'polygon';
-    });
-    const singleRectangle =
-      rectangleIds.length === 1 && ellipseIds.length === 0 && polygonIds.length === 0;
-    const singleEllipse =
-      ellipseIds.length === 1 && rectangleIds.length === 0 && polygonIds.length === 0;
-    this.disabled = !(singleRectangle || singleEllipse);
+    this.disabled = rectangleIds.length + ellipseIds.length === 0;
   };
 
   type = 'convert-to-polygon' as const;
@@ -63,13 +55,13 @@ export class ConvertToPolygonAction extends BaseAction {
           const polygon = geometryStore.convertRectangleToPolygon(geom.id);
           selectionManager.deselect(geom.id);
           selectionManager.select(polygon.id);
-          return;
+          continue;
         }
         if (geomData.type === 'ellipse') {
           const polygon = geometryStore.convertEllipseToPolygon(geom.id);
           selectionManager.deselect(geom.id);
           selectionManager.select(polygon.id);
-          return;
+          continue;
         }
       }
     });
