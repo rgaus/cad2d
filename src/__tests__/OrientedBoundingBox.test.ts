@@ -1,4 +1,4 @@
-import { Ellipse, Entity, GeometryComponent, Rectangle } from '@/lib/entity';
+import { Ellipse, Entity, GeometryComponent, type PointSegment, Rectangle } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { RenderShape } from '@/lib/entity/render-shape';
@@ -194,5 +194,45 @@ describe('RenderShape.boundingBox', () => {
     expect(bbox.position.y).toBeCloseTo(-4);
     expect(bbox.width).toBeCloseTo(4);
     expect(bbox.height).toBeCloseTo(8);
+  });
+});
+
+describe('RenderShape.toPolygonSegments', () => {
+  it('converts rotated rectangles to oriented sheet-space corners', () => {
+    const segments = RenderShape.toPolygonSegments(
+      RenderShape.rectangle('rect', new SheetPosition(0, 0), new SheetPosition(4, 2), {
+        angleDegrees: 90,
+      }),
+    ).filter((segment): segment is PointSegment => segment.type === 'point');
+
+    const expected = [
+      [0, 0],
+      [0, 4],
+      [-2, 4],
+      [-2, 0],
+      [0, 0],
+    ];
+    expect(segments).toHaveLength(expected.length);
+    segments.forEach((segment, index) => {
+      expect(segment.point.x).toBeCloseTo(expected[index][0]);
+      expect(segment.point.y).toBeCloseTo(expected[index][1]);
+    });
+  });
+
+  it('converts rotated ellipses to rotated sheet-space curves', () => {
+    const segments = RenderShape.toPolygonSegments(
+      RenderShape.ellipse('ellipse', new SheetPosition(0, 0), {
+        radiusX: 4,
+        radiusY: 2,
+        angleDegrees: 90,
+      }),
+    );
+    const first = segments[0];
+    expect(first.type).toBe('point');
+    if (first.type !== 'point') {
+      return;
+    }
+    expect(first.point.x).toBeCloseTo(2);
+    expect(first.point.y).toBeCloseTo(0);
   });
 });

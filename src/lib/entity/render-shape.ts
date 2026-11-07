@@ -1,4 +1,4 @@
-import { BoundingBox, OrientedBoundingBox, rotatePointAround } from '@/lib/math';
+import { BoundingBox, OrientedBoundingBox, ellipseToPolygon, rotatePointAround } from '@/lib/math';
 import { OrientedRect, SheetPosition } from '@/lib/viewport/types';
 import { PolygonSegment } from './geometry/polygon';
 
@@ -139,5 +139,42 @@ export namespace RenderShape {
   /** Axis-aligned bounding box of a render shape in rendered sheet space. */
   export function boundingBox(renderShape: RenderShape) {
     return OrientedBoundingBox.toRect(orientedBoundingBox(renderShape));
+  }
+
+  /** Converts any render shape into a sheet-space path made of polygon segments. */
+  export function toPolygonSegments(renderShape: RenderShape): Array<PolygonSegment> {
+    switch (renderShape.shape) {
+      case 'polygon':
+        return renderShape.points;
+      case 'rectangle': {
+        const corners = OrientedBoundingBox.corners({
+          position: renderShape.upperLeft,
+          width: renderShape.lowerRight.x - renderShape.upperLeft.x,
+          height: renderShape.lowerRight.y - renderShape.upperLeft.y,
+          angleDegrees: renderShape.angleDegrees,
+        });
+        return [
+          { type: 'point', point: corners.upperLeft },
+          { type: 'point', point: corners.upperRight },
+          { type: 'point', point: corners.lowerRight },
+          { type: 'point', point: corners.lowerLeft },
+          { type: 'point', point: corners.upperLeft },
+        ];
+      }
+      case 'ellipse':
+        return ellipseToPolygon(renderShape.center, renderShape.radiusX, renderShape.radiusY).map(
+          (segment) =>
+            PolygonSegment.transform(segment, (position) =>
+              rotatePointAround(position, renderShape.center, renderShape.angleDegrees),
+            ),
+        );
+      case 'point':
+        return [{ type: 'point', point: renderShape.position }];
+      default:
+        renderShape satisfies never;
+        throw new Error(
+          `RenderShape.toPolygonSegments: Unknown render shape ${(renderShape as any).shape}`,
+        );
+    }
   }
 }
