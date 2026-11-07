@@ -1,4 +1,4 @@
-import { BoundingBox, closestPointOnSegment, rotatePointAround } from '@/lib/math';
+import { OrientedBoundingBox, closestPointOnSegment, rotatePointAround } from '@/lib/math';
 import { lineLineIntersection } from '@/lib/math/intersection';
 import { Angle } from '@/lib/units/angle';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -380,7 +380,10 @@ export namespace PatternFilter {
                         renderShape.lowerRight.x + offsetX,
                         renderShape.lowerRight.y + offsetY,
                       ),
-                      { primary: false },
+                      {
+                        primary: false,
+                        angleDegrees: renderShape.angleDegrees,
+                      },
                     ),
                   );
                   break;
@@ -397,6 +400,7 @@ export namespace PatternFilter {
                         radiusX: renderShape.radiusX,
                         radiusY: renderShape.radiusY,
                         primary: false,
+                        angleDegrees: renderShape.angleDegrees,
                       },
                     ),
                   );
@@ -486,11 +490,12 @@ export namespace PatternFilter {
 
             switch (renderShape.shape) {
               case 'rectangle': {
-                const corners = BoundingBox.cornersToArray(
-                  BoundingBox.corners(
-                    BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]),
-                  ),
-                );
+                const corners = OrientedBoundingBox.cornersToArray({
+                  position: renderShape.upperLeft,
+                  width: renderShape.lowerRight.x - renderShape.upperLeft.x,
+                  height: renderShape.lowerRight.y - renderShape.upperLeft.y,
+                  angleDegrees: renderShape.angleDegrees,
+                });
                 const rotatedCorners = corners.map((corner) =>
                   rotatePointAround(corner, filterData.center, angle),
                 );
@@ -515,6 +520,7 @@ export namespace PatternFilter {
                       radiusX: renderShape.radiusX,
                       radiusY: renderShape.radiusY,
                       primary: false,
+                      angleDegrees: renderShape.angleDegrees + angle,
                     },
                   ),
                 );
@@ -591,38 +597,62 @@ export namespace PatternFilter {
                         }),
                       );
                     }
+
+                    if (populateMapping && renderShape === sourceShape) {
+                      // Shape index 0 is the unrotated source copy, which is already represented by
+                      // the base source-point mapping. Record only the rotated copies.
+                      for (let shapeIndex = 1; shapeIndex < results.length; shapeIndex += 1) {
+                        for (let j = 0; j < renderShape.points.length; j += 1) {
+                          const existing = mapping.get(j) ?? [];
+                          existing.push({ shapeIndex, type: 'polygon', pointIndex: j });
+                          mapping.set(j, existing);
+                        }
+                      }
+                    }
+
                     return results;
                   }
 
                   // Chain all rotated copies around the center with gap fillers
                   const chain: Array<PolygonSegment> = [];
 
+                  const appendCopy = (copy: Array<PolygonSegment>) => {
+                    const isFirstCopy = chain.length === 0;
+                    if (chain.length > 0) {
+                      const lastPt = chain[chain.length - 1].point;
+                      const firstPt = copy[0].point;
+                      if (lastPt.x !== firstPt.x || lastPt.y !== firstPt.y) {
+                        chain.push({ type: 'point', point: firstPt });
+                      }
+                    }
+                    const copyStart = chain.length;
+                    chain.push(...copy);
+
+                    // The first copy is the unrotated source path, already represented by the base
+                    // source-point mapping. Record every other rotated occurrence.
+                    if (!isFirstCopy && populateMapping && renderShape === sourceShape) {
+                      for (let j = 0; j < renderShape.points.length; j += 1) {
+                        const existing = mapping.get(j) ?? [];
+                        existing.push({
+                          shapeIndex: 0,
+                          type: 'polygon',
+                          pointIndex: copyStart + j,
+                        });
+                        mapping.set(j, existing);
+                      }
+                    }
+                  };
+
                   if (polygonTouchingSidesAndWinding === 'clockwise-wind') {
                     // Case A: p0 on LEFT, pN on RIGHT -- chain CCW
                     for (let i = 0; i < filterData.repeats.count; i += 1) {
-                      const copy = rotatedCopy(i * angleStep);
-                      if (chain.length > 0) {
-                        const lastPt = chain[chain.length - 1].point;
-                        const firstPt = copy[0].point;
-                        if (lastPt.x !== firstPt.x || lastPt.y !== firstPt.y) {
-                          chain.push({ type: 'point', point: firstPt });
-                        }
-                      }
-                      chain.push(...copy);
+                      appendCopy(rotatedCopy(i * angleStep));
                     }
                   } else {
                     // Case B: p0 on RIGHT, pN on LEFT -- chain going backward
                     // around the circle (copy at (count-1)*step, ..., copy at 1*step)
                     for (let i = filterData.repeats.count; i > 0; i -= 1) {
-                      const copy = rotatedCopy(i * angleStep);
-                      if (chain.length > 0) {
-                        const lastPt = chain[chain.length - 1].point;
-                        const firstPt = copy[0].point;
-                        if (lastPt.x !== firstPt.x || lastPt.y !== firstPt.y) {
-                          chain.push({ type: 'point', point: firstPt });
-                        }
-                      }
-                      chain.push(...copy);
+                      appendCopy(rotatedCopy(i * angleStep));
                     }
                   }
 

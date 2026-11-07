@@ -3,13 +3,12 @@
 import { extend } from '@pixi/react';
 import { FederatedPointerEvent, Graphics, Sprite } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
-import { Entity, GeometryComponent } from '@/lib/entity';
-import { type GeometryData } from '@/lib/entity/geometry';
-import { PolygonData } from '@/lib/entity/geometry/polygon';
-import { RectangleData } from '@/lib/entity/geometry/rectangle';
+import { Entity } from '@/lib/entity';
+import { getIndicatorGeometryPaths } from '@/lib/entity/filters/indicator-geometry';
 import { Vector2 } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { MirrorFilterIconTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
+import { type UnitType } from '@/lib/units/length';
 import { SheetPosition, WorldPosition } from '@/lib/viewport/types';
 
 extend({
@@ -21,6 +20,7 @@ type MirrorFilterIndicatorProps = {
   pointA: SheetPosition | null;
   pointB: SheetPosition | null;
   targetGeometry: Entity | null;
+  sheetDefaultUnit: UnitType;
   viewportScale: number;
   color?: number;
   lineWidthPx?: number;
@@ -38,6 +38,7 @@ export default function MirrorFilterIndicator({
   pointA,
   pointB,
   targetGeometry,
+  sheetDefaultUnit,
   viewportScale,
   color = 0x666666,
   lineWidthPx = LINE_WIDTH_PX,
@@ -70,6 +71,11 @@ export default function MirrorFilterIndicator({
   const lineWidth = lineWidthPx / viewportScale;
   const spriteScale = 1 / viewportScale;
 
+  const targetPaths = useMemo(
+    () => (targetGeometry ? getIndicatorGeometryPaths(targetGeometry, sheetDefaultUnit) : []),
+    [targetGeometry, sheetDefaultUnit],
+  );
+
   const draw = useCallback(
     (graphics: Graphics) => {
       graphics.clear();
@@ -82,86 +88,62 @@ export default function MirrorFilterIndicator({
         graphics.stroke();
       }
 
-      // Draw target geometry wireframe
-      if (targetGeometry && Entity.hasComponent(targetGeometry, GeometryComponent)) {
+      // Draw target geometry wireframe in rendered (anchored + rotated) space.
+      if (targetPaths.length > 0) {
         graphics.setStrokeStyle({ color, width: lineWidth });
 
-        const geometryData = GeometryComponent.get<GeometryData>(targetGeometry);
-        switch (geometryData.type) {
-          case 'polygon': {
-            const polygonSegments = PolygonData.renderedSegments(
-              targetGeometry as Entity<GeometryComponent<PolygonData>>,
-            );
-            const pts = polygonSegments.map((s) => ({
-              x: s.point.x * SHEET_UNITS_TO_PIXELS,
-              y: s.point.y * SHEET_UNITS_TO_PIXELS,
-            }));
-
-            if (pts.length >= 2) {
-              graphics.moveTo(pts[0].x, pts[0].y);
-              for (let i = 1; i < polygonSegments.length; i++) {
-                const seg = polygonSegments[i];
-                switch (seg.type) {
-                  case 'point':
-                    graphics.lineTo(
-                      seg.point.x * SHEET_UNITS_TO_PIXELS,
-                      seg.point.y * SHEET_UNITS_TO_PIXELS,
-                    );
-                    break;
-                  case 'arc-quadratic':
-                    graphics.quadraticCurveTo(
-                      seg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
-                      seg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
-                      seg.point.x * SHEET_UNITS_TO_PIXELS,
-                      seg.point.y * SHEET_UNITS_TO_PIXELS,
-                    );
-                    break;
-                  case 'arc-cubic':
-                    graphics.bezierCurveTo(
-                      seg.controlPointA.x * SHEET_UNITS_TO_PIXELS,
-                      seg.controlPointA.y * SHEET_UNITS_TO_PIXELS,
-                      seg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
-                      seg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
-                      seg.point.x * SHEET_UNITS_TO_PIXELS,
-                      seg.point.y * SHEET_UNITS_TO_PIXELS,
-                    );
-                    break;
-                  default:
-                    seg satisfies never;
-                    break;
-                }
-              }
-              if (geometryData.closed && pts.length >= 1) {
-                graphics.lineTo(pts[0].x, pts[0].y);
-              }
-              graphics.stroke();
+        for (const path of targetPaths) {
+          const [firstSegment] = path.segments;
+          if (!firstSegment) {
+            continue;
+          }
+          graphics.moveTo(
+            firstSegment.point.x * SHEET_UNITS_TO_PIXELS,
+            firstSegment.point.y * SHEET_UNITS_TO_PIXELS,
+          );
+          for (let i = 1; i < path.segments.length; i++) {
+            const seg = path.segments[i];
+            switch (seg.type) {
+              case 'point':
+                graphics.lineTo(
+                  seg.point.x * SHEET_UNITS_TO_PIXELS,
+                  seg.point.y * SHEET_UNITS_TO_PIXELS,
+                );
+                break;
+              case 'arc-quadratic':
+                graphics.quadraticCurveTo(
+                  seg.controlPoint.x * SHEET_UNITS_TO_PIXELS,
+                  seg.controlPoint.y * SHEET_UNITS_TO_PIXELS,
+                  seg.point.x * SHEET_UNITS_TO_PIXELS,
+                  seg.point.y * SHEET_UNITS_TO_PIXELS,
+                );
+                break;
+              case 'arc-cubic':
+                graphics.bezierCurveTo(
+                  seg.controlPointA.x * SHEET_UNITS_TO_PIXELS,
+                  seg.controlPointA.y * SHEET_UNITS_TO_PIXELS,
+                  seg.controlPointB.x * SHEET_UNITS_TO_PIXELS,
+                  seg.controlPointB.y * SHEET_UNITS_TO_PIXELS,
+                  seg.point.x * SHEET_UNITS_TO_PIXELS,
+                  seg.point.y * SHEET_UNITS_TO_PIXELS,
+                );
+                break;
+              default:
+                seg satisfies never;
+                break;
             }
-            break;
           }
-          case 'rectangle': {
-            const x = geometryData.origin.x * SHEET_UNITS_TO_PIXELS;
-            const y = geometryData.origin.y * SHEET_UNITS_TO_PIXELS;
-            const w = geometryData.width * SHEET_UNITS_TO_PIXELS;
-            const h = geometryData.height * SHEET_UNITS_TO_PIXELS;
-            graphics.rect(x, y, w, h);
-            graphics.stroke();
-            break;
+          if (path.closed) {
+            graphics.lineTo(
+              firstSegment.point.x * SHEET_UNITS_TO_PIXELS,
+              firstSegment.point.y * SHEET_UNITS_TO_PIXELS,
+            );
           }
-          case 'ellipse': {
-            const cx = geometryData.center.x * SHEET_UNITS_TO_PIXELS;
-            const cy = geometryData.center.y * SHEET_UNITS_TO_PIXELS;
-            const rx = geometryData.radiusX * SHEET_UNITS_TO_PIXELS;
-            const ry = geometryData.radiusY * SHEET_UNITS_TO_PIXELS;
-            graphics.ellipse(cx, cy, rx, ry);
-            graphics.stroke();
-            break;
-          }
-          default:
-            geometryData satisfies never;
+          graphics.stroke();
         }
       }
     },
-    [vA, vB, targetGeometry, color, lineWidth, hasAxis],
+    [vA, vB, targetPaths, color, lineWidth, hasAxis],
   );
 
   return (

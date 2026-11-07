@@ -228,6 +228,7 @@ const FilterOverlay: React.FunctionComponent = () => {
             pointA={workingFilter.pointA}
             pointB={workingFilter.pointB}
             targetGeometry={targetGeometry}
+            sheetDefaultUnit={sheet.defaultUnit}
             viewportScale={viewportScale}
           />
         );
@@ -353,6 +354,7 @@ const FilterOverlay: React.FunctionComponent = () => {
                   pointA={filter.pointA}
                   pointB={filter.pointB}
                   targetGeometry={targetGeometry}
+                  sheetDefaultUnit={sheet.defaultUnit}
                   viewportScale={viewportScale}
                   lineWidthPx={isSelected || hoveringFilterLabelId === geometry.id ? 2 : undefined}
                   color={isSelected ? SELECTION_COLOR : undefined}

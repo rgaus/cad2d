@@ -1,4 +1,4 @@
-import { BoundingBox, closestPointOnSegment } from '@/lib/math';
+import { Angle, OrientedBoundingBox, closestPointOnSegment } from '@/lib/math';
 import { SheetPosition } from '@/lib/viewport/types';
 import { Entity, type Polygon, PolygonSegment, RectangleEndpoint } from '..';
 import { DEFAULT_COLOR } from '../colors';
@@ -162,6 +162,16 @@ export namespace MirrorFilter {
     return new SheetPosition(2 * projX - point.x, 2 * projY - point.y);
   }
 
+  /** Returns the angle of the mirror line in degrees, or null when the line is degenerate. */
+  function mirrorLineAngleDegrees(lineA: SheetPosition, lineB: SheetPosition): number | null {
+    const dx = lineB.x - lineA.x;
+    const dy = lineB.y - lineA.y;
+    if (dx === 0 && dy === 0) {
+      return null;
+    }
+    return Angle.toDegrees(Math.atan2(dy, dx));
+  }
+
   /** Given a filter, apply it to a list of {@link RenderShape}s, returning a new set of render
    * shapes which should be rendered instead. */
   export function applyToRenderShape(
@@ -185,11 +195,12 @@ export namespace MirrorFilter {
 
       switch (renderShape.shape) {
         case 'rectangle': {
-          const corners = BoundingBox.cornersToArray(
-            BoundingBox.corners(
-              BoundingBox.fromPoints([renderShape.upperLeft, renderShape.lowerRight]),
-            ),
-          );
+          const corners = OrientedBoundingBox.cornersToArray({
+            position: renderShape.upperLeft,
+            width: renderShape.lowerRight.x - renderShape.upperLeft.x,
+            height: renderShape.lowerRight.y - renderShape.upperLeft.y,
+            angleDegrees: renderShape.angleDegrees,
+          });
           const flippedCorners = corners.map((point) =>
             mirrorPointOverLine(point, filterData.pointA, filterData.pointB),
           );
@@ -222,21 +233,22 @@ export namespace MirrorFilter {
           break;
         }
         case 'ellipse': {
-          // IMPORTANT: the below algorithm does not properly handle flipping over non 90 or 45
-          // degree lines, since there isn't a way to represent a rotated ellipse currently.
-          //
-          // FIXME: Address this, it's a bug that is fairly noticable.
-
           const mirroredCenter = mirrorPointOverLine(
             renderShape.center,
             filterData.pointA,
             filterData.pointB,
           );
+          const lineAngle = mirrorLineAngleDegrees(filterData.pointA, filterData.pointB);
+          const mirroredAngle =
+            lineAngle === null
+              ? renderShape.angleDegrees
+              : 2 * lineAngle - renderShape.angleDegrees;
           produced.push(renderShape);
           produced.push(
             RenderShape.ellipse(key, mirroredCenter, {
               radiusX: renderShape.radiusX,
               radiusY: renderShape.radiusY,
+              angleDegrees: mirroredAngle,
             }),
           );
           break;
@@ -334,17 +346,25 @@ export namespace MirrorFilter {
               options.combineNonClosedPolygons;
             for (let i = 0; i < n; i += 1) {
               const existing = mapping.get(i) ?? [];
-              existing.push(
-                isMerged
-                  ? { shapeIndex: outBase, type: 'polygon' as const, pointIndex: 2 * n - 1 - i }
-                  : { shapeIndex: outBase + 1, type: 'polygon' as const, pointIndex: i },
-              );
+              if (isMerged) {
+                // The source half keeps the source indexes (already recorded by the base
+                // mapping). The reversed mirrored half places source point `i` at
+                // index `2n - 1 - i`.
+                existing.push({
+                  shapeIndex: outBase,
+                  type: 'polygon' as const,
+                  pointIndex: 2 * n - 1 - i,
+                });
+              } else {
+                existing.push({ shapeIndex: outBase + 1, type: 'polygon' as const, pointIndex: i });
+              }
               mapping.set(i, existing);
             }
           }
           break;
         }
         case 'point': {
+          produced.push(renderShape);
           produced.push(
             RenderShape.point(
               key,
