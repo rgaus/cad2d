@@ -760,6 +760,10 @@ export const involuteGearAdapter: TransformableAdapter<InvoluteGearData> = {
     InvoluteGearComponent.orientedBoundingBox(entity as Entity<InvoluteGearComponent>),
   translate: (entity, transform) =>
     InvoluteGearComponent.translate(entity as Entity<InvoluteGearComponent>, transform),
+  getKeyPointPosition: (entity, keyPoint) => {
+    const keyPoints = Entity.keyPointsInSheet(entity as Entity<InvoluteGearComponent>);
+    return keyPoints.extras[keyPoint] ?? null;
+  },
   equals: (a, b) =>
     InvoluteGearComponent.equals(
       a as Entity<InvoluteGearComponent>,
@@ -772,3 +776,21 @@ export const involuteGearAdapter: TransformableAdapter<InvoluteGearData> = {
 };
 
 registerTransformableAdapter('involute-gear', involuteGearAdapter);
+
+export const involuteGearEndpoint = TransformableAdapter.constraints.generateConstraintEndpoint(
+  'involute-gear',
+  {
+    label: 'Gear',
+    matches: (entity) => Entity.hasComponent(entity, InvoluteGearComponent),
+    listEntities: (store) => store.listWithComponent<InvoluteGearComponent>(InvoluteGearComponent),
+    keyPointOptions: [
+      { value: 'center', label: 'Center', slot: 'center' },
+      { value: 'top', label: 'Top', slot: 'top' },
+      { value: 'right', label: 'Right', slot: 'right' },
+      { value: 'bottom', label: 'Bottom', slot: 'bottom' },
+      { value: 'left', label: 'Left', slot: 'left' },
+    ],
+  },
+);
+
+export type InvoluteGearConstraintEndpoint = ReturnType<typeof involuteGearEndpoint.create>;

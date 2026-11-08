@@ -54,6 +54,7 @@ import {
   GeometryComponent,
   type Id,
 } from './index';
+import { getConstraintEndpointAdapterByType } from './transformable';
 
 // ============================================================
 // Internal tracking types
@@ -1550,6 +1551,10 @@ export class DCELShapeIndex {
   }
 
   private constraintEndpointToVertexId(constraintEndpoint: ConstraintEndpoint) {
+    if (getConstraintEndpointAdapterByType(constraintEndpoint.type)) {
+      // Transformable endpoints (e.g. involute gears) are not registered in the DCEL yet.
+      return null;
+    }
     switch (constraintEndpoint.type) {
       case 'point':
         return this.dcel.getVertexId(constraintEndpoint.point) ?? null;
@@ -1614,6 +1619,8 @@ export class DCELShapeIndex {
         }
         return tracked.vertexIds[0] ?? null;
       }
+      default:
+        return null;
     }
   }
 

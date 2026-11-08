@@ -43,12 +43,7 @@ export namespace PerpendicularConstraint {
     if (constraint.type !== 'perpendicular') {
       return false;
     }
-    const attached = (ep: ConstraintEndpoint) =>
-      (ep.type === 'locked-rectangle' ||
-        ep.type === 'locked-ellipse' ||
-        ep.type === 'locked-polygon' ||
-        ep.type === 'locked-datum') &&
-      ep.id === geometryId;
+    const attached = (ep: ConstraintEndpoint) => ep.type !== 'point' && ep.id === geometryId;
     return (
       attached(constraint.pointA) || attached(constraint.pointCenter) || attached(constraint.pointB)
     );

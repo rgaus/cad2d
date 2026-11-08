@@ -30,6 +30,7 @@ import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/entity/datum';
 import { GeometryData } from '@/lib/entity/geometry';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import type { InvoluteGear } from '@/lib/entity/involute-gear';
+import { getConstraintEndpointAdapterByType } from '@/lib/entity/transformable';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { type UnitType } from '@/lib/units/length';
@@ -325,9 +326,13 @@ function serializeEndpointAttrs(prefix: string, endpoint: ConstraintEndpoint): A
     case 'locked-datum':
       attrs.push(`data-${prefix}-id="${endpoint.id}"`);
       break;
-    default:
-      endpoint satisfies never;
+    default: {
+      const adapter = getConstraintEndpointAdapterByType(endpoint.type);
+      if (adapter) {
+        return adapter.serializeAttrs(prefix, endpoint as any);
+      }
       throw new Error(`serializeEndpointAttrs: unexpected endpoint type ${(endpoint as any).type}`);
+    }
   }
   return attrs;
 }

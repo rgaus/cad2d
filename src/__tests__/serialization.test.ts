@@ -150,22 +150,7 @@ function compareEllipses(a: Ellipse, b: Ellipse): boolean {
 }
 
 function constraintEndpointsEqual(a: ConstraintEndpoint, b: ConstraintEndpoint): boolean {
-  if (a.type !== b.type) return false;
-  switch (a.type) {
-    case 'point':
-      return b.type === 'point' && a.point.x === b.point.x && a.point.y === b.point.y;
-    case 'locked-rectangle':
-      return b.type === 'locked-rectangle' && a.id === b.id && a.point === b.point;
-    case 'locked-ellipse':
-      return b.type === 'locked-ellipse' && a.id === b.id && a.point === b.point;
-    case 'locked-polygon':
-      return b.type === 'locked-polygon' && a.id === b.id && a.pointIndex === b.pointIndex;
-    case 'locked-datum':
-      return b.type === 'locked-datum' && a.id === b.id;
-    default:
-      a satisfies never;
-      throw new Error(`constraintEndpointsEqual: unexpected endpoint type ${(a as any).type}`);
-  }
+  return ConstraintEndpoint.equal(a, b);
 }
 
 function compareConstraints(

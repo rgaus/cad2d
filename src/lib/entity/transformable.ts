@@ -32,6 +32,7 @@ export type TransformableAdapter<Data> = {
     originalBBox?: OrientedRect<SheetPosition>,
   ): Entity | null;
 
+  getKeyPointPosition?(entity: Entity, keyPoint: string): SheetPosition | null;
   equals(a: Entity, b: Entity): boolean;
   createMoveUndoEntry?(id: Id, before: Data, after: Data): unknown;
   getRenderShapes(entity: Entity, sheetDefaultUnit: UnitType): Array<RenderShape>;
@@ -52,6 +53,139 @@ export function getTransformableAdapter(entity: Entity): TransformableAdapter<an
     return null;
   }
   return adaptersByName.get(transformable.adapter) ?? null;
+}
+
+export type TransformableConstraintEndpoint<Type extends string> = {
+  type: Type;
+  id: Id;
+  keyPoint: string;
+};
+
+export type ConstraintEndpointKeyPointOption = {
+  value: string;
+  label: string;
+  /** Optional 3x3 anchor-grid slot hint for the constraint inspector. */
+  slot?: string;
+};
+
+export type ConstraintEndpointAdapter<Type extends string = string> = {
+  type: Type;
+  label: string;
+
+  create(id: Id, keyPoint: string): TransformableConstraintEndpoint<Type>;
+  getEntityId(endpoint: TransformableConstraintEndpoint<Type>): Id;
+  getKeyPoint(endpoint: TransformableConstraintEndpoint<Type>): string;
+  equals(
+    a: TransformableConstraintEndpoint<Type>,
+    b: TransformableConstraintEndpoint<Type>,
+  ): boolean;
+
+  matches(entity: Entity): boolean;
+  listEntities(store: GeometryStore): Array<Entity>;
+  keyPointOptions: Array<ConstraintEndpointKeyPointOption>;
+  getKeyPointPosition(entity: Entity, keyPoint: string): SheetPosition | null;
+  resolve(
+    endpoint: TransformableConstraintEndpoint<Type>,
+    store: GeometryStore,
+  ): SheetPosition | null;
+
+  serializeAttrs(prefix: string, endpoint: TransformableConstraintEndpoint<Type>): Array<string>;
+  parseAttrs(
+    attrs: Record<string, string | number | undefined>,
+    prefix: string,
+    getId: (raw: string) => Id,
+  ): TransformableConstraintEndpoint<Type>;
+};
+
+const constraintEndpointAdaptersByType = new Map<string, ConstraintEndpointAdapter<any>>();
+
+export function registerConstraintEndpointAdapter<Type extends string>(
+  adapter: ConstraintEndpointAdapter<Type>,
+): void {
+  constraintEndpointAdaptersByType.set(adapter.type, adapter);
+}
+
+export function getConstraintEndpointAdapterByType(
+  type: string,
+): ConstraintEndpointAdapter<any> | null {
+  return constraintEndpointAdaptersByType.get(type) ?? null;
+}
+
+export function getConstraintEndpointAdapter(endpoint: {
+  type: string;
+}): ConstraintEndpointAdapter<any> | null {
+  return getConstraintEndpointAdapterByType(endpoint.type);
+}
+
+export function getConstraintEndpointAdapters(): Array<ConstraintEndpointAdapter<any>> {
+  return [...constraintEndpointAdaptersByType.values()];
+}
+
+export function getConstraintEndpointAdapterForEntity(
+  entity: Entity,
+): ConstraintEndpointAdapter<any> | null {
+  for (const adapter of constraintEndpointAdaptersByType.values()) {
+    if (adapter.matches(entity)) {
+      return adapter;
+    }
+  }
+  return null;
+}
+
+/** Builds a constraint-endpoint adapter for a transformable entity type. */
+export function generateConstraintEndpoint<Name extends string>(
+  name: Name,
+  config: {
+    label: string;
+    matches: (entity: Entity) => boolean;
+    listEntities: (store: GeometryStore) => Array<Entity>;
+    keyPointOptions: Array<ConstraintEndpointKeyPointOption>;
+  },
+): ConstraintEndpointAdapter<`locked-${Name}`> {
+  const type = `locked-${name}` as const;
+
+  const adapter: ConstraintEndpointAdapter<`locked-${Name}`> = {
+    type,
+    label: config.label,
+
+    create: (id, keyPoint) => ({ type, id, keyPoint }),
+    getEntityId: (endpoint) => endpoint.id,
+    getKeyPoint: (endpoint) => endpoint.keyPoint,
+    equals: (a, b) => a.type === b.type && a.id === b.id && a.keyPoint === b.keyPoint,
+
+    matches: config.matches,
+    listEntities: config.listEntities,
+    keyPointOptions: config.keyPointOptions,
+
+    getKeyPointPosition: (entity, keyPoint) => {
+      const adapter = getTransformableAdapter(entity);
+      return adapter?.getKeyPointPosition?.(entity, keyPoint) ?? null;
+    },
+
+    resolve: (endpoint, store) => {
+      const entity = store.getById(endpoint.id);
+      if (!entity) {
+        return null;
+      }
+      const adapter = getTransformableAdapter(entity);
+      return adapter?.getKeyPointPosition?.(entity, endpoint.keyPoint) ?? null;
+    },
+
+    serializeAttrs: (prefix, endpoint) => [
+      `data-${prefix}-type="${endpoint.type}"`,
+      `data-${prefix}-id="${endpoint.id}"`,
+      `data-${prefix}-key-point="${endpoint.keyPoint}"`,
+    ],
+
+    parseAttrs: (attrs, prefix, getId) => ({
+      type,
+      id: getId(`${attrs[`data-${prefix}-id`]}`),
+      keyPoint: `${attrs[`data-${prefix}-key-point`]}`,
+    }),
+  };
+
+  registerConstraintEndpointAdapter(adapter);
+  return adapter;
 }
 
 export type TransformableUndoEntry<Prefix extends string, Action extends string, Data> = {
@@ -122,5 +256,9 @@ export function generateTransformableUndoEntryEvents<Prefix extends string, Data
 export namespace TransformableAdapter {
   export const history = {
     generateUndoEntryEvents: generateTransformableUndoEntryEvents,
+  };
+
+  export const constraints = {
+    generateConstraintEndpoint,
   };
 }

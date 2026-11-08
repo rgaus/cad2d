@@ -92,14 +92,7 @@ function positionsEqual(a: SheetPosition, b: SheetPosition): boolean {
 }
 
 function isLockedToSource(endpoint: ConstraintEndpoint, sourceIds: Set<Id>): boolean {
-  switch (endpoint.type) {
-    case 'locked-rectangle':
-    case 'locked-ellipse':
-    case 'locked-polygon':
-      return sourceIds.has(endpoint.id);
-    default:
-      return false;
-  }
+  return endpoint.type !== 'point' && sourceIds.has(endpoint.id);
 }
 
 /**

@@ -61,6 +61,7 @@ import {
 import type { WorkingInvoluteGear } from './involute-gear';
 import { Polygon } from './polygon';
 import { RenderShape } from './render-shape';
+import { getConstraintEndpointAdapter, getConstraintEndpointAdapterByType } from './transformable';
 
 export const ID_PREFIXES = {
   polygon: 'ply' as const,
@@ -1518,7 +1519,6 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
           // pin it to a datum at its current rendered position.
           return datumEndpointFor(endpoint) ?? endpoint;
         default:
-          endpoint satisfies never;
           return endpoint;
       }
     };
@@ -1620,11 +1620,15 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
         if (!datum) return null;
         return DatumComponent.get(datum);
       }
-      default:
-        endpoint satisfies never;
+      default: {
+        const adapter = getConstraintEndpointAdapterByType(endpoint.type);
+        if (adapter) {
+          return adapter.resolve(endpoint as any, this);
+        }
         throw new Error(
           `GeometryStore#resolveConstraintEndpoint: unexpected endpoint type ${(endpoint as any).type}`,
         );
+      }
     }
   }
 

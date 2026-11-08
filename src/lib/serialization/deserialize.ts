@@ -29,6 +29,7 @@ import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { TransformableComponent } from '@/lib/entity/components/TransformableComponent';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
 import type { InvoluteGear } from '@/lib/entity/involute-gear';
+import { getConstraintEndpointAdapterByType } from '@/lib/entity/transformable';
 import { Angle } from '@/lib/units/angle';
 import {
   CentimetersLength,
@@ -1161,10 +1162,19 @@ function parseEndpoint(
       const id = getId(`${attrs[`data-${prefix}-id`]}`);
       return ConstraintEndpoint.lockedToDatum(id);
     }
-    default:
+    default: {
+      const adapter = getConstraintEndpointAdapterByType(`${type}`);
+      if (adapter) {
+        return adapter.parseAttrs(
+          attrs as Record<string, string | number | undefined>,
+          prefix,
+          (raw) => getId(`${raw}`),
+        );
+      }
       throw new ParseSvgWarningError(
         `constraint endpoint ${prefix}: unknown endpoint type ${type}`,
       );
+    }
   }
 }
 
