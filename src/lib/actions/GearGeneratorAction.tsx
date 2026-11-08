@@ -16,7 +16,7 @@ import { UndoEntry } from '@/lib/history/types';
 import { round } from '@/lib/math';
 import { Angle } from '@/lib/units/angle';
 import { Length, type UnitType } from '@/lib/units/length';
-import { SheetPosition } from '@/lib/viewport/types';
+import { GeometryRelativeSheetPosition, SheetPosition } from '@/lib/viewport/types';
 import { ActionsManager } from './ActionsManager';
 import { BaseAction } from './BaseAction';
 
@@ -522,14 +522,31 @@ export class GearGeneratorAction extends BaseAction<GearGeneratorActionEvents> {
     const profile = this.#profile;
 
     historyManager.applyTransaction('create-gear', () => {
-      const polygonTemplate = Polygon.create(profile.segments, {
+      const rawPolygonTemplate = Polygon.create(profile.segments, {
         closed: false,
         openAtIndex: 0,
       });
+      const rawPolygonData = rawPolygonTemplate.components.geometry;
+      const originDelta = new GeometryRelativeSheetPosition(
+        rawPolygonData.position.x - params.center.x,
+        rawPolygonData.position.y - params.center.y,
+      );
+      const centeredPoints = rawPolygonData.points.map((segment) =>
+        PolygonSegment.transform(
+          segment,
+          (point) =>
+            new GeometryRelativeSheetPosition(point.x + originDelta.x, point.y + originDelta.y),
+        ),
+      );
       const polygon = geometryStore.addOrdered(ID_PREFIXES.polygon, {
-        ...polygonTemplate,
+        ...rawPolygonTemplate,
         components: {
-          ...polygonTemplate.components,
+          ...rawPolygonTemplate.components,
+          geometry: {
+            ...rawPolygonData,
+            position: params.center,
+            points: centeredPoints,
+          },
           ...FillColorComponent.create(params.fillColor),
         },
       });

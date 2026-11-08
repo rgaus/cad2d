@@ -7,6 +7,7 @@ import {
   validateGearParams,
 } from '@/lib/actions/GearGeneratorAction';
 import {
+  AnchorPointComponent,
   ConstraintComponent,
   ConstraintEndpoint,
   DatumComponent,
@@ -215,6 +216,30 @@ describe('GearGeneratorAction', () => {
     historyManager.redo();
     expect(action.getState().params.center.x).toBe(movedCenter.x);
     expect(action.getState().params.center.y).toBe(movedCenter.y);
+  });
+
+  it('anchors the gear tooth at the gear center', async () => {
+    const action = actionsManager.getAction('gear-generator');
+    await action.execute();
+
+    const center = new SheetPosition(12, 34);
+    action.setCenter(center);
+    action.create();
+
+    const polygon = geometryStore
+      .listWithComponent(GeometryComponent)
+      .find((geometry) => GeometryComponent.get(geometry).type === 'polygon');
+    expect(polygon).toBeDefined();
+
+    const withAnchor = geometryStore.getByIdWithComponents(
+      polygon!.id,
+      GeometryComponent,
+      AnchorPointComponent,
+    );
+    expect(withAnchor).not.toBeNull();
+    const handle = AnchorPointComponent.getHandlePosition(withAnchor!);
+    expect(handle.x).toBeCloseTo(center.x, 8);
+    expect(handle.y).toBeCloseTo(center.y, 8);
   });
 
   it('removes all generated entities on undo', async () => {
