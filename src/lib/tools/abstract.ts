@@ -8,6 +8,7 @@ import {
   DatumComponent,
   Entity,
   GeometryComponent,
+  TransformableComponent,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { type GeometryStore } from '@/lib/entity/GeometryStore';
@@ -132,6 +133,8 @@ export abstract class LineSegmentConstraintTool<
           geometries: geometryStore.listWithComponent(GeometryComponent),
           constraints: geometryStore.listWithComponent(ConstraintComponent),
           datums: geometryStore.listWithComponent(DatumComponent),
+          constraintEndpointTargets:
+            geometryStore.listWithComponent<TransformableComponent>(TransformableComponent),
         },
       );
       this.pendingPointAShouldCreateDatum = shouldCreateDatum;
@@ -160,6 +163,8 @@ export abstract class LineSegmentConstraintTool<
         geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
         constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
+        constraintEndpointTargets:
+          this.getGeometryStore().listWithComponent<TransformableComponent>(TransformableComponent),
       },
     );
 
@@ -389,6 +394,8 @@ export abstract class SegmentAndPointConstraintTool<
         geometries: geometryStore.listWithComponent(GeometryComponent),
         constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
+        constraintEndpointTargets:
+          geometryStore.listWithComponent<TransformableComponent>(TransformableComponent),
       },
     );
 
@@ -460,6 +467,8 @@ export abstract class SegmentAndPointConstraintTool<
         geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
         constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
+        constraintEndpointTargets:
+          this.getGeometryStore().listWithComponent<TransformableComponent>(TransformableComponent),
       },
     );
 
@@ -724,6 +733,8 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
         geometries: geometryStore.listWithComponent(GeometryComponent),
         constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
+        constraintEndpointTargets:
+          geometryStore.listWithComponent<TransformableComponent>(TransformableComponent),
       },
     );
 
@@ -793,6 +804,8 @@ export abstract class TwoConnectedSegmentConstraintCreationTool<
         geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
         constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
+        constraintEndpointTargets:
+          this.getGeometryStore().listWithComponent<TransformableComponent>(TransformableComponent),
       },
     );
 
@@ -1040,6 +1053,8 @@ export abstract class TwoSegmentConstraintCreationTool<
         geometries: geometryStore.listWithComponent(GeometryComponent),
         constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
+        constraintEndpointTargets:
+          geometryStore.listWithComponent<TransformableComponent>(TransformableComponent),
       },
     );
 
@@ -1131,6 +1146,8 @@ export abstract class TwoSegmentConstraintCreationTool<
         geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
         constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
         datums: this.getGeometryStore().listWithComponent(DatumComponent),
+        constraintEndpointTargets:
+          this.getGeometryStore().listWithComponent<TransformableComponent>(TransformableComponent),
       },
     );
 

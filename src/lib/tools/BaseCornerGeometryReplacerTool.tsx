@@ -6,6 +6,7 @@ import {
   Entity,
   GeometryComponent,
   type Id,
+  TransformableComponent,
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
@@ -179,6 +180,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         geometries: geometryStore.listWithComponent(GeometryComponent),
         constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
+        constraintEndpointTargets:
+          geometryStore.listWithComponent<TransformableComponent>(TransformableComponent),
       },
     );
 
@@ -365,6 +368,8 @@ export abstract class BaseCornerGeometryReplacerTool<Type extends string> extend
         geometries: geometryStore.listWithComponent(GeometryComponent),
         constraints: geometryStore.listWithComponent(ConstraintComponent),
         datums: geometryStore.listWithComponent(DatumComponent),
+        constraintEndpointTargets:
+          geometryStore.listWithComponent<TransformableComponent>(TransformableComponent),
       },
     );
 

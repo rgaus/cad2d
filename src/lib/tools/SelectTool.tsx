@@ -20,6 +20,7 @@ import {
   type ResizeEdge,
   type ResizeMode,
   type ResizeParams,
+  TransformableComponent,
 } from '@/lib/entity';
 import { ID_PREFIXES, getPrefixFromId } from '@/lib/entity/GeometryStore';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
@@ -3399,6 +3400,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               .listWithComponent(ConstraintComponent)
               .filter((g) => g.id !== constraintId),
             datums: this.getGeometryStore().listWithComponent(DatumComponent),
+            constraintEndpointTargets:
+              this.getGeometryStore().listWithComponent<TransformableComponent>(
+                TransformableComponent,
+              ),
             selectedGeometryFilters: [],
           },
         );
@@ -3438,6 +3443,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   .listWithComponent(ConstraintComponent)
                   .filter((g) => g.id !== constraintId),
                 datums: this.getGeometryStore().listWithComponent(DatumComponent),
+                constraintEndpointTargets:
+                  this.getGeometryStore().listWithComponent<TransformableComponent>(
+                    TransformableComponent,
+                  ),
                 selectedGeometryFilters: [],
               },
             );

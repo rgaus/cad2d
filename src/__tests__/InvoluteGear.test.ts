@@ -2,11 +2,14 @@ import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
   AnchorPointComponent,
   ConstraintComponent,
+  ConstraintEndpoint,
+  Datum,
   DatumComponent,
   Entity,
   FillColorComponent,
   GeometryComponent,
   InvoluteGearComponent,
+  LinearConstraint,
   TransformableComponent,
 } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
@@ -14,16 +17,19 @@ import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import {
   buildGearOutlinePoints,
   defaultInvoluteGearParams,
+  involuteGearEndpoint,
 } from '@/lib/entity/components/InvoluteGearComponent';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { InvoluteGear } from '@/lib/entity/involute-gear';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { Sheet } from '@/lib/sheet/Sheet';
+import { applyKeyPointSnapping } from '@/lib/snapping';
 import { SelectTool } from '@/lib/tools/SelectTool';
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { Angle } from '@/lib/units/angle';
+import { Length } from '@/lib/units/length';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
 
@@ -205,6 +211,87 @@ describe('InvoluteGear entity', () => {
     ).toBe(true);
   });
 
+  it('resolves gear constraint endpoints through the generated adapter', () => {
+    const gear = addGear(new SheetPosition(10, 20));
+    const center = involuteGearEndpoint.create(gear.id, 'center');
+    expect(center.type).toBe('locked-involute-gear');
+    expect(ConstraintEndpoint.getEntityId(center)).toBe(gear.id);
+    expect(ConstraintEndpoint.getKeyPoint(center)).toBe('center');
+    expect(geometryStore.resolveConstraintEndpoint(center)).toEqual(new SheetPosition(10, 20));
+
+    const metrics = InvoluteGearComponent.metricsFor(gear);
+    const right = involuteGearEndpoint.create(gear.id, 'right');
+    const resolved = geometryStore.resolveConstraintEndpoint(right)!;
+    expect(resolved.x).toBeCloseTo(10 + metrics.outerRadius, 8);
+    expect(resolved.y).toBeCloseTo(20, 8);
+  });
+
+  it('snaps to gear key points generically', () => {
+    const gear = addGear(new SheetPosition(10, 20));
+    const result = applyKeyPointSnapping(new SheetPosition(10, 20), false, {
+      primaryGridSize: 1,
+      secondaryGridSize: null,
+      superHeld: false,
+      manager: selectTool,
+      viewportScale: viewportControls.getState().viewport.scale,
+      geometries: [],
+      constraints: [],
+      datums: [],
+      constraintEndpointTargets: [gear],
+    });
+    expect(result.endpoint.type).toBe('locked-involute-gear');
+    if (result.endpoint.type === 'locked-involute-gear') {
+      expect(result.endpoint.id).toBe(gear.id);
+      expect(result.endpoint.keyPoint).toBe('center');
+    }
+  });
+
+  it('restricts gear dragging using constrained track paths', () => {
+    const gear = addGear(new SheetPosition(0, 0));
+    const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(10, 0)));
+    geometryStore.add(
+      ID_PREFIXES.constraint,
+      LinearConstraint.create(
+        involuteGearEndpoint.create(gear.id, 'center'),
+        ConstraintEndpoint.lockedToDatum(datum.id),
+        Length.fromSheetUnits(sheet.defaultUnit, 10),
+      ),
+    );
+
+    jest.spyOn(toolManager, 'getCtrlHeld').mockReturnValue(true);
+    selectionManager.select(gear.id);
+    selectTool.handleGeometryFillPointerDown(
+      toScreen(new SheetPosition(0, 0)),
+      viewportControls,
+      gear.id,
+    );
+    const end = toScreen(new SheetPosition(30, 0));
+    moveHandler!({ clientX: end.x, clientY: end.y } as MouseEvent);
+    upHandler!({ clientX: end.x, clientY: end.y } as MouseEvent);
+
+    const moved = geometryStore.getByIdWithComponent(gear.id, InvoluteGearComponent)!;
+    const position = InvoluteGearComponent.get(moved).position;
+    expect(Math.hypot(position.x - 10, position.y - 0)).toBeCloseTo(10, 5);
+  });
+
+  it('cascade-deletes constraints attached to a gear', () => {
+    const gear = addGear(new SheetPosition(0, 0));
+    const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(10, 0)));
+    geometryStore.add(
+      ID_PREFIXES.constraint,
+      LinearConstraint.create(
+        involuteGearEndpoint.create(gear.id, 'center'),
+        ConstraintEndpoint.lockedToDatum(datum.id),
+        Length.fromSheetUnits(sheet.defaultUnit, 10),
+      ),
+    );
+    expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(1);
+
+    geometryStore.deleteById(gear.id);
+
+    expect(geometryStore.listWithComponent(ConstraintComponent)).toHaveLength(0);
+  });
+
   it('converts to an editable polygon, radial filter, datum, and dimensions', () => {
     const gear = addGear(new SheetPosition(10, 10));
     geometryStore.updateById(gear.id, (g) => ({
@@ -242,6 +329,36 @@ describe('InvoluteGear entity', () => {
     historyManager.undo();
     expect(geometryStore.listWithComponent(InvoluteGearComponent)).toHaveLength(1);
     expect(geometryStore.listWithComponent(GeometryComponent)).toHaveLength(0);
+  });
+
+  it('round-trips gear constraint endpoints through SVG', () => {
+    const gear = addGear(new SheetPosition(10, 20));
+    const datum = geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(20, 20)));
+    geometryStore.add(
+      ID_PREFIXES.constraint,
+      LinearConstraint.create(
+        involuteGearEndpoint.create(gear.id, 'center'),
+        ConstraintEndpoint.lockedToDatum(datum.id),
+        Length.fromSheetUnits(sheet.defaultUnit, 10),
+      ),
+    );
+
+    const serializationManager = toolManager.getSerializationManager()!;
+    const saved = serializationManager.save();
+    expect(saved.success).toBe(true);
+    serializationManager.load(saved.svg!);
+
+    const constraints = geometryStore.listWithComponent(ConstraintComponent);
+    expect(constraints).toHaveLength(1);
+    const data = ConstraintComponent.get(constraints[0]);
+    expect(data.type).toBe('linear');
+    if (data.type === 'linear') {
+      const gearEndpoint = data.pointA.type === 'locked-involute-gear' ? data.pointA : data.pointB;
+      expect(gearEndpoint.type).toBe('locked-involute-gear');
+      if (gearEndpoint.type === 'locked-involute-gear') {
+        expect(gearEndpoint.keyPoint).toBe('center');
+      }
+    }
   });
 
   it('round-trips through SVG serialization', () => {

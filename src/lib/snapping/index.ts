@@ -18,6 +18,7 @@ import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { GeometryRelativeSheetPosition, SheetPosition } from '@/lib/viewport/types';
 import { FilterComponent } from '../entity/components/FilterComponent';
 import { PatternFilter } from '../entity/filters/pattern';
+import { getConstraintEndpointAdapterForEntity } from '../entity/transformable';
 import { lineLineIntersection, lineSlope } from '../math/intersection';
 
 export type SnappingOptions = SnapToFilterOptions & {
@@ -184,6 +185,8 @@ export type KeyPointSnappingOptions = {
   constraints: Array<Entity<ConstraintComponent>>;
   /** Existing datums — checked as snap targets after constraint endpoints. */
   datums: Array<Entity<DatumComponent>>;
+  /** Transformable entities which expose registered constraint endpoints (e.g. involute gears). */
+  constraintEndpointTargets?: Array<Entity>;
   selectedGeometryFilters?: Array<Entity<FilterComponent>>;
 };
 
@@ -223,6 +226,7 @@ function snapNearestKeyPoint(
   geometries: Array<Geometry>,
   constraints: Array<Entity<ConstraintComponent>>,
   datums: Array<Entity<DatumComponent>>,
+  constraintEndpointTargets: Array<Entity>,
 ): {
   endpoint: ConstraintEndpoint;
   position: SheetPosition;
@@ -348,6 +352,20 @@ function snapNearestKeyPoint(
       },
       point,
     );
+  }
+
+  for (const target of constraintEndpointTargets) {
+    const adapter = getConstraintEndpointAdapterForEntity(target);
+    if (!adapter) {
+      continue;
+    }
+    for (const option of adapter.keyPointOptions) {
+      const point = adapter.getKeyPointPosition(target, option.value);
+      if (!point) {
+        continue;
+      }
+      consider(Vector2.distance(pos, point), adapter.create(target.id, option.value), point);
+    }
   }
 
   if (bestEndpoint === null || bestPosition === null) {
@@ -543,6 +561,7 @@ export function applyKeyPointSnapping(
     options.geometries,
     options.constraints,
     options.datums,
+    options.constraintEndpointTargets ?? [],
   );
 
   if (match) {

@@ -14,9 +14,15 @@ import { useEntities } from '@/hooks/useEntities';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { DatumComponent } from '@/lib/entity/components/DatumComponent';
 import { GeometryComponent } from '@/lib/entity/components/GeometryComponent';
+import '@/lib/entity/components/InvoluteGearComponent';
 import { ConstraintEndpoint } from '@/lib/entity/constraints';
 import { type EllipseEndpoint } from '@/lib/entity/ellipse';
 import { type RectangleEndpoint } from '@/lib/entity/rectangle';
+import {
+  type TransformableConstraintEndpoint,
+  getConstraintEndpointAdapterByType,
+  getConstraintEndpointAdapters,
+} from '@/lib/entity/transformable';
 import { Length, type UnitType } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
 import { SheetPosition } from '@/lib/viewport/types';
@@ -146,6 +152,14 @@ const ConstraintEndpointField: React.FunctionComponent<ConstraintEndpointFieldPr
     g.listWithComponent(GeometryComponent).filter((e) => GeometryComponent.isPolygon(e)),
   );
   const datums = useEntities(geometryStore, (g) => g.listWithComponent(DatumComponent));
+  const endpointAdapters = getConstraintEndpointAdapters();
+  const genericEndpointEntities = useEntities(geometryStore, (g) =>
+    endpointAdapters.flatMap((adapter) => adapter.listEntities(g)),
+  );
+  const currentEndpointAdapter = getConstraintEndpointAdapterByType(endpoint.type);
+  const currentAdapterEntities = currentEndpointAdapter
+    ? genericEndpointEntities.filter((entity) => currentEndpointAdapter.matches(entity))
+    : [];
 
   const handleTypeChange = (nextType: string) => {
     switch (nextType) {
@@ -176,6 +190,16 @@ const ConstraintEndpointField: React.FunctionComponent<ConstraintEndpointFieldPr
           onChange(ConstraintEndpoint.lockedToDatum(datums[0].id));
         }
         return;
+      default: {
+        const adapter = getConstraintEndpointAdapterByType(nextType);
+        if (adapter) {
+          const entities = adapter.listEntities(geometryStore);
+          if (entities.length > 0) {
+            onChange(adapter.create(entities[0].id, adapter.keyPointOptions[0]?.value ?? 'center'));
+          }
+        }
+        return;
+      }
     }
   };
 
@@ -215,7 +239,10 @@ const ConstraintEndpointField: React.FunctionComponent<ConstraintEndpointFieldPr
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {ENDPOINT_TYPE_OPTIONS.map((opt) => (
+            {[
+              ...ENDPOINT_TYPE_OPTIONS,
+              ...endpointAdapters.map((a) => ({ value: a.type, label: a.label })),
+            ].map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>
@@ -326,6 +353,55 @@ const ConstraintEndpointField: React.FunctionComponent<ConstraintEndpointFieldPr
             entities={datums}
             onChange={(id) => onChange(ConstraintEndpoint.lockedToDatum(id))}
           />
+        ) : null}
+
+        {currentEndpointAdapter && endpoint.type !== 'point' ? (
+          <>
+            <EntityInput
+              value={(endpoint as TransformableConstraintEndpoint<string>).id}
+              entities={currentAdapterEntities}
+              onChange={(id) =>
+                onChange(
+                  currentEndpointAdapter.create(
+                    id,
+                    currentEndpointAdapter.getKeyPoint(
+                      endpoint as TransformableConstraintEndpoint<string>,
+                    ),
+                  ),
+                )
+              }
+            />
+            <div className="flex items-center gap-2">
+              <span
+                className="text-xs text-[var(--slate-11)] select-none"
+                style={{ fontFamily: 'var(--font-roboto-mono), monospace' }}
+              >
+                Anchor:
+              </span>
+              <AnchorDotGrid
+                value={currentEndpointAdapter.getKeyPoint(
+                  endpoint as TransformableConstraintEndpoint<string>,
+                )}
+                dots={currentEndpointAdapter.keyPointOptions
+                  .filter(
+                    (option): option is typeof option & { slot: AnchorDotPosition } =>
+                      typeof option.slot === 'string',
+                  )
+                  .map((option) => ({
+                    value: option.value,
+                    position: option.slot,
+                  }))}
+                onChange={(next) =>
+                  onChange(
+                    currentEndpointAdapter.create(
+                      (endpoint as TransformableConstraintEndpoint<string>).id,
+                      next,
+                    ),
+                  )
+                }
+              />
+            </div>
+          </>
         ) : null}
       </div>
     </div>
