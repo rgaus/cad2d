@@ -16,6 +16,7 @@ type SelectionBoundingBoxProps = {
   boundingBox: OrientedRect<SheetPosition>;
   viewportScale: number;
   showRotationHandle?: boolean;
+  showResizeHandles?: boolean;
   onLinearResizerPointerDown?: (edge: 'top' | 'bottom' | 'left' | 'right') => void;
   onCornerHandlePointerDown?: (
     corner: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
@@ -29,6 +30,7 @@ export const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxP
   boundingBox,
   viewportScale,
   showRotationHandle,
+  showResizeHandles = true,
   onLinearResizerPointerDown,
   onCornerHandlePointerDown,
   onRotationHandlePointerDown,
@@ -132,48 +134,52 @@ export const SelectionBoundingBox: React.FunctionComponent<SelectionBoundingBoxP
         </>
       ) : null}
 
-      <LinearResizer
-        startPosition={polygonBoundsCorners.upperLeft}
-        endPosition={polygonBoundsCorners.upperRight}
-        viewportScale={viewportScale}
-        onPointerDown={() => onLinearResizerPointerDown?.('top')}
-      />
-      <LinearResizer
-        startPosition={polygonBoundsCorners.upperRight}
-        endPosition={polygonBoundsCorners.lowerRight}
-        viewportScale={viewportScale}
-        onPointerDown={() => onLinearResizerPointerDown?.('right')}
-      />
-      <LinearResizer
-        startPosition={polygonBoundsCorners.lowerLeft}
-        endPosition={polygonBoundsCorners.lowerRight}
-        viewportScale={viewportScale}
-        onPointerDown={() => onLinearResizerPointerDown?.('bottom')}
-      />
-      <LinearResizer
-        startPosition={polygonBoundsCorners.upperLeft}
-        endPosition={polygonBoundsCorners.lowerLeft}
-        viewportScale={viewportScale}
-        onPointerDown={() => onLinearResizerPointerDown?.('left')}
-      />
+      {showResizeHandles ? (
+        <>
+          <LinearResizer
+            startPosition={polygonBoundsCorners.upperLeft}
+            endPosition={polygonBoundsCorners.upperRight}
+            viewportScale={viewportScale}
+            onPointerDown={() => onLinearResizerPointerDown?.('top')}
+          />
+          <LinearResizer
+            startPosition={polygonBoundsCorners.upperRight}
+            endPosition={polygonBoundsCorners.lowerRight}
+            viewportScale={viewportScale}
+            onPointerDown={() => onLinearResizerPointerDown?.('right')}
+          />
+          <LinearResizer
+            startPosition={polygonBoundsCorners.lowerLeft}
+            endPosition={polygonBoundsCorners.lowerRight}
+            viewportScale={viewportScale}
+            onPointerDown={() => onLinearResizerPointerDown?.('bottom')}
+          />
+          <LinearResizer
+            startPosition={polygonBoundsCorners.upperLeft}
+            endPosition={polygonBoundsCorners.lowerLeft}
+            viewportScale={viewportScale}
+            onPointerDown={() => onLinearResizerPointerDown?.('left')}
+          />
 
-      <HandleSprites
-        points={polygonBoundsPoints}
-        handleTexture={SelectionCornerHandleTexture.get()}
-        viewportScale={viewportScale}
-        onHandlePointerDown={(_e, index) => {
-          switch (index) {
-            case 0:
-              return onCornerHandlePointerDown?.('top-left');
-            case 1:
-              return onCornerHandlePointerDown?.('top-right');
-            case 2:
-              return onCornerHandlePointerDown?.('bottom-right');
-            case 3:
-              return onCornerHandlePointerDown?.('bottom-left');
-          }
-        }}
-      />
+          <HandleSprites
+            points={polygonBoundsPoints}
+            handleTexture={SelectionCornerHandleTexture.get()}
+            viewportScale={viewportScale}
+            onHandlePointerDown={(_e, index) => {
+              switch (index) {
+                case 0:
+                  return onCornerHandlePointerDown?.('top-left');
+                case 1:
+                  return onCornerHandlePointerDown?.('top-right');
+                case 2:
+                  return onCornerHandlePointerDown?.('bottom-right');
+                case 3:
+                  return onCornerHandlePointerDown?.('bottom-left');
+              }
+            }}
+          />
+        </>
+      ) : null}
     </pixiContainer>
   );
 };

@@ -34,6 +34,7 @@ import {
 } from '@/lib/entity/constraints';
 import { Filter, FilterData } from '@/lib/entity/filters';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
+import { getTransformableAdapter } from '@/lib/entity/transformable';
 import { UndoEntry } from '@/lib/history/types';
 import {
   BoundingBox,
@@ -356,7 +357,8 @@ type DragState =
     }
   | { state: 'datum'; entity: Entity<DatumComponent> }
   | { state: 'filter'; entity: Entity<FilterComponent> }
-  | { state: 'frame'; entity: Entity<FrameComponent> };
+  | { state: 'frame'; entity: Entity<FrameComponent> }
+  | { state: 'transformable'; entity: Entity };
 
 namespace DragState {
   /** Extracts the {@link DragState} from the passed {@link Entity}, or null if nothing could be computed. */
@@ -380,6 +382,8 @@ namespace DragState {
           },
         },
       };
+    } else if (getTransformableAdapter(entity)) {
+      return { state: 'transformable', entity };
     } else if (Entity.hasComponent(entity, DatumComponent)) {
       return { state: 'datum', entity };
     } else if (Entity.hasComponent(entity, FrameComponent)) {
@@ -411,6 +415,10 @@ namespace DragState {
         return Entity.assignComponent(entity, FilterComponent, state.entity);
       case 'frame':
         return Entity.assignComponent(entity, FrameComponent, state.entity);
+      case 'transformable': {
+        const adapter = getTransformableAdapter(state.entity);
+        return adapter ? adapter.update(entity, adapter.get(state.entity)) : entity;
+      }
       default:
         state satisfies never;
         throw new Error(`DragState.update: No drag state case for ${(state as any).state}`);
@@ -431,6 +439,13 @@ namespace DragState {
         return { ...state, entity: FilterComponent.translate(state.entity, transform) };
       case 'frame':
         return { ...state, entity: FrameComponent.translate(state.entity, transform) };
+      case 'transformable': {
+        const adapter = getTransformableAdapter(state.entity);
+        if (!adapter?.translate) {
+          return state;
+        }
+        return { ...state, entity: adapter.translate(state.entity, transform) };
+      }
       default:
         state satisfies never;
         throw new Error(`DragState.translate: No drag state case for ${(state as any).state}`);
@@ -463,6 +478,13 @@ namespace DragState {
           return false;
         }
         return FrameComponent.equals(a.entity, b.entity);
+      case 'transformable': {
+        if (b.state !== 'transformable') {
+          return false;
+        }
+        const adapter = getTransformableAdapter(a.entity);
+        return adapter ? adapter.equals(a.entity, b.entity) : false;
+      }
       default:
         a satisfies never;
         throw new Error(`DragState.equals: No drag state case for ${(a as any).state}`);
@@ -482,6 +504,10 @@ namespace DragState {
         return null;
       case 'frame':
         return FrameComponent.getOrigin(state.entity);
+      case 'transformable': {
+        const adapter = getTransformableAdapter(state.entity);
+        return adapter ? adapter.getOrigin(state.entity) : null;
+      }
       default:
         state satisfies never;
         throw new Error(`DragState.getOrigin: No drag state case for ${(state as any).state}`);
@@ -503,6 +529,8 @@ namespace DragState {
         return null;
       case 'frame':
         return FrameComponent.boundingBox(state.entity);
+      case 'transformable':
+        return Entity.boundingBoxInSheet(state.entity);
       default:
         state satisfies never;
         throw new Error(`DragState.boundingBox: No drag state case for ${(state as any).state}`);
@@ -525,6 +553,7 @@ namespace DragState {
       }
       case 'datum':
       case 'filter':
+      case 'transformable':
         return null;
       case 'frame': {
         const resized = FrameComponent.resize(state.entity, params, originalBBox);
@@ -1436,20 +1465,16 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     viewportControls: ViewportControls,
     geometryId: Id,
   ) {
-    const geometry = this.getGeometryStore().getByIdWithComponents(
-      geometryId,
-      GeometryComponent,
-      AnchorPointComponent,
-    );
+    const geometry = this.getGeometryStore().getByIdWithComponent(geometryId, AnchorPointComponent);
     if (!geometry) {
       return;
     }
 
-    // The key point stays fixed while dragging the handle - only the offset changes.
     const beforeHandlePosition = AnchorPointComponent.getHandlePosition(geometry);
     const before = AnchorPointComponent.get(geometry);
     const filters = this.getGeometryStore().findFiltersByGeometryId(geometryId);
     const angleDegrees = RotationComponent.getOptional(geometry)?.angle.toDegrees().magnitude ?? 0;
+    const adapter = getTransformableAdapter(geometry);
 
     let lastDeltaX = 0,
       lastDeltaY = 0;
@@ -1473,16 +1498,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           (g) => {
             const deltaX = snapped.x - beforeHandlePosition.x;
             const deltaY = snapped.y - beforeHandlePosition.y;
-
-            // The handle itself moves with the raw geometry translation, but the anchor offset is
-            // expressed in raw space. Rotate the rendered offset delta into the raw frame so the
-            // rendered geometry stays pinned while the handle follows the mouse.
             const rawOffsetDelta = rotatePointAround(
               new SheetPosition(deltaX, deltaY),
               new SheetPosition(0, 0),
               -angleDegrees,
             );
-
             const updated = AnchorPointComponent.update(g, {
               keyPoint: before.keyPoint,
               offset: new SheetPosition(
@@ -1490,29 +1510,33 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 before.offset.y + rawOffsetDelta.y,
               ),
             });
-
-            if (Entity.hasComponent(updated, GeometryComponent)) {
-              const output = GeometryComponent.transform(
-                updated,
-                (prev) =>
-                  new SheetPosition(prev.x - lastDeltaX + deltaX, prev.y - lastDeltaY + deltaY),
-              );
-              lastDeltaX = deltaX;
-              lastDeltaY = deltaY;
-              return output;
-            } else {
-              return updated;
-            }
+            const translate = (entity: Entity) =>
+              adapter
+                ? (adapter.translate?.(
+                    entity,
+                    (prev) =>
+                      new SheetPosition(prev.x - lastDeltaX + deltaX, prev.y - lastDeltaY + deltaY),
+                  ) ?? entity)
+                : Entity.hasComponent(entity, GeometryComponent)
+                  ? GeometryComponent.transform(
+                      entity,
+                      (prev) =>
+                        new SheetPosition(
+                          prev.x - lastDeltaX + deltaX,
+                          prev.y - lastDeltaY + deltaY,
+                        ),
+                    )
+                  : entity;
+            const output = translate(updated) as typeof g;
+            lastDeltaX = deltaX;
+            lastDeltaY = deltaY;
+            return output;
           },
         );
       },
       onCommit: () => {
-        // Read the post-drag state from the store rather than recomputing it from the mouseup
-        // position: onMove is the source of truth for the live state (and onCommit can be called
-        // without a matching onMove, eg. a click without dragging).
-        const afterGeometry = this.getGeometryStore().getByIdWithComponents(
+        const afterGeometry = this.getGeometryStore().getByIdWithComponent(
           geometryId,
-          GeometryComponent,
           AnchorPointComponent,
         );
         if (!afterGeometry) {
@@ -1520,17 +1544,27 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           return;
         }
         const after = AnchorPointComponent.get(afterGeometry);
-
         if (before.offset.x !== after.offset.x || before.offset.y !== after.offset.y) {
           const forwardsActions: Array<UndoEntry> = [
             UndoEntry.anchorPointMove(geometryId, before, after),
           ];
-
-          const move = this.buildMoveUndoEntry(geometry, afterGeometry);
-          if (move) {
-            forwardsActions.push(move);
+          if (Entity.hasComponent(afterGeometry, GeometryComponent)) {
+            const move = this.buildMoveUndoEntry(geometry, afterGeometry);
+            if (move) {
+              forwardsActions.push(move);
+            }
+          } else {
+            const afterAdapter = getTransformableAdapter(afterGeometry);
+            if (afterAdapter?.createMoveUndoEntry) {
+              forwardsActions.push(
+                afterAdapter.createMoveUndoEntry(
+                  geometryId,
+                  afterAdapter.get(geometry),
+                  afterAdapter.get(afterGeometry),
+                ) as UndoEntry,
+              );
+            }
           }
-
           this.getHistoryManager().push(
             UndoEntry.transaction('anchor-point-drag', forwardsActions),
           );
@@ -1543,15 +1577,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           AnchorPointComponent,
           (g) => {
             const updated = AnchorPointComponent.update(g, before);
-
-            if (Entity.hasComponent(updated, GeometryComponent)) {
-              return GeometryComponent.transform(
-                updated,
-                (prev) => new SheetPosition(prev.x - lastDeltaX, prev.y - lastDeltaY),
-              );
-            } else {
-              return updated;
-            }
+            const translate = (entity: Entity) =>
+              adapter
+                ? (adapter.translate?.(
+                    entity,
+                    (prev) => new SheetPosition(prev.x - lastDeltaX, prev.y - lastDeltaY),
+                  ) ?? entity)
+                : Entity.hasComponent(entity, GeometryComponent)
+                  ? GeometryComponent.transform(
+                      entity,
+                      (prev) => new SheetPosition(prev.x - lastDeltaX, prev.y - lastDeltaY),
+                    )
+                  : entity;
+            return translate(updated) as typeof g;
           },
         );
         this.activeDragListener = null;
@@ -2466,6 +2504,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 }
                 break;
               }
+              case 'transformable': {
+                const adapter = getTransformableAdapter(state.entity);
+                if (adapter?.createMoveUndoEntry) {
+                  forwardsActions.push(
+                    adapter.createMoveUndoEntry(
+                      entity.id,
+                      adapter.get(state.entity),
+                      adapter.get(entity),
+                    ) as UndoEntry,
+                  );
+                }
+                break;
+              }
               default:
                 state satisfies never;
                 console.warn(
@@ -2523,15 +2574,20 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     screenPos: ScreenPosition,
   ): void {
     const entity = this.getGeometryStore().getById(geometryId);
+    const rotationAdapter = entity ? getTransformableAdapter(entity) : null;
     if (
       !entity ||
-      !Entity.hasComponent(entity, GeometryComponent) ||
+      (!Entity.hasComponent(entity, GeometryComponent) && !rotationAdapter) ||
       !Entity.hasComponent(entity, RotationComponent)
     ) {
       return;
     }
 
-    const pivot = GeometryComponent.getOrigin(entity);
+    const pivot = rotationAdapter
+      ? rotationAdapter.getOrigin(entity)
+      : GeometryComponent.getOrigin(
+          this.getGeometryStore().getByIdWithComponent(geometryId, GeometryComponent)!,
+        );
     const sheet = screenPos.toWorld(viewportControls.getState().viewport).toSheet();
     this.activeRotationDrag = {
       geometryId,
@@ -2824,6 +2880,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   }
                   break;
                 }
+                case 'transformable':
+                  console.warn(
+                    'SelectTool.onCommit: Transformable entity was resized, but this should not be possible. Doing nothing.',
+                  );
+                  break;
                 default:
                   originalState satisfies never;
                   console.warn(

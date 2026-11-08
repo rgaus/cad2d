@@ -2,9 +2,15 @@ import { FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { BoundingBoxVisibleComponent, Entity, GeometryComponent } from '@/lib/entity';
+import {
+  BoundingBoxVisibleComponent,
+  Entity,
+  FrameComponent,
+  GeometryComponent,
+} from '@/lib/entity';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { RenderShape } from '@/lib/entity/render-shape';
+import { getTransformableAdapter } from '@/lib/entity/transformable';
 import { BoundingBox, OrientedBoundingBox } from '@/lib/math';
 import {
   computeSelectionResizeFrame,
@@ -104,7 +110,8 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
 
   const rotationTarget =
     selectedEntities.length === 1 &&
-    Entity.hasComponent(selectedEntities[0], GeometryComponent) &&
+    (Entity.hasComponent(selectedEntities[0], GeometryComponent) ||
+      getTransformableAdapter(selectedEntities[0]) !== null) &&
     Entity.hasComponent(selectedEntities[0], RotationComponent)
       ? selectedEntities[0]
       : null;
@@ -206,6 +213,11 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
           boundingBox={selectionBbox}
           viewportScale={viewportScale}
           showRotationHandle={rotationTarget !== null}
+          showResizeHandles={selectedEntities.every(
+            (entity) =>
+              Entity.hasComponent(entity, GeometryComponent) ||
+              Entity.hasComponent(entity, FrameComponent),
+          )}
           onLinearResizerPointerDown={onLinearResizerPointerDown}
           onCornerHandlePointerDown={onCornerHandlePointerDown}
           onRotationHandlePointerDown={onRotationHandlePointerDown}
