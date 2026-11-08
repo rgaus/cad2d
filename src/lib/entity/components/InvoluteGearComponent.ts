@@ -422,7 +422,56 @@ export namespace InvoluteGearComponent {
       },
     );
 
+    const positionXHandlers = ctx.makeLengthHandlers(id, 'x', InvoluteGearComponent, (value) => {
+      const current = ctx.geometryStore.getByIdWithComponent(id, InvoluteGearComponent);
+      if (!current) {
+        return null;
+      }
+      const currentData = InvoluteGearComponent.get(current);
+      return {
+        position: new SheetPosition(
+          value.toSheetUnits(ctx.sheetDefaultUnit).magnitude,
+          currentData.position.y,
+        ),
+      };
+    });
+    const positionYHandlers = ctx.makeLengthHandlers(id, 'y', InvoluteGearComponent, (value) => {
+      const current = ctx.geometryStore.getByIdWithComponent(id, InvoluteGearComponent);
+      if (!current) {
+        return null;
+      }
+      const currentData = InvoluteGearComponent.get(current);
+      return {
+        position: new SheetPosition(
+          currentData.position.x,
+          value.toSheetUnits(ctx.sheetDefaultUnit).magnitude,
+        ),
+      };
+    });
+
     return [
+      Fields.row('position', [
+        Fields.labelled(
+          'x',
+          'X:',
+          Fields.length(
+            'x',
+            Length.fromSheetUnits(ctx.sheetDefaultUnit, data.position.x),
+            { readOnlyUnit: true },
+            positionXHandlers,
+          ),
+        ),
+        Fields.labelled(
+          'y',
+          'Y:',
+          Fields.length(
+            'y',
+            Length.fromSheetUnits(ctx.sheetDefaultUnit, data.position.y),
+            { readOnlyUnit: true },
+            positionYHandlers,
+          ),
+        ),
+      ]),
       Fields.row('involuteGearPitchMode', [
         Fields.labelled(
           'involuteGearPitchMode',
@@ -470,7 +519,8 @@ export namespace InvoluteGearComponent {
             }),
           ),
         ),
-        Fields.spacing('involuteGearPitchSpacer', 'sm'),
+      ]),
+      Fields.row('involuteGearTeeth', [
         Fields.labelled(
           'involuteGearTeeth',
           'Teeth:',
@@ -550,16 +600,14 @@ export namespace InvoluteGearComponent {
           `Outer Ø ${Length.fromSheetUnits(ctx.sheetDefaultUnit, metrics.outerRadius * 2).toDisplayString()}`,
         ),
       ]),
-      Fields.row('involuteGearToPolygon', [
-        Fields.button('involuteGearToPolygon', 'To polygon…', {
-          onClick: () => {
-            const current = ctx.geometryStore.getByIdWithComponent(id, InvoluteGearComponent);
-            if (current) {
-              InvoluteGearComponent.toPolygon(ctx, current);
-            }
-          },
-        }),
-      ]),
+      Fields.button('involuteGearToPolygon', 'To polygon...', {
+        onClick: () => {
+          const current = ctx.geometryStore.getByIdWithComponent(id, InvoluteGearComponent);
+          if (current) {
+            InvoluteGearComponent.toPolygon(ctx, current);
+          }
+        },
+      }),
     ];
   }
 

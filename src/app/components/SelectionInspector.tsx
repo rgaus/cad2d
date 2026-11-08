@@ -57,7 +57,11 @@ const FieldLeafRenderer: React.FunctionComponent<{
           onChange={(e) => field.handlers.onChange?.(e.currentTarget.value)}
           onFocus={field.handlers.onFocus}
           onBlur={field.handlers.onBlur}
-          onKeyDown={(e) => field.handlers.onKeyDown?.(e.key)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            field.handlers.onKeyDown?.(e.key);
+          }}
+          onKeyUp={(e) => e.stopPropagation()}
         />
       );
     case 'length':
@@ -164,7 +168,11 @@ const FieldLeafRenderer: React.FunctionComponent<{
           onClick={field.handlers.onClick}
           onFocus={field.handlers.onFocus}
           onBlur={field.handlers.onBlur}
-          onKeyDown={(e) => field.handlers.onKeyDown?.(e.key)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            field.handlers.onKeyDown?.(e.key);
+          }}
+          onKeyUp={(e) => e.stopPropagation()}
         >
           {typeof field.label === 'string' ? field.label : field.label.icon}
         </Button>

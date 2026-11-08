@@ -166,6 +166,45 @@ describe('InvoluteGear entity', () => {
     expect(RotationComponent.get(undone).angle.toDegrees().magnitude).toBeCloseTo(0, 6);
   });
 
+  it('lays out inspector fields with shared position keys and full-width button', () => {
+    const gear = addGear(new SheetPosition(3, 4));
+    const ctx = {
+      geometryStore,
+      historyManager,
+      sheetDefaultUnit: sheet.defaultUnit,
+      makeLengthHandlers: () => ({}),
+      makeNumberHandlers: () => ({}),
+      makeAngleHandlers: () => ({}),
+      recomputeFields: jest.fn(),
+    } as unknown as Parameters<typeof InvoluteGearComponent.computeSelectionInspectorFields>[1];
+
+    const fields = InvoluteGearComponent.computeSelectionInspectorFields(gear, ctx);
+    const positionRow = fields.find((field) => field.type === 'row' && field.key === 'position');
+    expect(positionRow).toBeDefined();
+    if (positionRow && positionRow.type === 'row') {
+      expect(positionRow.fields[0]).toMatchObject({ type: 'label', key: 'x' });
+      expect(positionRow.fields[1]).toMatchObject({ type: 'label', key: 'y' });
+    }
+
+    const pitchRow = fields.find(
+      (field) => field.type === 'row' && field.key === 'involuteGearPitch',
+    );
+    const teethRow = fields.find(
+      (field) => field.type === 'row' && field.key === 'involuteGearTeeth',
+    );
+    expect(pitchRow).toBeDefined();
+    expect(teethRow).toBeDefined();
+    if (pitchRow && pitchRow.type === 'row') {
+      expect(pitchRow.fields).toHaveLength(1);
+    }
+    if (teethRow && teethRow.type === 'row') {
+      expect(teethRow.fields).toHaveLength(1);
+    }
+    expect(
+      fields.some((field) => field.type === 'button' && field.key === 'involuteGearToPolygon'),
+    ).toBe(true);
+  });
+
   it('converts to an editable polygon, radial filter, datum, and dimensions', () => {
     const gear = addGear(new SheetPosition(10, 10));
     geometryStore.updateById(gear.id, (g) => ({
