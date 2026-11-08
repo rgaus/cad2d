@@ -52,11 +52,13 @@ import {
   FrameComponent,
   GeometryComponent,
   type Id,
+  InvoluteGearComponent,
   LinkDimensionsComponent,
   type Rectangle,
   RectangleEndpoint,
   RenderOrderComponent,
 } from './index';
+import type { WorkingInvoluteGear } from './involute-gear';
 import { Polygon } from './polygon';
 import { RenderShape } from './render-shape';
 
@@ -67,6 +69,7 @@ export const ID_PREFIXES = {
   constraint: 'cns' as const,
   filter: 'ftr' as const,
   datum: 'dtm' as const,
+  involuteGear: 'igr' as const,
 };
 
 export function getPrefixFromId(id: Id) {
@@ -87,6 +90,7 @@ export type GeometryStoreEvents = {
   workingRectangleChanged: (wr: WorkingRectangle | null) => void;
   workingEllipseChanged: (we: WorkingEllipse | null) => void;
   workingDatumChanged: (wd: WorkingDatum | null) => void;
+  workingInvoluteGearChanged: (wg: WorkingInvoluteGear | null) => void;
   workingConstraintsChanged: (we: Array<WorkingConstraint>) => void;
   workingFilterChanged: (wd: WorkingFilter | null) => void;
 };
@@ -106,6 +110,7 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   workingRectangle: WorkingRectangle | null = null;
   workingEllipse: WorkingEllipse | null = null;
   workingDatum: WorkingDatum | null = null;
+  workingInvoluteGear: WorkingInvoluteGear | null = null;
   workingConstraints: Array<WorkingConstraint> = [];
   workingFilter: WorkingFilter | null = null;
 
@@ -487,13 +492,24 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
    * FIXME: this is TEMPORARY, get rid of this when all renderable geometries are unified into a
    * single component like constraints... */
   getRenderableGeometryById(id: Entity['id']) {
-    return this.getByIdWithOneOfComponents(id, GeometryComponent, DatumComponent, FrameComponent);
+    return this.getByIdWithOneOfComponents(
+      id,
+      GeometryComponent,
+      DatumComponent,
+      FrameComponent,
+      InvoluteGearComponent,
+    );
   }
   /** Returns a renderable geometry if one exists for the given it.
    * FIXME: this is TEMPORARY, get rid of this when all renderable geometries are unified into a
    * single component like constraints... */
   listRenderableGeometries() {
-    return this.listWithOneOfComponents(GeometryComponent, DatumComponent, FrameComponent);
+    return this.listWithOneOfComponents(
+      GeometryComponent,
+      DatumComponent,
+      FrameComponent,
+      InvoluteGearComponent,
+    );
   }
 
   /**
@@ -1328,6 +1344,16 @@ export class GeometryStore extends EventEmitter<GeometryStoreEvents> {
   clearWorkingDatum(): void {
     this.workingDatum = null;
     this.emit('workingDatumChanged', null);
+  }
+
+  setWorkingInvoluteGear(wg: WorkingInvoluteGear | null): void {
+    this.workingInvoluteGear = wg;
+    this.emit('workingInvoluteGearChanged', wg);
+  }
+
+  clearWorkingInvoluteGear(): void {
+    this.workingInvoluteGear = null;
+    this.emit('workingInvoluteGearChanged', null);
   }
 
   setWorkingFilter(wf: WorkingFilter | null): void {

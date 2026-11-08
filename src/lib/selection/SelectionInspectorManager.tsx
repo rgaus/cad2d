@@ -206,6 +206,10 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
       makeLengthHandlers: (id, key, component, computeUpdate, editingDimension) =>
         this.makeLengthHandlers(id, key, component, computeUpdate, editingDimension),
       makePolygonPointLengthHandlers: (id, axis) => this.makePolygonPointLengthHandlers(id, axis),
+      makeNumberHandlers: (id, key, component, computeUpdate) =>
+        this.makeNumberHandlers(id, key, component, computeUpdate),
+      makeAngleHandlers: (id, key, component, computeUpdate) =>
+        this.makeAngleHandlers(id, key, component, computeUpdate),
       setOpenAtIndexState: (state) => this.emit('openAtIndexStateChange', state),
       setOpenAtIndexDragCleanup: (cleanup) => {
         this.openAtIndexDragCleanup = cleanup;
@@ -277,6 +281,107 @@ export class SelectionInspectorManager extends EventEmitter<SelectionInspectorMa
         }
         const fieldData = this.workingFieldData.get(key);
         if (!fieldData || fieldData.type !== 'length') {
+          return;
+        }
+        this.geometryStore.updateByIdDirect(id, this.dragOriginals.get(id)!);
+        const update = computeUpdate(fieldData.value);
+        if (update) {
+          this.geometryStore.updateByIdWithComponent(id, component, (old: Entity) =>
+            component.update(old, update),
+          );
+        }
+        this.dragOriginals.delete(id);
+        this.recomputeFields();
+      },
+      onKeyDown: (k) => {
+        if (k === 'Escape' && this.dragOriginals.has(id)) {
+          this.restoreDragOriginal(id);
+          this.workingFieldData.clear();
+          this.emit('workingFieldDataChange', new Map());
+          this.recomputeFields();
+        }
+      },
+    };
+  }
+
+  private makeNumberHandlers(
+    id: Id,
+    key: string,
+    component: any,
+    computeUpdate: (value: number) => any,
+  ): FieldHandlers<string> {
+    return {
+      onChange: (raw) => {
+        this.captureDragOriginal(id);
+        this.workingFieldData.set(key, { type: 'number', value: raw });
+        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+        const parsed = parseFloat(raw);
+        if (!Number.isFinite(parsed)) {
+          return;
+        }
+        const update = computeUpdate(parsed);
+        if (update) {
+          this.geometryStore.updateByIdWithComponentDirect(id, component, (old: Entity) =>
+            component.update(old, update),
+          );
+        }
+      },
+      onBlur: () => {
+        if (!this.dragOriginals.has(id)) {
+          return;
+        }
+        const fieldData = this.workingFieldData.get(key);
+        if (!fieldData || fieldData.type !== 'number') {
+          return;
+        }
+        const parsed = parseFloat(fieldData.value);
+        this.geometryStore.updateByIdDirect(id, this.dragOriginals.get(id)!);
+        if (Number.isFinite(parsed)) {
+          const update = computeUpdate(parsed);
+          if (update) {
+            this.geometryStore.updateByIdWithComponent(id, component, (old: Entity) =>
+              component.update(old, update),
+            );
+          }
+        }
+        this.dragOriginals.delete(id);
+        this.recomputeFields();
+      },
+      onKeyDown: (k) => {
+        if (k === 'Escape' && this.dragOriginals.has(id)) {
+          this.restoreDragOriginal(id);
+          this.workingFieldData.clear();
+          this.emit('workingFieldDataChange', new Map());
+          this.recomputeFields();
+        }
+      },
+    };
+  }
+
+  private makeAngleHandlers(
+    id: Id,
+    key: string,
+    component: any,
+    computeUpdate: (value: Angle) => any,
+  ): FieldHandlers<Angle> {
+    return {
+      onChange: (value) => {
+        this.captureDragOriginal(id);
+        this.workingFieldData.set(key, { type: 'angle', value });
+        this.emit('workingFieldDataChange', new Map(this.workingFieldData));
+        const update = computeUpdate(value);
+        if (update) {
+          this.geometryStore.updateByIdWithComponentDirect(id, component, (old: Entity) =>
+            component.update(old, update),
+          );
+        }
+      },
+      onBlur: () => {
+        if (!this.dragOriginals.has(id)) {
+          return;
+        }
+        const fieldData = this.workingFieldData.get(key);
+        if (!fieldData || fieldData.type !== 'angle') {
           return;
         }
         this.geometryStore.updateByIdDirect(id, this.dragOriginals.get(id)!);

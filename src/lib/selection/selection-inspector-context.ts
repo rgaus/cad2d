@@ -2,6 +2,7 @@ import type { ActionsManager } from '@/lib/actions/ActionsManager';
 import type { Entity, Id } from '@/lib/entity';
 import type { GeometryStore } from '@/lib/entity/GeometryStore';
 import type { HistoryManager } from '@/lib/history/HistoryManager';
+import type { Angle } from '@/lib/units/angle';
 import type { Length, UnitType } from '@/lib/units/length';
 import type { ShapePreviewEditingDimension, ShapePreviewManager } from './ShapePreviewManager';
 import type { FieldHandlers, OpenAtIndexState, WorkingValue } from './fields';
@@ -91,6 +92,22 @@ export interface SelectionInspectorContext {
     id: Id,
     axis: 'x' | 'y',
   ): { onChange: (index: number, value: Length) => void; onBlur: (index: number) => void };
+
+  /** Commit-on-blur handlers for a numeric text field. */
+  makeNumberHandlers(
+    id: Id,
+    key: string,
+    component: FieldComponent,
+    computeUpdate: (value: number) => unknown,
+  ): FieldHandlers<string>;
+
+  /** Commit-on-blur handlers for an angle field. */
+  makeAngleHandlers(
+    id: Id,
+    key: string,
+    component: FieldComponent,
+    computeUpdate: (value: Angle) => unknown,
+  ): FieldHandlers<Angle>;
 
   /** Emits a new {@link OpenAtIndexState}. */
   setOpenAtIndexState(state: OpenAtIndexState): void;

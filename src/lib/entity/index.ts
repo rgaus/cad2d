@@ -13,3 +13,11 @@ export * from './rectangle';
 export * from './polygon';
 export * from './datum';
 export * from './constraints';
+export type { InvoluteGear, InvoluteGearTemplate } from './involute-gear';
+export { InvoluteGear as InvoluteGearFactory } from './involute-gear';
+export {
+  InvoluteGearComponent,
+  type InvoluteGearData,
+  type InvoluteGearParams,
+} from './components/InvoluteGearComponent';
+export { TransformableComponent } from './components/TransformableComponent';

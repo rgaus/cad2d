@@ -3,6 +3,7 @@ import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { Length } from '@/lib/units/length';
 import { GeometryRelativeSheetPosition, SheetPosition } from '@/lib/viewport/types';
+import { getTransformableAdapter } from '../transformable';
 import { Entity, EntityComponent, EntityOmitComponents } from '../types';
 import { GeometryComponent } from './GeometryComponent';
 
@@ -44,8 +45,13 @@ export namespace AnchorPointComponent {
   }
 
   /** All named key points available on the geometry (named perimeter labels plus extras keys). */
-  export function getAvailableKeyPoints(geometry: Entity<GeometryComponent>): Array<string> {
-    const keyPoints = GeometryComponent.keyPoints(geometry);
+  export function getAvailableKeyPoints(geometry: Entity<GeometryComponent>): Array<string>;
+  export function getAvailableKeyPoints(geometry: Entity): Array<string>;
+  export function getAvailableKeyPoints(geometry: Entity): Array<string> {
+    const keyPoints = entityKeyPoints(geometry);
+    if (!keyPoints) {
+      return [];
+    }
     const perimeterLabels = keyPoints.perimeterLabels.filter(
       (label): label is string => label !== null,
     );
@@ -64,28 +70,71 @@ export namespace AnchorPointComponent {
     return extras[keyPoint] ?? null;
   }
 
+  function entityKeyPoints(entity: Entity) {
+    const adapter = getTransformableAdapter(entity);
+    if (adapter) {
+      return adapter.keyPoints(entity);
+    }
+    if (Entity.hasComponent(entity, GeometryComponent)) {
+      return GeometryComponent.keyPoints(entity);
+    }
+    return null;
+  }
+
+  function entityRawKeyPoints(entity: Entity) {
+    const adapter = getTransformableAdapter(entity);
+    if (adapter) {
+      return adapter.rawKeyPoints(entity);
+    }
+    if (Entity.hasComponent(entity, GeometryComponent)) {
+      return GeometryComponent.rawKeyPoints(entity);
+    }
+    return null;
+  }
+
+  function entityOrigin(entity: Entity): SheetPosition | null {
+    const adapter = getTransformableAdapter(entity);
+    if (adapter) {
+      return adapter.getOrigin(entity);
+    }
+    if (Entity.hasComponent(entity, GeometryComponent)) {
+      return GeometryComponent.getOrigin(entity);
+    }
+    return null;
+  }
+
   /** Resolves a named key point to its geometry-relative position on the geometry, or null if it
    * does not exist. */
   export function resolveKeyPointPosition(
     geometry: Entity<GeometryComponent>,
     keyPoint: string,
+  ): GeometryRelativeSheetPosition | null;
+  export function resolveKeyPointPosition(
+    geometry: Entity,
+    keyPoint: string,
+  ): GeometryRelativeSheetPosition | null;
+  export function resolveKeyPointPosition(
+    geometry: Entity,
+    keyPoint: string,
   ): GeometryRelativeSheetPosition | null {
-    return resolveKeyPointPositionFrom(GeometryComponent.keyPoints(geometry), keyPoint);
+    const keyPoints = entityKeyPoints(geometry);
+    return keyPoints ? resolveKeyPointPositionFrom(keyPoints, keyPoint) : null;
   }
 
   /** The offset that the associated geometry should be rendered at from it's natural origin, given
    * the anchor point position */
   export function computeAssociatedGeometryOffset(
-    geometry: Entity<AnchorPointComponent & GeometryComponent>,
+    geometry: Entity<AnchorPointComponent>,
   ): SheetPosition {
     const { keyPoint, offset } = AnchorPointComponent.get(geometry);
     // Resolve the key point against the geometry without its own anchor applied, so both the key
     // point and the origin are in the same (raw) space and the anchor does not cancel itself out.
     const withoutAnchor = AnchorPointComponent.remove(geometry);
-    const keyPointPosition = resolveKeyPointPositionFrom(
-      GeometryComponent.rawKeyPoints(withoutAnchor),
-      keyPoint,
-    );
+    const rawKeyPoints = entityRawKeyPoints(withoutAnchor);
+    if (!rawKeyPoints) {
+      return new SheetPosition(0, 0);
+    }
+    const keyPointPosition = resolveKeyPointPositionFrom(rawKeyPoints, keyPoint);
     if (!keyPointPosition) {
       return new SheetPosition(0, 0);
     }
@@ -98,7 +147,7 @@ export namespace AnchorPointComponent {
    * positions. Geometries without an anchor point are translated by zero.
    */
   export function generateRenderMatrix(geometry: Entity<AnchorPointComponent>): Matrix {
-    if (Entity.hasComponent(geometry, GeometryComponent)) {
+    if (entityKeyPoints(geometry)) {
       const offset = AnchorPointComponent.computeAssociatedGeometryOffset(geometry);
       return translate(-offset.x, -offset.y);
     }
@@ -114,7 +163,7 @@ export namespace AnchorPointComponent {
   export function generateRenderTransformFunction(
     geometry: Entity<AnchorPointComponent>,
   ): (position: SheetPosition) => SheetPosition {
-    if (Entity.hasComponent(geometry, GeometryComponent)) {
+    if (entityKeyPoints(geometry)) {
       const offset = AnchorPointComponent.computeAssociatedGeometryOffset(geometry);
       return (position) => new SheetPosition(position.x - offset.x, position.y - offset.y);
     }
@@ -125,10 +174,9 @@ export namespace AnchorPointComponent {
    * Computes the position that the anchor point should be rendered, in absolute sheet coordinates.
    * The handle always sits at the geometry's (raw) natural origin.
    */
-  export function getHandlePosition(
-    geometry: Entity<AnchorPointComponent & GeometryComponent>,
-  ): SheetPosition {
-    return GeometryComponent.getRenderOrigin(AnchorPointComponent.remove(geometry));
+  export function getHandlePosition(geometry: Entity<AnchorPointComponent>): SheetPosition {
+    const withoutAnchor = AnchorPointComponent.remove(geometry);
+    return entityOrigin(withoutAnchor) ?? new SheetPosition(0, 0);
   }
 
   /** Human readable label for a key point name, eg `upperLeft` -> `Upper left`. */
@@ -142,7 +190,7 @@ export namespace AnchorPointComponent {
     entity: Entity<AnchorPointComponent>,
     ctx: SelectionInspectorContext,
   ): FieldOptionsList {
-    if (!Entity.hasComponent(entity, GeometryComponent)) {
+    if (!entityKeyPoints(entity)) {
       return [];
     }
     const anchorPoint = AnchorPointComponent.get(entity);

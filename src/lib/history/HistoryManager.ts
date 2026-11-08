@@ -14,6 +14,7 @@ import {
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { DEFAULT_COLOR } from '@/lib/entity/colors';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
+import { involuteGearUndoEntries } from '@/lib/entity/components/InvoluteGearComponent';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { PolygonData, type PolygonSegment } from '@/lib/entity/geometry/polygon';
 import { type Sheet } from '@/lib/sheet/Sheet';
@@ -290,6 +291,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updateByIdWithComponentDirect(entry.id, RenderOrderComponent, (old) =>
           RenderOrderComponent.update(old, entry.afterOrder),
         );
+        break;
+      case 'involute-gear-move':
+      case 'involute-gear-update':
+        involuteGearUndoEntries.applyForward(this.geometryStore, entry);
         break;
       case 'link-dimensions':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, LinkDimensionsComponent, (old) =>
@@ -1056,6 +1061,10 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updateByIdWithComponentDirect(entry.id, RenderOrderComponent, (old) =>
           RenderOrderComponent.update(old, entry.beforeOrder),
         );
+        break;
+      case 'involute-gear-move':
+      case 'involute-gear-update':
+        involuteGearUndoEntries.applyReverse(this.geometryStore, entry);
         break;
       case 'ellipse-to-polygon':
         this.geometryStore.addDirect(entry.ellipse);

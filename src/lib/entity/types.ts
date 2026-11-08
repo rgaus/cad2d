@@ -1,4 +1,4 @@
-import { type Matrix, compose, identity } from 'transformation-matrix';
+import { type Matrix, applyToPoint, compose, identity } from 'transformation-matrix';
 import { RenderShape } from '@/lib/entity/render-shape';
 import { OrientedBoundingBox } from '@/lib/math';
 import { type FieldOptionsList } from '@/lib/selection/fields';
@@ -20,9 +20,11 @@ import { FillColorComponent } from './components/FillColorComponent';
 import { FilterComponent } from './components/FilterComponent';
 import { FrameComponent } from './components/FrameComponent';
 import { GeometryComponent } from './components/GeometryComponent';
+import { InvoluteGearComponent } from './components/InvoluteGearComponent';
 import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
 import { RotationComponent } from './components/RotationComponent';
+import { getTransformableAdapter } from './transformable';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -121,9 +123,27 @@ export namespace Entity {
     return GeometryComponent.keyPoints(entity);
   }
 
+  function relativeToSheet(
+    position: GeometryRelativeSheetPosition,
+    entity: Entity,
+    origin: SheetPosition,
+  ): SheetPosition {
+    const transformed = applyToPoint(
+      Entity.generateRenderMatrix(entity),
+      new SheetPosition(origin.x + position.x, origin.y + position.y),
+    );
+    return new SheetPosition(transformed.x, transformed.y);
+  }
+
   /** Key points projected into absolute rendered sheet space. Geometry key points are projected
    * through their render transform; datum and frame key points are already absolute. */
   export function keyPointsInSheet(entity: Entity): KeyPoints<SheetPosition, string, string> {
+    const adapter = getTransformableAdapter(entity);
+    if (adapter) {
+      return mapKeyPoints(adapter.keyPoints(entity), (position) =>
+        relativeToSheet(position, entity, adapter.getOrigin(entity)),
+      );
+    }
     if (Entity.hasComponent(entity, GeometryComponent)) {
       return mapKeyPoints(GeometryComponent.keyPoints(entity), (position) =>
         position.toSheet(entity),
@@ -137,6 +157,10 @@ export namespace Entity {
   }
 
   export function orientedBoundingBox(entity: Entity): OrientedRect<Position> {
+    const adapter = getTransformableAdapter(entity);
+    if (adapter) {
+      return adapter.orientedBoundingBox(entity);
+    }
     if (Entity.hasComponent(entity, GeometryComponent)) {
       return GeometryComponent.orientedBoundingBox(entity);
     } else if (Entity.hasComponent(entity, DatumComponent)) {
@@ -148,6 +172,10 @@ export namespace Entity {
   }
 
   export function boundingBox(entity: Entity): Rect<Position> {
+    const adapter = getTransformableAdapter(entity);
+    if (adapter) {
+      return adapter.boundingBox(entity);
+    }
     if (Entity.hasComponent(entity, GeometryComponent)) {
       return GeometryComponent.boundingBox(entity);
     } else if (Entity.hasComponent(entity, DatumComponent)) {
@@ -161,6 +189,13 @@ export namespace Entity {
   /** Returns the entity's oriented bounding box projected into rendered sheet space. Datum and
    * frame positions are already absolute sheet positions. */
   export function orientedBoundingBoxInSheet(entity: Entity): OrientedRect<SheetPosition> {
+    const adapter = getTransformableAdapter(entity);
+    if (adapter) {
+      const rect = adapter.orientedBoundingBox(entity);
+      return OrientedBoundingBox.mapPositions(rect, (position) =>
+        relativeToSheet(position, entity, adapter.getOrigin(entity)),
+      );
+    }
     if (Entity.hasComponent(entity, GeometryComponent)) {
       const rect = GeometryComponent.orientedBoundingBox(entity);
       return OrientedBoundingBox.mapPositions(rect, (position) => position.toSheet(entity));
@@ -215,6 +250,10 @@ export namespace Entity {
   }
 
   export function getRenderShapes(entity: Entity, sheetDefaultUnit: UnitType): Array<RenderShape> {
+    const adapter = getTransformableAdapter(entity);
+    if (adapter) {
+      return adapter.getRenderShapes(entity, sheetDefaultUnit);
+    }
     if (Entity.hasComponent(entity, GeometryComponent)) {
       return GeometryComponent.getRenderShapes(entity, sheetDefaultUnit);
     } else if (Entity.hasComponent(entity, DatumComponent)) {
@@ -230,6 +269,7 @@ export namespace Entity {
    * will be rendered at the bottom. */
   function getComponentKeyOrdering(key: string): number {
     return [
+      InvoluteGearComponent.key,
       GeometryComponent.key,
       ConstraintComponent.key,
       DatumComponent.key,
@@ -245,8 +285,9 @@ export namespace Entity {
     ].indexOf(key as any);
   }
 
-  function getComponentByKey(key: string) {
+  export function getComponentByKey(key: string) {
     for (const component of [
+      InvoluteGearComponent,
       GeometryComponent,
       FillColorComponent,
       ConstraintComponent,
@@ -273,6 +314,12 @@ export namespace Entity {
     context: SelectionInspectorContext,
   ): FieldOptionsList {
     switch (Component.key) {
+      case InvoluteGearComponent.key: {
+        if (!Entity.hasComponent(entity, InvoluteGearComponent)) {
+          return [];
+        }
+        return InvoluteGearComponent.computeSelectionInspectorFields(entity, context);
+      }
       case GeometryComponent.key: {
         if (!Entity.hasComponent(entity, GeometryComponent)) {
           return [];

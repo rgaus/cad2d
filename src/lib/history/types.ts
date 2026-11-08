@@ -11,6 +11,7 @@ import type {
 } from '@/lib/entity';
 import type { ConstraintComponent } from '@/lib/entity/components/ConstraintComponent';
 import type { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import type { InvoluteGearHistoryEntries } from '@/lib/entity/components/InvoluteGearComponent';
 import type { RotationData } from '@/lib/entity/components/RotationComponent';
 import type { FilterData } from '@/lib/entity/filters';
 import type { EllipseData } from '@/lib/entity/geometry/ellipse';
@@ -511,7 +512,8 @@ export type UndoEntry =
   | ConstraintChangeDataEntry
   | MirrorFilterMoveEndpointsEntry
   | FrameMoveEntry
-  | PatternRadialFilterMoveCenterEntry;
+  | PatternRadialFilterMoveCenterEntry
+  | InvoluteGearHistoryEntries;
 
 export namespace UndoEntry {
   /** Creates a raw transaction, useful with historyManager.push. Most likely you want {@link HistoryManager.applyTransaction} instead. */

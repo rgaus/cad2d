@@ -4,6 +4,7 @@ import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import { type SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { Angle } from '@/lib/units/angle';
 import { SheetPosition } from '@/lib/viewport/types';
+import { getTransformableAdapter } from '../transformable';
 import { Entity, EntityComponent, EntityOmitComponents } from '../types';
 import { GeometryComponent } from './GeometryComponent';
 
@@ -45,14 +46,25 @@ export namespace RotationComponent {
     return { ...entity, components };
   }
 
+  function getRotationOrigin(entity: Entity): SheetPosition | null {
+    const adapter = getTransformableAdapter(entity);
+    if (adapter) {
+      return adapter.getOrigin(entity);
+    }
+    if (Entity.hasComponent(entity, GeometryComponent)) {
+      return GeometryComponent.getOrigin(entity);
+    }
+    return null;
+  }
+
   /**
    * Builds the matrix which maps raw stored geometry positions into their rendered ("rotated")
    * positions.
    */
   export function generateRenderMatrix(entity: Entity<RotationComponent>): Matrix {
-    if (Entity.hasComponent(entity, GeometryComponent)) {
+    const origin = getRotationOrigin(entity);
+    if (origin) {
       const { angle } = RotationComponent.get(entity);
-      const origin = GeometryComponent.getOrigin(entity);
       return rotateDEG(angle.toDegrees().magnitude, origin.x, origin.y);
     }
     return identity();
@@ -66,14 +78,11 @@ export namespace RotationComponent {
   export function generateRenderTransformFunction(
     entity: Entity<RotationComponent>,
   ): (position: SheetPosition) => SheetPosition {
-    if (Entity.hasComponent(entity, GeometryComponent)) {
+    const origin = getRotationOrigin(entity);
+    if (origin) {
       const { angle } = RotationComponent.get(entity);
       return (position) => {
-        return rotatePointAround(
-          position,
-          GeometryComponent.getOrigin(entity),
-          angle.toDegrees().magnitude,
-        );
+        return rotatePointAround(position, origin, angle.toDegrees().magnitude);
       };
     }
     return (position) => new SheetPosition(position.x, position.y);
@@ -84,7 +93,7 @@ export namespace RotationComponent {
     entity: Entity<RotationComponent>,
     ctx: SelectionInspectorContext,
   ): FieldOptionsList {
-    if (!Entity.hasComponent(entity, GeometryComponent)) {
+    if (!getRotationOrigin(entity)) {
       return [];
     }
     const rotationData = RotationComponent.get(entity);
