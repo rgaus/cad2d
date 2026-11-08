@@ -26,7 +26,6 @@ import {
   ScreenPosition,
   SheetPosition,
 } from '@/lib/viewport/types';
-import { AnchorPointOverlay } from './AnchorPointOverlay';
 import { CurveControlPointHandlesSprites } from './CurveControlPointHandlesSprites';
 import { CurveEdgeHitDetector } from './CurveEdgeHitDetector';
 import { HandleSprites } from './HandleSprites';
@@ -1106,12 +1105,7 @@ const PolygonOverlay: React.FunctionComponent = () => {
 };
 
 const GeometryOverlay: React.FunctionComponent = () => {
-  return (
-    <>
-      <PolygonOverlay />
-      <AnchorPointOverlay />
-    </>
-  );
+  return <PolygonOverlay />;
 };
 
 /** Renders all polygons currently on the sheet. */

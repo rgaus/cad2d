@@ -22,6 +22,7 @@ const TOOL_LIST: Array<ToolType> = [
   'polygon',
   'rectangle',
   'ellipse',
+  'involute-gear',
 ];
 
 /**

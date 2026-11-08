@@ -12,6 +12,7 @@ import { BaseMultiTool, BaseTool, type SnapHintsVisibility } from './BaseTool';
 import { ConstraintTool } from './ConstraintTool';
 import { EllipseTool } from './EllipseTool';
 import { FiltersTool } from './FiltersTool';
+import { InvoluteGearTool } from './InvoluteGearTool';
 import { MoveTool } from './MoveTool';
 import { PolygonTool } from './PolygonTool';
 import { RectangleTool } from './RectangleTool';
@@ -29,6 +30,7 @@ const TOOLS = [
   RectangleTool,
   EllipseTool,
   ConstraintTool,
+  InvoluteGearTool,
 ];
 export const TOOLS_BY_TYPE = {
   select: SelectTool,
@@ -39,6 +41,7 @@ export const TOOLS_BY_TYPE = {
   rectangle: RectangleTool,
   ellipse: EllipseTool,
   constraint: ConstraintTool,
+  'involute-gear': InvoluteGearTool,
 };
 export type Tool = InstanceType<(typeof TOOLS)[0]>;
 

@@ -3,6 +3,7 @@
 import { Application, extend } from '@pixi/react';
 import { Container, FederatedMouseEvent, Graphics, Sprite, Texture } from 'pixi.js';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnchorPointOverlay } from '@/components/AnchorPointOverlay';
 import { ConstraintLayers } from '@/components/ConstraintsRenderer';
 import { DCELDebugRenderer } from '@/components/DCELDebugRenderer';
 import { DatumLayers, WorkingDatumLayers } from '@/components/DatumRenderer';
@@ -10,6 +11,7 @@ import { FilterLayers } from '@/components/FilterRenderer';
 import { FrameLayers } from '@/components/FrameRenderer';
 import { GeometryLayers } from '@/components/GeometryRenderer';
 import { HandleSprites } from '@/components/HandleSprites';
+import { InvoluteGearLayers, WorkingInvoluteGearLayers } from '@/components/InvoluteGearRenderer';
 import { SelectionBoxOverlay } from '@/components/SelectionBoxOverlay';
 import { SheetRenderer } from '@/components/SheetRenderer';
 import { SnapsHintLayers } from '@/components/SnapHintsLayers';
@@ -29,6 +31,7 @@ import {
   Entity,
   GeometryComponent,
   type Id,
+  InvoluteGearComponent,
   RenderOrderComponent,
 } from '@/lib/entity';
 import { type Filter } from '@/lib/entity/filters';
@@ -309,6 +312,7 @@ export default function ViewportRenderer2D({
   const [workingPolygon, setWorkingPolygon] = useState<WorkingPolygon | null>(null);
   const [workingRectangle, setWorkingRectangle] = useState<WorkingRectangle | null>(null);
   const [datums, setDatums] = useState<Array<Datum>>([]);
+  const [involuteGears, setInvoluteGears] = useState<Array<Entity<any>>>([]);
   const [workingEllipse, setWorkingEllipse] = useState<WorkingEllipse | null>(null);
   const [workingConstraints, setWorkingConstraints] = useState<Array<WorkingConstraint>>([]);
   const [activeTool, setActiveTool] = useState(toolManager.getActiveTool());
@@ -387,6 +391,9 @@ export default function ViewportRenderer2D({
       );
 
       setDatums(geometryStore.listWithComponent(DatumComponent));
+      setInvoluteGears(
+        geometryStore.listWithComponents(InvoluteGearComponent, RenderOrderComponent),
+      );
     };
     geometryStore.on('geometryAdded', refreshAll);
     geometryStore.on('geometryUpdated', refreshAll);
@@ -783,11 +790,14 @@ export default function ViewportRenderer2D({
       {/* Filters: */}
       <SingleLayerRenderer layers={FilterLayers} layerName={layerName} />
 
+      {layerName === RendererLayers.Overlays ? <AnchorPointOverlay /> : null}
+
       <ListLayersRenderer
         layersItemsPairs={[
           // FIXME: address type issues
           [GeometryLayers, geometries] as unknown as ListLayersItemsPair,
           [DatumLayers, datums] as unknown as ListLayersItemsPair,
+          [InvoluteGearLayers, involuteGears] as unknown as ListLayersItemsPair,
         ]}
         layerName={layerName}
       />
@@ -800,6 +810,7 @@ export default function ViewportRenderer2D({
       <SingleLayerRenderer layers={WorkingRectangleLayers} layerName={layerName} />
       {/* Currently work in progress datum: */}
       <SingleLayerRenderer layers={WorkingDatumLayers} layerName={layerName} />
+      <SingleLayerRenderer layers={WorkingInvoluteGearLayers} layerName={layerName} />
 
       <SingleLayerRenderer layers={SnapsHintLayers} layerName={layerName} />
 
@@ -1065,6 +1076,12 @@ export default function ViewportRenderer2D({
                 </KeyboardShortcut>
               </div>
             </div>
+          </HoverTooltip>
+        ) : null}
+
+        {activeTool.type === 'involute-gear' && mouseScreenPos ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <span>Click to place involute gear</span>
           </HoverTooltip>
         ) : null}
 

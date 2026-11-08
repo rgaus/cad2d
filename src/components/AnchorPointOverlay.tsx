@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
-import { useGeometries } from '@/hooks/useEntities';
+import { useRenderableGeometries } from '@/hooks/useEntities';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
-import { AnchorPointComponent, Entity, GeometryComponent } from '@/lib/entity';
+import { AnchorPointComponent, Entity } from '@/lib/entity';
 import { AnchorPointHandleTexture } from '@/lib/textures';
 import { ScreenPosition } from '@/lib/viewport/types';
 import { HandleSprites } from './HandleSprites';
@@ -12,7 +12,7 @@ import { HandleSprites } from './HandleSprites';
 export const AnchorPointOverlay: React.FunctionComponent = () => {
   const { activeTool, viewportControls, geometryStore, viewportScale } = useViewportContext();
   const selectedIds = useSelectionManagerSelectedIds();
-  const geometries = useGeometries(geometryStore);
+  const geometries = useRenderableGeometries(geometryStore);
 
   const handles = useMemo(
     () =>
@@ -20,7 +20,7 @@ export const AnchorPointOverlay: React.FunctionComponent = () => {
         if (!selectedIds.includes(geometry.id)) {
           return [];
         }
-        if (!Entity.hasComponents(geometry, GeometryComponent, AnchorPointComponent)) {
+        if (!Entity.hasComponent(geometry, AnchorPointComponent)) {
           return [];
         }
         return [
