@@ -15,6 +15,7 @@ import {
 } from '@/lib/entity';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { InvoluteGearComponent } from '@/lib/entity/components/InvoluteGearComponent';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import {
   type ColinearConstraintData,
@@ -28,6 +29,7 @@ import {
 import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/entity/datum';
 import { GeometryData } from '@/lib/entity/geometry';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
+import type { InvoluteGear } from '@/lib/entity/involute-gear';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { type UnitType } from '@/lib/units/length';
@@ -229,6 +231,38 @@ export function serializeEllipse(ellipse: Ellipse, options?: { hidden?: boolean 
   ].filter((attr) => attr.length > 0);
 
   return `<ellipse id="${ellipse.id}" ${attrs.join(' ')} cx="${center.x.toFixed(2)}" cy="${center.y.toFixed(2)}" rx="${ellipseData.radiusX * SHEET_UNITS_TO_PIXELS}" ry="${ellipseData.radiusY * SHEET_UNITS_TO_PIXELS}"/>`;
+}
+
+/** Serializes an involute gear to an SVG <path> element string. */
+export function serializeInvoluteGear(gear: InvoluteGear): string {
+  const data = InvoluteGearComponent.get(gear);
+  const shapes = InvoluteGearComponent.getRenderShapes(gear);
+  const polygon = shapes.find((shape) => shape.shape === 'polygon');
+  const d = polygon && polygon.shape === 'polygon' ? segmentsToPathData(polygon.points) : '';
+  const fillColor = FillColorComponent.getOptional(gear);
+  const fillAttr =
+    typeof fillColor === 'number'
+      ? ` fill="#${fillColor.toString(16).padStart(6, '0')}"`
+      : ' fill="none"';
+  const attrs: Array<string> = [
+    `data-type="involute-gear"`,
+    `id="${gear.id}"`,
+    `data-x="${data.position.x}"`,
+    `data-y="${data.position.y}"`,
+    `data-pitch-mode="${data.params.pitchMode}"`,
+    `data-pitch="${data.params.pitch}"`,
+    `data-teeth="${data.params.teeth}"`,
+    `data-pressure-angle-degrees="${data.params.pressureAngle.toDegrees().magnitude}"`,
+    `data-addendum-coefficient="${data.params.addendumCoefficient}"`,
+    `data-dedendum-coefficient="${data.params.dedendumCoefficient}"`,
+    `data-profile-shift="${data.params.profileShift}"`,
+    `data-backlash="${data.params.backlash}"`,
+    `data-module-sheet-units="${data.moduleSheetUnits}"`,
+    ...serializeTransformAttributes(gear),
+  ];
+  const renderOrder = RenderOrderComponent.get(gear);
+  attrs.push(`data-render-order="${renderOrder}"`);
+  return `<path d="${d} Z"${fillAttr} stroke="#000" stroke-width="1" ${attrs.join(' ')} />`;
 }
 
 /** Serializes a datum to an SVG <g> element with crosshair + circle children. */
@@ -813,6 +847,16 @@ export function serializeToSvg(
         break;
     }
   }
+  for (const gear of geometryStore.listWithComponents(
+    InvoluteGearComponent,
+    RenderOrderComponent,
+  )) {
+    allShapes.push({
+      renderOrder: RenderOrderComponent.get(gear),
+      serialize: () => [serializeInvoluteGear(gear as InvoluteGear)],
+    });
+  }
+
   allShapes.sort((a, b) => a.renderOrder - b.renderOrder);
   for (const shape of allShapes) {
     svgParts.push(...shape.serialize());

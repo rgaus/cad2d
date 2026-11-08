@@ -3,7 +3,7 @@ import type { ToolType } from '../tools/types';
 import { type SerializedLength, type UnitType } from '../units/length';
 
 /** The current file format version. Bump when making breaking schema changes. */
-export const CURRENT_VERSION = 1;
+export const CURRENT_VERSION = 2;
 
 /** Magic prefix for the state comment at the end of the SVG file. */
 export const CAD2D_STATE_COMMENT_PREFIX = 'cad2d-state:';
@@ -54,6 +54,10 @@ export type MigrationLoaderEntry = { version: number; migrate: MigrationLoader }
  * The migration chain is applied repeatedly until state.version === CURRENT_VERSION.
  */
 const MIGRATION_LOADERS: Array<MigrationLoaderEntry> = [
+  {
+    version: 1,
+    migrate: (state) => ({ ...state, version: 2 }),
+  },
   // Add migration loaders here when new versions are added
   // Example:
   // {

@@ -202,6 +202,14 @@ export class SerializationManager {
         }
       }
 
+      for (const gear of parseResult.involuteGears) {
+        if (eraseExisting) {
+          geometryStore.addDirect(gear);
+        } else {
+          this.getHistoryManager().apply(UndoEntry.insert(gear));
+        }
+      }
+
       // Insert parsed filters (from SVG <g> elements)
       for (const filter of parseResult.filters) {
         if (eraseExisting) {

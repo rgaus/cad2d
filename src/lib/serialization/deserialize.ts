@@ -8,6 +8,7 @@ import {
   Ellipse,
   EllipseEndpoint,
   Entity,
+  FillColorComponent,
   HorizontalConstraint,
   Id,
   LinearConstraint,
@@ -23,8 +24,11 @@ import {
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { InvoluteGearComponent } from '@/lib/entity/components/InvoluteGearComponent';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
+import { TransformableComponent } from '@/lib/entity/components/TransformableComponent';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
+import type { InvoluteGear } from '@/lib/entity/involute-gear';
 import { Angle } from '@/lib/units/angle';
 import {
   CentimetersLength,
@@ -65,6 +69,8 @@ export type ParseResult = {
   constraints: Array<Entity<ConstraintComponent>>;
   /** Parsed datums. */
   datums: Array<Datum>;
+  /** Parsed involute gears. */
+  involuteGears: Array<InvoluteGear>;
   /** Parsed filters (from cad2d-state comment). */
   filters: Array<Filter>;
   /** Validation warnings logged during parsing. */
@@ -92,6 +98,8 @@ function idPrefixForElement(
         return ID_PREFIXES.polygon;
       case 'datum':
         return ID_PREFIXES.datum;
+      case 'involute-gear':
+        return ID_PREFIXES.involuteGear;
       default:
         if (dataType.endsWith('-filter')) {
           return ID_PREFIXES.filter;
@@ -679,6 +687,80 @@ function parseEllipse(
     },
     renderOrder,
   ];
+}
+
+/** Parses a <path data-type="involute-gear"> element into an InvoluteGear. */
+function parseInvoluteGear(
+  element: Record<string, string | undefined>,
+  generateId: (prefix?: string) => Id,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
+): InvoluteGear | null {
+  const id = resolveEntityId(
+    element.id,
+    ID_PREFIXES.involuteGear,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
+  const x = parseFloat(element['data-x'] || '0');
+  const y = parseFloat(element['data-y'] || '0');
+  const pitch = parseFloat(element['data-pitch'] || '2');
+  const teeth = parseInt(element['data-teeth'] || '20', 10);
+  const pressureAngle = parseFloat(element['data-pressure-angle-degrees'] || '20');
+  const moduleSheetUnits = parseFloat(element['data-module-sheet-units'] || '1');
+  if (
+    Number.isNaN(x) ||
+    Number.isNaN(y) ||
+    Number.isNaN(pitch) ||
+    Number.isNaN(teeth) ||
+    Number.isNaN(pressureAngle) ||
+    Number.isNaN(moduleSheetUnits)
+  ) {
+    throw new ParseSvgWarningError(`involute-gear#${id}: invalid numeric attributes`);
+  }
+  const params = {
+    pitchMode:
+      element['data-pitch-mode'] === 'diametral-pitch'
+        ? ('diametral-pitch' as const)
+        : ('module' as const),
+    pitch,
+    teeth,
+    pressureAngle: Angle.degrees(pressureAngle),
+    addendumCoefficient: parseFloat(element['data-addendum-coefficient'] || '1'),
+    dedendumCoefficient: parseFloat(element['data-dedendum-coefficient'] || '1.25'),
+    profileShift: parseFloat(element['data-profile-shift'] || '0'),
+    backlash: parseFloat(element['data-backlash'] || '0'),
+  };
+  const transform = parseTransformComponents(element);
+  const fillColor = parseColor(element.fill || '#cbd5e1') ?? 0xcbd5e1;
+  const renderOrder = parseRenderOrder(element);
+  return {
+    id,
+    components: {
+      ...InvoluteGearComponent.create({
+        type: 'involute-gear',
+        position: new SheetPosition(x, y),
+        params,
+        moduleSheetUnits,
+      }),
+      ...AnchorPointComponent.create(
+        transform.anchorPoint ?? {
+          keyPoint: 'center',
+          offset: new SheetPosition(0, 0),
+        },
+      ),
+      ...RotationComponent.create(transform.rotation?.angle ?? Angle.degrees(0)),
+      ...FillColorComponent.create(fillColor),
+      ...TransformableComponent.create({
+        adapter: 'involute-gear',
+        translate: true,
+        rotate: true,
+        scale: false,
+      }),
+      ...RenderOrderComponent.create(renderOrder),
+    },
+  };
 }
 
 /** Parses a <g data-type="datum"> element into a Datum.
@@ -1305,6 +1387,7 @@ export function parseSvg(
     ellipses: [],
     constraints: [],
     datums: [],
+    involuteGears: [],
     filters: [],
     warnings: [],
   };
@@ -1585,6 +1668,19 @@ export function parseSvg(
         }
         break;
       }
+      case 'involute-gear':
+        if (tagName === 'path') {
+          const gear = parseInvoluteGear(
+            attrs as Record<string, string | undefined>,
+            generateId,
+            rewrittenIdMap,
+            doesIdExist,
+          );
+          if (gear) {
+            result.involuteGears.push(gear);
+          }
+        }
+        break;
       case 'datum':
         if (tagName === 'g') {
           const datumAndOrder = parseDatum(attrs, generateId, rewrittenIdMap, doesIdExist);
