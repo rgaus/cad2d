@@ -138,7 +138,7 @@ const FieldLeafRenderer: React.FunctionComponent<{
         </span>
       );
     case 'read-only':
-      return <span>{field.value[0]}</span>;
+      return <span className="text-sm">{field.value}</span>;
     case 'spacing':
       return (
         <div
