@@ -16,16 +16,16 @@ import { ConstraintEndpoint, LinearConstraint } from '../constraints';
 import { Datum } from '../datum';
 import { PatternFilter } from '../filters/pattern';
 import { Polygon } from '../polygon';
-import {
-  type ListTransformableAdapterUndoEntryCreators,
-  TransformableAdapter,
-  registerConstraintEndpointAdapter,
-  registerTransformableAdapter,
-} from '../transformable';
-import { Entity, EntityComponent, type EntityOmitComponents } from '../types';
+import { registerComponent } from '../registry';
+import { Entity, EntityComponent, type EntityOmitComponents, type Id } from '../types';
 import { AnchorPointComponent } from './AnchorPointComponent';
 import { FillColorComponent } from './FillColorComponent';
 import { RotationComponent } from './RotationComponent';
+import {
+  type ListTransformableTemplateUndoEntryCreators,
+  TransformableTemplate,
+  registerConstraintEndpointAdapter,
+} from './templates/TransformableTemplate';
 
 export const GEAR_MAX_TEETH = 200;
 export const DEFAULT_GEAR_FILL_COLOR = 0xcbd5e1;
@@ -361,6 +361,22 @@ export namespace InvoluteGearComponent {
       da.params.profileShift === db.params.profileShift &&
       da.params.backlash === db.params.backlash
     );
+  }
+
+  export function getKeyPointPosition(
+    entity: Entity<InvoluteGearComponent>,
+    keyPoint: string,
+  ): SheetPosition | null {
+    const keyPoints = Entity.keyPointsInSheet(entity);
+    return keyPoints.extras[keyPoint] ?? null;
+  }
+
+  export function createMoveUndoEntry(
+    id: Id,
+    before: InvoluteGearData,
+    after: InvoluteGearData,
+  ): unknown {
+    return involuteGearUndoEntries.creators.move(id, before, after);
   }
 
   export function getRenderShapes(entity: Entity<InvoluteGearComponent>): Array<RenderShape> {
@@ -732,7 +748,7 @@ export namespace InvoluteGearComponent {
   }
 }
 
-const involuteGearUndoEntries = TransformableAdapter.history.generateUndoEntryEvents(
+const involuteGearUndoEntries = TransformableTemplate.history.generateUndoEntryEvents(
   'involute-gear',
   {
     get: (entity) => InvoluteGearComponent.get(entity as Entity<InvoluteGearComponent>),
@@ -741,44 +757,17 @@ const involuteGearUndoEntries = TransformableAdapter.history.generateUndoEntryEv
   },
 );
 
-export type InvoluteGearHistoryEntries = ListTransformableAdapterUndoEntryCreators<
+export type InvoluteGearHistoryEntries = ListTransformableTemplateUndoEntryCreators<
   typeof involuteGearUndoEntries
 >;
 
 export { involuteGearUndoEntries };
 
-export const involuteGearAdapter: TransformableAdapter<InvoluteGearData> = {
-  get: (entity) => InvoluteGearComponent.get(entity as Entity<InvoluteGearComponent>),
-  update: (entity, data) =>
-    InvoluteGearComponent.update(entity as Entity<InvoluteGearComponent>, data),
-  getOrigin: (entity) => InvoluteGearComponent.getOrigin(entity as Entity<InvoluteGearComponent>),
-  rawKeyPoints: (entity) =>
-    InvoluteGearComponent.rawKeyPoints(entity as Entity<InvoluteGearComponent>),
-  keyPoints: (entity) => InvoluteGearComponent.keyPoints(entity as Entity<InvoluteGearComponent>),
-  boundingBox: (entity) =>
-    InvoluteGearComponent.boundingBox(entity as Entity<InvoluteGearComponent>),
-  orientedBoundingBox: (entity) =>
-    InvoluteGearComponent.orientedBoundingBox(entity as Entity<InvoluteGearComponent>),
-  translate: (entity, transform) =>
-    InvoluteGearComponent.translate(entity as Entity<InvoluteGearComponent>, transform),
-  getKeyPointPosition: (entity, keyPoint) => {
-    const keyPoints = Entity.keyPointsInSheet(entity as Entity<InvoluteGearComponent>);
-    return keyPoints.extras[keyPoint] ?? null;
-  },
-  equals: (a, b) =>
-    InvoluteGearComponent.equals(
-      a as Entity<InvoluteGearComponent>,
-      b as Entity<InvoluteGearComponent>,
-    ),
-  createMoveUndoEntry: (id, before, after) =>
-    involuteGearUndoEntries.creators.move(id, before, after),
-  getRenderShapes: (entity) =>
-    InvoluteGearComponent.getRenderShapes(entity as Entity<InvoluteGearComponent>),
-};
+registerComponent<TransformableTemplate<InvoluteGearData, Entity<InvoluteGearComponent>>>(
+  InvoluteGearComponent,
+);
 
-registerTransformableAdapter('involute-gear', involuteGearAdapter);
-
-export const involuteGearEndpoint = TransformableAdapter.constraints.generateConstraintEndpoint(
+export const involuteGearEndpoint = TransformableTemplate.constraints.generateConstraintEndpoint(
   'involute-gear',
   {
     label: 'Gear',

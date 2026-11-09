@@ -22,7 +22,7 @@ import {
   type TransformableConstraintEndpoint,
   getConstraintEndpointAdapterByType,
   getConstraintEndpointAdapters,
-} from '@/lib/entity/transformable';
+} from '@/lib/entity/components/templates/TransformableTemplate';
 import { Length, type UnitType } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
 import { SheetPosition } from '@/lib/viewport/types';

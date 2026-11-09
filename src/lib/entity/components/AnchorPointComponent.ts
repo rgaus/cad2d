@@ -3,9 +3,10 @@ import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { Length } from '@/lib/units/length';
 import { GeometryRelativeSheetPosition, SheetPosition } from '@/lib/viewport/types';
-import { getTransformableAdapter } from '../transformable';
+import { registerComponent } from '../registry';
 import { Entity, EntityComponent, EntityOmitComponents } from '../types';
 import { GeometryComponent } from './GeometryComponent';
+import { TransformableTemplate } from './templates/TransformableTemplate';
 
 /** Configuration for a geometry's anchor point: a named key point on the geometry plus a sheet-unit
  * offset from that key point. The anchor handle renders at `keyPointPosition + offset`. */
@@ -71,7 +72,7 @@ export namespace AnchorPointComponent {
   }
 
   function entityKeyPoints(entity: Entity) {
-    const adapter = getTransformableAdapter(entity);
+    const adapter = TransformableTemplate.getForEntity(entity);
     if (adapter) {
       return adapter.keyPoints(entity);
     }
@@ -82,7 +83,7 @@ export namespace AnchorPointComponent {
   }
 
   function entityRawKeyPoints(entity: Entity) {
-    const adapter = getTransformableAdapter(entity);
+    const adapter = TransformableTemplate.getForEntity(entity);
     if (adapter) {
       return adapter.rawKeyPoints(entity);
     }
@@ -93,7 +94,7 @@ export namespace AnchorPointComponent {
   }
 
   function entityOrigin(entity: Entity): SheetPosition | null {
-    const adapter = getTransformableAdapter(entity);
+    const adapter = TransformableTemplate.getForEntity(entity);
     if (adapter) {
       return adapter.getOrigin(entity);
     }
@@ -288,3 +289,5 @@ export namespace AnchorPointComponent {
     ];
   }
 }
+
+registerComponent(AnchorPointComponent);

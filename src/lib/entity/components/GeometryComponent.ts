@@ -20,6 +20,7 @@ import { EllipseData } from '../geometry/ellipse';
 import { PolygonData, PolygonSegment } from '../geometry/polygon';
 import { RectangleData } from '../geometry/rectangle';
 import { RectangleEndpoint } from '../rectangle';
+import { registerComponent } from '../registry';
 import { RenderShape } from '../render-shape';
 import { Entity, type EntityComponent, type ResizeFrame, ResizeParams } from '../types';
 import { AnchorPointComponent } from './AnchorPointComponent';
@@ -1244,3 +1245,5 @@ export namespace GeometryComponent {
     }
   }
 }
+
+registerComponent(GeometryComponent);

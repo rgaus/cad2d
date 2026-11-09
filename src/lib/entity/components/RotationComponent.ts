@@ -4,9 +4,10 @@ import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import { type SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { Angle } from '@/lib/units/angle';
 import { SheetPosition } from '@/lib/viewport/types';
-import { getTransformableAdapter } from '../transformable';
+import { registerComponent } from '../registry';
 import { Entity, EntityComponent, EntityOmitComponents } from '../types';
 import { GeometryComponent } from './GeometryComponent';
+import { TransformableTemplate } from './templates/TransformableTemplate';
 
 export type RotationData = {
   angle: Angle;
@@ -47,7 +48,7 @@ export namespace RotationComponent {
   }
 
   function getRotationOrigin(entity: Entity): SheetPosition | null {
-    const adapter = getTransformableAdapter(entity);
+    const adapter = TransformableTemplate.getForEntity(entity);
     if (adapter) {
       return adapter.getOrigin(entity);
     }
@@ -120,3 +121,5 @@ export namespace RotationComponent {
     ];
   }
 }
+
+registerComponent(RotationComponent);

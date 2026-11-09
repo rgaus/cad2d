@@ -29,7 +29,7 @@ import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { TransformableComponent } from '@/lib/entity/components/TransformableComponent';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
 import type { InvoluteGear } from '@/lib/entity/involute-gear';
-import { getConstraintEndpointAdapterByType } from '@/lib/entity/transformable';
+import { getConstraintEndpointAdapterByType } from '@/lib/entity/components/templates/TransformableTemplate';
 import { Angle } from '@/lib/units/angle';
 import {
   CentimetersLength,
@@ -754,7 +754,7 @@ function parseInvoluteGear(
       ...RotationComponent.create(transform.rotation?.angle ?? Angle.degrees(0)),
       ...FillColorComponent.create(fillColor),
       ...TransformableComponent.create({
-        adapter: 'involute-gear',
+        component: InvoluteGearComponent.key,
         translate: true,
         rotate: true,
         scale: false,

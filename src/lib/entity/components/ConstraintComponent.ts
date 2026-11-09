@@ -3,6 +3,7 @@ import { type FieldHandlers, type FieldOptionsList, Fields } from '@/lib/selecti
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { Length } from '@/lib/units/length';
 import { Constraint, type ConstraintData, type ConstraintEndpoint } from '../constraints';
+import { registerComponent } from '../registry';
 import { type Entity, type EntityComponent } from '../types';
 
 /**
@@ -386,3 +387,5 @@ export namespace ConstraintComponent {
     }
   }
 }
+
+registerComponent(ConstraintComponent);

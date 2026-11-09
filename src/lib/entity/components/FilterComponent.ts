@@ -10,6 +10,7 @@ import { SheetPosition } from '@/lib/viewport/types';
 import { DEFAULT_COLOR } from '../colors';
 import { PatternFilter, PatternFilterData } from '../filters/pattern';
 import { RectangleEndpoint } from '../rectangle';
+import { registerComponent } from '../registry';
 import { type Entity, type EntityComponent } from '../types';
 import { FillColorComponent } from './FillColorComponent';
 import { GeometryComponent } from './GeometryComponent';
@@ -788,3 +789,5 @@ export namespace FilterComponent {
     }
   }
 }
+
+registerComponent(FilterComponent);

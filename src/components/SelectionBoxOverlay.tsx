@@ -10,7 +10,7 @@ import {
 } from '@/lib/entity';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { RenderShape } from '@/lib/entity/render-shape';
-import { getTransformableAdapter } from '@/lib/entity/transformable';
+import { TransformableTemplate } from '@/lib/entity/components/templates/TransformableTemplate';
 import { BoundingBox, OrientedBoundingBox } from '@/lib/math';
 import {
   computeSelectionResizeFrame,
@@ -111,7 +111,7 @@ export const SelectionBoxOverlay: React.FunctionComponent = () => {
   const rotationTarget =
     selectedEntities.length === 1 &&
     (Entity.hasComponent(selectedEntities[0], GeometryComponent) ||
-      getTransformableAdapter(selectedEntities[0]) !== null) &&
+      TransformableTemplate.getForEntity(selectedEntities[0]) !== null) &&
     Entity.hasComponent(selectedEntities[0], RotationComponent)
       ? selectedEntities[0]
       : null;

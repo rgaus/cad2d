@@ -24,7 +24,7 @@ import { InvoluteGearComponent } from './components/InvoluteGearComponent';
 import { LinkDimensionsComponent } from './components/LinkDimensionsComponent';
 import { RenderOrderComponent } from './components/RenderOrderComponent';
 import { RotationComponent } from './components/RotationComponent';
-import { getTransformableAdapter } from './transformable';
+import { TransformableTemplate } from './components/templates/TransformableTemplate';
 
 /** A stable unique identifier for a shape. */
 export type Id = string;
@@ -138,7 +138,7 @@ export namespace Entity {
   /** Key points projected into absolute rendered sheet space. Geometry key points are projected
    * through their render transform; datum and frame key points are already absolute. */
   export function keyPointsInSheet(entity: Entity): KeyPoints<SheetPosition, string, string> {
-    const adapter = getTransformableAdapter(entity);
+    const adapter = TransformableTemplate.getForEntity(entity);
     if (adapter) {
       return mapKeyPoints(adapter.keyPoints(entity), (position) =>
         relativeToSheet(position, entity, adapter.getOrigin(entity)),
@@ -157,7 +157,7 @@ export namespace Entity {
   }
 
   export function orientedBoundingBox(entity: Entity): OrientedRect<Position> {
-    const adapter = getTransformableAdapter(entity);
+    const adapter = TransformableTemplate.getForEntity(entity);
     if (adapter) {
       return adapter.orientedBoundingBox(entity);
     }
@@ -172,7 +172,7 @@ export namespace Entity {
   }
 
   export function boundingBox(entity: Entity): Rect<Position> {
-    const adapter = getTransformableAdapter(entity);
+    const adapter = TransformableTemplate.getForEntity(entity);
     if (adapter) {
       return adapter.boundingBox(entity);
     }
@@ -189,7 +189,7 @@ export namespace Entity {
   /** Returns the entity's oriented bounding box projected into rendered sheet space. Datum and
    * frame positions are already absolute sheet positions. */
   export function orientedBoundingBoxInSheet(entity: Entity): OrientedRect<SheetPosition> {
-    const adapter = getTransformableAdapter(entity);
+    const adapter = TransformableTemplate.getForEntity(entity);
     if (adapter) {
       const rect = adapter.orientedBoundingBox(entity);
       return OrientedBoundingBox.mapPositions(rect, (position) =>
@@ -250,7 +250,7 @@ export namespace Entity {
   }
 
   export function getRenderShapes(entity: Entity, sheetDefaultUnit: UnitType): Array<RenderShape> {
-    const adapter = getTransformableAdapter(entity);
+    const adapter = TransformableTemplate.getForEntity(entity);
     if (adapter) {
       return adapter.getRenderShapes(entity, sheetDefaultUnit);
     }

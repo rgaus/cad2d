@@ -35,7 +35,7 @@ import {
 } from '@/lib/entity/constraints';
 import { Filter, FilterData } from '@/lib/entity/filters';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
-import { getTransformableAdapter } from '@/lib/entity/transformable';
+import { TransformableTemplate } from '@/lib/entity/components/templates/TransformableTemplate';
 import { UndoEntry } from '@/lib/history/types';
 import {
   BoundingBox,
@@ -383,7 +383,7 @@ namespace DragState {
           },
         },
       };
-    } else if (getTransformableAdapter(entity)) {
+    } else if (TransformableTemplate.getForEntity(entity)) {
       return { state: 'transformable', entity };
     } else if (Entity.hasComponent(entity, DatumComponent)) {
       return { state: 'datum', entity };
@@ -417,7 +417,7 @@ namespace DragState {
       case 'frame':
         return Entity.assignComponent(entity, FrameComponent, state.entity);
       case 'transformable': {
-        const adapter = getTransformableAdapter(state.entity);
+        const adapter = TransformableTemplate.getForEntity(state.entity);
         return adapter ? adapter.update(entity, adapter.get(state.entity)) : entity;
       }
       default:
@@ -441,7 +441,7 @@ namespace DragState {
       case 'frame':
         return { ...state, entity: FrameComponent.translate(state.entity, transform) };
       case 'transformable': {
-        const adapter = getTransformableAdapter(state.entity);
+        const adapter = TransformableTemplate.getForEntity(state.entity);
         if (!adapter?.translate) {
           return state;
         }
@@ -483,7 +483,7 @@ namespace DragState {
         if (b.state !== 'transformable') {
           return false;
         }
-        const adapter = getTransformableAdapter(a.entity);
+        const adapter = TransformableTemplate.getForEntity(a.entity);
         return adapter ? adapter.equals(a.entity, b.entity) : false;
       }
       default:
@@ -506,7 +506,7 @@ namespace DragState {
       case 'frame':
         return FrameComponent.getOrigin(state.entity);
       case 'transformable': {
-        const adapter = getTransformableAdapter(state.entity);
+        const adapter = TransformableTemplate.getForEntity(state.entity);
         return adapter ? adapter.getOrigin(state.entity) : null;
       }
       default:
@@ -1475,7 +1475,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     const before = AnchorPointComponent.get(geometry);
     const filters = this.getGeometryStore().findFiltersByGeometryId(geometryId);
     const angleDegrees = RotationComponent.getOptional(geometry)?.angle.toDegrees().magnitude ?? 0;
-    const adapter = getTransformableAdapter(geometry);
+    const adapter = TransformableTemplate.getForEntity(geometry);
 
     let lastDeltaX = 0,
       lastDeltaY = 0;
@@ -1555,7 +1555,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               forwardsActions.push(move);
             }
           } else {
-            const afterAdapter = getTransformableAdapter(afterGeometry);
+            const afterAdapter = TransformableTemplate.getForEntity(afterGeometry);
             if (afterAdapter?.createMoveUndoEntry) {
               forwardsActions.push(
                 afterAdapter.createMoveUndoEntry(
@@ -2506,7 +2506,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                 break;
               }
               case 'transformable': {
-                const adapter = getTransformableAdapter(state.entity);
+                const adapter = TransformableTemplate.getForEntity(state.entity);
                 if (adapter?.createMoveUndoEntry) {
                   forwardsActions.push(
                     adapter.createMoveUndoEntry(
@@ -2575,7 +2575,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     screenPos: ScreenPosition,
   ): void {
     const entity = this.getGeometryStore().getById(geometryId);
-    const rotationAdapter = entity ? getTransformableAdapter(entity) : null;
+    const rotationAdapter = entity ? TransformableTemplate.getForEntity(entity) : null;
     if (
       !entity ||
       (!Entity.hasComponent(entity, GeometryComponent) && !rotationAdapter) ||

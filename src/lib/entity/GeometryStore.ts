@@ -61,7 +61,7 @@ import {
 import type { WorkingInvoluteGear } from './involute-gear';
 import { Polygon } from './polygon';
 import { RenderShape } from './render-shape';
-import { getConstraintEndpointAdapter, getConstraintEndpointAdapterByType } from './transformable';
+import { getConstraintEndpointAdapter, getConstraintEndpointAdapterByType } from './components/templates/TransformableTemplate';
 
 export const ID_PREFIXES = {
   polygon: 'ply' as const,

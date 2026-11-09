@@ -3,6 +3,7 @@ import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { Length, UnitType } from '@/lib/units/length';
 import { KeyPoints, OrientedRect, Rect, SheetPosition } from '@/lib/viewport/types';
+import { registerComponent } from '../registry';
 import { RenderShape } from '../render-shape';
 import { Entity, EntityComponent, type ResizeParams } from '../types';
 import { AnchorPointComponent } from './AnchorPointComponent';
@@ -163,3 +164,5 @@ export namespace DatumComponent {
     ];
   }
 }
+
+registerComponent(DatumComponent);

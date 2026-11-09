@@ -17,8 +17,8 @@ import { Angle, BoundingBox, Vector2, closestPointOnSegment } from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { GeometryRelativeSheetPosition, SheetPosition } from '@/lib/viewport/types';
 import { FilterComponent } from '../entity/components/FilterComponent';
+import { getConstraintEndpointAdapterForEntity } from '../entity/components/templates/TransformableTemplate';
 import { PatternFilter } from '../entity/filters/pattern';
-import { getConstraintEndpointAdapterForEntity } from '../entity/transformable';
 import { lineLineIntersection, lineSlope } from '../math/intersection';
 
 export type SnappingOptions = SnapToFilterOptions & {

@@ -1,15 +1,16 @@
+import { registerComponent } from '../registry';
 /* eslint-disable @typescript-eslint/no-namespace */
 import { Entity, EntityComponent } from '../types';
 
-/** Names a registered transformable adapter and enables select-tool capabilities. */
+/** Names the component registry key for the transformable implementation. */
 export type TransformableData = {
-  adapter: string;
+  component: string;
   translate?: boolean;
   rotate?: boolean;
   scale?: boolean;
 };
 
-/** Opts an entity into select-tool movement/rotation/scaling via a named adapter. */
+/** Opts an entity into select-tool movement/rotation/scaling via a registered component. */
 export type TransformableComponent = EntityComponent<'transformable', TransformableData>;
 
 export namespace TransformableComponent {
@@ -37,3 +38,5 @@ export namespace TransformableComponent {
     return { ...entity, components: { ...entity.components, transformable: data } };
   }
 }
+
+registerComponent(TransformableComponent);

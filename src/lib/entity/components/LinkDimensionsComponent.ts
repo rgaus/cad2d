@@ -1,3 +1,4 @@
+import { registerComponent } from '../registry';
 import { Entity, EntityComponent } from '../types';
 
 /** If true, width and height change together to maintain the original aspect ratio. */
@@ -26,3 +27,5 @@ export namespace LinkDimensionsComponent {
     return { ...geometry, components: { ...geometry.components, linkDimensions } };
   }
 }
+
+registerComponent(LinkDimensionsComponent);

@@ -8,18 +8,19 @@ import {
   Entity,
   FillColorComponent,
   GeometryComponent,
-  InvoluteGearComponent,
   LinearConstraint,
   TransformableComponent,
 } from '@/lib/entity';
 import { GeometryStore, ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import {
+  InvoluteGearComponent,
   buildGearOutlinePoints,
   defaultInvoluteGearParams,
   involuteGearEndpoint,
 } from '@/lib/entity/components/InvoluteGearComponent';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
+import { TransformableTemplate } from '@/lib/entity/components/templates/TransformableTemplate';
 import { InvoluteGear } from '@/lib/entity/involute-gear';
 import { HistoryManager } from '@/lib/history/HistoryManager';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
@@ -97,6 +98,8 @@ describe('InvoluteGear entity', () => {
     expect(data.params.teeth).toBe(20);
     expect(FillColorComponent.getOptional(gear)).toBe(0xcbd5e1);
     expect(Entity.hasComponent(gear, TransformableComponent)).toBe(true);
+    expect(TransformableComponent.get(gear).component).toBe(InvoluteGearComponent.key);
+    expect(TransformableTemplate.getForEntity(gear)).toBe(InvoluteGearComponent);
     expect(Entity.hasComponent(gear, AnchorPointComponent)).toBe(true);
     expect(Entity.hasComponent(gear, RotationComponent)).toBe(true);
     expect(geometryStore.listRenderableGeometries().map((g) => g.id)).toContain(gear.id);

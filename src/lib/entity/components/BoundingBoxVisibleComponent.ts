@@ -1,3 +1,4 @@
+import { registerComponent } from '../registry';
 import { Entity, EntityComponent } from '../types';
 import { DatumComponent } from './DatumComponent';
 
@@ -15,3 +16,5 @@ export namespace BoundingBoxVisibleComponent {
     return true;
   }
 }
+
+registerComponent(BoundingBoxVisibleComponent);

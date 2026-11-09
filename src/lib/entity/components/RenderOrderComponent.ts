@@ -1,5 +1,6 @@
 import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
+import { registerComponent } from '../registry';
 import { Entity, EntityComponent, EntityOmitComponents } from '../types';
 
 /** Controls rendering order. Higher values render on top of lower values. */
@@ -74,3 +75,5 @@ export namespace RenderOrderComponent {
     ];
   }
 }
+
+registerComponent(RenderOrderComponent);

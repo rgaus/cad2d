@@ -54,7 +54,7 @@ import {
   GeometryComponent,
   type Id,
 } from './index';
-import { getConstraintEndpointAdapterByType } from './transformable';
+import { getConstraintEndpointAdapterByType } from './components/templates/TransformableTemplate';
 
 // ============================================================
 // Internal tracking types

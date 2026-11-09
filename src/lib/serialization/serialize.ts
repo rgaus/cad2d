@@ -30,7 +30,7 @@ import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/entity/datum';
 import { GeometryData } from '@/lib/entity/geometry';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import type { InvoluteGear } from '@/lib/entity/involute-gear';
-import { getConstraintEndpointAdapterByType } from '@/lib/entity/transformable';
+import { getConstraintEndpointAdapterByType } from '@/lib/entity/components/templates/TransformableTemplate';
 import { type Sheet } from '@/lib/sheet/Sheet';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { type UnitType } from '@/lib/units/length';
