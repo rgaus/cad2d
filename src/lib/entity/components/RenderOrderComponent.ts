@@ -2,6 +2,8 @@ import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { registerComponent } from '../registry';
 import { Entity, EntityComponent, EntityOmitComponents } from '../types';
+import type { ReadableTemplate } from './templates/ReadableTemplate';
+import type { WritableTemplate } from './templates/WritableTemplate';
 
 /** Controls rendering order. Higher values render on top of lower values. */
 export type RenderOrderComponent = EntityComponent<'renderOrder', number>;
@@ -76,4 +78,7 @@ export namespace RenderOrderComponent {
   }
 }
 
-registerComponent(RenderOrderComponent);
+registerComponent<
+  ReadableTemplate<number, Entity<RenderOrderComponent>> &
+    WritableTemplate<number, Entity<RenderOrderComponent>>
+>(RenderOrderComponent);

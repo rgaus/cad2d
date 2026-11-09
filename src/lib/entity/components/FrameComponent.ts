@@ -6,6 +6,8 @@ import { KeyPoints, OrientedRect, Rect, SheetPosition } from '@/lib/viewport/typ
 import { registerComponent } from '../registry';
 import { RenderShape } from '../render-shape';
 import { Entity, type EntityComponent, ResizeParams } from '../types';
+import type { ReadableTemplate } from './templates/ReadableTemplate';
+import type { WritableTemplate } from './templates/WritableTemplate';
 
 export type FrameData = { upperLeft: SheetPosition; lowerRight: SheetPosition };
 
@@ -575,4 +577,7 @@ export namespace FrameComponent {
   }
 }
 
-registerComponent(FrameComponent);
+registerComponent<
+  ReadableTemplate<FrameData, Entity<FrameComponent>> &
+    WritableTemplate<Partial<FrameData>, Entity<FrameComponent>>
+>(FrameComponent);

@@ -1,6 +1,8 @@
 import { registerComponent } from '../registry';
 /* eslint-disable @typescript-eslint/no-namespace */
 import { Entity, EntityComponent } from '../types';
+import type { ReadableTemplate } from './templates/ReadableTemplate';
+import type { WritableTemplate } from './templates/WritableTemplate';
 
 /** Names the component registry key for the transformable implementation. */
 export type TransformableData = {
@@ -39,4 +41,7 @@ export namespace TransformableComponent {
   }
 }
 
-registerComponent(TransformableComponent);
+registerComponent<
+  ReadableTemplate<TransformableData, Entity<TransformableComponent>> &
+    WritableTemplate<TransformableData, Entity<TransformableComponent>>
+>(TransformableComponent);

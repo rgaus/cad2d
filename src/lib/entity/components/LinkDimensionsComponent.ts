@@ -1,5 +1,7 @@
 import { registerComponent } from '../registry';
 import { Entity, EntityComponent } from '../types';
+import type { ReadableTemplate } from './templates/ReadableTemplate';
+import type { WritableTemplate } from './templates/WritableTemplate';
 
 /** If true, width and height change together to maintain the original aspect ratio. */
 export type LinkDimensionsComponent = EntityComponent<'linkDimensions', boolean>;
@@ -28,4 +30,7 @@ export namespace LinkDimensionsComponent {
   }
 }
 
-registerComponent(LinkDimensionsComponent);
+registerComponent<
+  ReadableTemplate<boolean, Entity<LinkDimensionsComponent>> &
+    WritableTemplate<boolean, Entity<LinkDimensionsComponent>>
+>(LinkDimensionsComponent);

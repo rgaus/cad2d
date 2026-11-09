@@ -7,7 +7,9 @@ import { SheetPosition } from '@/lib/viewport/types';
 import { registerComponent } from '../registry';
 import { Entity, EntityComponent, EntityOmitComponents } from '../types';
 import { GeometryComponent } from './GeometryComponent';
+import type { ReadableTemplate } from './templates/ReadableTemplate';
 import { TransformableTemplate } from './templates/TransformableTemplate';
+import type { WritableTemplate } from './templates/WritableTemplate';
 
 export type RotationData = {
   angle: Angle;
@@ -122,4 +124,7 @@ export namespace RotationComponent {
   }
 }
 
-registerComponent(RotationComponent);
+registerComponent<
+  ReadableTemplate<RotationData, Entity<RotationComponent>> &
+    WritableTemplate<RotationData, Entity<RotationComponent>>
+>(RotationComponent);

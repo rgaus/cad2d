@@ -7,6 +7,8 @@ import { registerComponent } from '../registry';
 import { RenderShape } from '../render-shape';
 import { Entity, EntityComponent, type ResizeParams } from '../types';
 import { AnchorPointComponent } from './AnchorPointComponent';
+import type { ReadableTemplate } from './templates/ReadableTemplate';
+import type { WritableTemplate } from './templates/WritableTemplate';
 
 /**
  * Geometry component for a datum — a single anchor point that constraints can lock to.
@@ -165,4 +167,7 @@ export namespace DatumComponent {
   }
 }
 
-registerComponent(DatumComponent);
+registerComponent<
+  ReadableTemplate<SheetPosition, Entity<DatumComponent>> &
+    WritableTemplate<SheetPosition, Entity<DatumComponent>>
+>(DatumComponent);

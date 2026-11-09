@@ -5,6 +5,8 @@ import { Length } from '@/lib/units/length';
 import { Constraint, type ConstraintData, type ConstraintEndpoint } from '../constraints';
 import { registerComponent } from '../registry';
 import { type Entity, type EntityComponent } from '../types';
+import type { ReadableTemplate } from './templates/ReadableTemplate';
+import type { WritableTemplate } from './templates/WritableTemplate';
 
 /**
  * Geometry component for a constraint.
@@ -388,4 +390,7 @@ export namespace ConstraintComponent {
   }
 }
 
-registerComponent(ConstraintComponent);
+registerComponent<
+  ReadableTemplate<ConstraintData, Entity<ConstraintComponent>> &
+    WritableTemplate<Partial<ConstraintData>, Entity<ConstraintComponent>>
+>(ConstraintComponent);

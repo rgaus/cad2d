@@ -29,6 +29,8 @@ import { FilterComponent } from './FilterComponent';
 import { FrameComponent } from './FrameComponent';
 import { LinkDimensionsComponent } from './LinkDimensionsComponent';
 import { RotationComponent } from './RotationComponent';
+import type { ReadableTemplate } from './templates/ReadableTemplate';
+import type { WritableTemplate } from './templates/WritableTemplate';
 
 export type GetRenderShapesOptions<D extends GeometryData = GeometryData> = {
   /** Defaults to true. When set to false, a non closed polygon which would become closed (ie,
@@ -1246,4 +1248,7 @@ export namespace GeometryComponent {
   }
 }
 
-registerComponent(GeometryComponent);
+registerComponent<
+  ReadableTemplate<GeometryData, Entity<GeometryComponent>> &
+    WritableTemplate<Partial<GeometryData>, Entity<GeometryComponent>>
+>(GeometryComponent);

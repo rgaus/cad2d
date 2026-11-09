@@ -14,6 +14,8 @@ import { registerComponent } from '../registry';
 import { type Entity, type EntityComponent } from '../types';
 import { FillColorComponent } from './FillColorComponent';
 import { GeometryComponent } from './GeometryComponent';
+import type { ReadableTemplate } from './templates/ReadableTemplate';
+import type { WritableTemplate } from './templates/WritableTemplate';
 
 /**
  * Geometry component for a filter.
@@ -790,4 +792,7 @@ export namespace FilterComponent {
   }
 }
 
-registerComponent(FilterComponent);
+registerComponent<
+  ReadableTemplate<FilterData, Entity<FilterComponent>> &
+    WritableTemplate<Partial<FilterData>, Entity<FilterComponent>>
+>(FilterComponent);

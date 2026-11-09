@@ -1,6 +1,7 @@
 import { registerComponent } from '../registry';
 import { Entity, EntityComponent } from '../types';
 import { DatumComponent } from './DatumComponent';
+import type { ReadableTemplate } from './templates/ReadableTemplate';
 
 export type BoundingBoxVisibleComponent = EntityComponent<'boundingBoxVisible', never>;
 
@@ -17,4 +18,4 @@ export namespace BoundingBoxVisibleComponent {
   }
 }
 
-registerComponent(BoundingBoxVisibleComponent);
+registerComponent<ReadableTemplate<boolean, Entity>>(BoundingBoxVisibleComponent);

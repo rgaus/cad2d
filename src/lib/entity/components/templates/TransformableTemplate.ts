@@ -12,31 +12,37 @@ import { getComponent } from '../../registry';
 import type { RenderShape } from '../../render-shape';
 import type { Entity, Id, ResizeParams } from '../../types';
 import { TransformableComponent } from '../TransformableComponent';
+import type { ReadableTemplate } from './ReadableTemplate';
+import type { WritableTemplate } from './WritableTemplate';
 
 /** The geometry-like operations generic code needs from a transformable component. */
-export type TransformableTemplate<Data = any, EntityType extends Entity = Entity> = {
-  get(entity: EntityType): Data;
-  update(entity: EntityType, data: Data): EntityType;
+export type TransformableTemplate<
+  Data = any,
+  EntityType extends Entity = Entity,
+> = ReadableTemplate<Data, EntityType> &
+  WritableTemplate<Data, EntityType> & {
+    getOrigin(entity: EntityType): SheetPosition;
+    rawKeyPoints(entity: EntityType): KeyPoints<GeometryRelativeSheetPosition, string, string>;
+    keyPoints(entity: EntityType): KeyPoints<GeometryRelativeSheetPosition, string, string>;
+    boundingBox(entity: EntityType): Rect<GeometryRelativeSheetPosition>;
+    orientedBoundingBox(entity: EntityType): OrientedRect<GeometryRelativeSheetPosition>;
 
-  getOrigin(entity: EntityType): SheetPosition;
-  rawKeyPoints(entity: EntityType): KeyPoints<GeometryRelativeSheetPosition, string, string>;
-  keyPoints(entity: EntityType): KeyPoints<GeometryRelativeSheetPosition, string, string>;
-  boundingBox(entity: EntityType): Rect<GeometryRelativeSheetPosition>;
-  orientedBoundingBox(entity: EntityType): OrientedRect<GeometryRelativeSheetPosition>;
+    translate?(
+      entity: EntityType,
+      transform: (position: SheetPosition) => SheetPosition,
+    ): EntityType;
 
-  translate?(entity: EntityType, transform: (position: SheetPosition) => SheetPosition): EntityType;
+    resize?(
+      entity: EntityType,
+      params: ResizeParams,
+      originalBBox?: OrientedRect<SheetPosition>,
+    ): EntityType | null;
 
-  resize?(
-    entity: EntityType,
-    params: ResizeParams,
-    originalBBox?: OrientedRect<SheetPosition>,
-  ): EntityType | null;
-
-  getKeyPointPosition?(entity: EntityType, keyPoint: string): SheetPosition | null;
-  equals(a: EntityType, b: EntityType): boolean;
-  createMoveUndoEntry?(id: Id, before: Data, after: Data): unknown;
-  getRenderShapes(entity: EntityType, sheetDefaultUnit: UnitType): Array<RenderShape>;
-};
+    getKeyPointPosition?(entity: EntityType, keyPoint: string): SheetPosition | null;
+    equals(a: EntityType, b: EntityType): boolean;
+    createMoveUndoEntry?(id: Id, before: Data, after: Data): unknown;
+    getRenderShapes(entity: EntityType, sheetDefaultUnit: UnitType): Array<RenderShape>;
+  };
 
 export type TransformableUndoEntry<Prefix extends string, Action extends string, Data> = {
   type: `${Prefix}-${Action}`;
@@ -172,8 +178,6 @@ export namespace TransformableTemplate {
     return getComponent<TransformableTemplate<any, Entity>>(transformable.component);
   }
 }
-
-
 
 export type TransformableConstraintEndpoint<Type extends string> = {
   type: Type;

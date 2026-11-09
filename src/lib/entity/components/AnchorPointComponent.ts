@@ -6,7 +6,9 @@ import { GeometryRelativeSheetPosition, SheetPosition } from '@/lib/viewport/typ
 import { registerComponent } from '../registry';
 import { Entity, EntityComponent, EntityOmitComponents } from '../types';
 import { GeometryComponent } from './GeometryComponent';
+import type { ReadableTemplate } from './templates/ReadableTemplate';
 import { TransformableTemplate } from './templates/TransformableTemplate';
+import type { WritableTemplate } from './templates/WritableTemplate';
 
 /** Configuration for a geometry's anchor point: a named key point on the geometry plus a sheet-unit
  * offset from that key point. The anchor handle renders at `keyPointPosition + offset`. */
@@ -290,4 +292,7 @@ export namespace AnchorPointComponent {
   }
 }
 
-registerComponent(AnchorPointComponent);
+registerComponent<
+  ReadableTemplate<AnchorPointData, Entity<AnchorPointComponent>> &
+    WritableTemplate<AnchorPointData, Entity<AnchorPointComponent>>
+>(AnchorPointComponent);

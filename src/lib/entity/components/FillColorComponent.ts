@@ -2,6 +2,8 @@ import { type FieldOptionsList, Fields } from '@/lib/selection/fields';
 import type { SelectionInspectorContext } from '@/lib/selection/selection-inspector-context';
 import { registerComponent } from '../registry';
 import { Entity, EntityComponent, EntityOmitComponents } from '../types';
+import type { ReadableTemplate } from './templates/ReadableTemplate';
+import type { WritableTemplate } from './templates/WritableTemplate';
 
 /** Fill color as a 24-bit integer (0xRRGGBB), or null for no fill. */
 export type FillColorComponent = EntityComponent<'fillColor', number | null>;
@@ -93,4 +95,7 @@ export namespace FillColorComponent {
   }
 }
 
-registerComponent(FillColorComponent);
+registerComponent<
+  ReadableTemplate<number | null, Entity<FillColorComponent>> &
+    WritableTemplate<number | null, Entity<FillColorComponent>>
+>(FillColorComponent);
