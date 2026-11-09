@@ -19,6 +19,7 @@ import { Polygon } from '../polygon';
 import {
   type ListTransformableAdapterUndoEntryCreators,
   TransformableAdapter,
+  registerConstraintEndpointAdapter,
   registerTransformableAdapter,
 } from '../transformable';
 import { Entity, EntityComponent, type EntityOmitComponents } from '../types';
@@ -792,5 +793,7 @@ export const involuteGearEndpoint = TransformableAdapter.constraints.generateCon
     ],
   },
 );
+
+registerConstraintEndpointAdapter(involuteGearEndpoint);
 
 export type InvoluteGearConstraintEndpoint = ReturnType<typeof involuteGearEndpoint.create>;

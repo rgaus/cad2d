@@ -184,7 +184,6 @@ export function generateConstraintEndpoint<Name extends string>(
     }),
   };
 
-  registerConstraintEndpointAdapter(adapter);
   return adapter;
 }
 
