@@ -591,17 +591,20 @@ export function applyKeyPointSnapping(
  */
 export function applySnappingOnConstrainedTrack(
   pos: SheetPosition,
-  constrainedTracks: ConstrainedTrackPath,
+  constrainedTrackPath: ConstrainedTrackPath,
   options: SnappingOptions,
   epsilon: number = 1e-10,
 ): SheetPosition {
-  if (constrainedTracks === 'immobile') {
+  if (constrainedTrackPath.type === 'immobile') {
     return pos;
   }
 
   let snapped = applySnapping(pos, options);
 
-  if (constrainedTracks === 'unconstrained' || constrainedTracks.length === 0) {
+  if (
+    constrainedTrackPath.type === 'unconstrained' ||
+    constrainedTrackPath.constrainedTracks.length === 0
+  ) {
     return snapped;
   }
 
@@ -616,7 +619,7 @@ export function applySnappingOnConstrainedTrack(
       }
     }
   };
-  collect(constrainedTracks);
+  collect(constrainedTrackPath.constrainedTracks);
 
   let bestTarget: SheetPosition | null = null;
   let bestDist = Infinity;

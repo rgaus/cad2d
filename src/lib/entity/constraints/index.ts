@@ -140,4 +140,4 @@ export {
   type ColinearConstraintTemplate,
 } from './colinear';
 
-export { ConstrainedTrack, type ConstrainedTrackPath } from './compute-constrained-tracks';
+export { ConstrainedTrack, ConstrainedTrackPath } from './compute-constrained-tracks';

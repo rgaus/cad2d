@@ -30,7 +30,7 @@ import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { TransformableTemplate } from '@/lib/entity/components/templates/TransformableTemplate';
 import {
   ConstrainedTrack,
-  type ConstrainedTrackPath,
+  ConstrainedTrackPath,
   ConstraintData,
   ConstraintEndpoint,
 } from '@/lib/entity/constraints';
@@ -604,7 +604,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
   /** Constrained track result for the current drag operation. `'unconstrained'` when no constraints
    *  apply, `'immobile'` when constraints are contradictory, or an array of tracks to snap to. */
-  private draggingConstrainedTrackResult: ConstrainedTrackPath = 'unconstrained';
+  private draggingConstrainedTrackResult = ConstrainedTrackPath.Unconstrained;
 
   private draggingGeometryIds: Array<Id> | null = null;
   /** Resize mode when resizing via bounding box handles. */
@@ -796,7 +796,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.originalPolygonState = null;
     this.lockedPoints = [];
     this.originalLockedPolygonStates.clear();
-    this.draggingConstrainedTrackResult = 'unconstrained';
+    this.draggingConstrainedTrackResult = ConstrainedTrackPath.Unconstrained;
     this.resizeMode = null;
     this.draggingGeometryIds = null;
     this.resizeOriginalGroupStates = null;
@@ -1052,7 +1052,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         (ep) => this.getGeometryStore().resolveConstraintEndpoint(ep),
         sheetConfig.epsilon,
       );
-      if (result !== 'unconstrained') {
+      if (result.type !== 'unconstrained') {
         this.draggingConstrainedTrackResult = result;
       }
     }
@@ -2425,7 +2425,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         let snappedOrigin = rawNewOrigin;
         if (
           !this.toolManager.getCtrlHeld() &&
-          this.draggingConstrainedTrackResult === 'unconstrained'
+          this.draggingConstrainedTrackResult.type === 'unconstrained'
         ) {
           snappedOrigin = applySnapping(rawNewOrigin, {
             primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
@@ -2974,7 +2974,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   ): ConstrainedTrackPath {
     const sheetConfig = this.getSheet();
     if (!sheetConfig) {
-      return 'unconstrained';
+      return ConstrainedTrackPath.Unconstrained;
     }
 
     const matchedGeometryIdConstraintsPairs = geometryIds.flatMap((id) =>
@@ -2983,7 +2983,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         .map((c) => [id, c] as const),
     );
     if (matchedGeometryIdConstraintsPairs.length === 0) {
-      return 'unconstrained';
+      return ConstrainedTrackPath.Unconstrained;
     }
 
     const cornerPos = getOrientedCornerPosition(corner, frame);
@@ -3018,7 +3018,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     if (tracks.length === 0) {
-      return 'unconstrained';
+      return ConstrainedTrackPath.Unconstrained;
     }
 
     // Reduce all tracks together
@@ -3037,11 +3037,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         next.push(...intersection);
       }
       if (next.length === 0) {
-        return 'immobile';
+        return ConstrainedTrackPath.Immobile;
       }
       result = next;
     }
-    return result;
+    return ConstrainedTrackPath.translate(result);
   }
 
   /**
@@ -3058,7 +3058,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   ): ConstrainedTrackPath {
     const sheetConfig = this.getSheet();
     if (!sheetConfig) {
-      return 'unconstrained';
+      return ConstrainedTrackPath.Unconstrained;
     }
 
     const matchedGeometryIdConstraintsPairs = geometryIds.flatMap((id) =>
@@ -3067,7 +3067,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         .map((c) => [id, c] as const),
     );
     if (matchedGeometryIdConstraintsPairs.length === 0) {
-      return 'unconstrained';
+      return ConstrainedTrackPath.Unconstrained;
     }
 
     const pivot = frame.position;
@@ -3107,7 +3107,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         sheetConfig.epsilon,
       );
       if (restricted === 'immobile') {
-        return 'immobile';
+        return ConstrainedTrackPath.Immobile;
       }
       if (restricted !== null) {
         tracks.push(transformConstrainedTrack(restricted, toRendered, frame.angleDegrees));
@@ -3115,7 +3115,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     if (tracks.length === 0) {
-      return 'unconstrained';
+      return ConstrainedTrackPath.Unconstrained;
     }
 
     // Reduce all tracks together
@@ -3134,11 +3134,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         next.push(...intersection);
       }
       if (next.length === 0) {
-        return 'immobile';
+        return ConstrainedTrackPath.Immobile;
       }
       result = next;
     }
-    return result;
+    return ConstrainedTrackPath.translate(result);
   }
 
   /**
@@ -3153,7 +3153,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   ): ConstrainedTrackPath {
     const sheetConfig = this.getSheet();
     if (!sheetConfig) {
-      return 'unconstrained';
+      return ConstrainedTrackPath.Unconstrained;
     }
 
     const matchedGeometryIdConstraintsPairs = geometryIds.flatMap((id) =>
@@ -3162,7 +3162,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         .map((c) => [id, c] as const),
     );
     if (matchedGeometryIdConstraintsPairs.length === 0) {
-      return 'unconstrained';
+      return ConstrainedTrackPath.Unconstrained;
     }
 
     const tracks: Array<ConstrainedTrack> = [];
@@ -3186,7 +3186,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     if (tracks.length === 0) {
-      return 'unconstrained';
+      return ConstrainedTrackPath.Unconstrained;
     }
 
     // Reduce all tracks together
@@ -3205,11 +3205,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         next.push(...intersection);
       }
       if (next.length === 0) {
-        return 'immobile';
+        return ConstrainedTrackPath.Immobile;
       }
       result = next;
     }
-    return result;
+    return ConstrainedTrackPath.translate(result);
   }
 
   onEnterPolygonSegment(

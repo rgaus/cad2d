@@ -14,17 +14,36 @@ export type ConstrainedTrack =
   | { type: 'line'; slope: number; point: SheetPosition }
   | { type: 'or'; inner: Array<ConstrainedTrack> };
 
+export type ConstrainedTrackPathTranslate = {
+  type: 'translate';
+  constrainedTracks: Array<ConstrainedTrack>;
+};
+
 /**
  * A path that a given point can move along when dragged.
  *
- * This is either:
+ * This is a discriminated union of one of the below:
  * - 'unconstrained' - no restrictions, free movement permitted
- * - `Array<ConstrainedTrack>` - movement allowed along any of these paths. Note this is a logical OR,
+ * - 'translate' - movement allowed along any of the passed `Array<ConstrainedTrack>` paths. Note this is a logical OR,
  *   snapping to any of these paths is ok and depending on the user's mouse position the chosen
  *   track could "jump".
  * - 'immobile' - fully constrained, no movement allowed
  */
-export type ConstrainedTrackPath = 'unconstrained' | Array<ConstrainedTrack> | 'immobile';
+export type ConstrainedTrackPath =
+  | { type: 'unconstrained' }
+  | ConstrainedTrackPathTranslate
+  | { type: 'immobile' };
+
+export namespace ConstrainedTrackPath {
+  export const Unconstrained: ConstrainedTrackPath = { type: 'unconstrained' };
+  export const Immobile: ConstrainedTrackPath = { type: 'immobile' };
+
+  export function translate(
+    constrainedTracks: Array<ConstrainedTrack>,
+  ): ConstrainedTrackPathTranslate {
+    return { type: 'translate', constrainedTracks };
+  }
+}
 
 /**
  * Checks whether two SheetPosition values represent the same point (within epsilon).
@@ -491,7 +510,7 @@ export function computeConstrainedTracksForPoints(
   epsilon: number = 1e-10,
 ): ConstrainedTrackPath {
   if (constraints.length === 0 || movingPoints.length === 0) {
-    return 'unconstrained';
+    return ConstrainedTrackPath.Unconstrained;
   }
 
   // Build a Set of moving positions for O(1) lookup
@@ -781,7 +800,7 @@ export function computeConstrainedTracksForPoints(
   }
 
   if (tracks.length === 0) {
-    return 'unconstrained';
+    return ConstrainedTrackPath.Unconstrained;
   }
 
   // Fold/reduce: intersect all tracks together
@@ -797,10 +816,10 @@ export function computeConstrainedTracksForPoints(
       next.push(...intersection);
     }
     if (next.length === 0) {
-      return 'immobile';
+      return ConstrainedTrackPath.Immobile;
     }
     result = next;
   }
 
-  return result;
+  return ConstrainedTrackPath.translate(result);
 }

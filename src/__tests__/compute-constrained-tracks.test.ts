@@ -8,6 +8,7 @@ import {
   LinearConstraint,
   VerticalConstraint,
 } from '@/lib/entity/constraints';
+import { ConstrainedTrackPathTranslate } from '@/lib/entity/constraints/compute-constrained-tracks';
 import { Length } from '@/lib/units/length';
 import { SheetPosition } from '@/lib/viewport/types';
 
@@ -42,7 +43,7 @@ describe('computeConstrainedTracksForPoints', () => {
   describe('edge cases', () => {
     it('returns unconstrained when there are no constraints', () => {
       expect(
-        Constraint.computeConstrainedTracksForPoints([], [pt0], 'in', resolvePointEndpoint),
+        Constraint.computeConstrainedTracksForPoints([], [pt0], 'in', resolvePointEndpoint).type,
       ).toBe('unconstrained');
     });
 
@@ -53,7 +54,7 @@ describe('computeConstrainedTracksForPoints', () => {
         Length.inches(5),
       );
       expect(
-        Constraint.computeConstrainedTracksForPoints([c], [], 'in', resolvePointEndpoint),
+        Constraint.computeConstrainedTracksForPoints([c], [], 'in', resolvePointEndpoint).type,
       ).toBe('unconstrained');
     });
   });
@@ -71,9 +72,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('circle');
       if (tracks[0].type === 'circle') {
@@ -95,9 +95,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('circle');
       if (tracks[0].type === 'circle') {
@@ -115,7 +114,7 @@ describe('computeConstrainedTracksForPoints', () => {
       );
       // movingPoints is empty of these two — neither is moving
       expect(
-        Constraint.computeConstrainedTracksForPoints([c], [pt3_4], 'in', resolvePointEndpoint),
+        Constraint.computeConstrainedTracksForPoints([c], [pt3_4], 'in', resolvePointEndpoint).type,
       ).toBe('unconstrained');
     });
 
@@ -126,7 +125,8 @@ describe('computeConstrainedTracksForPoints', () => {
         Length.inches(5),
       );
       expect(
-        Constraint.computeConstrainedTracksForPoints([c], [pt0, pt5_0], 'in', resolvePointEndpoint),
+        Constraint.computeConstrainedTracksForPoints([c], [pt0, pt5_0], 'in', resolvePointEndpoint)
+          .type,
       ).toBe('unconstrained');
     });
 
@@ -137,7 +137,7 @@ describe('computeConstrainedTracksForPoints', () => {
         Length.inches(5),
       );
       expect(
-        Constraint.computeConstrainedTracksForPoints([c], [pt0], 'in', resolvePointEndpoint),
+        Constraint.computeConstrainedTracksForPoints([c], [pt0], 'in', resolvePointEndpoint).type,
       ).toBe('unconstrained');
     });
 
@@ -162,9 +162,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolveWithFixture,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('circle');
       if (tracks[0].type === 'circle') {
@@ -196,9 +195,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(2);
       expect(tracks.every((t) => t.type === 'point')).toBe(true);
       const points = tracks.map((t) => (t.type === 'point' ? t.point : null));
@@ -228,9 +226,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
 
       // Moving pt0 must be distance 5 from both pt0 and pt8_0... wait, that's wrong.
       // pt0 is the moving point. c1: pt0 is moving, pt8_0 is fixed → circle around pt8_0, r=5
@@ -273,9 +270,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('point');
       if (tracks[0].type === 'point') {
@@ -300,12 +296,8 @@ describe('computeConstrainedTracksForPoints', () => {
         Length.inches(5),
       );
       expect(
-        Constraint.computeConstrainedTracksForPoints(
-          [c1, c2],
-          [pt20_0],
-          'in',
-          resolvePointEndpoint,
-        ),
+        Constraint.computeConstrainedTracksForPoints([c1, c2], [pt20_0], 'in', resolvePointEndpoint)
+          .type,
       ).toBe('immobile');
     });
 
@@ -325,7 +317,8 @@ describe('computeConstrainedTracksForPoints', () => {
       // c2: moving=pt8_0, fixed=pt0 → circle(center=pt0, r=10)
       // Concentric, different radii → no single point can be both 5 and 10 from pt0
       expect(
-        Constraint.computeConstrainedTracksForPoints([c1, c2], [pt8_0], 'in', resolvePointEndpoint),
+        Constraint.computeConstrainedTracksForPoints([c1, c2], [pt8_0], 'in', resolvePointEndpoint)
+          .type,
       ).toBe('immobile');
     });
   });
@@ -376,9 +369,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('point');
       if (tracks[0].type === 'point') {
@@ -426,7 +418,7 @@ describe('computeConstrainedTracksForPoints', () => {
           [pt3_4],
           'in',
           resolvePointEndpoint,
-        ),
+        ).type,
       ).toBe('immobile');
     });
   });
@@ -461,9 +453,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('point');
       if (tracks[0].type === 'point') {
@@ -492,9 +483,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('circle');
     });
@@ -724,9 +714,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'cm',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks[0].type).toBe('circle');
       if (tracks[0].type === 'circle') {
         expect(tracks[0].radius).toBeCloseTo(12.7, 1);
@@ -749,9 +738,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       const orTrack = tracks[0];
       expect(orTrack.type).toBe('or');
@@ -780,9 +768,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       const orTrack = tracks[0];
       expect(orTrack.type).toBe('or');
@@ -811,9 +798,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       const orTrack = tracks[0];
       expect(orTrack.type).toBe('or');
@@ -842,9 +828,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       const orTrack = tracks[0];
       expect(orTrack.type).toBe('or');
@@ -1227,9 +1212,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).not.toBe('unconstrained');
-      expect(result).not.toBe('immobile');
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('line');
       if (tracks[0].type === 'line') {
@@ -1253,7 +1237,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('line');
       if (tracks[0].type === 'line') {
@@ -1277,7 +1262,7 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).toBe('unconstrained');
+      expect(result.type).toBe('unconstrained');
     });
 
     it('skips when neither endpoint is moving', () => {
@@ -1294,7 +1279,7 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).toBe('unconstrained');
+      expect(result.type).toBe('unconstrained');
     });
   });
 
@@ -1313,7 +1298,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('line');
       if (tracks[0].type === 'line') {
@@ -1334,7 +1320,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('line');
       if (tracks[0].type === 'line') {
@@ -1355,7 +1342,7 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).toBe('unconstrained');
+      expect(result.type).toBe('unconstrained');
     });
   });
 
@@ -1380,7 +1367,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('line');
       if (tracks[0].type === 'line') {
@@ -1404,7 +1392,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('line');
       if (tracks[0].type === 'line') {
@@ -1428,7 +1417,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('line');
       if (tracks[0].type === 'line') {
@@ -1451,7 +1441,7 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).toBe('unconstrained');
+      expect(result.type).toBe('unconstrained');
     });
 
     it('skips when two endpoints are moving', () => {
@@ -1469,7 +1459,7 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      expect(result).toBe('unconstrained');
+      expect(result.type).toBe('unconstrained');
     });
 
     it('produces Infinity slope for vertical reference line', () => {
@@ -1487,7 +1477,8 @@ describe('computeConstrainedTracksForPoints', () => {
         'in',
         resolvePointEndpoint,
       );
-      const tracks = result as Array<ConstrainedTrack>;
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
       expect(tracks).toHaveLength(1);
       expect(tracks[0].type).toBe('line');
       if (tracks[0].type === 'line') {
