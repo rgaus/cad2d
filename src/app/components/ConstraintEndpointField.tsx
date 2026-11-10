@@ -15,14 +15,14 @@ import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { DatumComponent } from '@/lib/entity/components/DatumComponent';
 import { GeometryComponent } from '@/lib/entity/components/GeometryComponent';
 import '@/lib/entity/components/InvoluteGearComponent';
-import { ConstraintEndpoint } from '@/lib/entity/constraints';
-import { type EllipseEndpoint } from '@/lib/entity/ellipse';
-import { type RectangleEndpoint } from '@/lib/entity/rectangle';
 import {
   type TransformableConstraintEndpoint,
   getConstraintEndpointAdapterByType,
   getConstraintEndpointAdapters,
 } from '@/lib/entity/components/templates/TransformableTemplate';
+import { ConstraintEndpoint } from '@/lib/entity/constraints';
+import { type EllipseEndpoint } from '@/lib/entity/ellipse';
+import { type RectangleEndpoint } from '@/lib/entity/rectangle';
 import { Length, type UnitType } from '@/lib/units/length';
 import { cn } from '@/lib/utils';
 import { SheetPosition } from '@/lib/viewport/types';

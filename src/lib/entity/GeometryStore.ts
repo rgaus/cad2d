@@ -31,6 +31,10 @@ import { DCELShapeIndex } from './DCELShapeIndex';
 import { FilterComponent } from './components/FilterComponent';
 import { RotationComponent } from './components/RotationComponent';
 import {
+  getConstraintEndpointAdapter,
+  getConstraintEndpointAdapterByType,
+} from './components/templates/TransformableTemplate';
+import {
   Constraint,
   type ConstraintData,
   ConstraintEndpoint,
@@ -61,7 +65,6 @@ import {
 import type { WorkingInvoluteGear } from './involute-gear';
 import { Polygon } from './polygon';
 import { RenderShape } from './render-shape';
-import { getConstraintEndpointAdapter, getConstraintEndpointAdapterByType } from './components/templates/TransformableTemplate';
 
 export const ID_PREFIXES = {
   polygon: 'ply' as const,

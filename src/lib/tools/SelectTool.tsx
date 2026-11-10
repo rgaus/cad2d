@@ -27,6 +27,7 @@ import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointCompone
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { FrameComponent } from '@/lib/entity/components/FrameComponent';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
+import { TransformableTemplate } from '@/lib/entity/components/templates/TransformableTemplate';
 import {
   ConstrainedTrack,
   type ConstrainedTrackPath,
@@ -35,7 +36,6 @@ import {
 } from '@/lib/entity/constraints';
 import { Filter, FilterData } from '@/lib/entity/filters';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
-import { TransformableTemplate } from '@/lib/entity/components/templates/TransformableTemplate';
 import { UndoEntry } from '@/lib/history/types';
 import {
   BoundingBox,

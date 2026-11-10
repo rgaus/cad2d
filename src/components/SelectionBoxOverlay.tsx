@@ -9,8 +9,8 @@ import {
   GeometryComponent,
 } from '@/lib/entity';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
-import { RenderShape } from '@/lib/entity/render-shape';
 import { TransformableTemplate } from '@/lib/entity/components/templates/TransformableTemplate';
+import { RenderShape } from '@/lib/entity/render-shape';
 import { BoundingBox, OrientedBoundingBox } from '@/lib/math';
 import {
   computeSelectionResizeFrame,

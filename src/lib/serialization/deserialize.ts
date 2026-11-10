@@ -27,9 +27,9 @@ import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { InvoluteGearComponent } from '@/lib/entity/components/InvoluteGearComponent';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { TransformableComponent } from '@/lib/entity/components/TransformableComponent';
+import { getConstraintEndpointAdapterByType } from '@/lib/entity/components/templates/TransformableTemplate';
 import { PatternFilter } from '@/lib/entity/filters/pattern';
 import type { InvoluteGear } from '@/lib/entity/involute-gear';
-import { getConstraintEndpointAdapterByType } from '@/lib/entity/components/templates/TransformableTemplate';
 import { Angle } from '@/lib/units/angle';
 import {
   CentimetersLength,

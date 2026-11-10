@@ -41,6 +41,7 @@ import {
   SheetPosition,
 } from '@/lib/viewport/types';
 import { RotationComponent } from './components/RotationComponent';
+import { getConstraintEndpointAdapterByType } from './components/templates/TransformableTemplate';
 import { type Geometry } from './geometry';
 import { EllipseData } from './geometry/ellipse';
 import { PolygonData, PolygonSegment } from './geometry/polygon';
@@ -54,7 +55,6 @@ import {
   GeometryComponent,
   type Id,
 } from './index';
-import { getConstraintEndpointAdapterByType } from './components/templates/TransformableTemplate';
 
 // ============================================================
 // Internal tracking types
