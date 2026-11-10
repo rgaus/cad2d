@@ -19,6 +19,11 @@ export type ConstrainedTrackPathTranslate = {
   constrainedTracks: Array<ConstrainedTrack>;
 };
 
+export type ConstrainedTrackPathRotate = {
+  type: 'rotate';
+  centers: Array<SheetPosition>;
+};
+
 /**
  * A path that a given point can move along when dragged.
  *
@@ -27,11 +32,14 @@ export type ConstrainedTrackPathTranslate = {
  * - 'translate' - movement allowed along any of the passed `Array<ConstrainedTrack>` paths. Note this is a logical OR,
  *   snapping to any of these paths is ok and depending on the user's mouse position the chosen
  *   track could "jump".
+ * - 'rotate' - allow rotation around any of the specified `centers` - the rotation will "jump" to
+ *   the one closest the user's mouse position.
  * - 'immobile' - fully constrained, no movement allowed
  */
 export type ConstrainedTrackPath =
   | { type: 'unconstrained' }
   | ConstrainedTrackPathTranslate
+  | ConstrainedTrackPathRotate
   | { type: 'immobile' };
 
 export namespace ConstrainedTrackPath {
@@ -42,6 +50,10 @@ export namespace ConstrainedTrackPath {
     constrainedTracks: Array<ConstrainedTrack>,
   ): ConstrainedTrackPathTranslate {
     return { type: 'translate', constrainedTracks };
+  }
+
+  export function rotate(centers: Array<SheetPosition>): ConstrainedTrackPathRotate {
+    return { type: 'rotate', centers };
   }
 }
 
