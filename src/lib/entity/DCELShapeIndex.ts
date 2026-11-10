@@ -1459,6 +1459,20 @@ export class DCELShapeIndex {
           });
           break;
         }
+        case 'coincident': {
+          const pointAId = this.constraintEndpointToVertexId(constraint.pointA);
+          const pointBId = this.constraintEndpointToVertexId(constraint.pointB);
+          if (!pointAId || !pointBId) {
+            continue;
+          }
+          engineConstraints.push({
+            type: 'distance',
+            pointA: pointAId,
+            pointB: pointBId,
+            targetDistance: 0,
+          });
+          break;
+        }
         default:
           constraint satisfies never;
           throw new Error(

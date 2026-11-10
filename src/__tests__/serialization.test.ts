@@ -15,6 +15,8 @@ import {
   RenderOrderComponent,
 } from '@/lib/entity';
 import {
+  CoincidentConstraint,
+  CoincidentConstraintData,
   ColinearConstraint,
   ColinearConstraintData,
   ConstraintEndpoint,
@@ -810,6 +812,28 @@ describe('parseSvg', () => {
       expect((c.pointB as any).point.x).toBe(15);
       expect((c.pointB as any).point.y).toBe(15);
     });
+
+    it('parses coincident constraint from <g> element', () => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" data-cad2d-version="1">
+        <g data-type="coincident-constraint" id="cns_coincident_test"
+           data-endpoint-a-type="point"
+           data-endpoint-a-x="5"
+           data-endpoint-a-y="5"
+           data-endpoint-b-type="point"
+           data-endpoint-b-x="5"
+           data-endpoint-b-y="5">
+        </g>
+      </svg>`;
+      const result = parseSvg(svg, generateStableId);
+      expect(result.constraints).toHaveLength(1);
+      const c = ConstraintComponent.get(result.constraints[0]) as CoincidentConstraintData;
+      expect(result.constraints[0].id).toBe('cns_coincident_test');
+      expect(c.type).toStrictEqual('coincident');
+      expect((c.pointA as any).point.x).toBe(5);
+      expect((c.pointA as any).point.y).toBe(5);
+      expect((c.pointB as any).point.x).toBe(5);
+      expect((c.pointB as any).point.y).toBe(5);
+    });
   });
 
   describe('color parsing', () => {
@@ -1331,6 +1355,30 @@ describe('round-trip', () => {
 
     expect(result.constraints).toHaveLength(1);
     expect(compareConstraints(original, result.constraints[0])).toBe(true);
+  });
+
+  it('coincident constraint round-trips correctly', () => {
+    const { sheet, geometryStore } = makeSheet();
+    geometryStore.addDirect({
+      id: 'cns_coincident_roundtrip',
+      ...CoincidentConstraint.create(
+        { type: 'point', point: new SheetPosition(5, 5) },
+        { type: 'point', point: new SheetPosition(5, 5) },
+      ),
+    });
+
+    const svg = serializeToSvg(sheet, { x: 0, y: 0 }, 1, [], 'select');
+    const result = parseSvg(svg, generateStableId);
+
+    expect(result.constraints).toHaveLength(1);
+    const data = ConstraintComponent.get(result.constraints[0]) as CoincidentConstraintData;
+    expect(data.type).toBe('coincident');
+    expect(
+      ConstraintEndpoint.equal(data.pointA, { type: 'point', point: new SheetPosition(5, 5) }),
+    ).toBe(true);
+    expect(
+      ConstraintEndpoint.equal(data.pointB, { type: 'point', point: new SheetPosition(5, 5) }),
+    ).toBe(true);
   });
 
   it('multiple constraints round-trip correctly', () => {

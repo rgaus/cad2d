@@ -9,6 +9,7 @@ import {
   TriangleRightIcon,
 } from 'lucide-react';
 import {
+  CoincidentConstraint,
   ColinearConstraint,
   ConstraintEndpoint,
   Datum,
@@ -32,6 +33,7 @@ import {
   TwoSegmentConstraintCreationTool,
 } from './abstract';
 import {
+  WorkingCoincidentConstraint,
   WorkingColinearConstraint,
   WorkingConstraint,
   WorkingHorizontalConstraint,
@@ -469,6 +471,60 @@ export class ColinearConstraintTool extends SegmentAndPointConstraintTool<
   }
 }
 
+/** A tool for creating coincident constraints (two points occupying the same position). */
+export class CoincidentConstraintTool extends LineSegmentConstraintTool<
+  WorkingCoincidentConstraint,
+  'coincident-constraint'
+> {
+  type = 'coincident-constraint' as const;
+  label = 'Coincident Constraint';
+
+  get icon(): React.ReactNode {
+    return (
+      <svg width="24" height="24" viewBox="0 0 24 24">
+        <g transform="translate(0, 4)">
+          <RulerIcon size={20} color="white" strokeWidth={2.33} />
+        </g>
+        <g transform="translate(12, 0)">
+          <circle cx="6" cy="6" r="4" fill="white" />
+        </g>
+      </svg>
+    );
+  }
+
+  focusKeyCombo = 'c i' as const;
+
+  protected allowZeroLength(): boolean {
+    return true;
+  }
+
+  protected deriveWorkingConstraintFromEndPoints(
+    pointA: ConstraintEndpoint,
+    pointB: ConstraintEndpoint,
+  ): WorkingCoincidentConstraint {
+    return {
+      type: 'coincident',
+      pointA,
+      pointB,
+      disabled: false,
+      shadowsConstraintId: null,
+    };
+  }
+
+  protected convertWorkingConstraintIntoConstraint(
+    wc: WorkingCoincidentConstraint,
+    _lengthBetweenPoints: Length,
+    _xAxisLengthBetweenPoints: Length,
+    _yAxisLengthBetweenPoints: Length,
+  ) {
+    return CoincidentConstraint.create(wc.pointA, wc.pointB);
+  }
+
+  protected isWorkingConstraint(wc: WorkingConstraint): wc is WorkingCoincidentConstraint {
+    return wc.type === 'coincident';
+  }
+}
+
 /** A tool for placing datums with a single click. */
 export class DatumTool extends BaseTool<ConstraintToolEvents, 'datum'> {
   type = 'datum' as const;
@@ -520,6 +576,7 @@ type ConstraintSubToolTypes =
   | 'horizontal-constraint'
   | 'vertical-constraint'
   | 'colinear-constraint'
+  | 'coincident-constraint'
   | 'datum';
 
 /** A multi tool for creating all types of constraints. */
@@ -541,6 +598,7 @@ export class ConstraintTool extends BaseMultiTool<
     HorizontalConstraintTool,
     VerticalConstraintTool,
     ColinearConstraintTool,
+    CoincidentConstraintTool,
     DatumTool,
   ];
 }

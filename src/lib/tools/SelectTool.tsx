@@ -29,6 +29,7 @@ import { FrameComponent } from '@/lib/entity/components/FrameComponent';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { TransformableTemplate } from '@/lib/entity/components/templates/TransformableTemplate';
 import {
+  type CoincidentConstraintData,
   ConstrainedTrack,
   ConstrainedTrackPath,
   ConstraintData,
@@ -54,6 +55,7 @@ import {
 import {
   ANGLE_SNAP_DEGREES,
   applyKeyPointSnapping,
+  applyRotationOnConstrainedTrack,
   applySnapping,
   applySnappingLineSeries,
   applySnappingOnConstrainedTrack,
@@ -418,7 +420,11 @@ namespace DragState {
         return Entity.assignComponent(entity, FrameComponent, state.entity);
       case 'transformable': {
         const adapter = TransformableTemplate.getForEntity(state.entity);
-        return adapter ? adapter.update(entity, adapter.get(state.entity)) : entity;
+        let updated = adapter ? adapter.update(entity, adapter.get(state.entity)) : entity;
+        if (Entity.hasComponent(state.entity, RotationComponent)) {
+          updated = Entity.assignComponent(updated, RotationComponent, state.entity);
+        }
+        return updated;
       }
       default:
         state satisfies never;
@@ -2097,6 +2103,42 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         };
       }
 
+      case 'coincident': {
+        const excluded = (ep: ConstraintEndpoint): boolean =>
+          ep.type !== 'point' && excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+        if (excluded(constraint.pointA) || excluded(constraint.pointB)) {
+          return null;
+        }
+
+        const attached = (ep: ConstraintEndpoint): boolean =>
+          ep.type !== 'point' &&
+          ep.id === geometryId &&
+          !excludeConstraintsAttachedToGeometryIds.includes(ep.id);
+
+        const aAttached = attached(constraint.pointA);
+        const bAttached = attached(constraint.pointB);
+
+        if (aAttached === bAttached) {
+          return null;
+        }
+
+        const shapeEndpoint = aAttached ? constraint.pointA : constraint.pointB;
+        const fixedEndpoint = aAttached ? constraint.pointB : constraint.pointA;
+
+        const store = this.getGeometryStore();
+        const endpointPos = store.resolveConstraintEndpoint(shapeEndpoint);
+        const fixedPos = store.resolveConstraintEndpoint(fixedEndpoint);
+        if (!endpointPos || !fixedPos) {
+          return null;
+        }
+
+        return {
+          track: { type: 'point', point: fixedPos },
+          endpointPos,
+          shapeEndpoint,
+        };
+      }
+
       default:
         constraint satisfies never;
         throw new Error(
@@ -2389,6 +2431,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
+        if (this.draggingConstrainedTrackResult.type === 'immobile') {
+          return;
+        }
+        if (this.draggingConstrainedTrackResult.type === 'rotate') {
+          this.applyConstrainedRotation(sheet);
+          return;
+        }
         const snapped = applySnappingOnConstrainedTrack(
           sheet,
           this.draggingConstrainedTrackResult,
@@ -2474,7 +2523,20 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
 
           // And also log any position changes
-          if (!DragState.equals(state, newState)) {
+          const beforeRotation =
+            state.state === 'geometry'
+              ? RotationComponent.getOptional(state.geometry)
+              : state.state === 'transformable'
+                ? RotationComponent.getOptional(state.entity)
+                : undefined;
+          const afterRotation = RotationComponent.getOptional(entity);
+          const rotationChanged =
+            beforeRotation !== undefined &&
+            afterRotation !== undefined &&
+            beforeRotation.angle.toDegrees().magnitude !==
+              afterRotation.angle.toDegrees().magnitude;
+
+          if (!DragState.equals(state, newState) || rotationChanged) {
             // FIXME: replace with one single event
             switch (state.state) {
               case 'geometry': {
@@ -2524,6 +2586,14 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
                   `SelectTool.onCommit: untracked layout state.for "${(state as any).for}"`,
                 );
                 break;
+            }
+
+            // Rotation changes are recorded separately from geometry/data moves so undo and redo
+            // restore both the position and the angle.
+            if (beforeRotation && afterRotation && rotationChanged) {
+              forwardsActions.push(
+                UndoEntry.rotationChange(entity.id, beforeRotation, afterRotation),
+              );
             }
           }
         }
@@ -3141,6 +3211,100 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     return ConstrainedTrackPath.translate(result);
   }
 
+  /** Applies a `rotate` constrained track path to the dragged entity. */
+  private applyConstrainedRotation(pointer: SheetPosition): void {
+    const constrainedTrackPath = this.draggingConstrainedTrackResult;
+    if (constrainedTrackPath.type !== 'rotate') {
+      return;
+    }
+
+    const dragStart = this.dragStartSheetPos;
+    if (!dragStart) {
+      return;
+    }
+
+    for (const [id, state] of this.originalDragState) {
+      if (!state) {
+        continue;
+      }
+
+      let originalEntity: Entity;
+      let origin: SheetPosition | null;
+      if (state.state === 'geometry') {
+        if (!Entity.hasComponent(state.geometry, RotationComponent)) {
+          continue;
+        }
+        originalEntity = state.geometry;
+        origin = GeometryComponent.getOrigin(state.geometry);
+      } else if (state.state === 'transformable') {
+        if (!Entity.hasComponent(state.entity, RotationComponent)) {
+          continue;
+        }
+        const adapter = TransformableTemplate.getForEntity(state.entity);
+        if (!adapter) {
+          continue;
+        }
+        originalEntity = state.entity;
+        origin = adapter.getOrigin(state.entity);
+      } else {
+        continue;
+      }
+
+      if (!origin) {
+        continue;
+      }
+
+      const originalRotation = RotationComponent.get(
+        originalEntity as Entity<RotationComponent>,
+      ).angle.toDegrees().magnitude;
+      const inverseRenderMatrix = inverse(Entity.generateRenderMatrix(originalEntity));
+      const result = applyRotationOnConstrainedTrack(
+        pointer,
+        dragStart,
+        constrainedTrackPath,
+        origin,
+        originalRotation,
+        {
+          ctrlHeld: this.toolManager.getCtrlHeld(),
+          epsilon: this.getSheet()?.epsilon ?? 0.001,
+          pivotInEntitySpace: (center) => {
+            const raw = applyToPoint(inverseRenderMatrix, center);
+            return new SheetPosition(raw.x, raw.y);
+          },
+        },
+      );
+      if (result.type === 'immobile') {
+        return;
+      }
+
+      const deltaX = result.position.x - origin.x;
+      const deltaY = result.position.y - origin.y;
+      let nextState = DragState.translate(
+        state,
+        (point) => new SheetPosition(point.x + deltaX, point.y + deltaY),
+      );
+      const angle = Angle.degrees(normalizeAngleDegrees(result.rotationDegrees));
+      if (nextState.state === 'geometry') {
+        nextState = {
+          ...nextState,
+          geometry: RotationComponent.update(nextState.geometry as Entity<RotationComponent>, {
+            angle,
+          }) as typeof nextState.geometry,
+        };
+      } else if (nextState.state === 'transformable') {
+        nextState = {
+          ...nextState,
+          entity: RotationComponent.update(nextState.entity as Entity<RotationComponent>, {
+            angle,
+          }),
+        };
+      }
+
+      this.getGeometryStore().updateByIdDirect(id, (old) => DragState.apply(nextState, old));
+      return;
+    }
+  }
+
   /**
    * Computes anchor-relative constrained tracks for a shape whose fill is being dragged.
    * Finds all constraints referencing `geometryId` where exactly one endpoint is on the shape,
@@ -3156,6 +3320,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return ConstrainedTrackPath.Unconstrained;
     }
 
+    // The drag flow can append the clicked geometry more than once; de-duplicate so the
+    // single-entity coincident rotation special case is still detected.
+    geometryIds = Array.from(new Set(geometryIds));
+
     const matchedGeometryIdConstraintsPairs = geometryIds.flatMap((id) =>
       this.getGeometryStore()
         .findConstraintsByGeometryId(id)
@@ -3163,6 +3331,41 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     );
     if (matchedGeometryIdConstraintsPairs.length === 0) {
       return ConstrainedTrackPath.Unconstrained;
+    }
+
+    // A coincident constraint pins a single point. When it is the only constraint on the dragged
+    // entity, the entity is free to rotate around the other point. If the entity has any other
+    // constraint, fall through to the normal point-track + intersection pipeline instead.
+    if (geometryIds.length === 1) {
+      const geometryId = geometryIds[0];
+      const activeConstraints = matchedGeometryIdConstraintsPairs
+        .filter(([id]) => id === geometryId)
+        .map(([, c]) => c);
+      const coincidentConstraints = activeConstraints.filter(
+        (c) => ConstraintComponent.get(c).type === 'coincident',
+      );
+
+      if (coincidentConstraints.length > 1) {
+        return ConstrainedTrackPath.Immobile;
+      }
+
+      if (activeConstraints.length === 1 && coincidentConstraints.length === 1) {
+        const constraint = ConstraintComponent.get(
+          coincidentConstraints[0],
+        ) as CoincidentConstraintData;
+        const attached = (ep: ConstraintEndpoint): boolean =>
+          ep.type !== 'point' && ep.id === geometryId;
+        const aAttached = attached(constraint.pointA);
+        const bAttached = attached(constraint.pointB);
+
+        if (aAttached !== bAttached) {
+          const otherEndpoint = aAttached ? constraint.pointB : constraint.pointA;
+          const otherPosition = this.getGeometryStore().resolveConstraintEndpoint(otherEndpoint);
+          if (otherPosition) {
+            return ConstrainedTrackPath.rotate([otherPosition]);
+          }
+        }
+      }
     }
 
     const tracks: Array<ConstrainedTrack> = [];
@@ -3480,15 +3683,27 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             afterConstraint[pointKey] as ConstraintEndpoint,
           );
           if (changed) {
-            this.getHistoryManager().push(
-              UndoEntry.linearConstraintMoveEndpoints(
-                constraintId,
-                originalPointA,
-                originalPointB,
-                afterConstraint.pointA,
-                afterConstraint.pointB,
-              ),
-            );
+            if (constraint.type === 'coincident') {
+              this.getHistoryManager().push(
+                UndoEntry.coincidentConstraintMoveEndpoints(
+                  constraintId,
+                  originalPointA,
+                  originalPointB,
+                  afterConstraint.pointA,
+                  afterConstraint.pointB,
+                ),
+              );
+            } else {
+              this.getHistoryManager().push(
+                UndoEntry.linearConstraintMoveEndpoints(
+                  constraintId,
+                  originalPointA,
+                  originalPointB,
+                  afterConstraint.pointA,
+                  afterConstraint.pointB,
+                ),
+              );
+            }
           }
         });
         this.emit('keyPointSnapChange', null);
@@ -3888,6 +4103,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       case 'horizontal':
       case 'vertical':
       case 'colinear':
+      case 'coincident':
         break;
       default:
         constraint satisfies never;
@@ -3941,6 +4157,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         case 'horizontal':
         case 'vertical':
         case 'colinear':
+        case 'coincident':
           break;
         default:
           constraint satisfies never;

@@ -13,6 +13,7 @@ import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { ConstraintComponent } from '@/lib/entity';
 import {
+  type CoincidentConstraintData,
   type ColinearConstraintData,
   type Entity,
   type ParallelConstraintData,
@@ -231,6 +232,29 @@ const ConstraintOverlay: React.FunctionComponent = () => {
         return;
       }
       activeTool.onConstraintEndpointPointerDown<ColinearConstraintData>(
+        new ScreenPosition(e.clientX, e.clientY),
+        viewportControls,
+        constraintId,
+        pointKey,
+      );
+    },
+    [toolManager],
+  );
+
+  const handleCoincidentConstraintEndpointPointerDown = useCallback(
+    (
+      e: FederatedPointerEvent,
+      constraintId: Entity<ConstraintComponent>['id'],
+      pointKey: 'pointA' | 'pointB',
+    ) => {
+      if (!viewportControls) {
+        return;
+      }
+      const activeTool = toolManager.getActiveTool();
+      if (activeTool.type !== 'select') {
+        return;
+      }
+      activeTool.onConstraintEndpointPointerDown<CoincidentConstraintData>(
         new ScreenPosition(e.clientX, e.clientY),
         viewportControls,
         constraintId,
@@ -661,6 +685,82 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               </Fragment>
             );
           }
+          case 'coincident': {
+            const resolvedA = geometryStore.resolveConstraintEndpoint(c.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(c.pointB);
+            if (!resolvedA || !resolvedB) {
+              return null;
+            }
+
+            const isInConflict = Vector2.distance(resolvedA, resolvedB) > 1e-3;
+            const pointColor = isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : 0x666666;
+            const pointAWorld = resolvedA.toWorld();
+            const pointBWorld = resolvedB.toWorld();
+            const pointRadius = 4 / viewportScale;
+            const lineWidth = (isSelected ? 2 : 1) / viewportScale;
+
+            return (
+              <Fragment key={constraintGeom.id}>
+                {isInConflict ? (
+                  <pixiGraphics
+                    draw={(g: Graphics) => {
+                      g.clear();
+                      g.setStrokeStyle({ color: 0xe5484d, width: lineWidth });
+                      g.moveTo(pointAWorld.x, pointAWorld.y);
+                      g.lineTo(pointBWorld.x, pointBWorld.y);
+                      g.stroke();
+                    }}
+                    onPointerDown={(e: FederatedPointerEvent) =>
+                      handleConstraintLabelPointerDown(e, constraintGeom.id)
+                    }
+                    onPointerUp={(e: FederatedPointerEvent) =>
+                      handleConstraintLabelPointerUp(e, constraintGeom.id)
+                    }
+                    eventMode="static"
+                  />
+                ) : null}
+                <pixiGraphics
+                  draw={(g: Graphics) => {
+                    g.clear();
+                    g.setFillStyle({ color: pointColor });
+                    g.beginPath();
+                    g.arc(pointAWorld.x, pointAWorld.y, pointRadius, 0, Math.PI * 2);
+                    g.closePath();
+                    g.fill();
+                    if (isInConflict) {
+                      g.beginPath();
+                      g.arc(pointBWorld.x, pointBWorld.y, pointRadius, 0, Math.PI * 2);
+                      g.closePath();
+                      g.fill();
+                    }
+                  }}
+                  onPointerDown={(e: FederatedPointerEvent) =>
+                    handleConstraintLabelPointerDown(e, constraintGeom.id)
+                  }
+                  onPointerUp={(e: FederatedPointerEvent) =>
+                    handleConstraintLabelPointerUp(e, constraintGeom.id)
+                  }
+                  onPointerEnter={() => handleConstraintLabelPointerEnter(constraintGeom.id)}
+                  onPointerLeave={handleConstraintLabelPointerLeave}
+                  eventMode="static"
+                />
+                {isSelected ? (
+                  <HandleSprites
+                    points={[resolvedA, resolvedB]}
+                    handleTexture={VertexHandleTexture.get()}
+                    viewportScale={viewportScale}
+                    onHandlePointerDown={(e, index) =>
+                      handleCoincidentConstraintEndpointPointerDown(
+                        e,
+                        constraintGeom.id,
+                        index === 0 ? 'pointA' : 'pointB',
+                      )
+                    }
+                  />
+                ) : null}
+              </Fragment>
+            );
+          }
         }
       })}
       {workingConstraints.map((workingConstraint, index) => {
@@ -821,6 +921,38 @@ const ConstraintOverlay: React.FunctionComponent = () => {
                   eventMode="none"
                 />
               </Fragment>
+            );
+          }
+          case 'coincident': {
+            const resolvedA = geometryStore.resolveConstraintEndpoint(workingConstraint.pointA);
+            const resolvedB = geometryStore.resolveConstraintEndpoint(workingConstraint.pointB);
+            if (!resolvedA || !resolvedB) {
+              return null;
+            }
+
+            const pointAWorld = resolvedA.toWorld();
+            const pointBWorld = resolvedB.toWorld();
+            const pointRadius = 4 / viewportScale;
+
+            return (
+              <pixiGraphics
+                key={index}
+                draw={(g: Graphics) => {
+                  g.clear();
+                  g.setFillStyle({ color: 0x666666 });
+                  g.beginPath();
+                  g.arc(pointAWorld.x, pointAWorld.y, pointRadius, 0, Math.PI * 2);
+                  g.closePath();
+                  g.fill();
+                  if (pointAWorld.x !== pointBWorld.x || pointAWorld.y !== pointBWorld.y) {
+                    g.beginPath();
+                    g.arc(pointBWorld.x, pointBWorld.y, pointRadius, 0, Math.PI * 2);
+                    g.closePath();
+                    g.fill();
+                  }
+                }}
+                eventMode="none"
+              />
             );
           }
         }
@@ -1016,6 +1148,7 @@ const ConstraintTooltips: React.FunctionComponent = () => {
           case 'vertical':
           case 'horizontal':
           case 'colinear':
+          case 'coincident':
             return null;
           default:
             workingConstraint satisfies never;

@@ -1,6 +1,7 @@
 import colorRgba from 'color-rgba';
 import { ElementNode, type Node, parse } from 'svg-parser';
 import {
+  CoincidentConstraint,
   ColinearConstraint,
   ConstraintComponent,
   ConstraintEndpoint,
@@ -1378,6 +1379,30 @@ function parseColinearConstraint(
   };
 }
 
+/** Parses a <g> element with data-type="coincident-constraint" into a CoincidentConstraint object. */
+function parseCoincidentConstraint(
+  attrs: Record<string, string | number>,
+  rewrittenIdMap: Map<Id, Id>,
+  doesIdExist: (id: Id) => boolean,
+  generateId: (prefix?: string) => string,
+): Entity<ConstraintComponent> | null {
+  const id = resolveEntityId(
+    attrs.id as string | undefined,
+    ID_PREFIXES.constraint,
+    generateId,
+    rewrittenIdMap,
+    doesIdExist,
+  );
+
+  const pointA = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-a');
+  const pointB = parseEndpoint(attrs, rewrittenIdMap, 'endpoint-b');
+
+  return {
+    id,
+    ...CoincidentConstraint.create(pointA, pointB),
+  };
+}
+
 /**
  * Parses an SVG string into cad2d geometry and state.
  * Supports both native cad2d SVG (with magic comment) and fallback plain SVG.
@@ -1629,6 +1654,24 @@ export function parseSvg(
         } else {
           throw new ParseSvgWarningError(
             `data-type=colinear-constraint was not g, found ${tagName}`,
+          );
+        }
+        break;
+      case 'coincident-constraint':
+        if (tagName === 'g') {
+          const constraint = parseCoincidentConstraint(
+            attrs,
+            rewrittenIdMap,
+            doesIdExist,
+            generateId,
+          );
+          if (constraint) {
+            result.constraints.push(constraint);
+            return;
+          }
+        } else {
+          throw new ParseSvgWarningError(
+            `data-type=coincident-constraint was not g, found ${tagName}`,
           );
         }
         break;

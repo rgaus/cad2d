@@ -371,6 +371,18 @@ export type ColinearConstraintMoveEndpointsEntry = {
   afterPointB: ConstraintEndpoint;
 };
 
+// ==================== COINCIDENT CONSTRAINT ENTRIES ====================
+
+/** Recorded when a coincident constraint's endpoints (pointA/pointB) are moved. */
+export type CoincidentConstraintMoveEndpointsEntry = {
+  type: 'coincident-constraint-move-endpoints';
+  id: Id;
+  beforePointA: ConstraintEndpoint;
+  beforePointB: ConstraintEndpoint;
+  afterPointA: ConstraintEndpoint;
+  afterPointB: ConstraintEndpoint;
+};
+
 // ==================== SHEET SETTINGS ENTRIES ====================
 
 /** Recorded when the sheet width is changed. */
@@ -499,6 +511,7 @@ export type UndoEntry =
   | HorizontalConstraintMoveEndpointsEntry
   | VerticalConstraintMoveEndpointsEntry
   | ColinearConstraintMoveEndpointsEntry
+  | CoincidentConstraintMoveEndpointsEntry
   | LinearConstraintMoveLabelEntry
   | LinearConstraintChangeLengthEntry
   | LinearConstraintChangeAxisEntry
@@ -918,6 +931,24 @@ export namespace UndoEntry {
       beforePointA,
       beforePointB,
       afterPointTarget,
+      afterPointA,
+      afterPointB,
+    };
+  }
+
+  /** Creates an entry for moving a coincident constraint's endpoints (pointA/pointB). */
+  export function coincidentConstraintMoveEndpoints(
+    id: Id,
+    beforePointA: ConstraintEndpoint,
+    beforePointB: ConstraintEndpoint,
+    afterPointA: ConstraintEndpoint,
+    afterPointB: ConstraintEndpoint,
+  ): CoincidentConstraintMoveEndpointsEntry {
+    return {
+      type: 'coincident-constraint-move-endpoints',
+      id,
+      beforePointA,
+      beforePointB,
       afterPointA,
       afterPointB,
     };

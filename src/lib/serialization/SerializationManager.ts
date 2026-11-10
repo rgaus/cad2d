@@ -20,6 +20,7 @@ import { UndoEntry } from '../history/types';
 import { ParseSvgWarningError } from './ParseSvgWarningError';
 import { canLoad as canLoadSvg, parseSvg } from './deserialize';
 import {
+  serializeCoincidentConstraint,
   serializeColinearConstraint,
   serializeDatum,
   serializeEllipse,
@@ -382,6 +383,16 @@ export class SerializationManager {
           case 'colinear': {
             entries.push(
               serializeColinearConstraint(
+                constraint,
+                (ep) => geometryStore.resolveConstraintEndpoint(ep),
+                geometry.id,
+              ),
+            );
+            break;
+          }
+          case 'coincident': {
+            entries.push(
+              serializeCoincidentConstraint(
                 constraint,
                 (ep) => geometryStore.resolveConstraintEndpoint(ep),
                 geometry.id,

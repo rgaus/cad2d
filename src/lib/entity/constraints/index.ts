@@ -1,5 +1,6 @@
 import { ConstraintComponent } from '../components/ConstraintComponent';
 import { Entity, type Id } from '../types';
+import { CoincidentConstraint, CoincidentConstraintData } from './coincident';
 import { ColinearConstraint, ColinearConstraintData } from './colinear';
 import { computeConstrainedTracksForPoints } from './compute-constrained-tracks';
 import { ConstraintEndpoint } from './constraint-endpoint';
@@ -16,7 +17,8 @@ export type Constraint =
   | ParallelConstraint
   | HorizontalConstraint
   | VerticalConstraint
-  | ColinearConstraint;
+  | ColinearConstraint
+  | CoincidentConstraint;
 
 function isGeometryLockedTo(geom: Entity<ConstraintComponent>, geometryId: Id): boolean {
   const constraint = ConstraintComponent.get(geom);
@@ -33,6 +35,8 @@ function isGeometryLockedTo(geom: Entity<ConstraintComponent>, geometryId: Id): 
       return VerticalConstraint.isGeometryLockedTo(geom, geometryId);
     case 'colinear':
       return ColinearConstraint.isGeometryLockedTo(geom, geometryId);
+    case 'coincident':
+      return CoincidentConstraint.isGeometryLockedTo(geom, geometryId);
     default:
       constraint satisfies never;
       throw new Error(`isGeometryLockedTo: unexpected constraint type ${(constraint as any).type}`);
@@ -54,6 +58,8 @@ function getPositionKeys(geom: Entity<ConstraintComponent>): Array<string> {
       return VerticalConstraint.getPositionKeys();
     case 'colinear':
       return ColinearConstraint.getPositionKeys();
+    case 'coincident':
+      return CoincidentConstraint.getPositionKeys();
     default:
       constraint satisfies never;
       throw new Error(`getPositionKeys: unexpected constraint type ${(constraint as any).type}`);
@@ -78,6 +84,8 @@ function getEndpoint(
       return VerticalConstraint.getEndpoint(geom, pointKey);
     case 'colinear':
       return ColinearConstraint.getEndpoint(geom, pointKey);
+    case 'coincident':
+      return CoincidentConstraint.getEndpoint(geom, pointKey);
     default:
       constraint satisfies never;
       return undefined;
@@ -99,7 +107,8 @@ export type ConstraintData =
   | ParallelConstraintData
   | HorizontalConstraintData
   | VerticalConstraintData
-  | ColinearConstraintData;
+  | ColinearConstraintData
+  | CoincidentConstraintData;
 
 export { ConstraintEndpoint } from './constraint-endpoint';
 
@@ -140,4 +149,14 @@ export {
   type ColinearConstraintTemplate,
 } from './colinear';
 
-export { ConstrainedTrack, ConstrainedTrackPath } from './compute-constrained-tracks';
+export {
+  CoincidentConstraint,
+  type CoincidentConstraintData,
+  type CoincidentConstraintTemplate,
+} from './coincident';
+
+export {
+  ConstrainedTrack,
+  ConstrainedTrackPath,
+  type ConstrainedTrackPathRotate,
+} from './compute-constrained-tracks';

@@ -802,6 +802,30 @@ export function computeConstrainedTracksForPoints(
         break;
       }
 
+      case 'coincident': {
+        const resolvedA = resolveEndpoint(constraint.pointA);
+        const resolvedB = resolveEndpoint(constraint.pointB);
+
+        if (!resolvedA || !resolvedB) {
+          continue;
+        }
+
+        const aMoving = isMoving(resolvedA);
+        const bMoving = isMoving(resolvedB);
+
+        // Both fixed or both moving: the constraint is internally satisfied.
+        if (aMoving === bMoving) {
+          continue;
+        }
+
+        // The moving point must stay at the other point.
+        tracks.push({
+          type: 'point',
+          point: aMoving ? resolvedB : resolvedA,
+        });
+        break;
+      }
+
       default: {
         constraint satisfies never;
         throw new Error(

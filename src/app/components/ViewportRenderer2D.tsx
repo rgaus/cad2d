@@ -1186,6 +1186,26 @@ export default function ViewportRenderer2D({
         ) : null}
 
         {activeTool.type === 'constraint' &&
+        activeTool.activeSubTool.type === 'coincident-constraint' &&
+        mouseScreenPos &&
+        !keyPointSnapInfo ? (
+          <HoverTooltip position={mouseScreenPos}>
+            <div className="flex flex-col gap-1">
+              <span>
+                {workingConstraints.length === 0
+                  ? 'Click to place first point'
+                  : 'Click to place second point'}
+              </span>
+              <div className="flex items-center gap-2">
+                <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
+                  ctrl
+                </KeyboardShortcut>
+              </div>
+            </div>
+          </HoverTooltip>
+        ) : null}
+
+        {activeTool.type === 'constraint' &&
         activeTool.activeSubTool.type === 'datum' &&
         mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>

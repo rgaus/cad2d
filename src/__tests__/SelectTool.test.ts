@@ -1,5 +1,6 @@
 import { ActionsManager } from '@/lib/actions/ActionsManager';
 import {
+  CoincidentConstraint,
   ColinearConstraint,
   ConstraintComponent,
   ConstraintEndpoint,
@@ -22,6 +23,7 @@ import {
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
+import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
 import { PatternFilter, PatternRadialFilterData } from '@/lib/entity/filters/pattern';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
@@ -39,6 +41,7 @@ import {
 import { SelectionManager } from '@/lib/tools/SelectionManager';
 import { ToolManager } from '@/lib/tools/ToolManager';
 import { WorkingLinearConstraint } from '@/lib/tools/types';
+import { Angle } from '@/lib/units/angle';
 import { CentimetersType, Length } from '@/lib/units/length';
 import { ViewportControls } from '@/lib/viewport/ViewportControls';
 import { ScreenPosition, SheetPosition } from '@/lib/viewport/types';
@@ -6420,5 +6423,230 @@ describe('SelectTool entity picking', () => {
 
     // The existing selection is preserved (normal backdrop behavior is skipped)
     expect(selectionManager.getSelectedIds()).toEqual(['some-geometry-id']);
+  });
+
+  describe('coincident constraint rotation', () => {
+    let addEventListenerSpy: jest.SpyInstance;
+    let removeEventListenerSpy: jest.SpyInstance;
+    let moveHandler: ((event: MouseEvent) => void) | undefined;
+    let upHandler: ((event: MouseEvent) => void) | undefined;
+
+    beforeEach(() => {
+      moveHandler = undefined;
+      upHandler = undefined;
+      addEventListenerSpy = jest.spyOn(window, 'addEventListener');
+      removeEventListenerSpy = jest
+        .spyOn(window, 'removeEventListener')
+        .mockImplementation(() => {});
+      addEventListenerSpy.mockImplementation(
+        (event: string, handler: (event: MouseEvent) => void) => {
+          if (event === 'mousemove') moveHandler = handler;
+          if (event === 'mouseup') upHandler = handler;
+        },
+      );
+    });
+
+    afterEach(() => {
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    function addRotatedRectangle(id: string, angleDegrees = 0): void {
+      const template = Rectangle.create(new SheetPosition(0, 0), new SheetPosition(2, 2));
+      geometryStore.addDirect({
+        id,
+        ...template,
+        components: {
+          ...template.components,
+          ...RenderOrderComponent.create(0),
+          ...RotationComponent.create(Angle.degrees(angleDegrees)),
+        },
+      });
+    }
+
+    it('rotates around the other coincident point and keeps it fixed', () => {
+      const rectId = 'coincident-rotation-rect';
+      addRotatedRectangle(rectId);
+
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(2, 2)),
+        ),
+      );
+
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        rectId,
+      );
+
+      const moveScreen = new SheetPosition(1, -1).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const entity = geometryStore.getByIdWithComponent(rectId, GeometryComponent)!;
+      const rotation = RotationComponent.getOptional(entity);
+      expect(rotation).toBeDefined();
+      expect(rotation!.angle.toDegrees().magnitude).toBeCloseTo(30, 5);
+
+      const keyPoints = GeometryComponent.keyPoints(entity);
+      const lowerRightIndex = keyPoints.perimeterLabels.indexOf('lowerRight');
+      const renderedLowerRight = keyPoints.perimeter[lowerRightIndex].toSheet(entity);
+      expect(renderedLowerRight.x).toBeCloseTo(2, 5);
+      expect(renderedLowerRight.y).toBeCloseTo(2, 5);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('keeps the pivot fixed when the entity starts rotated', () => {
+      const rectId = 'coincident-rotation-prestarted-rect';
+      addRotatedRectangle(rectId, 45);
+
+      const beforeEntity = geometryStore.getByIdWithComponent(rectId, GeometryComponent)!;
+      const beforeKeyPoints = GeometryComponent.keyPoints(beforeEntity);
+      const lowerRightIndex = beforeKeyPoints.perimeterLabels.indexOf('lowerRight');
+      const pivot = beforeKeyPoints.perimeter[lowerRightIndex].toSheet(beforeEntity);
+
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+          ConstraintEndpoint.point(pivot),
+        ),
+      );
+
+      const clickScreen = new SheetPosition(0, 1.414).toScreen(
+        viewportControls.getState().viewport,
+      );
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        rectId,
+      );
+      const moveScreen = new SheetPosition(1, 3).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const entity = geometryStore.getByIdWithComponent(rectId, GeometryComponent)!;
+      const keyPoints = GeometryComponent.keyPoints(entity);
+      const renderedLowerRight = keyPoints.perimeter[lowerRightIndex].toSheet(entity);
+      expect(renderedLowerRight.x).toBeCloseTo(pivot.x, 5);
+      expect(renderedLowerRight.y).toBeCloseTo(pivot.y, 5);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('falls back to a point track when the entity has another constraint', () => {
+      const rectId = 'coincident-fallback-rect';
+      addRotatedRectangle(rectId);
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(2, 2)),
+        ),
+      );
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        HorizontalConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(2, 2)),
+        ),
+      );
+
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        rectId,
+      );
+      const moveScreen = new SheetPosition(1, -1).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const entity = geometryStore.getByIdWithComponent(rectId, GeometryComponent)!;
+      expect(RotationComponent.getOptional(entity)!.angle.toDegrees().magnitude).toBeCloseTo(0);
+      const component = GeometryComponent.get(entity);
+      expect(component.origin.x).toBeCloseTo(0);
+      expect(component.origin.y).toBeCloseTo(0);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('does not move when the entity has no rotation component', () => {
+      const rectId = 'coincident-no-rotation-rect';
+      geometryStore.addDirect(
+        RotationComponent.remove(
+          makeRectangle({
+            id: rectId,
+            upperLeft: new SheetPosition(0, 0),
+            lowerRight: new SheetPosition(2, 2),
+          }) as unknown as Entity<RotationComponent>,
+        ),
+      );
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(2, 2)),
+        ),
+      );
+
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        rectId,
+      );
+      const moveScreen = new SheetPosition(1, -1).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const component = GeometryComponent.get(
+        geometryStore.getByIdWithComponent(rectId, GeometryComponent)!,
+      );
+      expect(component.origin.x).toBeCloseTo(0);
+      expect(component.origin.y).toBeCloseTo(0);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('is immobile when the entity has multiple coincident constraints', () => {
+      const rectId = 'coincident-multiple-rect';
+      addRotatedRectangle(rectId);
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(2, 2)),
+        ),
+      );
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(0, 0)),
+        ),
+      );
+
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        rectId,
+      );
+      const moveScreen = new SheetPosition(1, -1).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const component = GeometryComponent.get(
+        geometryStore.getByIdWithComponent(rectId, GeometryComponent)!,
+      );
+      expect(component.origin.x).toBeCloseTo(0);
+      expect(component.origin.y).toBeCloseTo(0);
+      expect(
+        RotationComponent.getOptional(geometryStore.getById(rectId)!)!.angle.toDegrees().magnitude,
+      ).toBeCloseTo(0);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
   });
 });

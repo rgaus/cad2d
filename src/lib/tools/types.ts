@@ -153,13 +153,25 @@ export type WorkingColinearConstraint = {
   shadowsConstraintId: string | null;
 };
 
+export type WorkingCoincidentConstraint = {
+  type: 'coincident';
+  pointA: ConstraintEndpoint;
+  pointB: ConstraintEndpoint;
+
+  disabled: boolean;
+
+  /** If set, whenever this working constraint is visible, the specified constraint will be hidden. */
+  shadowsConstraintId: string | null;
+};
+
 export type WorkingConstraint =
   | WorkingLinearConstraint
   | WorkingPerpendicularConstraint
   | WorkingParallelConstraint
   | WorkingHorizontalConstraint
   | WorkingVerticalConstraint
-  | WorkingColinearConstraint;
+  | WorkingColinearConstraint
+  | WorkingCoincidentConstraint;
 
 export type WorkingFilletFilter =
   | {

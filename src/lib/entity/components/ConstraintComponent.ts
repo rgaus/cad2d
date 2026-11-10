@@ -383,6 +383,31 @@ export namespace ConstraintComponent {
           }),
         ];
       }
+      case 'coincident': {
+        const moveEndpoints = (key: 'pointA' | 'pointB', next: ConstraintEndpoint) => {
+          const c = getCurrent();
+          if (!c || c.type !== 'coincident') {
+            return;
+          }
+          ctx.historyManager.apply(
+            UndoEntry.coincidentConstraintMoveEndpoints(
+              id,
+              c.pointA,
+              c.pointB,
+              key === 'pointA' ? next : c.pointA,
+              key === 'pointB' ? next : c.pointB,
+            ),
+          );
+        };
+        return [
+          Fields.constraintEndpoint('pointA', 'A', constraintData.pointA, {
+            onChange: (next) => moveEndpoints('pointA', next),
+          }),
+          Fields.constraintEndpoint('pointB', 'B', constraintData.pointB, {
+            onChange: (next) => moveEndpoints('pointB', next),
+          }),
+        ];
+      }
       default:
         constraintData satisfies never;
         return [];

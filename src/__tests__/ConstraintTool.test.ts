@@ -879,4 +879,17 @@ describe('LinearXConstraintTool and LinearYConstraintTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(0);
     });
   });
+
+  it('creates a coincident constraint even when both points are at the same position', () => {
+    toolManager.changeToolSubTool('constraint', 'coincident-constraint');
+    const vpState = viewportControls.getState().viewport;
+    const screen = new SheetPosition(5, 5).toScreen(vpState);
+
+    constraintTool.handleMouseDown(screen, vpState);
+    constraintTool.handleMouseDown(screen, vpState);
+
+    const constraints = geometryStore.listWithComponent(ConstraintComponent);
+    expect(constraints).toHaveLength(1);
+    expect(ConstraintComponent.get(constraints[0]).type).toBe('coincident');
+  });
 });

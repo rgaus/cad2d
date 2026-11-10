@@ -1,5 +1,6 @@
 import { ConstraintComponent, Entity } from '@/lib/entity';
 import {
+  CoincidentConstraint,
   ColinearConstraint,
   ConstrainedTrack,
   Constraint,
@@ -1484,6 +1485,91 @@ describe('computeConstrainedTracksForPoints', () => {
       if (tracks[0].type === 'line') {
         expect(tracks[0].slope).toBe(Infinity);
       }
+    });
+  });
+
+  describe('coincident constraint', () => {
+    it('produces a point track at the fixed endpoint when pointA moves', () => {
+      const c = {
+        id: 'co1',
+        ...CoincidentConstraint.create(
+          ConstraintEndpoint.point(pt5_0),
+          ConstraintEndpoint.point(pt0),
+        ),
+      };
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [pt5_0],
+        'in',
+        resolvePointEndpoint,
+      );
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('point');
+      if (tracks[0].type === 'point') {
+        expect(tracks[0].point.x).toBeCloseTo(pt0.x);
+        expect(tracks[0].point.y).toBeCloseTo(pt0.y);
+      }
+    });
+
+    it('produces a point track at the fixed endpoint when pointB moves', () => {
+      const c = {
+        id: 'co2',
+        ...CoincidentConstraint.create(
+          ConstraintEndpoint.point(pt0),
+          ConstraintEndpoint.point(pt5_0),
+        ),
+      };
+      const result = Constraint.computeConstrainedTracksForPoints(
+        [c],
+        [pt5_0],
+        'in',
+        resolvePointEndpoint,
+      );
+      expect(result.type).toBe('translate');
+      const tracks = (result as ConstrainedTrackPathTranslate).constrainedTracks;
+      expect(tracks).toHaveLength(1);
+      expect(tracks[0].type).toBe('point');
+      if (tracks[0].type === 'point') {
+        expect(tracks[0].point.x).toBeCloseTo(pt0.x);
+        expect(tracks[0].point.y).toBeCloseTo(pt0.y);
+      }
+    });
+
+    it('skips when both endpoints are moving', () => {
+      const c = {
+        id: 'co3',
+        ...CoincidentConstraint.create(
+          ConstraintEndpoint.point(pt0),
+          ConstraintEndpoint.point(pt5_0),
+        ),
+      };
+      expect(
+        Constraint.computeConstrainedTracksForPoints([c], [pt0, pt5_0], 'in', resolvePointEndpoint)
+          .type,
+      ).toBe('unconstrained');
+    });
+
+    it('returns immobile when two coincident constraints pin different points', () => {
+      const c1 = {
+        id: 'co4',
+        ...CoincidentConstraint.create(
+          ConstraintEndpoint.point(pt3_4),
+          ConstraintEndpoint.point(pt0),
+        ),
+      };
+      const c2 = {
+        id: 'co5',
+        ...CoincidentConstraint.create(
+          ConstraintEndpoint.point(pt3_4),
+          ConstraintEndpoint.point(pt5_0),
+        ),
+      };
+      expect(
+        Constraint.computeConstrainedTracksForPoints([c1, c2], [pt3_4], 'in', resolvePointEndpoint)
+          .type,
+      ).toBe('immobile');
     });
   });
 });

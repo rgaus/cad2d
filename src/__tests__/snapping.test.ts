@@ -17,6 +17,7 @@ import {
   type KeyPointSnappingOptions,
   type SnappingOptions,
   applyKeyPointSnapping,
+  applyRotationOnConstrainedTrack,
   applySnappingOnConstrainedTrack,
 } from '@/lib/snapping';
 import { Angle } from '@/lib/units/angle';
@@ -871,5 +872,116 @@ describe('applyKeyPointSnapping', () => {
     // The endpoint should be a placeholder point, not locked-datum (datum creation
     // is deferred to the caller)
     expect(result.type).toBe('point');
+  });
+});
+
+describe('applyRotationOnConstrainedTrack', () => {
+  it('rotates around the center by the mouse angle delta', () => {
+    const result = applyRotationOnConstrainedTrack(
+      new SheetPosition(0, 10),
+      new SheetPosition(10, 0),
+      ConstrainedTrackPath.rotate([new SheetPosition(0, 0)]),
+      new SheetPosition(0, 10),
+      0,
+      { ctrlHeld: true },
+    );
+
+    expect(result.type).toBe('rotation');
+    if (result.type === 'rotation') {
+      expect(result.center.x).toBeCloseTo(0);
+      expect(result.center.y).toBeCloseTo(0);
+      expect(result.deltaDegrees).toBeCloseTo(90);
+      expect(result.rotationDegrees).toBeCloseTo(90);
+      expect(result.position.x).toBeCloseTo(-10);
+      expect(result.position.y).toBeCloseTo(0);
+    }
+  });
+
+  it('snaps the absolute rotation to 15 degree increments', () => {
+    const result = applyRotationOnConstrainedTrack(
+      new SheetPosition(1, 0.5),
+      new SheetPosition(10, 0),
+      ConstrainedTrackPath.rotate([new SheetPosition(0, 0)]),
+      new SheetPosition(0, 0),
+      0,
+      { ctrlHeld: false },
+    );
+
+    expect(result.type).toBe('rotation');
+    if (result.type === 'rotation') {
+      expect(result.rotationDegrees).toBeCloseTo(30);
+    }
+  });
+
+  it('does not snap when ctrl is held', () => {
+    const result = applyRotationOnConstrainedTrack(
+      new SheetPosition(5, 5),
+      new SheetPosition(10, 0),
+      ConstrainedTrackPath.rotate([new SheetPosition(0, 0)]),
+      new SheetPosition(0, 0),
+      0,
+      { ctrlHeld: true },
+    );
+
+    expect(result.type).toBe('rotation');
+    if (result.type === 'rotation') {
+      expect(result.rotationDegrees).toBeCloseTo(45);
+    }
+  });
+
+  it('is immobile when the entity has no rotation', () => {
+    expect(
+      applyRotationOnConstrainedTrack(
+        new SheetPosition(0, 10),
+        new SheetPosition(10, 0),
+        ConstrainedTrackPath.rotate([new SheetPosition(0, 0)]),
+        new SheetPosition(0, 10),
+        null,
+        { ctrlHeld: true },
+      ).type,
+    ).toBe('immobile');
+  });
+
+  it('is immobile when there are no centers', () => {
+    expect(
+      applyRotationOnConstrainedTrack(
+        new SheetPosition(0, 10),
+        new SheetPosition(10, 0),
+        ConstrainedTrackPath.rotate([]),
+        new SheetPosition(0, 10),
+        0,
+        { ctrlHeld: true },
+      ).type,
+    ).toBe('immobile');
+  });
+
+  it('chooses the center nearest the pointer', () => {
+    const result = applyRotationOnConstrainedTrack(
+      new SheetPosition(100, 0),
+      new SheetPosition(90, 0),
+      ConstrainedTrackPath.rotate([new SheetPosition(0, 0), new SheetPosition(100, 10)]),
+      new SheetPosition(100, 0),
+      0,
+      { ctrlHeld: true },
+    );
+
+    expect(result.type).toBe('rotation');
+    if (result.type === 'rotation') {
+      expect(result.center.x).toBeCloseTo(100);
+      expect(result.center.y).toBeCloseTo(10);
+    }
+  });
+});
+
+describe('applySnappingOnConstrainedTrack rotate path', () => {
+  it('falls back to normal snapping instead of projecting a point', () => {
+    const result = applySnappingOnConstrainedTrack(
+      new SheetPosition(1.2, 2.7),
+      ConstrainedTrackPath.rotate([new SheetPosition(0, 0)]),
+      defaultOptions,
+    );
+
+    expect(result.x).toBeCloseTo(1);
+    expect(result.y).toBeCloseTo(3);
   });
 });

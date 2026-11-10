@@ -103,6 +103,11 @@ export abstract class LineSegmentConstraintTool<
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
 
+  /** When true, allow both endpoints to resolve to the same sheet position. */
+  protected allowZeroLength(): boolean {
+    return false;
+  }
+
   handleToolFocus(): void {
     this.emit('snapHintsVisibilityChange', { keyPoints: true });
   }
@@ -261,7 +266,7 @@ export abstract class LineSegmentConstraintTool<
       return;
     }
 
-    if (resolvedA.x === resolvedB.x && resolvedA.y === resolvedB.y) {
+    if (!this.allowZeroLength() && resolvedA.x === resolvedB.x && resolvedA.y === resolvedB.y) {
       // Don't allow creating 0 length constraints
       return;
     }

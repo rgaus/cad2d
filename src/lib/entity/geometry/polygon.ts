@@ -21,6 +21,7 @@ import {
 import { ConstraintComponent } from '../components/ConstraintComponent';
 import { GeometryComponent } from '../components/GeometryComponent';
 import {
+  CoincidentConstraintData,
   ColinearConstraintData,
   Constraint,
   ConstraintData,
@@ -435,6 +436,16 @@ export namespace PolygonData {
               afterPointTarget: (afterData as ColinearConstraintData).pointTarget,
               afterPointA: (afterData as ColinearConstraintData).pointA,
               afterPointB: (afterData as ColinearConstraintData).pointB,
+            });
+            break;
+          case 'coincident':
+            updatedConstraintHistoryEvents.push({
+              type: 'coincident-constraint-move-endpoints',
+              id: constraintGeom.id,
+              beforePointA: c.pointA,
+              beforePointB: c.pointB,
+              afterPointA: (afterData as CoincidentConstraintData).pointA,
+              afterPointB: (afterData as CoincidentConstraintData).pointB,
             });
             break;
           default:

@@ -577,6 +577,14 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
           }),
         );
         break;
+      case 'coincident-constraint-move-endpoints':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
+            pointA: entry.afterPointA,
+            pointB: entry.afterPointB,
+          }),
+        );
+        break;
       case 'perpendicular-constraint-move-endpoints':
         this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
           ConstraintComponent.update(g, {
@@ -1090,6 +1098,14 @@ export class HistoryManager extends EventEmitter<HistoryManagerEvents> {
         this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
           ConstraintComponent.update(g, {
             pointTarget: entry.beforePointTarget,
+            pointA: entry.beforePointA,
+            pointB: entry.beforePointB,
+          }),
+        );
+        break;
+      case 'coincident-constraint-move-endpoints':
+        this.geometryStore.updateByIdWithComponentDirect(entry.id, ConstraintComponent, (g) =>
+          ConstraintComponent.update(g, {
             pointA: entry.beforePointA,
             pointB: entry.beforePointB,
           }),

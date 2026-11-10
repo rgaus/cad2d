@@ -19,6 +19,7 @@ import { InvoluteGearComponent } from '@/lib/entity/components/InvoluteGearCompo
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { getConstraintEndpointAdapterByType } from '@/lib/entity/components/templates/TransformableTemplate';
 import {
+  type CoincidentConstraintData,
   type ColinearConstraintData,
   type ConstraintData,
   type HorizontalConstraintData,
@@ -553,6 +554,30 @@ export function serializeColinearConstraint(
 </g>`;
 }
 
+/** Serializes a coincident constraint to an SVG <g> element string. */
+export function serializeCoincidentConstraint(
+  constraint: CoincidentConstraintData,
+  resolveEndpoint: ((endpoint: ConstraintEndpoint) => SheetPosition | null) | undefined,
+  constraintId: string,
+): string {
+  const resolvedA = resolveEndpoint ? resolveEndpoint(constraint.pointA) : null;
+  const resolvedB = resolveEndpoint ? resolveEndpoint(constraint.pointB) : null;
+
+  const pointAPx = resolvedA ? positionToPixels(resolvedA) : { x: 0, y: 0 };
+  const pointBPx = resolvedB ? positionToPixels(resolvedB) : { x: 0, y: 0 };
+
+  const attrs: Array<string> = [
+    `data-type="coincident-constraint"`,
+    `id="${constraintId}"`,
+    ...serializeEndpointAttrs('endpoint-a', constraint.pointA),
+    ...serializeEndpointAttrs('endpoint-b', constraint.pointB),
+  ];
+
+  return `<g ${attrs.join(' ')}>
+  <circle cx="${pointAPx.x.toFixed(2)}" cy="${pointAPx.y.toFixed(2)}" r="3" fill="${CONSTRAINT_COLOR}"/>
+</g>`;
+}
+
 /** Serializes a linear constraint to an SVG <g> element string.
  *  The inner SVG renders a visual approximation of the dimension line.
  *  resolveEndpoint is optional and only used for rendering the visual dimension line. */
@@ -924,6 +949,15 @@ export function serializeToSvg(
       case 'colinear':
         svgParts.push(
           serializeColinearConstraint(
+            constraint,
+            (ep) => geometryStore.resolveConstraintEndpoint(ep),
+            constraintGeom.id,
+          ),
+        );
+        break;
+      case 'coincident':
+        svgParts.push(
+          serializeCoincidentConstraint(
             constraint,
             (ep) => geometryStore.resolveConstraintEndpoint(ep),
             constraintGeom.id,

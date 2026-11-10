@@ -1,6 +1,7 @@
 import {
   type ConstrainedTrack,
   type ConstrainedTrackPath,
+  type ConstrainedTrackPathRotate,
   Constraint,
   ConstraintComponent,
   type ConstraintEndpoint,
@@ -13,7 +14,13 @@ import {
 } from '@/lib/entity';
 import { type Geometry } from '@/lib/entity/geometry';
 import { PolygonData } from '@/lib/entity/geometry/polygon';
-import { Angle, BoundingBox, Vector2, closestPointOnSegment } from '@/lib/math';
+import {
+  Angle,
+  BoundingBox,
+  Vector2,
+  closestPointOnSegment,
+  rotateAnchorAroundPivot,
+} from '@/lib/math';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
 import { GeometryRelativeSheetPosition, SheetPosition } from '@/lib/viewport/types';
 import { FilterComponent } from '../entity/components/FilterComponent';
@@ -601,10 +608,17 @@ export function applySnappingOnConstrainedTrack(
 
   let snapped = applySnapping(pos, options);
 
-  if (
-    constrainedTrackPath.type === 'unconstrained' ||
-    constrainedTrackPath.constrainedTracks.length === 0
-  ) {
+  if (constrainedTrackPath.type === 'unconstrained') {
+    return snapped;
+  }
+
+  // Rotation paths are applied by the caller (entity-level transform), not by projecting a
+  // single point, so fall back to the normal snapping result here.
+  if (constrainedTrackPath.type === 'rotate') {
+    return snapped;
+  }
+
+  if (constrainedTrackPath.constrainedTracks.length === 0) {
     return snapped;
   }
 
@@ -718,4 +732,94 @@ export function applySnappingOnConstrainedTrack(
   }
 
   return snapped;
+}
+
+/** Result of applying a `rotate` constrained track path to an entity. */
+export type ConstrainedRotationSnapResult =
+  | {
+      type: 'rotation';
+      center: SheetPosition;
+      deltaDegrees: number;
+      position: SheetPosition;
+      rotationDegrees: number;
+    }
+  | { type: 'immobile' };
+
+/**
+ * Computes the rotation required to follow a `rotate` constrained track path.
+ *
+ * The entity is rotated around the center closest to the pointer by the change in mouse angle
+ * since the drag started. The absolute entity rotation is snapped to {@link ANGLE_SNAP_DEGREES}
+ * unless Ctrl is held. Returns `'immobile'` when there is nothing to rotate around or the entity
+ * has no rotation component (passed as `rotationDegrees === null`).
+ */
+export function applyRotationOnConstrainedTrack(
+  pointer: SheetPosition,
+  dragStart: SheetPosition,
+  constrainedTrackPath: ConstrainedTrackPathRotate,
+  entityPosition: SheetPosition,
+  rotationDegrees: number | null,
+  options: {
+    ctrlHeld: boolean;
+    epsilon?: number;
+    angleSnapDegrees?: number;
+    /** Converts the chosen world-space pivot into the entity's raw coordinate space. */
+    pivotInEntitySpace?: (center: SheetPosition) => SheetPosition;
+  },
+): ConstrainedRotationSnapResult {
+  const epsilon = options.epsilon ?? 1e-10;
+  const angleSnapDegrees = options.angleSnapDegrees ?? ANGLE_SNAP_DEGREES;
+
+  if (rotationDegrees === null || constrainedTrackPath.centers.length === 0) {
+    return { type: 'immobile' };
+  }
+
+  let center: SheetPosition | null = null;
+  let bestDistance = Infinity;
+  for (const candidate of constrainedTrackPath.centers) {
+    const distance = Vector2.distance(pointer, candidate);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      center = candidate;
+    }
+  }
+  if (!center) {
+    return { type: 'immobile' };
+  }
+
+  const pointerDx = pointer.x - center.x;
+  const pointerDy = pointer.y - center.y;
+  const startDx = dragStart.x - center.x;
+  const startDy = dragStart.y - center.y;
+  if (
+    Math.sqrt(pointerDx * pointerDx + pointerDy * pointerDy) < epsilon ||
+    Math.sqrt(startDx * startDx + startDy * startDy) < epsilon
+  ) {
+    return { type: 'immobile' };
+  }
+
+  const pointerAngle = Math.atan2(pointerDy, pointerDx);
+  const startAngle = Math.atan2(startDy, startDx);
+  const deltaDegrees = ((pointerAngle - startAngle) * 180) / Math.PI;
+
+  let targetRotationDegrees = rotationDegrees + deltaDegrees;
+  if (!options.ctrlHeld) {
+    targetRotationDegrees = Math.round(targetRotationDegrees / angleSnapDegrees) * angleSnapDegrees;
+  }
+
+  const pivot = options.pivotInEntitySpace ? options.pivotInEntitySpace(center) : center;
+  const rotated = rotateAnchorAroundPivot(
+    entityPosition,
+    rotationDegrees,
+    pivot,
+    targetRotationDegrees - rotationDegrees,
+  );
+
+  return {
+    type: 'rotation',
+    center,
+    deltaDegrees: rotated.rotationDegrees - rotationDegrees,
+    position: rotated.position,
+    rotationDegrees: rotated.rotationDegrees,
+  };
 }
