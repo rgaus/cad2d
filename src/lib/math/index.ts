@@ -9,7 +9,7 @@ export { Angle } from './angle';
 export { Vector2 } from './vector';
 export { BoundingBox } from './bounding-box';
 export { OrientedBoundingBox } from './oriented-bounding-box';
-export { rotatePointAround } from './rotation';
+export { rotatePointAround, rotateAnchorAroundPivot } from './rotation';
 export { centroid } from './centroid';
 export { type CohenSutherlandOutcode, CohenSutherland } from './cohen-sutherland';
 export { DeCasteljau, cubicBezierAt } from './bezier';
