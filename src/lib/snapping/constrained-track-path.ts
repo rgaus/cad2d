@@ -170,7 +170,8 @@ export type RotationTarget =
       kind: 'geometry' | 'transformable';
       origin: SheetPosition;
       rotationDegrees: number | null;
-      inverseRenderMatrix: Matrix;
+      /** Inverse of the rotation-only render matrix (excludes anchor/other render offsets). */
+      inverseRotationMatrix: Matrix;
     }
   | { id: Id; kind: 'datum'; origin: SheetPosition }
   | { id: Id; kind: 'filter'; filter: FilterData }
@@ -190,7 +191,7 @@ export type RotationUpdate =
       kind: 'filter-rotate';
       center: SheetPosition;
       deltaDegrees: number;
-      translation?: SheetPosition;
+      initialTranslation?: SheetPosition;
     }
   | { id: Id; kind: 'filter-noop' };
 
@@ -294,7 +295,7 @@ function buildRotationUpdate(
       if (target.rotationDegrees === null) {
         return null;
       }
-      const rawPivot = applyToPoint(target.inverseRenderMatrix, rotationPivot);
+      const rawPivot = applyToPoint(target.inverseRotationMatrix, rotationPivot);
       const rotated = rotateAnchorAroundPivot(
         target.origin,
         target.rotationDegrees,
@@ -330,7 +331,7 @@ function buildRotationUpdate(
             kind: 'filter-rotate',
             center: rotationPivot,
             deltaDegrees,
-            translation,
+            initialTranslation: translation,
           };
         case 'pattern':
           if (target.filter.mode === 'grid') {
@@ -341,7 +342,7 @@ function buildRotationUpdate(
             kind: 'filter-rotate',
             center: rotationPivot,
             deltaDegrees,
-            translation,
+            initialTranslation: translation,
           };
         default:
           target.filter satisfies never;

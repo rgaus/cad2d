@@ -1,5 +1,5 @@
 import { MousePointer2Icon } from 'lucide-react';
-import { applyToPoint, inverse } from 'transformation-matrix';
+import { applyToPoint, identity, inverse } from 'transformation-matrix';
 import { type DragListener, createDragListener } from '@/lib/drag/create-drag-listener';
 import {
   Constraint,
@@ -3250,7 +3250,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             kind: 'geometry',
             origin: GeometryComponent.getOrigin(state.geometry),
             rotationDegrees: rotation?.angle.toDegrees().magnitude ?? null,
-            inverseRenderMatrix: inverse(Entity.generateRenderMatrix(state.geometry)),
+            inverseRotationMatrix: rotation
+              ? inverse(
+                  RotationComponent.generateRenderMatrix(
+                    state.geometry as Entity<RotationComponent>,
+                  ),
+                )
+              : identity(),
           });
           break;
         }
@@ -3265,7 +3271,11 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             kind: 'transformable',
             origin: adapter.getOrigin(state.entity),
             rotationDegrees: rotation?.angle.toDegrees().magnitude ?? null,
-            inverseRenderMatrix: inverse(Entity.generateRenderMatrix(state.entity)),
+            inverseRotationMatrix: rotation
+              ? inverse(
+                  RotationComponent.generateRenderMatrix(state.entity as Entity<RotationComponent>),
+                )
+              : identity(),
           });
           break;
         }
@@ -3355,8 +3365,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             let entity = FilterComponent.translate(state.entity, (point) =>
               rotatePointAround(point, update.center, update.deltaDegrees),
             );
-            if (update.translation) {
-              const translation = update.translation;
+            if (update.initialTranslation) {
+              const translation = update.initialTranslation;
               entity = FilterComponent.translate(
                 entity,
                 (point) => new SheetPosition(point.x + translation.x, point.y + translation.y),

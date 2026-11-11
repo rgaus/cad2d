@@ -888,7 +888,7 @@ function geometryRotationTarget(
     kind: 'geometry',
     origin,
     rotationDegrees,
-    inverseRenderMatrix: identity(),
+    inverseRotationMatrix: identity(),
   };
 }
 
@@ -979,8 +979,8 @@ describe('applyRotationOnConstrainedTrack', () => {
       if (filter?.kind === 'filter-rotate') {
         expect(filter.center.x).toBeCloseTo(-1);
         expect(filter.center.y).toBeCloseTo(-2);
-        expect(filter.translation?.x).toBeCloseTo(1);
-        expect(filter.translation?.y).toBeCloseTo(2);
+        expect(filter.initialTranslation?.x).toBeCloseTo(1);
+        expect(filter.initialTranslation?.y).toBeCloseTo(2);
       }
     }
   });

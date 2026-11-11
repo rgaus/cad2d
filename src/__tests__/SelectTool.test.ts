@@ -22,6 +22,7 @@ import {
 } from '@/lib/entity';
 import { ID_PREFIXES } from '@/lib/entity/GeometryStore';
 import { GeometryStore } from '@/lib/entity/GeometryStore';
+import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import { MirrorFilter, MirrorFilterData } from '@/lib/entity/filters/mirror';
@@ -6546,6 +6547,99 @@ describe('SelectTool entity picking', () => {
       const undoLowerRight = undoKeyPoints.perimeter[lowerRightIndex].toSheet(afterUndo);
       expect(undoLowerRight.x).toBeCloseTo(2);
       expect(undoLowerRight.y).toBeCloseTo(2);
+    });
+
+    it('keeps the coincident point fixed when the entity has an anchor point', () => {
+      const rectId = 'coincident-rotation-anchored-rect';
+      addRotatedRectangle(rectId);
+
+      geometryStore.updateByIdWithComponent(rectId, AnchorPointComponent, (g) =>
+        AnchorPointComponent.update(g, {
+          keyPoint: 'center',
+          offset: new SheetPosition(0, 0),
+        }),
+      );
+
+      const beforeEntity = geometryStore.getByIdWithComponent(rectId, GeometryComponent)!;
+      const beforeKeyPoints = GeometryComponent.keyPoints(beforeEntity);
+      const lowerRightIndex = beforeKeyPoints.perimeterLabels.indexOf('lowerRight');
+      const pivot = beforeKeyPoints.perimeter[lowerRightIndex].toSheet(beforeEntity);
+      expect(pivot.x).toBeCloseTo(1);
+      expect(pivot.y).toBeCloseTo(1);
+
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+          ConstraintEndpoint.point(pivot),
+        ),
+      );
+
+      const clickScreen = new SheetPosition(0, 0).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        rectId,
+      );
+
+      const moveScreen = new SheetPosition(0, -2).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const entity = geometryStore.getByIdWithComponent(rectId, GeometryComponent)!;
+      expect(RotationComponent.getOptional(entity)!.angle.toDegrees().magnitude).toBeCloseTo(30);
+
+      const keyPoints = GeometryComponent.keyPoints(entity);
+      const renderedLowerRight = keyPoints.perimeter[lowerRightIndex].toSheet(entity);
+      expect(renderedLowerRight.x).toBeCloseTo(pivot.x);
+      expect(renderedLowerRight.y).toBeCloseTo(pivot.y);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('keeps the coincident point fixed when the entity starts rotated with an anchor point', () => {
+      const rectId = 'coincident-rotation-anchored-prestarted-rect';
+      addRotatedRectangle(rectId, 45);
+      geometryStore.updateByIdWithComponent(rectId, AnchorPointComponent, (g) =>
+        AnchorPointComponent.update(g, {
+          keyPoint: 'center',
+          offset: new SheetPosition(0, 0),
+        }),
+      );
+
+      const beforeEntity = geometryStore.getByIdWithComponent(rectId, GeometryComponent)!;
+      const beforeKeyPoints = GeometryComponent.keyPoints(beforeEntity);
+      const lowerRightIndex = beforeKeyPoints.perimeterLabels.indexOf('lowerRight');
+      const pivot = beforeKeyPoints.perimeter[lowerRightIndex].toSheet(beforeEntity);
+
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+          ConstraintEndpoint.point(pivot),
+        ),
+      );
+
+      const clickScreen = new SheetPosition(0, 0).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        rectId,
+      );
+
+      const moveScreen = new SheetPosition(1.5, -1.5).toScreen(
+        viewportControls.getState().viewport,
+      );
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const entity = geometryStore.getByIdWithComponent(rectId, GeometryComponent)!;
+      expect(RotationComponent.getOptional(entity)!.angle.toDegrees().magnitude).toBeCloseTo(75);
+
+      const keyPoints = GeometryComponent.keyPoints(entity);
+      const renderedLowerRight = keyPoints.perimeter[lowerRightIndex].toSheet(entity);
+      expect(renderedLowerRight.x).toBeCloseTo(pivot.x);
+      expect(renderedLowerRight.y).toBeCloseTo(pivot.y);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
     });
 
     it('keeps the pivot fixed when the entity starts rotated', () => {
