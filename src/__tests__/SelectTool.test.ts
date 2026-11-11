@@ -29,6 +29,7 @@ import { PatternFilter, PatternRadialFilterData } from '@/lib/entity/filters/pat
 import { PolygonData } from '@/lib/entity/geometry/polygon';
 import { RectangleData } from '@/lib/entity/geometry/rectangle';
 import { HistoryManager } from '@/lib/history/HistoryManager';
+import { Vector2, rotatePointAround } from '@/lib/math';
 import { SerializationManager } from '@/lib/serialization/SerializationManager';
 import { SHEET_UNITS_TO_PIXELS, Sheet } from '@/lib/sheet/Sheet';
 import { KeyPointSnapInfo } from '@/lib/snapping';
@@ -6451,8 +6452,13 @@ describe('SelectTool entity picking', () => {
       removeEventListenerSpy.mockRestore();
     });
 
-    function addRotatedRectangle(id: string, angleDegrees = 0): void {
-      const template = Rectangle.create(new SheetPosition(0, 0), new SheetPosition(2, 2));
+    function addRotatedRectangle(
+      id: string,
+      angleDegrees = 0,
+      upperLeft = new SheetPosition(0, 0),
+      lowerRight = new SheetPosition(2, 2),
+    ): void {
+      const template = Rectangle.create(upperLeft, lowerRight);
       geometryStore.addDirect({
         id,
         ...template,
@@ -6645,6 +6651,303 @@ describe('SelectTool entity picking', () => {
       expect(
         RotationComponent.getOptional(geometryStore.getById(rectId)!)!.angle.toDegrees().magnitude,
       ).toBeCloseTo(0);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    function selectTwo(firstId: string, secondId: string): void {
+      const firstClick = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(firstClick.x, firstClick.y),
+        viewportControls,
+        firstId,
+      );
+      toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+      const secondClick = new SheetPosition(11, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(secondClick.x, secondClick.y),
+        viewportControls,
+        secondId,
+      );
+      toolManager.handleKeyUp({ key: 'Shift', shiftKey: false } as KeyboardEvent);
+    }
+
+    it('rotates every selected entity around a single crossing coincident constraint', () => {
+      const oneId = 'group-rotation-one';
+      const twoId = 'group-rotation-two';
+      addRotatedRectangle(oneId, 0, new SheetPosition(0, 0), new SheetPosition(2, 2));
+      addRotatedRectangle(twoId, 0, new SheetPosition(10, 0), new SheetPosition(12, 2));
+
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(oneId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(2, 2)),
+        ),
+      );
+
+      selectTwo(oneId, twoId);
+      expect(selectionManager.getSelectedIds()).toHaveLength(2);
+
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        oneId,
+      );
+      const moveScreen = new SheetPosition(1, -1).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const one = geometryStore.getByIdWithComponent(oneId, GeometryComponent)!;
+      const two = geometryStore.getByIdWithComponent(twoId, GeometryComponent)!;
+      const oneOrigin = GeometryComponent.getOrigin(one);
+      const twoOrigin = GeometryComponent.getOrigin(two);
+      expect(RotationComponent.getOptional(one)!.angle.toDegrees().magnitude).toBeCloseTo(30);
+      expect(RotationComponent.getOptional(two)!.angle.toDegrees().magnitude).toBeCloseTo(30);
+
+      const beforeVector = new SheetPosition(10, 0);
+      const rotatedVector = rotatePointAround(beforeVector, new SheetPosition(0, 0), 30);
+      expect(twoOrigin.x - oneOrigin.x).toBeCloseTo(rotatedVector.x);
+      expect(twoOrigin.y - oneOrigin.y).toBeCloseTo(rotatedVector.y);
+
+      const keyPoints = GeometryComponent.keyPoints(one);
+      const lowerRightIndex = keyPoints.perimeterLabels.indexOf('lowerRight');
+      const pivot = keyPoints.perimeter[lowerRightIndex].toSheet(one);
+      expect(pivot.x).toBeCloseTo(2);
+      expect(pivot.y).toBeCloseTo(2);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      historyManager.undo();
+      const oneAfterUndo = geometryStore.getByIdWithComponent(oneId, GeometryComponent)!;
+      const twoAfterUndo = geometryStore.getByIdWithComponent(twoId, GeometryComponent)!;
+      expect(RotationComponent.getOptional(oneAfterUndo)!.angle.toDegrees().magnitude).toBeCloseTo(
+        0,
+      );
+      expect(RotationComponent.getOptional(twoAfterUndo)!.angle.toDegrees().magnitude).toBeCloseTo(
+        0,
+      );
+
+      historyManager.redo();
+      const oneAfterRedo = geometryStore.getByIdWithComponent(oneId, GeometryComponent)!;
+      const twoAfterRedo = geometryStore.getByIdWithComponent(twoId, GeometryComponent)!;
+      expect(RotationComponent.getOptional(oneAfterRedo)!.angle.toDegrees().magnitude).toBeCloseTo(
+        30,
+      );
+      expect(RotationComponent.getOptional(twoAfterRedo)!.angle.toDegrees().magnitude).toBeCloseTo(
+        30,
+      );
+    });
+
+    it('allows internal constraints while rotating the group', () => {
+      const oneId = 'group-rotation-internal-one';
+      const twoId = 'group-rotation-internal-two';
+      addRotatedRectangle(oneId, 0, new SheetPosition(0, 0), new SheetPosition(2, 2));
+      addRotatedRectangle(twoId, 0, new SheetPosition(4, 2), new SheetPosition(6, 4));
+
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(oneId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(2, 2)),
+        ),
+      );
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        LinearConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(oneId, 'lowerRight'),
+          ConstraintEndpoint.lockedToRectangle(twoId, 'upperLeft'),
+          Length.centimeters(2),
+        ),
+      );
+
+      selectTwo(oneId, twoId);
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        oneId,
+      );
+      const moveScreen = new SheetPosition(1, -1).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const one = geometryStore.getByIdWithComponent(oneId, GeometryComponent)!;
+      const two = geometryStore.getByIdWithComponent(twoId, GeometryComponent)!;
+      expect(RotationComponent.getOptional(one)!.angle.toDegrees().magnitude).toBeCloseTo(30);
+      expect(RotationComponent.getOptional(two)!.angle.toDegrees().magnitude).toBeCloseTo(30);
+
+      const constraint = geometryStore
+        .listWithComponent(ConstraintComponent)
+        .find((c) => ConstraintComponent.get(c).type === 'linear')!;
+      const constraintData = ConstraintComponent.get(constraint) as LinearConstraintData;
+      const resolvedA = geometryStore.resolveConstraintEndpoint(constraintData.pointA)!;
+      const resolvedB = geometryStore.resolveConstraintEndpoint(constraintData.pointB)!;
+      expect(Vector2.distance(resolvedA, resolvedB)).toBeCloseTo(2);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('falls back when an additional boundary constraint exists', () => {
+      const oneId = 'group-rotation-boundary-one';
+      const twoId = 'group-rotation-boundary-two';
+      addRotatedRectangle(oneId, 0, new SheetPosition(0, 0), new SheetPosition(2, 2));
+      addRotatedRectangle(twoId, 0, new SheetPosition(10, 0), new SheetPosition(12, 2));
+
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(oneId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(2, 2)),
+        ),
+      );
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        HorizontalConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(oneId, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(0, 0)),
+        ),
+      );
+
+      selectTwo(oneId, twoId);
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        oneId,
+      );
+      const moveScreen = new SheetPosition(1, -1).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const one = geometryStore.getByIdWithComponent(oneId, GeometryComponent)!;
+      const two = geometryStore.getByIdWithComponent(twoId, GeometryComponent)!;
+      expect(RotationComponent.getOptional(one)!.angle.toDegrees().magnitude).toBeCloseTo(0);
+      expect(RotationComponent.getOptional(two)!.angle.toDegrees().magnitude).toBeCloseTo(0);
+      expect(GeometryComponent.getOrigin(one).x).toBeCloseTo(0);
+      expect(GeometryComponent.getOrigin(two).x).toBeCloseTo(10);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('is immobile when the selection contains a non-rotatable entity', () => {
+      const oneId = 'group-rotation-datum-one';
+      const twoId = 'group-rotation-datum-two';
+      addRotatedRectangle(oneId, 0, new SheetPosition(0, 0), new SheetPosition(2, 2));
+      addRotatedRectangle(twoId, 0, new SheetPosition(10, 0), new SheetPosition(12, 2));
+      geometryStore.add(ID_PREFIXES.datum, Datum.create(new SheetPosition(20, 20)));
+
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(oneId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(2, 2)),
+        ),
+      );
+
+      selectTwo(oneId, twoId);
+      const datum = geometryStore.listWithComponent(DatumComponent)[0];
+      toolManager.handleKeyDown({ key: 'Shift', shiftKey: true } as KeyboardEvent);
+      const datumScreen = DatumComponent.get(datum).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(datumScreen.x, datumScreen.y),
+        viewportControls,
+        datum.id,
+      );
+      toolManager.handleKeyUp({ key: 'Shift', shiftKey: false } as KeyboardEvent);
+
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        oneId,
+      );
+      const moveScreen = new SheetPosition(1, -1).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const one = geometryStore.getByIdWithComponent(oneId, GeometryComponent)!;
+      expect(RotationComponent.getOptional(one)!.angle.toDegrees().magnitude).toBeCloseTo(0);
+      expect(GeometryComponent.getOrigin(one).x).toBeCloseTo(0);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('falls back when multiple coincident constraints cross the selection boundary', () => {
+      const oneId = 'group-rotation-multi-coincident-one';
+      const twoId = 'group-rotation-multi-coincident-two';
+      addRotatedRectangle(oneId, 0, new SheetPosition(0, 0), new SheetPosition(2, 2));
+      addRotatedRectangle(twoId, 0, new SheetPosition(10, 0), new SheetPosition(12, 2));
+
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(oneId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(2, 2)),
+        ),
+      );
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(oneId, 'upperLeft'),
+          ConstraintEndpoint.point(new SheetPosition(0, 0)),
+        ),
+      );
+
+      selectTwo(oneId, twoId);
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        oneId,
+      );
+      const moveScreen = new SheetPosition(1, -1).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const one = geometryStore.getByIdWithComponent(oneId, GeometryComponent)!;
+      const two = geometryStore.getByIdWithComponent(twoId, GeometryComponent)!;
+      expect(RotationComponent.getOptional(one)!.angle.toDegrees().magnitude).toBeCloseTo(0);
+      expect(RotationComponent.getOptional(two)!.angle.toDegrees().magnitude).toBeCloseTo(0);
+      expect(GeometryComponent.getOrigin(one).x).toBeCloseTo(0);
+      expect(GeometryComponent.getOrigin(two).x).toBeCloseTo(10);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+    });
+
+    it('rotates an attached mirror filter with the group', () => {
+      const oneId = 'group-rotation-filter-one';
+      const twoId = 'group-rotation-filter-two';
+      addRotatedRectangle(oneId, 0, new SheetPosition(0, 0), new SheetPosition(2, 2));
+      addRotatedRectangle(twoId, 0, new SheetPosition(10, 0), new SheetPosition(12, 2));
+      const mirror = geometryStore.add(
+        ID_PREFIXES.filter,
+        MirrorFilter.create(oneId, new SheetPosition(0, 4), new SheetPosition(4, 4)),
+      );
+
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(oneId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(2, 2)),
+        ),
+      );
+
+      selectTwo(oneId, twoId);
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        oneId,
+      );
+      const moveScreen = new SheetPosition(1, -1).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const filter = geometryStore.getByIdWithComponent(mirror.id, FilterComponent)!;
+      const filterData = FilterComponent.get(filter) as MirrorFilterData;
+      const expectedPointA = rotatePointAround(
+        new SheetPosition(0, 4),
+        new SheetPosition(2, 2),
+        30,
+      );
+      expect(filterData.pointA.x).toBeCloseTo(expectedPointA.x);
+      expect(filterData.pointA.y).toBeCloseTo(expectedPointA.y);
 
       upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
     });

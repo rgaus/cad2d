@@ -45,6 +45,7 @@ import {
   closestPointOnCubicCurve,
   closestPointOnQuadraticCurve,
   closestPointOnSegment,
+  rotateAnchorAroundPivot,
   rotatePointAround,
 } from '@/lib/math';
 import {
@@ -59,6 +60,7 @@ import {
   applySnapping,
   applySnappingLineSeries,
   applySnappingOnConstrainedTrack,
+  computeConstrainedRotationDelta,
 } from '@/lib/snapping';
 import { Angle } from '@/lib/units/angle';
 import { type UnitType } from '@/lib/units/length';
@@ -612,6 +614,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
    *  apply, `'immobile'` when constraints are contradictory, or an array of tracks to snap to. */
   private draggingConstrainedTrackResult = ConstrainedTrackPath.Unconstrained;
 
+  /** Explicitly selected entity IDs for the current move drag (excludes implicit filter followers). */
+  private draggingMoveIds: Array<Id> = [];
+
   private draggingGeometryIds: Array<Id> | null = null;
   /** Resize mode when resizing via bounding box handles. */
   private resizeMode: ResizeMode | null = null;
@@ -803,6 +808,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     this.lockedPoints = [];
     this.originalLockedPolygonStates.clear();
     this.draggingConstrainedTrackResult = ConstrainedTrackPath.Unconstrained;
+    this.draggingMoveIds = [];
     this.resizeMode = null;
     this.draggingGeometryIds = null;
     this.resizeOriginalGroupStates = null;
@@ -2392,6 +2398,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         }),
       );
     }
+    this.draggingMoveIds = Array.from(new Set(draggingIds));
     this.draggingConstrainedTrackResult = this.computeShapeMoveTracks(
       draggingIds,
       this.dragStartSheetPos,
@@ -2419,6 +2426,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
               draggingIds.push(entityId);
 
               if (this.dragStartSheetPos) {
+                this.draggingMoveIds = Array.from(new Set(draggingIds));
                 this.draggingConstrainedTrackResult = this.computeShapeMoveTracks(
                   draggingIds,
                   this.dragStartSheetPos,
@@ -3211,7 +3219,179 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     return ConstrainedTrackPath.translate(result);
   }
 
-  /** Applies a `rotate` constrained track path to the dragged entity. */
+  /** Returns the absolute rotation in degrees for a drag state, or null when it has no rotation. */
+  private getDragStateRotationDegrees(state: DragState | null | undefined): number | null {
+    if (!state) {
+      return null;
+    }
+    if (state.state === 'geometry') {
+      return RotationComponent.getOptional(state.geometry)?.angle.toDegrees().magnitude ?? null;
+    }
+    if (state.state === 'transformable') {
+      return RotationComponent.getOptional(state.entity)?.angle.toDegrees().magnitude ?? null;
+    }
+    return null;
+  }
+
+  /** True when every selected entity and every implicitly dragged filter can rotate rigidly. */
+  private canRotateSelectionGroup(): boolean {
+    for (const id of this.draggingMoveIds) {
+      const entity = this.getGeometryStore().getById(id);
+      if (!entity) {
+        continue;
+      }
+      if (Entity.hasComponent(entity, GeometryComponent)) {
+        if (!Entity.hasComponent(entity, RotationComponent)) {
+          return false;
+        }
+      } else if (TransformableTemplate.getForEntity(entity)) {
+        if (!Entity.hasComponent(entity, RotationComponent)) {
+          return false;
+        }
+      } else {
+        return false;
+      }
+    }
+
+    for (const [, state] of this.originalDragState) {
+      if (!state) {
+        continue;
+      }
+      switch (state.state) {
+        case 'geometry':
+          if (!Entity.hasComponent(state.geometry, RotationComponent)) {
+            return false;
+          }
+          break;
+        case 'transformable':
+          if (!Entity.hasComponent(state.entity, RotationComponent)) {
+            return false;
+          }
+          break;
+        case 'filter': {
+          const filter = FilterComponent.get(state.entity);
+          if (filter.type === 'pattern' && filter.mode === 'grid') {
+            return false;
+          }
+          break;
+        }
+        case 'datum':
+        case 'frame':
+          return false;
+        default:
+          state satisfies never;
+          return false;
+      }
+    }
+
+    return true;
+  }
+
+  /** Builds a drag state rotated rigidly around the given world pivot by `deltaDegrees`. */
+  private buildRotatedDragState(
+    state: DragState,
+    pivot: SheetPosition,
+    deltaDegrees: number,
+  ): DragState | null {
+    switch (state.state) {
+      case 'geometry': {
+        const rotation = RotationComponent.getOptional(state.geometry);
+        if (!rotation) {
+          return null;
+        }
+        const origin = GeometryComponent.getOrigin(state.geometry);
+        const rawPivot = applyToPoint(inverse(Entity.generateRenderMatrix(state.geometry)), pivot);
+        const rotated = rotateAnchorAroundPivot(
+          origin,
+          rotation.angle.toDegrees().magnitude,
+          new SheetPosition(rawPivot.x, rawPivot.y),
+          deltaDegrees,
+        );
+        const next = DragState.translate(
+          state,
+          (point) =>
+            new SheetPosition(
+              point.x + rotated.position.x - origin.x,
+              point.y + rotated.position.y - origin.y,
+            ),
+        );
+        if (next.state !== 'geometry') {
+          return null;
+        }
+        return {
+          ...next,
+          geometry: RotationComponent.update(next.geometry as Entity<RotationComponent>, {
+            angle: Angle.degrees(normalizeAngleDegrees(rotated.rotationDegrees)),
+          }) as typeof next.geometry,
+        };
+      }
+      case 'transformable': {
+        const rotation = RotationComponent.getOptional(state.entity);
+        if (!rotation) {
+          return null;
+        }
+        const adapter = TransformableTemplate.getForEntity(state.entity);
+        if (!adapter) {
+          return null;
+        }
+        const origin = adapter.getOrigin(state.entity);
+        const rawPivot = applyToPoint(inverse(Entity.generateRenderMatrix(state.entity)), pivot);
+        const rotated = rotateAnchorAroundPivot(
+          origin,
+          rotation.angle.toDegrees().magnitude,
+          new SheetPosition(rawPivot.x, rawPivot.y),
+          deltaDegrees,
+        );
+        const next = DragState.translate(
+          state,
+          (point) =>
+            new SheetPosition(
+              point.x + rotated.position.x - origin.x,
+              point.y + rotated.position.y - origin.y,
+            ),
+        );
+        if (next.state !== 'transformable') {
+          return null;
+        }
+        return {
+          ...next,
+          entity: RotationComponent.update(next.entity as Entity<RotationComponent>, {
+            angle: Angle.degrees(normalizeAngleDegrees(rotated.rotationDegrees)),
+          }),
+        };
+      }
+      case 'filter': {
+        const filter = FilterComponent.get(state.entity);
+        switch (filter.type) {
+          case 'fillet':
+          case 'chamfer':
+            return state;
+          case 'mirror':
+          case 'pattern':
+            if (filter.type === 'pattern' && filter.mode === 'grid') {
+              return null;
+            }
+            return {
+              state: 'filter',
+              entity: FilterComponent.translate(state.entity, (point) =>
+                rotatePointAround(point, pivot, deltaDegrees),
+              ),
+            };
+          default:
+            filter satisfies never;
+            return null;
+        }
+      }
+      case 'datum':
+      case 'frame':
+        return null;
+      default:
+        state satisfies never;
+        return null;
+    }
+  }
+
+  /** Applies a `rotate` constrained track path to the dragged entity (or group). */
   private applyConstrainedRotation(pointer: SheetPosition): void {
     const constrainedTrackPath = this.draggingConstrainedTrackResult;
     if (constrainedTrackPath.type !== 'rotate') {
@@ -3220,6 +3400,46 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
 
     const dragStart = this.dragStartSheetPos;
     if (!dragStart) {
+      return;
+    }
+
+    if (this.draggingMoveIds.length > 1) {
+      const referenceId = constrainedTrackPath.referenceEntityId;
+      const referenceState = referenceId ? this.originalDragState.get(referenceId) : undefined;
+      const referenceRotation = this.getDragStateRotationDegrees(referenceState);
+      if (referenceRotation === null) {
+        return;
+      }
+
+      const delta = computeConstrainedRotationDelta(
+        pointer,
+        dragStart,
+        constrainedTrackPath,
+        referenceRotation,
+        {
+          ctrlHeld: this.toolManager.getCtrlHeld(),
+          epsilon: this.getSheet()?.epsilon ?? 0.001,
+        },
+      );
+      if (delta.type === 'immobile' || !this.canRotateSelectionGroup()) {
+        return;
+      }
+
+      const updates: Array<[Id, DragState]> = [];
+      for (const [id, state] of this.originalDragState) {
+        if (!state) {
+          continue;
+        }
+        const next = this.buildRotatedDragState(state, delta.center, delta.deltaDegrees);
+        if (!next) {
+          return;
+        }
+        updates.push([id, next]);
+      }
+
+      for (const [id, next] of updates) {
+        this.getGeometryStore().updateByIdDirect(id, (old) => DragState.apply(next, old));
+      }
       return;
     }
 
@@ -3362,7 +3582,57 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           const otherEndpoint = aAttached ? constraint.pointB : constraint.pointA;
           const otherPosition = this.getGeometryStore().resolveConstraintEndpoint(otherEndpoint);
           if (otherPosition) {
-            return ConstrainedTrackPath.rotate([otherPosition]);
+            return ConstrainedTrackPath.rotate([otherPosition], geometryId);
+          }
+        }
+      }
+    }
+
+    // Multi-selection: a group can rotate rigidly around a coincident pivot only when the sole
+    // constraint crossing the selection boundary is that coincident constraint. Constraints
+    // entirely inside the selection are preserved by the rigid rotation and don't block it.
+    if (geometryIds.length > 1) {
+      const selectedIds = new Set(geometryIds);
+      const uniqueConstraints = new Map<string, Entity<ConstraintComponent>>();
+      for (const [, constraint] of matchedGeometryIdConstraintsPairs) {
+        uniqueConstraints.set(constraint.id, constraint);
+      }
+
+      const isInside = (endpoint: ConstraintEndpoint): boolean =>
+        endpoint.type !== 'point' && selectedIds.has(endpoint.id);
+
+      const crossingConstraints: Array<Entity<ConstraintComponent>> = [];
+      for (const constraintGeom of uniqueConstraints.values()) {
+        let hasInside = false;
+        let hasOutside = false;
+        for (const key of Constraint.getPositionKeys(constraintGeom)) {
+          const endpoint = Constraint.getEndpoint(constraintGeom, key);
+          if (!endpoint) {
+            continue;
+          }
+          if (isInside(endpoint)) {
+            hasInside = true;
+          } else {
+            hasOutside = true;
+          }
+        }
+        if (hasInside && hasOutside) {
+          crossingConstraints.push(constraintGeom);
+        }
+      }
+
+      if (crossingConstraints.length === 1) {
+        const constraint = ConstraintComponent.get(crossingConstraints[0]) as ConstraintData;
+        if (constraint.type === 'coincident') {
+          const aInside = isInside(constraint.pointA);
+          const bInside = isInside(constraint.pointB);
+          if (aInside !== bInside) {
+            const outsideEndpoint = aInside ? constraint.pointB : constraint.pointA;
+            const insideEndpoint = aInside ? constraint.pointA : constraint.pointB;
+            const pivot = this.getGeometryStore().resolveConstraintEndpoint(outsideEndpoint);
+            if (pivot && insideEndpoint.type !== 'point') {
+              return ConstrainedTrackPath.rotate([pivot], insideEndpoint.id);
+            }
           }
         }
       }

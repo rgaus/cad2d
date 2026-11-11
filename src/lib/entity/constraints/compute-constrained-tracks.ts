@@ -22,6 +22,8 @@ export type ConstrainedTrackPathTranslate = {
 export type ConstrainedTrackPathRotate = {
   type: 'rotate';
   centers: Array<SheetPosition>;
+  /** The selected entity whose rotation is used as the reference for angle snapping. */
+  referenceEntityId?: Entity['id'];
 };
 
 /**
@@ -52,8 +54,11 @@ export namespace ConstrainedTrackPath {
     return { type: 'translate', constrainedTracks };
   }
 
-  export function rotate(centers: Array<SheetPosition>): ConstrainedTrackPathRotate {
-    return { type: 'rotate', centers };
+  export function rotate(
+    centers: Array<SheetPosition>,
+    referenceEntityId?: Entity['id'],
+  ): ConstrainedTrackPathRotate {
+    return { type: 'rotate', centers, referenceEntityId };
   }
 }
 
