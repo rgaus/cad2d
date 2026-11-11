@@ -1,3 +1,4 @@
+import { identity } from 'transformation-matrix';
 import {
   type ConstrainedTrack,
   ConstrainedTrackPath,
@@ -15,10 +16,12 @@ import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointCompone
 import { RotationComponent } from '@/lib/entity/components/RotationComponent';
 import {
   type KeyPointSnappingOptions,
+  type RotationTarget,
   type SnappingOptions,
   applyKeyPointSnapping,
   applyRotationOnConstrainedTrack,
   applySnappingOnConstrainedTrack,
+  applyTranslationOnConstrainedTrack,
 } from '@/lib/snapping';
 import { Angle } from '@/lib/units/angle';
 import { Length } from '@/lib/units/length';
@@ -875,57 +878,79 @@ describe('applyKeyPointSnapping', () => {
   });
 });
 
+function geometryRotationTarget(
+  id: string,
+  origin: SheetPosition,
+  rotationDegrees: number | null = 0,
+): RotationTarget {
+  return {
+    id,
+    kind: 'geometry',
+    origin,
+    rotationDegrees,
+    inverseRenderMatrix: identity(),
+  };
+}
+
 describe('applyRotationOnConstrainedTrack', () => {
   it('rotates around the center by the mouse angle delta', () => {
     const result = applyRotationOnConstrainedTrack(
       new SheetPosition(0, 10),
-      new SheetPosition(10, 0),
       ConstrainedTrackPath.rotate([new SheetPosition(0, 0)]),
-      new SheetPosition(0, 10),
-      0,
       { ctrlHeld: true },
+      {
+        dragStart: new SheetPosition(10, 0),
+        targets: [geometryRotationTarget('a', new SheetPosition(0, 10))],
+        moveTargetIds: ['a'],
+      },
     );
 
     expect(result.type).toBe('rotation');
     if (result.type === 'rotation') {
-      expect(result.center.x).toBeCloseTo(0);
-      expect(result.center.y).toBeCloseTo(0);
-      expect(result.deltaDegrees).toBeCloseTo(90);
-      expect(result.rotationDegrees).toBeCloseTo(90);
-      expect(result.position.x).toBeCloseTo(-10);
-      expect(result.position.y).toBeCloseTo(0);
+      expect(result.updates).toHaveLength(1);
+      const update = result.updates[0];
+      expect(update.kind).toBe('geometry');
+      if (update.kind === 'geometry') {
+        expect(update.rotationDegrees).toBeCloseTo(90);
+        expect(update.position.x).toBeCloseTo(-10);
+        expect(update.position.y).toBeCloseTo(0);
+      }
     }
   });
 
   it('snaps the absolute rotation to 15 degree increments', () => {
     const result = applyRotationOnConstrainedTrack(
       new SheetPosition(1, 0.5),
-      new SheetPosition(10, 0),
       ConstrainedTrackPath.rotate([new SheetPosition(0, 0)]),
-      new SheetPosition(0, 0),
-      0,
       { ctrlHeld: false },
+      {
+        dragStart: new SheetPosition(10, 0),
+        targets: [geometryRotationTarget('a', new SheetPosition(0, 0))],
+        moveTargetIds: ['a'],
+      },
     );
 
     expect(result.type).toBe('rotation');
-    if (result.type === 'rotation') {
-      expect(result.rotationDegrees).toBeCloseTo(30);
+    if (result.type === 'rotation' && result.updates[0].kind === 'geometry') {
+      expect(result.updates[0].rotationDegrees).toBeCloseTo(30);
     }
   });
 
   it('does not snap when ctrl is held', () => {
     const result = applyRotationOnConstrainedTrack(
       new SheetPosition(5, 5),
-      new SheetPosition(10, 0),
       ConstrainedTrackPath.rotate([new SheetPosition(0, 0)]),
-      new SheetPosition(0, 0),
-      0,
       { ctrlHeld: true },
+      {
+        dragStart: new SheetPosition(10, 0),
+        targets: [geometryRotationTarget('a', new SheetPosition(0, 0))],
+        moveTargetIds: ['a'],
+      },
     );
 
     expect(result.type).toBe('rotation');
-    if (result.type === 'rotation') {
-      expect(result.rotationDegrees).toBeCloseTo(45);
+    if (result.type === 'rotation' && result.updates[0].kind === 'geometry') {
+      expect(result.updates[0].rotationDegrees).toBeCloseTo(45);
     }
   });
 
@@ -933,11 +958,13 @@ describe('applyRotationOnConstrainedTrack', () => {
     expect(
       applyRotationOnConstrainedTrack(
         new SheetPosition(0, 10),
-        new SheetPosition(10, 0),
         ConstrainedTrackPath.rotate([new SheetPosition(0, 0)]),
-        new SheetPosition(0, 10),
-        null,
         { ctrlHeld: true },
+        {
+          dragStart: new SheetPosition(10, 0),
+          targets: [geometryRotationTarget('a', new SheetPosition(0, 10), null)],
+          moveTargetIds: ['a'],
+        },
       ).type,
     ).toBe('immobile');
   });
@@ -946,29 +973,97 @@ describe('applyRotationOnConstrainedTrack', () => {
     expect(
       applyRotationOnConstrainedTrack(
         new SheetPosition(0, 10),
-        new SheetPosition(10, 0),
         ConstrainedTrackPath.rotate([]),
-        new SheetPosition(0, 10),
-        0,
         { ctrlHeld: true },
+        {
+          dragStart: new SheetPosition(10, 0),
+          targets: [geometryRotationTarget('a', new SheetPosition(0, 10))],
+          moveTargetIds: ['a'],
+        },
       ).type,
     ).toBe('immobile');
   });
 
-  it('chooses the center nearest the pointer', () => {
+  it('rotates datums and geometry together in a group', () => {
     const result = applyRotationOnConstrainedTrack(
-      new SheetPosition(100, 0),
-      new SheetPosition(90, 0),
-      ConstrainedTrackPath.rotate([new SheetPosition(0, 0), new SheetPosition(100, 10)]),
-      new SheetPosition(100, 0),
-      0,
+      new SheetPosition(0, 10),
+      ConstrainedTrackPath.rotate([new SheetPosition(0, 0)], 'a'),
       { ctrlHeld: true },
+      {
+        dragStart: new SheetPosition(10, 0),
+        targets: [
+          geometryRotationTarget('a', new SheetPosition(0, 10)),
+          { id: 'd', kind: 'datum', origin: new SheetPosition(5, 0) },
+        ],
+        moveTargetIds: ['a', 'd'],
+      },
     );
 
     expect(result.type).toBe('rotation');
     if (result.type === 'rotation') {
-      expect(result.center.x).toBeCloseTo(100);
-      expect(result.center.y).toBeCloseTo(10);
+      expect(result.updates).toHaveLength(2);
+      const datum = result.updates.find((update) => update.kind === 'datum');
+      expect(datum).toBeDefined();
+      if (datum?.kind === 'datum') {
+        expect(datum.position.x).toBeCloseTo(0);
+        expect(datum.position.y).toBeCloseTo(5);
+      }
+    }
+  });
+
+  it('is immobile when a group contains a frame', () => {
+    expect(
+      applyRotationOnConstrainedTrack(
+        new SheetPosition(0, 10),
+        ConstrainedTrackPath.rotate([new SheetPosition(0, 0)], 'a'),
+        { ctrlHeld: true },
+        {
+          dragStart: new SheetPosition(10, 0),
+          targets: [
+            geometryRotationTarget('a', new SheetPosition(0, 10)),
+            { id: 'f', kind: 'frame' },
+          ],
+          moveTargetIds: ['a', 'f'],
+        },
+      ).type,
+    ).toBe('immobile');
+  });
+});
+
+describe('applyTranslationOnConstrainedTrack', () => {
+  it('does not grid-snap the selection origin for translate paths', () => {
+    const result = applyTranslationOnConstrainedTrack(
+      new SheetPosition(5.2, 5.2),
+      ConstrainedTrackPath.translate([]),
+      defaultOptions,
+      {
+        dragStart: new SheetPosition(0, 0),
+        selectionOrigin: new SheetPosition(0.3, 0.3),
+      },
+    );
+
+    expect(result.type).toBe('translation');
+    if (result.type === 'translation') {
+      expect(result.delta.x).toBeCloseTo(5);
+      expect(result.delta.y).toBeCloseTo(5);
+    }
+  });
+
+  it('grid-snaps the selection origin for unconstrained paths', () => {
+    const result = applyTranslationOnConstrainedTrack(
+      new SheetPosition(5.2, 5.2),
+      { type: 'unconstrained' },
+      defaultOptions,
+      {
+        dragStart: new SheetPosition(0, 0),
+        selectionOrigin: new SheetPosition(0.3, 0.3),
+      },
+    );
+
+    expect(result.type).toBe('translation');
+    if (result.type === 'translation') {
+      expect(result.delta.x).toBeCloseTo(4.7);
+      expect(result.delta.y).toBeCloseTo(4.7);
     }
   });
 });

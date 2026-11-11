@@ -45,7 +45,6 @@ import {
   closestPointOnCubicCurve,
   closestPointOnQuadraticCurve,
   closestPointOnSegment,
-  rotateAnchorAroundPivot,
   rotatePointAround,
 } from '@/lib/math';
 import {
@@ -55,12 +54,14 @@ import {
 } from '@/lib/selection/resize-frame';
 import {
   ANGLE_SNAP_DEGREES,
+  type RotationTarget,
+  type RotationUpdate,
   applyKeyPointSnapping,
   applyRotationOnConstrainedTrack,
   applySnapping,
   applySnappingLineSeries,
   applySnappingOnConstrainedTrack,
-  computeConstrainedRotationDelta,
+  applyTranslationOnConstrainedTrack,
 } from '@/lib/snapping';
 import { Angle } from '@/lib/units/angle';
 import { type UnitType } from '@/lib/units/length';
@@ -2439,75 +2440,64 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const liveViewport = viewportControls.getState().viewport;
         const world = sp.toWorld(liveViewport);
         const sheet = world.toSheet();
-        if (this.draggingConstrainedTrackResult.type === 'immobile') {
-          return;
-        }
-        if (this.draggingConstrainedTrackResult.type === 'rotate') {
-          this.applyConstrainedRotation(sheet);
-          return;
-        }
-        const snapped = applySnappingOnConstrainedTrack(
-          sheet,
-          this.draggingConstrainedTrackResult,
-          {
-            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            ctrlHeld: this.toolManager.getCtrlHeld(),
-            superHeld: false,
-            selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(entityId),
-            viewportScale: liveViewport.scale,
-          },
-          this.getSheet()?.epsilon ?? 0.001,
-        );
-
-        // Compute the origin of the selection for snapping purposes.
-        // For a single shape this is the selection-inspector x/y (upperLeft for rect,
-        // center for ellipse, bounding box upper-left for polygon). For multi-selection
-        // it is the upper-left of the union bounding box.
-        const selectionOrigin = computeSelectionOrigin(this.originalDragState);
-        if (!selectionOrigin) {
-          // There should always be a selected origin in practice if at least one
-          // Entity<GeometryComponent> is selected.
+        const dragStart = this.dragStartSheetPos;
+        if (!dragStart) {
           return;
         }
 
-        // Cursor delta in snapped space (same as before)
-        const dx = snapped.x - (this.dragStartSheetPos?.x ?? 0);
-        const dy = snapped.y - (this.dragStartSheetPos?.y ?? 0);
+        const snappingOptions = {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          ctrlHeld: this.toolManager.getCtrlHeld(),
+          superHeld: false,
+          selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(entityId),
+          viewportScale: liveViewport.scale,
+        };
+        const epsilon = this.getSheet()?.epsilon ?? 0.001;
 
-        // Where the origin would land if it followed the cursor
-        const rawNewOrigin = new SheetPosition(selectionOrigin.x + dx, selectionOrigin.y + dy);
+        switch (this.draggingConstrainedTrackResult.type) {
+          case 'immobile':
+            return;
 
-        // Snap only the origin to the grid (skip if ctrl held or constraint tracks are active)
-        let snappedOrigin = rawNewOrigin;
-        if (
-          !this.toolManager.getCtrlHeld() &&
-          this.draggingConstrainedTrackResult.type === 'unconstrained'
-        ) {
-          snappedOrigin = applySnapping(rawNewOrigin, {
-            primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
-            secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
-            ctrlHeld: this.toolManager.getCtrlHeld(),
-            superHeld: false,
-            selectedGeometryFilters: this.getGeometryStore().findFiltersByGeometryId(entityId),
-            viewportScale: liveViewport.scale,
-          });
-        }
-
-        // Uniform delta to apply to all points
-        const finalDx = snappedOrigin.x - selectionOrigin.x;
-        const finalDy = snappedOrigin.y - selectionOrigin.y;
-
-        for (const [id, state] of this.originalDragState) {
-          this.getGeometryStore().updateByIdDirect(id, (geometry) => {
-            if (!state) {
-              return geometry;
+          case 'rotate': {
+            const result = applyRotationOnConstrainedTrack(
+              sheet,
+              this.draggingConstrainedTrackResult,
+              snappingOptions,
+              {
+                dragStart,
+                targets: this.buildRotationTargets(),
+                moveTargetIds: this.draggingMoveIds,
+                epsilon,
+              },
+            );
+            if (result.type === 'rotation') {
+              this.applyRotationUpdates(result.updates);
             }
-            const newState = DragState.translate(state, (oldPoint) => {
-              return new SheetPosition(oldPoint.x + finalDx, oldPoint.y + finalDy);
-            });
-            return DragState.apply(newState, geometry);
-          });
+            return;
+          }
+
+          case 'translate':
+          case 'unconstrained': {
+            const selectionOrigin = computeSelectionOrigin(this.originalDragState);
+            if (!selectionOrigin) {
+              return;
+            }
+            const result = applyTranslationOnConstrainedTrack(
+              sheet,
+              this.draggingConstrainedTrackResult,
+              snappingOptions,
+              {
+                dragStart,
+                selectionOrigin,
+                epsilon,
+              },
+            );
+            if (result.type === 'translation') {
+              this.applyTranslationDelta(result.delta);
+            }
+            return;
+          }
         }
       },
       onCommit: (_sp) => {
@@ -2534,7 +2524,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           let beforeRotation: RotationData | null = null;
           switch (state.state) {
             case 'geometry':
-              beforeRotation = RotationComponent.getOptional(state.geometry) ?? null;;
+              beforeRotation = RotationComponent.getOptional(state.geometry) ?? null;
               break;
             case 'transformable':
               beforeRotation = RotationComponent.getOptional(state.entity) ?? null;
@@ -3222,321 +3212,6 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     return ConstrainedTrackPath.translate(result);
   }
 
-  /** Returns the absolute rotation in degrees for a drag state, or null when it has no rotation. */
-  private getDragStateRotationDegrees(state: DragState | null | undefined): number | null {
-    if (!state) {
-      return null;
-    }
-    if (state.state === 'geometry') {
-      return RotationComponent.getOptional(state.geometry)?.angle.toDegrees().magnitude ?? null;
-    }
-    if (state.state === 'transformable') {
-      return RotationComponent.getOptional(state.entity)?.angle.toDegrees().magnitude ?? null;
-    }
-    return null;
-  }
-
-  /**
-   * True when every selected entity and every implicitly dragged filter can rotate rigidly.
-   * Datums are supported because rotating one only changes its position.
-   */
-  private canRotateSelectionGroup(): boolean {
-    for (const id of this.draggingMoveIds) {
-      const entity = this.getGeometryStore().getById(id);
-      if (!entity) {
-        continue;
-      }
-      if (Entity.hasComponent(entity, GeometryComponent)) {
-        if (!Entity.hasComponent(entity, RotationComponent)) {
-          return false;
-        }
-      } else if (TransformableTemplate.getForEntity(entity)) {
-        if (!Entity.hasComponent(entity, RotationComponent)) {
-          return false;
-        }
-      } else if (Entity.hasComponent(entity, DatumComponent)) {
-        continue;
-      } else {
-        return false;
-      }
-    }
-
-    for (const [, state] of this.originalDragState) {
-      if (!state) {
-        continue;
-      }
-      switch (state.state) {
-        case 'geometry':
-          if (!Entity.hasComponent(state.geometry, RotationComponent)) {
-            return false;
-          }
-          break;
-        case 'transformable':
-          if (!Entity.hasComponent(state.entity, RotationComponent)) {
-            return false;
-          }
-          break;
-        case 'filter': {
-          const filter = FilterComponent.get(state.entity);
-          if (filter.type === 'pattern' && filter.mode === 'grid') {
-            return false;
-          }
-          break;
-        }
-        case 'datum':
-          break;
-        case 'frame':
-          return false;
-        default:
-          state satisfies never;
-          return false;
-      }
-    }
-
-    return true;
-  }
-
-  /** Builds a drag state rotated rigidly around the given world pivot by `deltaDegrees`. */
-  private buildRotatedDragState(
-    state: DragState,
-    pivot: SheetPosition,
-    deltaDegrees: number,
-  ): DragState | null {
-    switch (state.state) {
-      case 'geometry': {
-        const rotation = RotationComponent.getOptional(state.geometry);
-        if (!rotation) {
-          return null;
-        }
-        const origin = GeometryComponent.getOrigin(state.geometry);
-        const rawPivot = applyToPoint(inverse(Entity.generateRenderMatrix(state.geometry)), pivot);
-        const rotated = rotateAnchorAroundPivot(
-          origin,
-          rotation.angle.toDegrees().magnitude,
-          new SheetPosition(rawPivot.x, rawPivot.y),
-          deltaDegrees,
-        );
-        const next = DragState.translate(
-          state,
-          (point) =>
-            new SheetPosition(
-              point.x + rotated.position.x - origin.x,
-              point.y + rotated.position.y - origin.y,
-            ),
-        );
-        if (next.state !== 'geometry') {
-          return null;
-        }
-        return {
-          ...next,
-          geometry: RotationComponent.update(next.geometry as Entity<RotationComponent>, {
-            angle: Angle.degrees(normalizeAngleDegrees(rotated.rotationDegrees)),
-          }) as typeof next.geometry,
-        };
-      }
-      case 'transformable': {
-        const rotation = RotationComponent.getOptional(state.entity);
-        if (!rotation) {
-          return null;
-        }
-        const adapter = TransformableTemplate.getForEntity(state.entity);
-        if (!adapter) {
-          return null;
-        }
-        const origin = adapter.getOrigin(state.entity);
-        const rawPivot = applyToPoint(inverse(Entity.generateRenderMatrix(state.entity)), pivot);
-        const rotated = rotateAnchorAroundPivot(
-          origin,
-          rotation.angle.toDegrees().magnitude,
-          new SheetPosition(rawPivot.x, rawPivot.y),
-          deltaDegrees,
-        );
-        const next = DragState.translate(
-          state,
-          (point) =>
-            new SheetPosition(
-              point.x + rotated.position.x - origin.x,
-              point.y + rotated.position.y - origin.y,
-            ),
-        );
-        if (next.state !== 'transformable') {
-          return null;
-        }
-        return {
-          ...next,
-          entity: RotationComponent.update(next.entity as Entity<RotationComponent>, {
-            angle: Angle.degrees(normalizeAngleDegrees(rotated.rotationDegrees)),
-          }),
-        };
-      }
-      case 'filter': {
-        const filter = FilterComponent.get(state.entity);
-        switch (filter.type) {
-          case 'fillet':
-          case 'chamfer':
-            return state;
-          case 'mirror':
-          case 'pattern':
-            if (filter.type === 'pattern' && filter.mode === 'grid') {
-              return null;
-            }
-            return {
-              state: 'filter',
-              entity: FilterComponent.translate(state.entity, (point) =>
-                rotatePointAround(point, pivot, deltaDegrees),
-              ),
-            };
-          default:
-            filter satisfies never;
-            return null;
-        }
-      }
-      case 'datum': {
-        const position = DatumComponent.get(state.entity);
-        return DragState.translate(state, () => rotatePointAround(position, pivot, deltaDegrees));
-      }
-      case 'frame':
-        return null;
-      default:
-        state satisfies never;
-        return null;
-    }
-  }
-
-  /** Applies a `rotate` constrained track path to the dragged entity (or group). */
-  private applyConstrainedRotation(pointer: SheetPosition): void {
-    const constrainedTrackPath = this.draggingConstrainedTrackResult;
-    if (constrainedTrackPath.type !== 'rotate') {
-      return;
-    }
-
-    const dragStart = this.dragStartSheetPos;
-    if (!dragStart) {
-      return;
-    }
-
-    if (this.draggingMoveIds.length > 1) {
-      const referenceId = constrainedTrackPath.referenceEntityId;
-      const referenceState = referenceId ? this.originalDragState.get(referenceId) : undefined;
-      const referenceRotation = this.getDragStateRotationDegrees(referenceState);
-      if (referenceRotation === null) {
-        return;
-      }
-
-      const delta = computeConstrainedRotationDelta(
-        pointer,
-        dragStart,
-        constrainedTrackPath,
-        referenceRotation,
-        {
-          ctrlHeld: this.toolManager.getCtrlHeld(),
-          epsilon: this.getSheet()?.epsilon ?? 0.001,
-        },
-      );
-      if (delta.type === 'immobile' || !this.canRotateSelectionGroup()) {
-        return;
-      }
-
-      const updates: Array<[Id, DragState]> = [];
-      for (const [id, state] of this.originalDragState) {
-        if (!state) {
-          continue;
-        }
-        const next = this.buildRotatedDragState(state, delta.center, delta.deltaDegrees);
-        if (!next) {
-          return;
-        }
-        updates.push([id, next]);
-      }
-
-      for (const [id, next] of updates) {
-        this.getGeometryStore().updateByIdDirect(id, (old) => DragState.apply(next, old));
-      }
-      return;
-    }
-
-    for (const [id, state] of this.originalDragState) {
-      if (!state) {
-        continue;
-      }
-
-      let originalEntity: Entity;
-      let origin: SheetPosition | null;
-      if (state.state === 'geometry') {
-        if (!Entity.hasComponent(state.geometry, RotationComponent)) {
-          continue;
-        }
-        originalEntity = state.geometry;
-        origin = GeometryComponent.getOrigin(state.geometry);
-      } else if (state.state === 'transformable') {
-        if (!Entity.hasComponent(state.entity, RotationComponent)) {
-          continue;
-        }
-        const adapter = TransformableTemplate.getForEntity(state.entity);
-        if (!adapter) {
-          continue;
-        }
-        originalEntity = state.entity;
-        origin = adapter.getOrigin(state.entity);
-      } else {
-        continue;
-      }
-
-      if (!origin) {
-        continue;
-      }
-
-      const originalRotation = RotationComponent.get(
-        originalEntity as Entity<RotationComponent>,
-      ).angle.toDegrees().magnitude;
-      const inverseRenderMatrix = inverse(Entity.generateRenderMatrix(originalEntity));
-      const result = applyRotationOnConstrainedTrack(
-        pointer,
-        dragStart,
-        constrainedTrackPath,
-        origin,
-        originalRotation,
-        {
-          ctrlHeld: this.toolManager.getCtrlHeld(),
-          epsilon: this.getSheet()?.epsilon ?? 0.001,
-          pivotInEntitySpace: (center) => {
-            const raw = applyToPoint(inverseRenderMatrix, center);
-            return new SheetPosition(raw.x, raw.y);
-          },
-        },
-      );
-      if (result.type === 'immobile') {
-        return;
-      }
-
-      const deltaX = result.position.x - origin.x;
-      const deltaY = result.position.y - origin.y;
-      let nextState = DragState.translate(
-        state,
-        (point) => new SheetPosition(point.x + deltaX, point.y + deltaY),
-      );
-      const angle = Angle.degrees(normalizeAngleDegrees(result.rotationDegrees));
-      if (nextState.state === 'geometry') {
-        nextState = {
-          ...nextState,
-          geometry: RotationComponent.update(nextState.geometry as Entity<RotationComponent>, {
-            angle,
-          }) as typeof nextState.geometry,
-        };
-      } else if (nextState.state === 'transformable') {
-        nextState = {
-          ...nextState,
-          entity: RotationComponent.update(nextState.entity as Entity<RotationComponent>, {
-            angle,
-          }),
-        };
-      }
-
-      this.getGeometryStore().updateByIdDirect(id, (old) => DragState.apply(nextState, old));
-      return;
-    }
-  }
-
   /**
    * Chooses a selected entity whose rotation can be used for angle snapping. Datums (and other
    * entities without a RotationComponent) are never valid references.
@@ -3558,6 +3233,161 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
       return preferredId;
     }
     return candidateIds.find(canReference);
+  }
+
+  /** Builds the state-agnostic rotation targets consumed by the snapping module. */
+  private buildRotationTargets(): Array<RotationTarget> {
+    const targets: Array<RotationTarget> = [];
+    for (const [id, state] of this.originalDragState) {
+      if (!state) {
+        continue;
+      }
+      switch (state.state) {
+        case 'geometry': {
+          const rotation = RotationComponent.getOptional(state.geometry);
+          targets.push({
+            id,
+            kind: 'geometry',
+            origin: GeometryComponent.getOrigin(state.geometry),
+            rotationDegrees: rotation?.angle.toDegrees().magnitude ?? null,
+            inverseRenderMatrix: inverse(Entity.generateRenderMatrix(state.geometry)),
+          });
+          break;
+        }
+        case 'transformable': {
+          const adapter = TransformableTemplate.getForEntity(state.entity);
+          if (!adapter) {
+            break;
+          }
+          const rotation = RotationComponent.getOptional(state.entity);
+          targets.push({
+            id,
+            kind: 'transformable',
+            origin: adapter.getOrigin(state.entity),
+            rotationDegrees: rotation?.angle.toDegrees().magnitude ?? null,
+            inverseRenderMatrix: inverse(Entity.generateRenderMatrix(state.entity)),
+          });
+          break;
+        }
+        case 'datum':
+          targets.push({
+            id,
+            kind: 'datum',
+            origin: DatumComponent.getOrigin(state.entity),
+          });
+          break;
+        case 'filter':
+          targets.push({ id, kind: 'filter', filter: FilterComponent.get(state.entity) });
+          break;
+        case 'frame':
+          targets.push({ id, kind: 'frame' });
+          break;
+        default:
+          state satisfies never;
+          break;
+      }
+    }
+    return targets;
+  }
+
+  /** Applies precomputed rotation updates to the original drag states. */
+  private applyRotationUpdates(updates: Array<RotationUpdate>): void {
+    for (const update of updates) {
+      const state = this.originalDragState.get(update.id);
+      if (!state) {
+        continue;
+      }
+
+      let nextState: DragState | null = null;
+      switch (update.kind) {
+        case 'geometry':
+        case 'transformable': {
+          if (state.state === 'geometry') {
+            const origin = GeometryComponent.getOrigin(state.geometry);
+            const translated = DragState.translate(
+              state,
+              (point) =>
+                new SheetPosition(
+                  point.x + update.position.x - origin.x,
+                  point.y + update.position.y - origin.y,
+                ),
+            );
+            if (translated.state !== 'geometry') {
+              break;
+            }
+            nextState = {
+              ...translated,
+              geometry: RotationComponent.update(translated.geometry as Entity<RotationComponent>, {
+                angle: Angle.degrees(update.rotationDegrees),
+              }) as typeof translated.geometry,
+            };
+          } else if (state.state === 'transformable') {
+            const adapter = TransformableTemplate.getForEntity(state.entity);
+            if (!adapter) {
+              break;
+            }
+            const origin = adapter.getOrigin(state.entity);
+            const translated = DragState.translate(
+              state,
+              (point) =>
+                new SheetPosition(
+                  point.x + update.position.x - origin.x,
+                  point.y + update.position.y - origin.y,
+                ),
+            );
+            if (translated.state !== 'transformable') {
+              break;
+            }
+            nextState = {
+              ...translated,
+              entity: RotationComponent.update(translated.entity as Entity<RotationComponent>, {
+                angle: Angle.degrees(update.rotationDegrees),
+              }),
+            };
+          }
+          break;
+        }
+        case 'datum':
+          nextState = DragState.translate(state, () => update.position);
+          break;
+        case 'filter-rotate':
+          if (state.state === 'filter') {
+            nextState = {
+              state: 'filter',
+              entity: FilterComponent.translate(state.entity, (point) =>
+                rotatePointAround(point, update.center, update.deltaDegrees),
+              ),
+            };
+          }
+          break;
+        case 'filter-noop':
+          nextState = state;
+          break;
+        default:
+          update satisfies never;
+          break;
+      }
+
+      if (nextState) {
+        this.getGeometryStore().updateByIdDirect(update.id, (old) =>
+          DragState.apply(nextState!, old),
+        );
+      }
+    }
+  }
+
+  /** Applies a translation delta to every original drag state. */
+  private applyTranslationDelta(delta: SheetPosition): void {
+    for (const [id, state] of this.originalDragState) {
+      if (!state) {
+        continue;
+      }
+      const nextState = DragState.translate(
+        state,
+        (point) => new SheetPosition(point.x + delta.x, point.y + delta.y),
+      );
+      this.getGeometryStore().updateByIdDirect(id, (old) => DragState.apply(nextState, old));
+    }
   }
 
   /**

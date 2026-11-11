@@ -159,4 +159,5 @@ export {
   ConstrainedTrack,
   ConstrainedTrackPath,
   type ConstrainedTrackPathRotate,
+  type ConstrainedTrackPathTranslate,
 } from './compute-constrained-tracks';
