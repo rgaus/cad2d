@@ -44,6 +44,7 @@ type GeometryShapeRendererCommonProps = {
   onFillPointerOver?: (e: FederatedPointerEvent) => void;
   onFillPointerOut?: (e: FederatedPointerEvent) => void;
   eventMode?: EventMode;
+  alpha?: number;
 };
 
 type GeometryShapeRendererProps =
@@ -407,6 +408,7 @@ export const GeometryShapeRenderer: React.FunctionComponent<GeometryShapeRendere
       onPointerDown={props.onFillPointerDown}
       onPointerOver={props.onFillPointerOver}
       onPointerOut={props.onFillPointerOut}
+      alpha={props.alpha}
     />
   );
 };

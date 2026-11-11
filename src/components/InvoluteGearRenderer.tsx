@@ -18,6 +18,7 @@ import {
 } from '@/lib/textures';
 import { ScreenPosition } from '@/lib/viewport/types';
 import { GeometryShapeRenderer } from './GeometryRenderer';
+import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 
 type InvoluteGearSolidProps = {
   gear: InvoluteGear;
@@ -28,10 +29,13 @@ const InvoluteGearSolid: React.FunctionComponent<InvoluteGearSolidProps> = ({ ge
     useViewportContext();
   const selectedIds = useSelectionManagerSelectedIds();
   const isSelected = selectedIds.includes(gear.id);
+  const state = useDraggingShapeState();
+  const isDragging = state?.type === "geometry-translation" && state.ids.includes(gear.id);
 
   let fillColor = FillColorComponent.getOptional(gear);
   let stroke = 0x000000;
   let strokeWidth = 1;
+  const opacity = isDragging ? 0.75 : 1;
   if (highlightedGeometryId === gear.id) {
     fillColor = HIGHLIGHT_COLOR_FILL;
     stroke = HIGHLIGHT_COLOR_STROKE;
@@ -79,6 +83,7 @@ const InvoluteGearSolid: React.FunctionComponent<InvoluteGearSolidProps> = ({ ge
             onFillPointerDown={onFillPointerDown}
             onFillPointerOver={() => activeTool.handleGeometryFillEnter(gear.id)}
             onFillPointerOut={() => activeTool.handleGeometryFillLeave(gear.id)}
+            alpha={opacity}
           />
         ) : null,
       )}
