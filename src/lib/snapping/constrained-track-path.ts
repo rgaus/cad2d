@@ -185,7 +185,13 @@ export type RotationUpdate =
       rotationDegrees: number;
     }
   | { id: Id; kind: 'datum'; position: SheetPosition }
-  | { id: Id; kind: 'filter-rotate'; center: SheetPosition; deltaDegrees: number }
+  | {
+      id: Id;
+      kind: 'filter-rotate';
+      center: SheetPosition;
+      deltaDegrees: number;
+      translation?: SheetPosition;
+    }
   | { id: Id; kind: 'filter-noop' };
 
 export type RotationApplyResult =
@@ -275,14 +281,20 @@ function buildRotationUpdate(
   target: RotationTarget,
   pivot: SheetPosition,
   deltaDegrees: number,
+  initialTranslation?: SheetPosition,
 ): RotationUpdate | null {
+  const translation = initialTranslation ?? new SheetPosition(0, 0);
+  // Rotating about `rotationPivot` and then translating by `translation` is equivalent to
+  // translating the target first and then rotating about `pivot`.
+  const rotationPivot = new SheetPosition(pivot.x - translation.x, pivot.y - translation.y);
+
   switch (target.kind) {
     case 'geometry':
     case 'transformable': {
       if (target.rotationDegrees === null) {
         return null;
       }
-      const rawPivot = applyToPoint(target.inverseRenderMatrix, pivot);
+      const rawPivot = applyToPoint(target.inverseRenderMatrix, rotationPivot);
       const rotated = rotateAnchorAroundPivot(
         target.origin,
         target.rotationDegrees,
@@ -292,16 +304,21 @@ function buildRotationUpdate(
       return {
         id: target.id,
         kind: target.kind,
-        position: rotated.position,
+        position: new SheetPosition(
+          rotated.position.x + translation.x,
+          rotated.position.y + translation.y,
+        ),
         rotationDegrees: normalizeAngleDegrees(rotated.rotationDegrees),
       };
     }
-    case 'datum':
+    case 'datum': {
+      const rotated = rotatePointAround(target.origin, rotationPivot, deltaDegrees);
       return {
         id: target.id,
         kind: 'datum',
-        position: rotatePointAround(target.origin, pivot, deltaDegrees),
+        position: new SheetPosition(rotated.x + translation.x, rotated.y + translation.y),
       };
+    }
     case 'filter':
       switch (target.filter.type) {
         case 'fillet':
@@ -311,8 +328,9 @@ function buildRotationUpdate(
           return {
             id: target.id,
             kind: 'filter-rotate',
-            center: pivot,
+            center: rotationPivot,
             deltaDegrees,
+            translation,
           };
         case 'pattern':
           if (target.filter.mode === 'grid') {
@@ -321,8 +339,9 @@ function buildRotationUpdate(
           return {
             id: target.id,
             kind: 'filter-rotate',
-            center: pivot,
+            center: rotationPivot,
             deltaDegrees,
+            translation,
           };
         default:
           target.filter satisfies never;
@@ -481,7 +500,12 @@ export function applyRotationOnConstrainedTrack(
       return delta;
     }
 
-    const update = buildRotationUpdate(target, delta.center, delta.deltaDegrees);
+    const update = buildRotationUpdate(
+      target,
+      delta.center,
+      delta.deltaDegrees,
+      constrainedTrackPath.initialTranslation,
+    );
     return update ? { type: 'rotation', updates: [update] } : { type: 'immobile' };
   }
 
@@ -506,7 +530,12 @@ export function applyRotationOnConstrainedTrack(
 
   const updates: Array<RotationUpdate> = [];
   for (const target of options.targets) {
-    const update = buildRotationUpdate(target, delta.center, delta.deltaDegrees);
+    const update = buildRotationUpdate(
+      target,
+      delta.center,
+      delta.deltaDegrees,
+      constrainedTrackPath.initialTranslation,
+    );
     if (!update) {
       return { type: 'immobile' };
     }

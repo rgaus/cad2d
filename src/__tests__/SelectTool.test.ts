@@ -6506,6 +6506,48 @@ describe('SelectTool entity picking', () => {
       upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
     });
 
+    it('collapses the gap before rotating when the coincident points are separated', () => {
+      const rectId = 'coincident-rotation-separated-rect';
+      addRotatedRectangle(rectId);
+
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(rectId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(3, 2)),
+        ),
+      );
+
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        rectId,
+      );
+
+      const moveScreen = new SheetPosition(1, -1).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const entity = geometryStore.getByIdWithComponent(rectId, GeometryComponent)!;
+      expect(RotationComponent.getOptional(entity)!.angle.toDegrees().magnitude).toBeCloseTo(30);
+
+      const keyPoints = GeometryComponent.keyPoints(entity);
+      const lowerRightIndex = keyPoints.perimeterLabels.indexOf('lowerRight');
+      const renderedLowerRight = keyPoints.perimeter[lowerRightIndex].toSheet(entity);
+      expect(renderedLowerRight.x).toBeCloseTo(3);
+      expect(renderedLowerRight.y).toBeCloseTo(2);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      historyManager.undo();
+      const afterUndo = geometryStore.getByIdWithComponent(rectId, GeometryComponent)!;
+      expect(RotationComponent.getOptional(afterUndo)!.angle.toDegrees().magnitude).toBeCloseTo(0);
+      const undoKeyPoints = GeometryComponent.keyPoints(afterUndo);
+      const undoLowerRight = undoKeyPoints.perimeter[lowerRightIndex].toSheet(afterUndo);
+      expect(undoLowerRight.x).toBeCloseTo(2);
+      expect(undoLowerRight.y).toBeCloseTo(2);
+    });
+
     it('keeps the pivot fixed when the entity starts rotated', () => {
       const rectId = 'coincident-rotation-prestarted-rect';
       addRotatedRectangle(rectId, 45);
@@ -6737,6 +6779,52 @@ describe('SelectTool entity picking', () => {
       expect(RotationComponent.getOptional(twoAfterRedo)!.angle.toDegrees().magnitude).toBeCloseTo(
         30,
       );
+    });
+
+    it('collapses the gap before rotating a group around a crossing coincident constraint', () => {
+      const oneId = 'group-rotation-separated-one';
+      const twoId = 'group-rotation-separated-two';
+      addRotatedRectangle(oneId, 0, new SheetPosition(0, 0), new SheetPosition(2, 2));
+      addRotatedRectangle(twoId, 0, new SheetPosition(10, 0), new SheetPosition(12, 2));
+
+      geometryStore.add(
+        ID_PREFIXES.constraint,
+        CoincidentConstraint.create(
+          ConstraintEndpoint.lockedToRectangle(oneId, 'lowerRight'),
+          ConstraintEndpoint.point(new SheetPosition(3, 2)),
+        ),
+      );
+
+      selectTwo(oneId, twoId);
+      const clickScreen = new SheetPosition(1, 1).toScreen(viewportControls.getState().viewport);
+      selectTool.handleGeometryFillPointerDown(
+        new ScreenPosition(clickScreen.x, clickScreen.y),
+        viewportControls,
+        oneId,
+      );
+      const moveScreen = new SheetPosition(1, -1).toScreen(viewportControls.getState().viewport);
+      moveHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
+
+      const one = geometryStore.getByIdWithComponent(oneId, GeometryComponent)!;
+      const two = geometryStore.getByIdWithComponent(twoId, GeometryComponent)!;
+      const pivot = new SheetPosition(3, 2);
+      const expectedOneOrigin = rotatePointAround(new SheetPosition(1, 0), pivot, 30);
+      const expectedTwoOrigin = rotatePointAround(new SheetPosition(11, 0), pivot, 30);
+
+      expect(RotationComponent.getOptional(one)!.angle.toDegrees().magnitude).toBeCloseTo(30);
+      expect(RotationComponent.getOptional(two)!.angle.toDegrees().magnitude).toBeCloseTo(30);
+      expect(GeometryComponent.getOrigin(one).x).toBeCloseTo(expectedOneOrigin.x);
+      expect(GeometryComponent.getOrigin(one).y).toBeCloseTo(expectedOneOrigin.y);
+      expect(GeometryComponent.getOrigin(two).x).toBeCloseTo(expectedTwoOrigin.x);
+      expect(GeometryComponent.getOrigin(two).y).toBeCloseTo(expectedTwoOrigin.y);
+
+      const keyPoints = GeometryComponent.keyPoints(one);
+      const lowerRightIndex = keyPoints.perimeterLabels.indexOf('lowerRight');
+      const renderedLowerRight = keyPoints.perimeter[lowerRightIndex].toSheet(one);
+      expect(renderedLowerRight.x).toBeCloseTo(pivot.x);
+      expect(renderedLowerRight.y).toBeCloseTo(pivot.y);
+
+      upHandler!({ clientX: moveScreen.x, clientY: moveScreen.y } as MouseEvent);
     });
 
     it('allows internal constraints while rotating the group', () => {

@@ -918,6 +918,73 @@ describe('applyRotationOnConstrainedTrack', () => {
     }
   });
 
+  it('applies the initial translation before rotating', () => {
+    const translation = new SheetPosition(1, 2);
+    const result = applyRotationOnConstrainedTrack(
+      new SheetPosition(0, 10),
+      ConstrainedTrackPath.rotate([new SheetPosition(0, 0)], undefined, translation),
+      { ctrlHeld: true },
+      {
+        dragStart: new SheetPosition(10, 0),
+        targets: [geometryRotationTarget('a', new SheetPosition(0, 10))],
+        moveTargetIds: ['a'],
+      },
+    );
+
+    expect(result.type).toBe('rotation');
+    if (result.type === 'rotation' && result.updates[0].kind === 'geometry') {
+      expect(result.updates[0].rotationDegrees).toBeCloseTo(90);
+      expect(result.updates[0].position.x).toBeCloseTo(-12);
+      expect(result.updates[0].position.y).toBeCloseTo(1);
+    }
+  });
+
+  it('applies the initial translation to datums and filters', () => {
+    const translation = new SheetPosition(1, 2);
+    const result = applyRotationOnConstrainedTrack(
+      new SheetPosition(0, 10),
+      ConstrainedTrackPath.rotate([new SheetPosition(0, 0)], 'a', translation),
+      { ctrlHeld: true },
+      {
+        dragStart: new SheetPosition(10, 0),
+        targets: [
+          geometryRotationTarget('a', new SheetPosition(0, 10)),
+          { id: 'd', kind: 'datum', origin: new SheetPosition(5, 0) },
+          {
+            id: 'f',
+            kind: 'filter',
+            filter: {
+              type: 'mirror',
+              geometryId: 'a',
+              pointA: new SheetPosition(1, 0),
+              pointB: new SheetPosition(1, 2),
+            },
+          },
+        ],
+        moveTargetIds: ['a', 'd'],
+      },
+    );
+
+    expect(result.type).toBe('rotation');
+    if (result.type === 'rotation') {
+      const datum = result.updates.find((update) => update.kind === 'datum');
+      expect(datum).toBeDefined();
+      if (datum?.kind === 'datum') {
+        expect(datum.position.x).toBeCloseTo(-2);
+        expect(datum.position.y).toBeCloseTo(6);
+      }
+
+      const filter = result.updates.find((update) => update.kind === 'filter-rotate');
+      expect(filter).toBeDefined();
+      if (filter?.kind === 'filter-rotate') {
+        expect(filter.center.x).toBeCloseTo(-1);
+        expect(filter.center.y).toBeCloseTo(-2);
+        expect(filter.translation?.x).toBeCloseTo(1);
+        expect(filter.translation?.y).toBeCloseTo(2);
+      }
+    }
+  });
+
   it('snaps the absolute rotation to 15 degree increments', () => {
     const result = applyRotationOnConstrainedTrack(
       new SheetPosition(1, 0.5),

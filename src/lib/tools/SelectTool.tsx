@@ -3352,12 +3352,17 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           break;
         case 'filter-rotate':
           if (state.state === 'filter') {
-            nextState = {
-              state: 'filter',
-              entity: FilterComponent.translate(state.entity, (point) =>
-                rotatePointAround(point, update.center, update.deltaDegrees),
-              ),
-            };
+            let entity = FilterComponent.translate(state.entity, (point) =>
+              rotatePointAround(point, update.center, update.deltaDegrees),
+            );
+            if (update.translation) {
+              const translation = update.translation;
+              entity = FilterComponent.translate(
+                entity,
+                (point) => new SheetPosition(point.x + translation.x, point.y + translation.y),
+              );
+            }
+            nextState = { state: 'filter', entity };
           }
           break;
         case 'filter-noop':
@@ -3419,8 +3424,9 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     }
 
     // A coincident constraint pins a single point. When it is the only constraint on the dragged
-    // entity, the entity is free to rotate around the other point. If the entity has any other
-    // constraint, fall through to the normal point-track + intersection pipeline instead.
+    // entity, collapse any gap between the two points and rotate around their shared position. If
+    // the entity has any other constraint, fall through to the normal point-track + intersection
+    // pipeline instead.
     if (geometryIds.length === 1) {
       const geometryId = geometryIds[0];
       const activeConstraints = matchedGeometryIdConstraintsPairs
@@ -3444,12 +3450,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         const bAttached = attached(constraint.pointB);
 
         if (aAttached !== bAttached) {
+          const attachedEndpoint = aAttached ? constraint.pointA : constraint.pointB;
           const otherEndpoint = aAttached ? constraint.pointB : constraint.pointA;
+          const attachedPosition =
+            this.getGeometryStore().resolveConstraintEndpoint(attachedEndpoint);
           const otherPosition = this.getGeometryStore().resolveConstraintEndpoint(otherEndpoint);
-          if (otherPosition) {
+          if (attachedPosition && otherPosition) {
             return ConstrainedTrackPath.rotate(
               [otherPosition],
               this.getRotationReferenceEntityId(geometryId, [geometryId]),
+              new SheetPosition(
+                otherPosition.x - attachedPosition.x,
+                otherPosition.y - attachedPosition.y,
+              ),
             );
           }
         }
@@ -3498,10 +3511,13 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             const outsideEndpoint = aInside ? constraint.pointB : constraint.pointA;
             const insideEndpoint = aInside ? constraint.pointA : constraint.pointB;
             const pivot = this.getGeometryStore().resolveConstraintEndpoint(outsideEndpoint);
-            if (pivot && insideEndpoint.type !== 'point') {
+            const attachedPosition =
+              this.getGeometryStore().resolveConstraintEndpoint(insideEndpoint);
+            if (pivot && attachedPosition && insideEndpoint.type !== 'point') {
               return ConstrainedTrackPath.rotate(
                 [pivot],
                 this.getRotationReferenceEntityId(insideEndpoint.id, geometryIds),
+                new SheetPosition(pivot.x - attachedPosition.x, pivot.y - attachedPosition.y),
               );
             }
           }
