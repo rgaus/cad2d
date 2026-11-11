@@ -26,7 +26,7 @@ import { ID_PREFIXES, getPrefixFromId } from '@/lib/entity/GeometryStore';
 import { AnchorPointComponent } from '@/lib/entity/components/AnchorPointComponent';
 import { FilterComponent } from '@/lib/entity/components/FilterComponent';
 import { FrameComponent } from '@/lib/entity/components/FrameComponent';
-import { RotationComponent } from '@/lib/entity/components/RotationComponent';
+import { RotationComponent, RotationData } from '@/lib/entity/components/RotationComponent';
 import { TransformableTemplate } from '@/lib/entity/components/templates/TransformableTemplate';
 import {
   type CoincidentConstraintData,
@@ -2531,16 +2531,19 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           }
 
           // And also log any position changes
-          const beforeRotation =
-            state.state === 'geometry'
-              ? RotationComponent.getOptional(state.geometry)
-              : state.state === 'transformable'
-                ? RotationComponent.getOptional(state.entity)
-                : undefined;
-          const afterRotation = RotationComponent.getOptional(entity);
+          let beforeRotation: RotationData | null = null;
+          switch (state.state) {
+            case 'geometry':
+              beforeRotation = RotationComponent.getOptional(state.geometry) ?? null;;
+              break;
+            case 'transformable':
+              beforeRotation = RotationComponent.getOptional(state.entity) ?? null;
+              break;
+          }
+          const afterRotation = RotationComponent.getOptional(entity) ?? null;
           const rotationChanged =
-            beforeRotation !== undefined &&
-            afterRotation !== undefined &&
+            beforeRotation !== null &&
+            afterRotation !== null &&
             beforeRotation.angle.toDegrees().magnitude !==
               afterRotation.angle.toDegrees().magnitude;
 
@@ -3233,7 +3236,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
     return null;
   }
 
-  /** True when every selected entity and every implicitly dragged filter can rotate rigidly. */
+  /**
+   * True when every selected entity and every implicitly dragged filter can rotate rigidly.
+   * Datums are supported because rotating one only changes its position.
+   */
   private canRotateSelectionGroup(): boolean {
     for (const id of this.draggingMoveIds) {
       const entity = this.getGeometryStore().getById(id);
@@ -3248,6 +3254,8 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
         if (!Entity.hasComponent(entity, RotationComponent)) {
           return false;
         }
+      } else if (Entity.hasComponent(entity, DatumComponent)) {
+        continue;
       } else {
         return false;
       }
@@ -3276,6 +3284,7 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           break;
         }
         case 'datum':
+          break;
         case 'frame':
           return false;
         default:
@@ -3382,7 +3391,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             return null;
         }
       }
-      case 'datum':
+      case 'datum': {
+        const position = DatumComponent.get(state.entity);
+        return DragState.translate(state, () => rotatePointAround(position, pivot, deltaDegrees));
+      }
       case 'frame':
         return null;
       default:
@@ -3526,6 +3538,29 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
   }
 
   /**
+   * Chooses a selected entity whose rotation can be used for angle snapping. Datums (and other
+   * entities without a RotationComponent) are never valid references.
+   */
+  private getRotationReferenceEntityId(
+    preferredId: Id | undefined,
+    candidateIds: Array<Id>,
+  ): Id | undefined {
+    const canReference = (id: Id): boolean => {
+      const entity = this.getGeometryStore().getById(id);
+      return (
+        !!entity &&
+        !Entity.hasComponent(entity, DatumComponent) &&
+        Entity.hasComponent(entity, RotationComponent)
+      );
+    };
+
+    if (preferredId && canReference(preferredId)) {
+      return preferredId;
+    }
+    return candidateIds.find(canReference);
+  }
+
+  /**
    * Computes anchor-relative constrained tracks for a shape whose fill is being dragged.
    * Finds all constraints referencing `geometryId` where exactly one endpoint is on the shape,
    * computes the track for the fixed endpoint, then offsets it so the track applies to the
@@ -3582,7 +3617,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
           const otherEndpoint = aAttached ? constraint.pointB : constraint.pointA;
           const otherPosition = this.getGeometryStore().resolveConstraintEndpoint(otherEndpoint);
           if (otherPosition) {
-            return ConstrainedTrackPath.rotate([otherPosition], geometryId);
+            return ConstrainedTrackPath.rotate(
+              [otherPosition],
+              this.getRotationReferenceEntityId(geometryId, [geometryId]),
+            );
           }
         }
       }
@@ -3631,7 +3669,10 @@ export class SelectTool extends BaseTool<SelectToolEvents> {
             const insideEndpoint = aInside ? constraint.pointA : constraint.pointB;
             const pivot = this.getGeometryStore().resolveConstraintEndpoint(outsideEndpoint);
             if (pivot && insideEndpoint.type !== 'point') {
-              return ConstrainedTrackPath.rotate([pivot], insideEndpoint.id);
+              return ConstrainedTrackPath.rotate(
+                [pivot],
+                this.getRotationReferenceEntityId(insideEndpoint.id, geometryIds),
+              );
             }
           }
         }
