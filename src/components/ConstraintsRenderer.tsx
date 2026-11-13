@@ -6,10 +6,10 @@ import ConstraintLengthInput, {
   ConstraintLengthInputHandle,
 } from '@/app/components/ConstraintLengthInput';
 import ConstraintLineMarker from '@/app/components/ConstraintLineMarker';
-import ConstraintTwoPointMarker from '@/app/components/ConstraintTwoPointMarker';
 import DimensionAngle from '@/app/components/DimensionAngle';
 import DimensionLine from '@/app/components/DimensionLine';
 import DimensionParallel from '@/app/components/DimensionParallel';
+import DimensionTwoPoints from '@/app/components/DimensionTwoPoints';
 import { useViewportContext } from '@/contexts/viewport-context';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { ConstraintComponent } from '@/lib/entity';
@@ -25,8 +25,8 @@ import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
 import {
-    CoincidentConstraintIconConflictTexture,
-    CoincidentConstraintIconTexture,
+  CoincidentConstraintIconConflictTexture,
+  CoincidentConstraintIconTexture,
   ColinearConstraintIconConflictTexture,
   ColinearConstraintIconTexture,
   HorizontalConstraintIconConflictTexture,
@@ -699,7 +699,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
 
             return (
               <Fragment key={constraintGeom.id}>
-                <ConstraintTwoPointMarker
+                <DimensionTwoPoints
                   pointA={resolvedA}
                   pointB={resolvedB}
                   viewportScale={viewportScale}
@@ -909,7 +909,7 @@ const ConstraintOverlay: React.FunctionComponent = () => {
             }
 
             return (
-              <ConstraintTwoPointMarker
+              <DimensionTwoPoints
                 key={index}
                 pointA={resolvedA}
                 pointB={resolvedB}

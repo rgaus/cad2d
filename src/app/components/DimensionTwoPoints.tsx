@@ -15,7 +15,7 @@ extend({
 const LINE_WIDTH_PX = 1;
 const ICON_OFFSET_PX = 16;
 
-type ConstraintTwoPointMarkerProps = {
+type DimensionTwoPointsProps = {
   pointA: SheetPosition;
   pointB: SheetPosition;
   viewportScale: number;
@@ -31,7 +31,7 @@ type ConstraintTwoPointMarkerProps = {
 };
 
 /** Renders two points which together make up a constraint. Used for coincident constraints. */
-export default function ConstraintTwoPointMarker({
+export default function DimensionTwoPoints({
   pointA,
   pointB,
   viewportScale,
@@ -44,7 +44,7 @@ export default function ConstraintTwoPointMarker({
   onPointerUp,
   onPointerEnter,
   onPointerLeave,
-}: ConstraintTwoPointMarkerProps) {
+}: DimensionTwoPointsProps) {
   const vA = useMemo(() => pointA.toWorld(), [pointA]);
   const vB = useMemo(() => pointB.toWorld(), [pointB]);
 
