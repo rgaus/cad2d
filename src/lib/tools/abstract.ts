@@ -1379,7 +1379,9 @@ export abstract class TwoPointConstraintTool<
 
   /** Converts the working constraint {@link WC} into the final {@link Constraint} type once the
    * tool is complete.*/
-  protected abstract convertWorkingConstraintIntoConstraint(workingConstraint: WC): ConstraintTemplate | FilterTemplate;
+  protected abstract convertWorkingConstraintIntoConstraint(
+    workingConstraint: WC,
+  ): ConstraintTemplate | FilterTemplate;
 
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;

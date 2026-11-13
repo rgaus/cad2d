@@ -1,6 +1,7 @@
 import { FederatedPointerEvent } from 'pixi.js';
 import { useCallback, useMemo } from 'react';
 import { useViewportContext } from '@/contexts/viewport-context';
+import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 import { useSelectionManagerSelectedIds } from '@/hooks/useSelectionManagerSelectedIds';
 import { useWorkingInvoluteGear } from '@/hooks/useWorkingInvoluteGear';
 import { Entity, FillColorComponent } from '@/lib/entity';
@@ -18,7 +19,6 @@ import {
 } from '@/lib/textures';
 import { ScreenPosition } from '@/lib/viewport/types';
 import { GeometryShapeRenderer } from './GeometryRenderer';
-import { useDraggingShapeState } from '@/hooks/useDraggingShapeState';
 
 type InvoluteGearSolidProps = {
   gear: InvoluteGear;
@@ -30,7 +30,7 @@ const InvoluteGearSolid: React.FunctionComponent<InvoluteGearSolidProps> = ({ ge
   const selectedIds = useSelectionManagerSelectedIds();
   const isSelected = selectedIds.includes(gear.id);
   const state = useDraggingShapeState();
-  const isDragging = state?.type === "geometry-translation" && state.ids.includes(gear.id);
+  const isDragging = state?.type === 'geometry-translation' && state.ids.includes(gear.id);
 
   let fillColor = FillColorComponent.getOptional(gear);
   let stroke = 0x000000;

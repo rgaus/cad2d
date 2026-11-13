@@ -511,7 +511,7 @@ function drawCoincidentConstraintGlyph(
   ctx.moveTo(cx - 3, cy + 3 - lineStart);
   ctx.lineTo(cx - 3, cy + 3 - lineStart - COINCIDENT_ICON_LINE_LENGTH);
   ctx.moveTo(cx - 3 + lineStart, cy + 3);
-  ctx.lineTo(cx - 3 + lineStart + COINCIDENT_ICON_LINE_LENGTH, cy + 3 );
+  ctx.lineTo(cx - 3 + lineStart + COINCIDENT_ICON_LINE_LENGTH, cy + 3);
   ctx.stroke();
 
   ctx.fillStyle = color;
