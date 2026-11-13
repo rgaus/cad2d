@@ -487,6 +487,39 @@ export const ColinearConstraintIconConflictTexture = new CachedIconTexture(() =>
   return Texture.from(canvas);
 });
 
+const COINCIDENT_ICON_DOT_RADIUS = 5;
+/** Gap between the dot and the corner lines, in canvas pixels (2 screen pixels). */
+const COINCIDENT_ICON_LINE_GAP = 1.5 * SPRITE_SCALE_FACTOR;
+const COINCIDENT_ICON_LINE_LENGTH = 6;
+
+/** Draws a right-angle corner with a solid dot at the vertex, separated by a gap. */
+function drawCoincidentConstraintGlyph(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  color: string,
+  lineWidth: number,
+  gap: number = COINCIDENT_ICON_LINE_GAP,
+): void {
+  const lineStart = COINCIDENT_ICON_DOT_RADIUS + gap;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx - 3, cy + 3 - lineStart);
+  ctx.lineTo(cx - 3, cy + 3 - lineStart - COINCIDENT_ICON_LINE_LENGTH);
+  ctx.moveTo(cx - 3 + lineStart, cy + 3);
+  ctx.lineTo(cx - 3 + lineStart + COINCIDENT_ICON_LINE_LENGTH, cy + 3 );
+  ctx.stroke();
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(cx - 3, cy + 3, COINCIDENT_ICON_DOT_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 /** A circular indicator labelling coincident constraints. */
 export const CoincidentConstraintIconTexture = new CachedIconTexture(() => {
   const size = 20 * SPRITE_SCALE_FACTOR;
@@ -507,14 +540,7 @@ export const CoincidentConstraintIconTexture = new CachedIconTexture(() => {
   ctx.fill();
   ctx.stroke();
 
-  // Three dots in a diagonal line representing collinearity
-  const gap = 6;
-  ctx.fillStyle = '#000000';
-  ctx.beginPath();
-  ctx.arc(cx - gap, cy - gap, 2.4, 0, Math.PI * 2);
-  ctx.arc(cx, cy, 2.4, 0, Math.PI * 2);
-  ctx.arc(cx + gap, cy + gap, 2.4, 0, Math.PI * 2);
-  ctx.fill();
+  drawCoincidentConstraintGlyph(ctx, cx, cy, '#000000', 2.5);
 
   return Texture.from(canvas);
 });
@@ -539,13 +565,7 @@ export const CoincidentConstraintIconConflictTexture = new CachedIconTexture(() 
   ctx.fill();
   ctx.stroke();
 
-  const gap = 6;
-  ctx.fillStyle = '#e5484d';
-  ctx.beginPath();
-  ctx.arc(cx - gap, cy - gap, 2.4, 0, Math.PI * 2);
-  ctx.arc(cx, cy, 2.4, 0, Math.PI * 2);
-  ctx.arc(cx + gap, cy + gap, 2.4, 0, Math.PI * 2);
-  ctx.fill();
+  drawCoincidentConstraintGlyph(ctx, cx, cy, '#e5484d', 3);
 
   return Texture.from(canvas);
 });
