@@ -103,11 +103,6 @@ export abstract class LineSegmentConstraintTool<
   /** Type assert that the given working constraint is {@link WC} */
   protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
 
-  /** When true, allow both endpoints to resolve to the same sheet position. */
-  protected allowZeroLength(): boolean {
-    return false;
-  }
-
   handleToolFocus(): void {
     this.emit('snapHintsVisibilityChange', { keyPoints: true });
   }
@@ -266,7 +261,7 @@ export abstract class LineSegmentConstraintTool<
       return;
     }
 
-    if (!this.allowZeroLength() && resolvedA.x === resolvedB.x && resolvedA.y === resolvedB.y) {
+    if (resolvedA.x === resolvedB.x && resolvedA.y === resolvedB.y) {
       // Don't allow creating 0 length constraints
       return;
     }
@@ -1360,5 +1355,248 @@ export abstract class TwoSegmentConstraintCreationTool<
     this.emit('keyPointSnapChange', null);
     this.getGeometryStore().clearWorkingConstraints();
     this.state = 'idle';
+  }
+}
+
+/** An abstract tool which lets a user create some sort of constraint which consists of a single
+ * line segment, made up of two points.
+ *
+ * Example implementer: CoincidentConstraintTool */
+export abstract class TwoPointConstraintTool<
+  WC extends WorkingConstraint & { pointA: ConstraintEndpoint; pointB: ConstraintEndpoint },
+  Type extends string = ToolType,
+> extends BaseTool<ConstraintToolEvents, Type> {
+  private previewSheetPos: SheetPosition | null = null;
+
+  // Should a datum be created at either line segment endpoint on constraint completion?
+  private pendingPointAShouldCreateDatum: KeyPointShouldCreateDatum | null = null;
+  private pendingPointBShouldCreateDatum: KeyPointShouldCreateDatum | null = null;
+
+  protected abstract deriveWorkingConstraintFromEndPoints(
+    pointA: ConstraintEndpoint,
+    pointB: ConstraintEndpoint,
+  ): WC;
+
+  /** Converts the working constraint {@link WC} into the final {@link Constraint} type once the
+   * tool is complete.*/
+  protected abstract convertWorkingConstraintIntoConstraint(workingConstraint: WC): ConstraintTemplate | FilterTemplate;
+
+  /** Type assert that the given working constraint is {@link WC} */
+  protected abstract isWorkingConstraint(wc: WorkingConstraint): wc is WC;
+
+  handleToolFocus(): void {
+    this.emit('snapHintsVisibilityChange', { keyPoints: true });
+  }
+
+  handleToolBlur(): void {
+    this.getGeometryStore().clearWorkingConstraints();
+    this.previewSheetPos = null;
+    this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
+    this.emit('snapHintsVisibilityChange', null);
+  }
+
+  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
+    const geometryStore = this.getGeometryStore();
+
+    if (geometryStore.workingConstraints.length === 0) {
+      const { endpoint, shouldCreateDatum } = applyKeyPointSnapping(
+        sheetPos,
+        this.toolManager.getCtrlHeld(),
+        {
+          primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+          secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+          superHeld: this.toolManager.getSuperHeld(),
+          manager: this,
+          viewportScale: viewport.scale,
+          geometries: geometryStore.listWithComponent(GeometryComponent),
+          constraints: geometryStore.listWithComponent(ConstraintComponent),
+          datums: geometryStore.listWithComponent(DatumComponent),
+          constraintEndpointTargets:
+            geometryStore.listWithComponent<TransformableComponent>(TransformableComponent),
+        },
+      );
+      this.pendingPointAShouldCreateDatum = shouldCreateDatum;
+      geometryStore.setWorkingConstraints([
+        this.deriveWorkingConstraintFromEndPoints(endpoint, endpoint),
+      ]);
+    } else {
+      this.completeConstraint();
+    }
+  }
+
+  handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
+    const gridSnapped = this.computePreviewSnappedPos(screenPos, viewport);
+
+    const { endpoint: keyPointEndpoint, shouldCreateDatum } = applyKeyPointSnapping(
+      sheetPos,
+      this.toolManager.getCtrlHeld(),
+      {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        superHeld: this.toolManager.getSuperHeld(),
+        manager: this,
+        viewportScale: viewport.scale,
+        geometries: this.getGeometryStore().listWithComponent(GeometryComponent),
+        constraints: this.getGeometryStore().listWithComponent(ConstraintComponent),
+        datums: this.getGeometryStore().listWithComponent(DatumComponent),
+        constraintEndpointTargets:
+          this.getGeometryStore().listWithComponent<TransformableComponent>(TransformableComponent),
+      },
+    );
+
+    this.pendingPointBShouldCreateDatum = shouldCreateDatum;
+
+    let isSnapped = false;
+    if (keyPointEndpoint.type !== 'point') {
+      const keyPointPos = this.getGeometryStore().resolveConstraintEndpoint(keyPointEndpoint);
+      if (keyPointPos) {
+        this.previewSheetPos = keyPointPos;
+        isSnapped = true;
+      } else {
+        this.previewSheetPos = gridSnapped;
+      }
+    } else {
+      this.previewSheetPos = gridSnapped;
+    }
+
+    this.emit('previewSheetPositionChange', {
+      position: this.previewSheetPos,
+      isSnappedToKeyPoint: isSnapped,
+    });
+
+    const wc = this.getGeometryStore().workingConstraints;
+    if (wc.length > 0 && this.isWorkingConstraint(wc[0])) {
+      this.getGeometryStore().setWorkingConstraints((old) =>
+        old.length > 0 && this.isWorkingConstraint(old[0])
+          ? [{ ...old[0], pointB: keyPointEndpoint }]
+          : old,
+      );
+    }
+  }
+
+  protected defaultCursor = 'pointer';
+
+  private computePreviewSnappedPos(
+    screenPos: ScreenPosition,
+    viewport: ViewportState,
+  ): SheetPosition {
+    const worldPos = screenPos.toWorld(viewport);
+    const sheetPos = worldPos.toSheet();
+
+    const wc = this.getGeometryStore().workingConstraints?.[0];
+    const anchorPos =
+      wc && this.isWorkingConstraint(wc)
+        ? this.getGeometryStore().resolveConstraintEndpoint(wc.pointA)
+        : null;
+
+    if (anchorPos) {
+      return applySnappingLineSeries(sheetPos, anchorPos, {
+        primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+        secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+        ctrlHeld: this.toolManager.getCtrlHeld(),
+        superHeld: this.toolManager.getSuperHeld(),
+        viewportScale: viewport.scale,
+      });
+    }
+
+    return applySnapping(sheetPos, {
+      primaryGridSize: this.toolManager.snappingOptions.primaryGridSize,
+      secondaryGridSize: this.toolManager.snappingOptions.secondaryGridSize,
+      ctrlHeld: this.toolManager.getCtrlHeld(),
+      superHeld: this.toolManager.getSuperHeld(),
+      viewportScale: viewport.scale,
+    });
+  }
+
+  handleKeyDown(event: KeyboardEvent): boolean {
+    if (event.key === 'Escape') {
+      this.abortConstraint();
+      return true;
+    } else if (event.key === 'Enter' && this.previewSheetPos) {
+      this.completeConstraint();
+      return true;
+    }
+    return false;
+  }
+
+  private completeConstraint(): void {
+    const sheet = this.getSheet();
+    if (!sheet) {
+      return;
+    }
+
+    const first = this.getGeometryStore().workingConstraints?.[0];
+    if (!first || !this.isWorkingConstraint(first)) {
+      return;
+    }
+    let wc = first;
+
+    // If point A and point B are exactly the same, then the user clicked once and pressed enter (or
+    // double clicked) to finish the constraint, so convert point B to the equivilent sheet position.
+    if (ConstraintEndpoint.equal(wc.pointA, wc.pointB)) {
+      const resolved = this.getGeometryStore().resolveConstraintEndpoint(wc.pointB);
+      if (!resolved) {
+        return;
+      }
+      wc = { ...wc, pointB: ConstraintEndpoint.point(resolved) } as WC;
+    }
+
+    const resolvedA = this.getGeometryStore().resolveConstraintEndpoint(wc.pointA);
+    const resolvedB = this.getGeometryStore().resolveConstraintEndpoint(wc.pointB);
+    if (!resolvedA || !resolvedB) {
+      return;
+    }
+
+    this.getHistoryManager().applyTransaction('add-two-points-constraint', () => {
+      // Process any deferred datum creations from the first click (pointA) and
+      // the mouse-move (pointB). Creating datums here ensures aborted constraints
+      // don't leave orphaned datums.
+      const geometryStore = this.getGeometryStore();
+      if (this.pendingPointAShouldCreateDatum) {
+        const ep = createDatumAndAttachExistingConstraints(
+          geometryStore,
+          this.pendingPointAShouldCreateDatum,
+        );
+        wc = { ...wc, pointA: ep } as WC;
+        this.pendingPointAShouldCreateDatum = null;
+      }
+      if (this.pendingPointBShouldCreateDatum) {
+        const ep = createDatumAndAttachExistingConstraints(
+          geometryStore,
+          this.pendingPointBShouldCreateDatum,
+        );
+        wc = { ...wc, pointB: ep } as WC;
+        this.pendingPointBShouldCreateDatum = null;
+      }
+
+      const template = this.convertWorkingConstraintIntoConstraint(wc);
+
+      if (Entity.hasComponent(template as Entity<ConstraintComponent>, ConstraintComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.constraint, template as ConstraintTemplate);
+      } else if (Entity.hasComponent(template as Entity<FilterComponent>, FilterComponent)) {
+        this.getGeometryStore().add(ID_PREFIXES.filter, template as FilterTemplate);
+      } else {
+        throw new Error(
+          'TwoPointConstraintTool.completeConstraint: returned template not a constraint or filter!',
+        );
+      }
+      this.getGeometryStore().clearWorkingConstraints();
+    });
+
+    this.previewSheetPos = null;
+    this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
+  }
+
+  private abortConstraint(): void {
+    this.previewSheetPos = null;
+    this.emit('previewSheetPositionChange', null);
+    this.emit('keyPointSnapChange', null);
+    this.getGeometryStore().clearWorkingConstraints();
   }
 }

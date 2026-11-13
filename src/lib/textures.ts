@@ -487,6 +487,69 @@ export const ColinearConstraintIconConflictTexture = new CachedIconTexture(() =>
   return Texture.from(canvas);
 });
 
+/** A circular indicator labelling coincident constraints. */
+export const CoincidentConstraintIconTexture = new CachedIconTexture(() => {
+  const size = 20 * SPRITE_SCALE_FACTOR;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 16;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Three dots in a diagonal line representing collinearity
+  const gap = 6;
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.arc(cx - gap, cy - gap, 2.4, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 2.4, 0, Math.PI * 2);
+  ctx.arc(cx + gap, cy + gap, 2.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  return Texture.from(canvas);
+});
+
+/** A circular indicator labelling coincident constraints in conflict. */
+export const CoincidentConstraintIconConflictTexture = new CachedIconTexture(() => {
+  const size = 20 * SPRITE_SCALE_FACTOR;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+
+  const cx = size / 2;
+  const cy = size / 2;
+  const radius = 16;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#e5484d';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  const gap = 6;
+  ctx.fillStyle = '#e5484d';
+  ctx.beginPath();
+  ctx.arc(cx - gap, cy - gap, 2.4, 0, Math.PI * 2);
+  ctx.arc(cx, cy, 2.4, 0, Math.PI * 2);
+  ctx.arc(cx + gap, cy + gap, 2.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  return Texture.from(canvas);
+});
+
 /** A circular indicator labelling a fillet filter. */
 export const FilletFilterIconTexture = new CachedIconTexture(() => {
   const size = 20 * SPRITE_SCALE_FACTOR;

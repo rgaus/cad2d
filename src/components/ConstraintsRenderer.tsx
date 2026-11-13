@@ -6,6 +6,7 @@ import ConstraintLengthInput, {
   ConstraintLengthInputHandle,
 } from '@/app/components/ConstraintLengthInput';
 import ConstraintLineMarker from '@/app/components/ConstraintLineMarker';
+import ConstraintTwoPointMarker from '@/app/components/ConstraintTwoPointMarker';
 import DimensionAngle from '@/app/components/DimensionAngle';
 import DimensionLine from '@/app/components/DimensionLine';
 import DimensionParallel from '@/app/components/DimensionParallel';
@@ -24,6 +25,8 @@ import { Vector2, round } from '@/lib/math';
 import { RendererLayers, SingleLayers } from '@/lib/renderer';
 import { Sheet } from '@/lib/sheet/Sheet';
 import {
+    CoincidentConstraintIconConflictTexture,
+    CoincidentConstraintIconTexture,
   ColinearConstraintIconConflictTexture,
   ColinearConstraintIconTexture,
   HorizontalConstraintIconConflictTexture,
@@ -692,70 +695,45 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               return null;
             }
 
-            const isInConflict = Vector2.distance(resolvedA, resolvedB) > 1e-3;
-            const pointColor = isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : 0x666666;
-            const pointAWorld = resolvedA.toWorld();
-            const pointBWorld = resolvedB.toWorld();
-            const pointRadius = 4 / viewportScale;
-            const lineWidth = (isSelected ? 2 : 1) / viewportScale;
+            const isInConflict = Math.abs(Vector2.distance(resolvedA, resolvedB)) > 1e-3;
 
             return (
               <Fragment key={constraintGeom.id}>
-                {isInConflict ? (
-                  <pixiGraphics
-                    draw={(g: Graphics) => {
-                      g.clear();
-                      g.setStrokeStyle({ color: 0xe5484d, width: lineWidth });
-                      g.moveTo(pointAWorld.x, pointAWorld.y);
-                      g.lineTo(pointBWorld.x, pointBWorld.y);
-                      g.stroke();
-                    }}
-                    onPointerDown={(e: FederatedPointerEvent) =>
-                      handleConstraintLabelPointerDown(e, constraintGeom.id)
-                    }
-                    onPointerUp={(e: FederatedPointerEvent) =>
-                      handleConstraintLabelPointerUp(e, constraintGeom.id)
-                    }
-                    eventMode="static"
-                  />
-                ) : null}
-                <pixiGraphics
-                  draw={(g: Graphics) => {
-                    g.clear();
-                    g.setFillStyle({ color: pointColor });
-                    g.beginPath();
-                    g.arc(pointAWorld.x, pointAWorld.y, pointRadius, 0, Math.PI * 2);
-                    g.closePath();
-                    g.fill();
-                    if (isInConflict) {
-                      g.beginPath();
-                      g.arc(pointBWorld.x, pointBWorld.y, pointRadius, 0, Math.PI * 2);
-                      g.closePath();
-                      g.fill();
-                    }
-                  }}
-                  onPointerDown={(e: FederatedPointerEvent) =>
-                    handleConstraintLabelPointerDown(e, constraintGeom.id)
+                <ConstraintTwoPointMarker
+                  pointA={resolvedA}
+                  pointB={resolvedB}
+                  viewportScale={viewportScale}
+                  icon={CoincidentConstraintIconTexture}
+                  conflictIcon={CoincidentConstraintIconConflictTexture}
+                  lineWidthPx={
+                    isSelected || hoveringConstraintLabelId === constraintGeom.id ? 2 : undefined
                   }
-                  onPointerUp={(e: FederatedPointerEvent) =>
-                    handleConstraintLabelPointerUp(e, constraintGeom.id)
-                  }
+                  color={isInConflict ? 0xe5484d : isSelected ? SELECTION_COLOR : undefined}
+                  inConflict={isInConflict}
+                  onPointerDown={(e) => handleConstraintLabelPointerDown(e, constraintGeom.id)}
+                  onPointerUp={(e) => handleConstraintLabelPointerUp(e, constraintGeom.id)}
                   onPointerEnter={() => handleConstraintLabelPointerEnter(constraintGeom.id)}
                   onPointerLeave={handleConstraintLabelPointerLeave}
-                  eventMode="static"
                 />
                 {isSelected ? (
                   <HandleSprites
                     points={[resolvedA, resolvedB]}
                     handleTexture={VertexHandleTexture.get()}
                     viewportScale={viewportScale}
-                    onHandlePointerDown={(e, index) =>
-                      handleCoincidentConstraintEndpointPointerDown(
-                        e,
-                        constraintGeom.id,
-                        index === 0 ? 'pointA' : 'pointB',
-                      )
-                    }
+                    onHandlePointerDown={(e, index) => {
+                      let point;
+                      switch (index) {
+                        case 0:
+                          point = 'pointA' as const;
+                          break;
+                        case 1:
+                          point = 'pointB' as const;
+                          break;
+                        default:
+                          throw new Error(`Unknown point index ${index}`);
+                      }
+                      handleCoincidentConstraintEndpointPointerDown(e, constraintGeom.id, point);
+                    }}
                   />
                 ) : null}
               </Fragment>
@@ -930,28 +908,14 @@ const ConstraintOverlay: React.FunctionComponent = () => {
               return null;
             }
 
-            const pointAWorld = resolvedA.toWorld();
-            const pointBWorld = resolvedB.toWorld();
-            const pointRadius = 4 / viewportScale;
-
             return (
-              <pixiGraphics
+              <ConstraintTwoPointMarker
                 key={index}
-                draw={(g: Graphics) => {
-                  g.clear();
-                  g.setFillStyle({ color: 0x666666 });
-                  g.beginPath();
-                  g.arc(pointAWorld.x, pointAWorld.y, pointRadius, 0, Math.PI * 2);
-                  g.closePath();
-                  g.fill();
-                  if (pointAWorld.x !== pointBWorld.x || pointAWorld.y !== pointBWorld.y) {
-                    g.beginPath();
-                    g.arc(pointBWorld.x, pointBWorld.y, pointRadius, 0, Math.PI * 2);
-                    g.closePath();
-                    g.fill();
-                  }
-                }}
-                eventMode="none"
+                pointA={resolvedA}
+                pointB={resolvedB}
+                viewportScale={viewportScale}
+                icon={CoincidentConstraintIconTexture}
+                conflictIcon={CoincidentConstraintIconConflictTexture}
               />
             );
           }

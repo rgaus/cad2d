@@ -30,6 +30,7 @@ import {
   LineSegmentConstraintTool,
   SegmentAndPointConstraintTool,
   TwoConnectedSegmentConstraintCreationTool,
+  TwoPointConstraintTool,
   TwoSegmentConstraintCreationTool,
 } from './abstract';
 import {
@@ -472,7 +473,7 @@ export class ColinearConstraintTool extends SegmentAndPointConstraintTool<
 }
 
 /** A tool for creating coincident constraints (two points occupying the same position). */
-export class CoincidentConstraintTool extends LineSegmentConstraintTool<
+export class CoincidentConstraintTool extends TwoPointConstraintTool<
   WorkingCoincidentConstraint,
   'coincident-constraint'
 > {
@@ -511,12 +512,7 @@ export class CoincidentConstraintTool extends LineSegmentConstraintTool<
     };
   }
 
-  protected convertWorkingConstraintIntoConstraint(
-    wc: WorkingCoincidentConstraint,
-    _lengthBetweenPoints: Length,
-    _xAxisLengthBetweenPoints: Length,
-    _yAxisLengthBetweenPoints: Length,
-  ) {
+  protected convertWorkingConstraintIntoConstraint(wc: WorkingCoincidentConstraint) {
     return CoincidentConstraint.create(wc.pointA, wc.pointB);
   }
 
