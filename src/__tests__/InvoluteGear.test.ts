@@ -70,8 +70,8 @@ describe('InvoluteGear entity', () => {
     moveHandler = undefined;
     upHandler = undefined;
     jest.spyOn(window, 'addEventListener').mockImplementation((event: string, handler: unknown) => {
-      if (event === 'mousemove') moveHandler = handler as (event: MouseEvent) => void;
-      if (event === 'mouseup') upHandler = handler as (event: MouseEvent) => void;
+      if (event === 'pointermove') moveHandler = handler as (event: MouseEvent) => void;
+      if (event === 'pointerup') upHandler = handler as (event: MouseEvent) => void;
     });
     jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
   });

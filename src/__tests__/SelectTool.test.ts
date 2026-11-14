@@ -170,8 +170,8 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') moveHandler = handler;
-          if (event === 'mouseup') upHandler = handler;
+          if (event === 'pointermove') moveHandler = handler;
+          if (event === 'pointerup') upHandler = handler;
         },
       );
     });
@@ -477,8 +477,8 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') moveHandler = handler;
-          if (event === 'mouseup') upHandler = handler;
+          if (event === 'pointermove') moveHandler = handler;
+          if (event === 'pointerup') upHandler = handler;
         },
       );
     });
@@ -669,8 +669,8 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') moveHandler = handler;
-          if (event === 'mouseup') upHandler = handler;
+          if (event === 'pointermove') moveHandler = handler;
+          if (event === 'pointerup') upHandler = handler;
         },
       );
     });
@@ -813,8 +813,8 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') moveHandler = handler;
-          if (event === 'mouseup') upHandler = handler;
+          if (event === 'pointermove') moveHandler = handler;
+          if (event === 'pointerup') upHandler = handler;
         },
       );
     });
@@ -1661,8 +1661,8 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') moveHandler = handler;
-          if (event === 'mouseup') upHandler = handler;
+          if (event === 'pointermove') moveHandler = handler;
+          if (event === 'pointerup') upHandler = handler;
         },
       );
     });
@@ -2048,8 +2048,8 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') moveHandler = handler;
-          if (event === 'mouseup') upHandler = handler;
+          if (event === 'pointermove') moveHandler = handler;
+          if (event === 'pointerup') upHandler = handler;
         },
       );
     });
@@ -2074,8 +2074,8 @@ describe('SelectTool', () => {
           .mockImplementation(() => {});
         addEventListenerSpy.mockImplementation(
           (event: string, handler: (event: MouseEvent) => void) => {
-            if (event === 'mousemove') moveHandler = handler;
-            if (event === 'mouseup') upHandler = handler;
+            if (event === 'pointermove') moveHandler = handler;
+            if (event === 'pointerup') upHandler = handler;
           },
         );
       });
@@ -2940,10 +2940,10 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') {
+          if (event === 'pointermove') {
             moveHandler = handler;
           }
-          if (event === 'mouseup') {
+          if (event === 'pointerup') {
             upHandler = handler;
           }
         },
@@ -3139,7 +3139,7 @@ describe('SelectTool', () => {
         viewportControls,
         constraint.id,
       );
-      // FIXME: mock the window.addEventListener('mousemove', ...) events to get this test to pass!
+      // FIXME: mock the window.addEventListener('pointermove', ...) events to get this test to pass!
       selectTool.onConstraintLabelPointerUp(
         new ScreenPosition(20 * SHEET_UNITS_TO_PIXELS, 100 * SHEET_UNITS_TO_PIXELS),
         viewportControls,
@@ -3277,8 +3277,8 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') moveHandler = handler;
-          if (event === 'mouseup') upHandler = handler;
+          if (event === 'pointermove') moveHandler = handler;
+          if (event === 'pointerup') upHandler = handler;
         },
       );
     });
@@ -3738,8 +3738,8 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') moveHandler = handler;
-          if (event === 'mouseup') upHandler = handler;
+          if (event === 'pointermove') moveHandler = handler;
+          if (event === 'pointerup') upHandler = handler;
         },
       );
     });
@@ -3914,8 +3914,8 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') moveHandler = handler;
-          if (event === 'mouseup') upHandler = handler;
+          if (event === 'pointermove') moveHandler = handler;
+          if (event === 'pointerup') upHandler = handler;
         },
       );
     });
@@ -4279,10 +4279,10 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') {
+          if (event === 'pointermove') {
             moveHandler = handler;
           }
-          if (event === 'mouseup') {
+          if (event === 'pointerup') {
             upHandler = handler;
           }
         },
@@ -4474,10 +4474,10 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') {
+          if (event === 'pointermove') {
             moveHandler = handler;
           }
-          if (event === 'mouseup') {
+          if (event === 'pointerup') {
             upHandler = handler;
           }
         },
@@ -4548,10 +4548,10 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') {
+          if (event === 'pointermove') {
             moveHandler = handler;
           }
-          if (event === 'mouseup') {
+          if (event === 'pointerup') {
             upHandler = handler;
           }
         },
@@ -4614,10 +4614,10 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') {
+          if (event === 'pointermove') {
             moveHandler = handler;
           }
-          if (event === 'mouseup') {
+          if (event === 'pointerup') {
             upHandler = handler;
           }
         },
@@ -5093,10 +5093,10 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') {
+          if (event === 'pointermove') {
             moveHandler = handler;
           }
-          if (event === 'mouseup') {
+          if (event === 'pointerup') {
             upHandler = handler;
           }
         },
@@ -5687,10 +5687,10 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') {
+          if (event === 'pointermove') {
             moveHandler = handler;
           }
-          if (event === 'mouseup') {
+          if (event === 'pointerup') {
             upHandler = handler;
           }
         },
@@ -6006,8 +6006,8 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') moveHandler = handler;
-          if (event === 'mouseup') upHandler = handler;
+          if (event === 'pointermove') moveHandler = handler;
+          if (event === 'pointerup') upHandler = handler;
         },
       );
     });
@@ -6206,8 +6206,8 @@ describe('SelectTool', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') moveHandler = handler;
-          if (event === 'mouseup') upHandler = handler;
+          if (event === 'pointermove') moveHandler = handler;
+          if (event === 'pointerup') upHandler = handler;
         },
       );
     });
@@ -6442,8 +6442,8 @@ describe('SelectTool entity picking', () => {
         .mockImplementation(() => {});
       addEventListenerSpy.mockImplementation(
         (event: string, handler: (event: MouseEvent) => void) => {
-          if (event === 'mousemove') moveHandler = handler;
-          if (event === 'mouseup') upHandler = handler;
+          if (event === 'pointermove') moveHandler = handler;
+          if (event === 'pointerup') upHandler = handler;
         },
       );
     });

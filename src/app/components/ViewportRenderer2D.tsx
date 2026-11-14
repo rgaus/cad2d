@@ -664,16 +664,44 @@ export default function ViewportRenderer2D({
     };
 
     const onTouchStart = (event: TouchEvent) => {
-      viewportControlsRef.current?.handleTouchStart(event);
+      // Suppress synthetic mouse events and page-level scroll/zoom so touch can drive the tools.
+      event.preventDefault();
+
+      if (event.touches.length === 1) {
+        const touch = event.touches[0];
+        const screenPos = new ScreenPosition(touch.clientX, touch.clientY);
+        setMouseScreenPos(screenPos);
+        if (viewportControlsRef.current) {
+          const viewportState = viewportControlsRef.current.getState().viewport;
+          toolManager.handleMouseDown(screenPos, viewportState);
+        }
+        setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
+      } else {
+        viewportControlsRef.current?.handleTouchStart(event);
+      }
     };
 
     const onTouchMove = (event: TouchEvent) => {
-      viewportControlsRef.current?.handleTouchMove(event);
-      setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
+      event.preventDefault();
+
+      if (event.touches.length === 1) {
+        const touch = event.touches[0];
+        const screenPos = new ScreenPosition(touch.clientX, touch.clientY);
+        setMouseScreenPos(screenPos);
+        if (viewportControlsRef.current) {
+          const viewportState = viewportControlsRef.current.getState().viewport;
+          toolManager.handleMouseMove(screenPos, viewportState);
+        }
+        setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
+      } else {
+        viewportControlsRef.current?.handleTouchMove(event);
+        setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
+      }
     };
 
     const onTouchEnd = () => {
       viewportControlsRef.current?.handleTouchEnd();
+      setViewportControlsState(viewportControlsRef.current?.getState() ?? null);
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -698,8 +726,8 @@ export default function ViewportRenderer2D({
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
     window.addEventListener('mouseleave', onMouseLeave);
-    container.addEventListener('touchstart', onTouchStart);
-    window.addEventListener('touchmove', onTouchMove);
+    container.addEventListener('touchstart', onTouchStart, { passive: false });
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
     container.addEventListener('touchend', onTouchEnd);
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
@@ -820,7 +848,7 @@ export default function ViewportRenderer2D({
 
   return (
     <ViewportContextProvider value={viewportContextState}>
-      <div ref={containerRef} className="h-full w-full overflow-hidden bg-[#eeeeee]">
+      <div ref={containerRef} className="h-full w-full touch-none overflow-hidden bg-[#eeeeee]">
         <Application
           resizeTo={containerRef}
           backgroundColor={0xeeeeee}

@@ -9,9 +9,9 @@ type NudgeDirection = 'up' | 'down' | 'left' | 'right';
 
 /** Configuration for a drag listener. */
 export type DragListenerConfig = {
-  /** Called on each mousemove during the drag. Receives the current screen position. */
+  /** Called on each pointermove during the drag. Receives the current screen position. */
   onMove: (screenPos: ScreenPosition) => void;
-  /** Called on mouseup when the drag is committed. Receives the final screen position. */
+  /** Called on pointerup when the drag is committed. Receives the final screen position. */
   onCommit: (finalScreenPos: ScreenPosition) => void;
   /** Called when the drag is cancelled (e.g., via Escape or component unmount). */
   onCancel: () => void;
@@ -19,13 +19,13 @@ export type DragListenerConfig = {
    * direction. Defaults to true. */
   pushViewportOnEdges?: boolean;
   viewportControls?: ViewportControls;
-  /** Offset all mouse events by a static amount in the X direction. Used so that a user can click
-   * and drag a handle in one location (ie, an offset selection bounding box) yet act as if mouse
+  /** Offset all pointer events by a static amount in the X direction. Used so that a user can click
+   * and drag a handle in one location (ie, an offset selection bounding box) yet act as if pointer
    * events are coming from a more convenient location for math (ie, right on the bounding box
    * border instead of the offset bounding box) */
   initialPointerDownOffsetXPx?: number;
-  /** Offset all mouse events by a static amount in the Y direction. Used so that a user can click
-   * and drag a handle in one location (ie, an offset selection bounding box) yet act as if mouse
+  /** Offset all pointer events by a static amount in the Y direction. Used so that a user can click
+   * and drag a handle in one location (ie, an offset selection bounding box) yet act as if pointer
    * events are coming from a more convenient location for math (ie, right on the bounding box
    * border instead of the offset bounding box) */
   initialPointerDownOffsetYPx?: number;
@@ -38,8 +38,9 @@ export type DragListener = {
 };
 
 /**
- * Attaches window-level mousemove and mouseup listeners to implement drag tracking.
- * Returns a destroy() function to detach the listeners early.
+ * Attaches window-level pointermove, pointerup, and pointercancel listeners to implement drag
+ * tracking. Pointer events cover mouse, touch, and pen, so the same drag code works across all
+ * input types. Returns a destroy() function to detach the listeners early.
  *
  * @param config - callbacks for move, commit, and cancel events
  * @returns a DragListener with a destroy method
@@ -64,7 +65,7 @@ export function createDragListener(config: DragListenerConfig): DragListener {
     directions: Array<NudgeDirection>;
   } | null = null;
 
-  function onWindowMouseMove(e: MouseEvent) {
+  function onWindowPointerMove(e: PointerEvent) {
     if (cancelled) {
       return;
     }
@@ -134,11 +135,17 @@ export function createDragListener(config: DragListenerConfig): DragListener {
       }
     }
 
-    // Use client coordinates from the mouse event (consistent with PixiJS FederatedPointerEvent).
+    // Use client coordinates from the pointer event (consistent with PixiJS FederatedPointerEvent).
     onMove(screenPosition);
   }
 
-  function onWindowMouseUp(e: MouseEvent) {
+  function cleanup() {
+    window.removeEventListener('pointermove', onWindowPointerMove);
+    window.removeEventListener('pointerup', onWindowPointerUp);
+    window.removeEventListener('pointercancel', onWindowPointerCancel);
+  }
+
+  function onWindowPointerUp(e: PointerEvent) {
     if (cancelled) {
       return;
     }
@@ -149,8 +156,7 @@ export function createDragListener(config: DragListenerConfig): DragListener {
       nudgeInterval = null;
     }
 
-    window.removeEventListener('mousemove', onWindowMouseMove);
-    window.removeEventListener('mouseup', onWindowMouseUp);
+    cleanup();
     onCommit(
       new ScreenPosition(
         e.clientX + initialPointerDownOffsetXPx,
@@ -159,8 +165,24 @@ export function createDragListener(config: DragListenerConfig): DragListener {
     );
   }
 
-  window.addEventListener('mousemove', onWindowMouseMove);
-  window.addEventListener('mouseup', onWindowMouseUp);
+  function onWindowPointerCancel(_e: PointerEvent) {
+    if (cancelled) {
+      return;
+    }
+    cancelled = true;
+
+    if (nudgeInterval) {
+      clearInterval(nudgeInterval.id);
+      nudgeInterval = null;
+    }
+
+    cleanup();
+    onCancel();
+  }
+
+  window.addEventListener('pointermove', onWindowPointerMove);
+  window.addEventListener('pointerup', onWindowPointerUp);
+  window.addEventListener('pointercancel', onWindowPointerCancel);
 
   return {
     destroy() {
@@ -169,8 +191,7 @@ export function createDragListener(config: DragListenerConfig): DragListener {
         clearInterval(nudgeInterval.id);
         nudgeInterval = null;
       }
-      window.removeEventListener('mousemove', onWindowMouseMove);
-      window.removeEventListener('mouseup', onWindowMouseUp);
+      cleanup();
       onCancel();
     },
   };

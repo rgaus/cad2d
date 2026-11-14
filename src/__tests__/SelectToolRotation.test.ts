@@ -76,8 +76,8 @@ describe('SelectTool rotation-aware interactions', () => {
     removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
     addEventListenerSpy.mockImplementation(
       (event: string, handler: (event: MouseEvent) => void) => {
-        if (event === 'mousemove') moveHandler = handler;
-        if (event === 'mouseup') upHandler = handler;
+        if (event === 'pointermove') moveHandler = handler;
+        if (event === 'pointerup') upHandler = handler;
       },
     );
   });

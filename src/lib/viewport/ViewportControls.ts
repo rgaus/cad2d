@@ -226,42 +226,72 @@ export class ViewportControls extends EventEmitter<ViewportControlsEvents> {
   }
 
   private lastTouchDist: number | null = null;
+  private lastTouchCenter: ScreenPosition | null = null;
 
-  /** Records touch start for pinch-to-zoom detection. */
+  /** Records touch start for pinch-to-zoom and two-finger pan detection. */
   handleTouchStart(event: TouchEvent): void {
     if (event.touches.length === 2) {
       const dx = event.touches[0].clientX - event.touches[1].clientX;
       const dy = event.touches[0].clientY - event.touches[1].clientY;
       this.lastTouchDist = Math.sqrt(dx * dx + dy * dy);
+      this.lastTouchCenter = new ScreenPosition(
+        (event.touches[0].clientX + event.touches[1].clientX) / 2,
+        (event.touches[0].clientY + event.touches[1].clientY) / 2,
+      );
     }
   }
 
-  /** Handles pinch-to-zoom gestures on touch devices. */
+  /** Handles two-finger pan and pinch-to-zoom gestures on touch devices. */
   handleTouchMove(event: TouchEvent): void {
-    if (event.touches.length === 2 && this.lastTouchDist !== null) {
+    if (event.touches.length === 2) {
       event.preventDefault();
-      const dx = event.touches[0].clientX - event.touches[1].clientX;
-      const dy = event.touches[0].clientY - event.touches[1].clientY;
-      const newDist = Math.sqrt(dx * dx + dy * dy);
-      const scaleFactor = newDist / this.lastTouchDist;
-      const centerX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
-      const centerY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
-      const newScale = this.viewport.scale * scaleFactor;
-      if (newScale !== this.viewport.scale) {
-        const screenPoint = new ScreenPosition(centerX, centerY);
-        this.viewport = this.zoomAroundScreenPoint(this.viewport, screenPoint, newScale);
-        if (this.lastScale === null || Math.abs(this.viewport.scale - this.lastScale) > 0.0001) {
-          this.lastScale = this.viewport.scale;
-          this.emit('scaleChange', this.viewport.scale);
+      const a = event.touches[0];
+      const b = event.touches[1];
+      const newCenter = new ScreenPosition(
+        (a.clientX + b.clientX) / 2,
+        (a.clientY + b.clientY) / 2,
+      );
+
+      // Pan by the movement of the midpoint between the two fingers.
+      if (this.lastTouchCenter) {
+        const panDx = newCenter.x - this.lastTouchCenter.x;
+        const panDy = newCenter.y - this.lastTouchCenter.y;
+        if (panDx !== 0 || panDy !== 0) {
+          this.viewport = {
+            position: new ViewportPosition(
+              this.viewport.position.x + panDx,
+              this.viewport.position.y + panDy,
+            ),
+            scale: this.viewport.scale,
+          };
         }
       }
-      this.lastTouchDist = newDist;
+
+      // Pinch to zoom around the current midpoint.
+      if (this.lastTouchDist !== null) {
+        const dx = a.clientX - b.clientX;
+        const dy = a.clientY - b.clientY;
+        const newDist = Math.sqrt(dx * dx + dy * dy);
+        const scaleFactor = newDist / this.lastTouchDist;
+        const newScale = this.viewport.scale * scaleFactor;
+        if (newScale !== this.viewport.scale) {
+          this.viewport = this.zoomAroundScreenPoint(this.viewport, newCenter, newScale);
+          if (this.lastScale === null || Math.abs(this.viewport.scale - this.lastScale) > 0.0001) {
+            this.lastScale = this.viewport.scale;
+            this.emit('scaleChange', this.viewport.scale);
+          }
+        }
+        this.lastTouchDist = newDist;
+      }
+
+      this.lastTouchCenter = newCenter;
     }
   }
 
   /** Clears touch state on touch end. */
   handleTouchEnd(): void {
     this.lastTouchDist = null;
+    this.lastTouchCenter = null;
   }
 
   /** Initiates drag if mouse is within the sheet rectangle and pan is enabled. */

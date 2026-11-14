@@ -15,8 +15,8 @@ describe('createDragListener', () => {
     addEventListenerSpy = jest.spyOn(window, 'addEventListener');
     removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
     addEventListenerSpy.mockImplementation((event: string, handler: any) => {
-      if (event === 'mousemove') moveHandler = handler;
-      if (event === 'mouseup') upHandler = handler;
+      if (event === 'pointermove') moveHandler = handler;
+      if (event === 'pointerup') upHandler = handler;
     });
   });
 
@@ -25,18 +25,18 @@ describe('createDragListener', () => {
     removeEventListenerSpy.mockRestore();
   });
 
-  it('attaches mousemove and mouseup listeners to window', () => {
+  it('attaches pointermove and pointerup listeners to window', () => {
     createDragListener({
       onMove: () => {},
       onCommit: () => {},
       onCancel: () => {},
     });
 
-    expect(addEventListenerSpy).toHaveBeenCalledWith('mousemove', expect.any(Function));
-    expect(addEventListenerSpy).toHaveBeenCalledWith('mouseup', expect.any(Function));
+    expect(addEventListenerSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
+    expect(addEventListenerSpy).toHaveBeenCalledWith('pointerup', expect.any(Function));
   });
 
-  it('calls onMove with the correct screen position on mousemove', () => {
+  it('calls onMove with the correct screen position on pointermove', () => {
     const onMove = jest.fn();
     createDragListener({
       onMove,
@@ -52,7 +52,7 @@ describe('createDragListener', () => {
     expect(pos.y).toBe(200);
   });
 
-  it('calls onCommit with the correct screen position on mouseup', () => {
+  it('calls onCommit with the correct screen position on pointerup', () => {
     const onCommit = jest.fn();
     createDragListener({
       onMove: () => {},
@@ -68,7 +68,7 @@ describe('createDragListener', () => {
     expect(pos.y).toBe(400);
   });
 
-  it('removes listeners from window on mouseup', () => {
+  it('removes listeners from window on pointerup', () => {
     createDragListener({
       onMove: () => {},
       onCommit: () => {},
@@ -77,8 +77,8 @@ describe('createDragListener', () => {
 
     upHandler({ clientX: 0, clientY: 0 });
 
-    expect(removeEventListenerSpy).toHaveBeenCalledWith('mousemove', expect.any(Function));
-    expect(removeEventListenerSpy).toHaveBeenCalledWith('mouseup', expect.any(Function));
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('pointerup', expect.any(Function));
   });
 
   it('destroy removes listeners and calls onCancel', () => {
@@ -91,8 +91,8 @@ describe('createDragListener', () => {
 
     listener.destroy();
 
-    expect(removeEventListenerSpy).toHaveBeenCalledWith('mousemove', expect.any(Function));
-    expect(removeEventListenerSpy).toHaveBeenCalledWith('mouseup', expect.any(Function));
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('pointermove', expect.any(Function));
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('pointerup', expect.any(Function));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
@@ -125,8 +125,8 @@ describe('createDragListener viewport nudge', () => {
     addEventListenerSpy = jest.spyOn(window, 'addEventListener');
     removeEventListenerSpy = jest.spyOn(window, 'removeEventListener').mockImplementation(() => {});
     addEventListenerSpy.mockImplementation((event: string, handler: any) => {
-      if (event === 'mousemove') moveHandler = handler;
-      if (event === 'mouseup') upHandler = handler;
+      if (event === 'pointermove') moveHandler = handler;
+      if (event === 'pointerup') upHandler = handler;
     });
 
     const sheet = Sheet.a4();
