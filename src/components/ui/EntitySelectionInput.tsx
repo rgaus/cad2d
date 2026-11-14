@@ -114,7 +114,7 @@ const EntitySelectionInput: React.FunctionComponent<EntitySelectionInputProps> =
           className={cn(mainButtonClass, 'w-0 shrink-1 grow-1')}
         >
           {value === null ? (
-            <span className="text-[var(--slate-11)]">Click to select...</span>
+            <span className="text-[var(--slate-11)]">Tap to select...</span>
           ) : (
             <span className="font-bold whitespace-nowrap overflow-hidden overflow-ellipsis">
               {value}
@@ -142,7 +142,7 @@ const EntitySelectionInput: React.FunctionComponent<EntitySelectionInputProps> =
 
       {isHovering ? (
         <div className="absolute -bottom-7 z-30">
-          <HoverTooltip size={size}>Click to change</HoverTooltip>
+          <HoverTooltip size={size}>Tap to change</HoverTooltip>
         </div>
       ) : null}
     </div>

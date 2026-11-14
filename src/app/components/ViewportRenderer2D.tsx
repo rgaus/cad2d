@@ -214,12 +214,12 @@ function getRectangleStatusText(
   shiftHeld: boolean,
 ): string {
   if (!workingRectangle || workingRectangle.firstPoint === null) {
-    return isCenterMode ? 'Click to set center' : 'Click to set first corner';
+    return isCenterMode ? 'Tap to set center' : 'Tap to set first corner';
   }
   if (shiftHeld) {
-    return 'Click to set opposite corner (square)';
+    return 'Tap to set opposite corner (square)';
   }
-  return 'Click to set opposite corner';
+  return 'Tap to set opposite corner';
 }
 
 function getEllipseStatusText(
@@ -228,12 +228,12 @@ function getEllipseStatusText(
   shiftHeld: boolean,
 ): string {
   if (!workingEllipse || workingEllipse.firstPoint === null) {
-    return isCenterMode ? 'Click to set center' : 'Click to set bounding box corner';
+    return isCenterMode ? 'Tap to set center' : 'Tap to set bounding box corner';
   }
   if (shiftHeld) {
-    return 'Click to set radius (circle)';
+    return 'Tap to set radius (circle)';
   }
-  return 'Click to set radius point';
+  return 'Tap to set radius point';
 }
 
 const SingleLayerRenderer: React.FunctionComponent<{
@@ -1109,7 +1109,7 @@ export default function ViewportRenderer2D({
 
         {activeTool.type === 'involute-gear' && mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
-            <span>Click to place involute gear</span>
+            <span>Tap to place involute gear</span>
           </HoverTooltip>
         ) : null}
 
@@ -1146,8 +1146,8 @@ export default function ViewportRenderer2D({
             <div className="flex flex-col gap-1">
               <span>
                 {workingConstraints.length === 0
-                  ? 'Click to place start point'
-                  : 'Click to place end point'}
+                  ? 'Tap to place start point'
+                  : 'Tap to place end point'}
               </span>
               <div className="flex items-center gap-2">
                 <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
@@ -1171,8 +1171,8 @@ export default function ViewportRenderer2D({
             <div className="flex flex-col gap-1">
               <span>
                 {workingConstraints.length === 0
-                  ? 'Click to place center point'
-                  : 'Click to place end points'}
+                  ? 'Tap to place center point'
+                  : 'Tap to place end points'}
               </span>
               <div className="flex items-center gap-2">
                 <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
@@ -1196,8 +1196,8 @@ export default function ViewportRenderer2D({
             <div className="flex flex-col gap-1">
               <span>
                 {workingConstraints.length === 0
-                  ? 'Click to place target point'
-                  : 'Click to place line points'}
+                  ? 'Tap to place target point'
+                  : 'Tap to place line points'}
               </span>
               <div className="flex items-center gap-2">
                 <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
@@ -1221,8 +1221,8 @@ export default function ViewportRenderer2D({
             <div className="flex flex-col gap-1">
               <span>
                 {workingConstraints.length === 0
-                  ? 'Click to place first point'
-                  : 'Click to place second point'}
+                  ? 'Tap to place first point'
+                  : 'Tap to place second point'}
               </span>
               <div className="flex items-center gap-2">
                 <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
@@ -1238,7 +1238,7 @@ export default function ViewportRenderer2D({
         mouseScreenPos ? (
           <HoverTooltip position={mouseScreenPos}>
             <div className="flex flex-col gap-1">
-              <span>Click to place datum</span>
+              <span>Tap to place datum</span>
               <div className="flex items-center gap-2">
                 <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
                   ctrl
@@ -1257,7 +1257,7 @@ export default function ViewportRenderer2D({
             <div className="flex flex-col gap-1">
               {pendingCornerState && !activeCornerState ? (
                 <span>
-                  Click to place {activeTool.activeSubTool.type === 'fillet' ? 'fillet' : 'chamfer'}
+                  Tap to place {activeTool.activeSubTool.type === 'fillet' ? 'fillet' : 'chamfer'}
                 </span>
               ) : null}
               {pendingCornerState && activeCornerState ? (
@@ -1266,7 +1266,7 @@ export default function ViewportRenderer2D({
                   {activeTool.activeSubTool.type === 'fillet' ? 'fillet' : 'chamfer'}
                 </span>
               ) : null}
-              {!pendingCornerState ? <span>Hover over corner point</span> : null}
+              {!pendingCornerState ? <span>Tap a corner point</span> : null}
             </div>
           </HoverTooltip>
         ) : null}
@@ -1324,8 +1324,8 @@ export default function ViewportRenderer2D({
             <div className="flex flex-col gap-1">
               <span>
                 {workingConstraints.length === 0
-                  ? 'Click to place target point'
-                  : 'Click to place line points'}
+                  ? 'Tap to place target point'
+                  : 'Tap to place line points'}
               </span>
               <div className="flex items-center gap-2">
                 <KeyboardShortcut label="No snap" disabled={ctrlHeld}>
@@ -1489,7 +1489,7 @@ export default function ViewportRenderer2D({
             <div className="absolute top-4 left-1/2 -translate-x-1/2">
               <HoverTooltip variant="secondary">
                 <div className="flex items-center gap-6 pointer-events-auto">
-                  <span className="select-none">Click to select entity</span>
+                  <span className="select-none">Tap to select entity</span>
                   <Button
                     variant="secondary"
                     size="sm"
