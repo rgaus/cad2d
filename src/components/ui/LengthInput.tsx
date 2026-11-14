@@ -314,6 +314,8 @@ export default forwardRef<LengthInputHandle, LengthInputProps>(function LengthIn
       <Input
         ref={inputRef}
         type="text"
+        inputMode="decimal"
+        enterKeyHint="done"
         size={size}
         defaultValue={inputDefaultValue}
         onChange={handleInputChange}

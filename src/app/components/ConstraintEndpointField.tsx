@@ -333,6 +333,8 @@ const ConstraintEndpointField: React.FunctionComponent<ConstraintEndpointFieldPr
             <LabeledRow label="Index:">
               <Input
                 type="number"
+                inputMode="numeric"
+                enterKeyHint="done"
                 min={0}
                 value={endpoint.pointIndex}
                 onChange={(e) => {

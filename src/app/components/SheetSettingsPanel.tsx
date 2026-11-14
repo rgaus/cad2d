@@ -130,6 +130,8 @@ const SheetSettingsPanel: React.FunctionComponent<SheetSettingsPanelProps> = ({ 
           {/* FIXME: replace this with a domain specific control which also handles number input better (validation on blur, etc) */}
           <Input
             type="number"
+            inputMode="numeric"
+            enterKeyHint="done"
             value={sheetUnitPlaces}
             onChange={(e) => sheet.updateUnitPlaces(parseFloat(e.currentTarget.value))}
           />

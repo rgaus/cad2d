@@ -252,6 +252,8 @@ export default forwardRef<ConstraintLengthInputHandle, ConstraintLengthInputProp
           <Input
             ref={inputRef}
             type="text"
+            inputMode="decimal"
+            enterKeyHint="done"
             size="sm"
             variant="light"
             placeholder={placeholder}

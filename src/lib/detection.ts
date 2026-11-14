@@ -31,3 +31,15 @@ export function isPlatformControlKey<E extends { ctrlKey: boolean; metaKey: bool
     return event.ctrlKey;
   }
 }
+
+/** Returns whether the primary input is a touch screen (coarse pointer). Used to avoid behaviors
+ * which are awkward on touch, such as auto-focusing inputs which pops the on-screen keyboard. */
+export function isTouchDevice(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false;
+  }
+  if (navigator.maxTouchPoints > 0) {
+    return true;
+  }
+  return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+}

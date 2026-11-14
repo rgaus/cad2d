@@ -355,6 +355,8 @@ export default forwardRef<AngleInputHandle, AngleInputProps>(function AngleInput
       <Input
         ref={inputRef}
         type="text"
+        inputMode="decimal"
+        enterKeyHint="done"
         size={size}
         leading={
           value ? (

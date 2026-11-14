@@ -9,6 +9,7 @@ import { KeyboardShortcut } from '@/components/ui/KeyboardShortcut';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
 import { ActionType, ActionsManager } from '@/lib/actions/ActionsManager';
 import { ActionJson } from '@/lib/actions/BaseAction';
+import { isTouchDevice } from '@/lib/detection';
 import { cn } from '@/lib/utils';
 import { FLASH_DURATION_MS, PINNED_ACTION_TYPES } from './ActionPanel';
 
@@ -66,8 +67,12 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
     if (!isOpen) {
       return;
     }
-    inputRef.current?.focus();
-    inputRef.current?.select();
+    // Auto-focusing pops the on-screen keyboard on touch devices, so only do it for mouse/keyboard
+    // input where the user expects to type immediately.
+    if (!isTouchDevice()) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
   }, [isOpen]);
 
   const handleActionClick = useCallback((action: ActionJson) => {
@@ -146,6 +151,8 @@ export const ActionMenu: React.FunctionComponent<ActionMenuProps> = ({ actionsMa
           <Input
             ref={inputRef}
             type="text"
+            inputMode="search"
+            enterKeyHint="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             leading={<SearchIcon size={16} />}

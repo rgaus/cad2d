@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/Popover';
+import { isTouchDevice } from '@/lib/detection';
 import { PRESET_COLORS_BY_LABEL } from '@/lib/entity/colors';
 import { cn } from '@/lib/utils';
 
@@ -70,6 +71,12 @@ const ColorInput: React.FunctionComponent<ColorInputProps> = ({
 
   useEffect(() => {
     if (!isOpen) {
+      return;
+    }
+
+    // Auto-focusing pops the on-screen keyboard on touch devices, so only do it for mouse/keyboard
+    // input where the user expects to type immediately.
+    if (isTouchDevice()) {
       return;
     }
 

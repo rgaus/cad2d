@@ -213,6 +213,8 @@ const RenderOrderInput: React.FunctionComponent<{
     <div className="relative w-full" onKeyDown={(e) => e.stopPropagation()}>
       <Input
         type="text"
+        inputMode="decimal"
+        enterKeyHint="done"
         size={size}
         className={cn({
           'ring-primary outline-none ring-2 ring-offset-2': sliderFocused,
