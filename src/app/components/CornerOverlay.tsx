@@ -44,7 +44,7 @@ export default function CornerOverlay({
       if (magnitude !== 'full') {
         const lengthInSheetUnits = Math.min(
           magnitude / viewportScale,
-          Vector2.dist(pointA, center),
+          Vector2.distance(pointA, center),
         );
         normalizedA = Vector2.add(
           center,
@@ -58,7 +58,7 @@ export default function CornerOverlay({
       if (magnitude !== 'full') {
         const lengthInSheetUnits = Math.min(
           magnitude / viewportScale,
-          Vector2.dist(pointB, center),
+          Vector2.distance(pointB, center),
         );
         normalizedB = Vector2.add(
           center,

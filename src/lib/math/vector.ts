@@ -101,17 +101,8 @@ export const Vector2 = {
 
   /**
    * Euclidean distance between two points.
-   * Shorthand for Vector2.len(Vector2.sub(b, a)).
    * Useful for measuring how far apart two geometry points are,
    * e.g. checking if a click is near a vertex.
-   */
-  dist<P extends Position>(a: P, b: P): number {
-    return Vector2.len(Vector2.sub(b, a));
-  },
-
-  /**
-   * Euclidean distance between two points (direct implementation,
-   * slightly more efficient than the dist helper for tight loops).
    */
   distance<P extends Position>(a: P, b: P): number {
     const dx = a.x - b.x;

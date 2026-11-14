@@ -389,7 +389,7 @@ export function computeFilletArc(
   splitB: SheetPosition,
   center: SheetPosition,
 ): { controlPointA: SheetPosition; controlPointB: SheetPosition } {
-  const r = Vector2.dist(splitA, center);
+  const r = Vector.distance(splitA, center);
   const dirA = Vector2.norm(Vector2.sub(splitA, center));
   const dirB = Vector2.norm(Vector2.sub(splitB, center));
   const d = Vector2.dot(dirA, dirB);

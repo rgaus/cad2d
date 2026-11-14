@@ -1087,8 +1087,8 @@ export class ApplyFilterToGeometryAction extends BaseAction {
     const pointAPos = rawSegments[pointAIndex].point;
     const pointBPos = rawSegments[pointBIndex].point;
 
-    const lenA = Vector2.dist(centerPos, pointAPos);
-    const lenB = Vector2.dist(centerPos, pointBPos);
+    const lenA = Vector.distance(centerPos, pointAPos);
+    const lenB = Vector.distance(centerPos, pointBPos);
 
     if (offset >= lenA || offset >= lenB) {
       return null;
