@@ -1,7 +1,11 @@
-import { FederatedPointerEvent } from 'pixi.js';
+import { FederatedPointerEvent, Rectangle } from 'pixi.js';
 import { PolygonSegment } from '@/lib/entity';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { CurveControlPointHandleTexture, SPRITE_SCALE_FACTOR } from '@/lib/textures';
+import {
+  CurveControlPointHandleTexture,
+  SPRITE_SCALE_FACTOR,
+  TOUCH_HANDLE_HIT_SIZE_PX,
+} from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
 type CurveControlPointHandlesSpritesProps = {
@@ -54,6 +58,9 @@ export const CurveControlPointHandlesSprites: React.FunctionComponent<
   const effectiveEventMode = isDragging ? 'none' : onControlPointerDown ? 'static' : 'none';
   const effectiveCursor = isDragging ? 'default' : onControlPointerDown ? 'pointer' : 'default';
 
+  const hitAreaLocalSize = TOUCH_HANDLE_HIT_SIZE_PX * scale * SPRITE_SCALE_FACTOR;
+  const hitHalfSize = hitAreaLocalSize / 2;
+
   return (
     <>
       {controlPointInfos.map((info, index) => (
@@ -65,6 +72,11 @@ export const CurveControlPointHandlesSprites: React.FunctionComponent<
           anchor={0.5}
           scale={spriteScale}
           eventMode={effectiveEventMode}
+          hitArea={
+            effectiveEventMode !== 'none'
+              ? new Rectangle(-hitHalfSize, -hitHalfSize, hitAreaLocalSize, hitAreaLocalSize)
+              : undefined
+          }
           cursor={effectiveCursor}
           {...(onControlPointerDown && !isDragging
             ? {

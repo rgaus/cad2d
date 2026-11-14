@@ -183,6 +183,22 @@ describe('PolygonTool', () => {
       expect(geometryStore.workingConstraints).toHaveLength(0);
     });
 
+    it('tapping near the first handle closes the polygon without hovering', () => {
+      // Create 3 points
+      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(200, 200), viewport);
+      toolManager.handleMouseDown(new ScreenPosition(100, 200), viewport);
+
+      // Tap on the first point without setting any hover state (touch equivalent)
+      toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);
+
+      expect(
+        geometryStore.listWithComponent(GeometryComponent).filter(GeometryComponent.isPolygon),
+      ).toHaveLength(1);
+      expect(getPolygonData(geometryStore).closed).toBe(true);
+      expect(getPolygonData(geometryStore).points).toHaveLength(4);
+    });
+
     it('clicking first handle with alt held starts arc close', () => {
       // Create 3 points
       toolManager.handleMouseDown(new ScreenPosition(100, 100), viewport);

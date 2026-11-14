@@ -139,7 +139,13 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
   /** Current intersection data if found, null otherwise. */
   private currentTrimSpit: SplitPoint | TrimSegment | null = null;
 
-  handleMouseDown(): void {
+  handleMouseDown(screenPos: ScreenPosition, viewport: ViewportState): void {
+    // On touch there is no hover, so recompute the candidate at the tap position if one hasn't
+    // already been found via mouse move.
+    if (this.currentTrimSpit === null) {
+      this.currentTrimSpit = this.computeTrimSpitCandidate(screenPos, viewport);
+    }
+
     switch (this.currentTrimSpit?.type) {
       case 'split-point':
         return this.processCurrentIntersection();
@@ -561,28 +567,30 @@ export class TrimSplitTool extends BaseTool<TrimSplitToolEvents, 'trim-split'> {
   }
 
   handleMouseMove(screenPos: ScreenPosition, viewport: ViewportState): void {
+    this.currentTrimSpit = this.computeTrimSpitCandidate(screenPos, viewport);
+    this.emit('splitPointOrTrimSegmentChange', this.currentTrimSpit);
+  }
+
+  /** Computes the split point or trim segment candidate at the given screen position, or null. */
+  private computeTrimSpitCandidate(
+    screenPos: ScreenPosition,
+    viewport: ViewportState,
+  ): SplitPoint | TrimSegment | null {
     const sheetPos = screenPos.toWorld(viewport).toSheet();
     const sheetThreshold =
       DEFAULT_PIXEL_BOUNDING_BOX_THRESHOLD_PX / SHEET_UNITS_TO_PIXELS / viewport.scale;
-    this.currentTrimSpit = null;
 
     const intersection = this.computeIntersectionAtPoint(sheetPos, sheetThreshold, viewport);
     if (intersection) {
-      this.currentTrimSpit = intersection;
-      this.emit('splitPointOrTrimSegmentChange', intersection);
-      return;
+      return intersection;
     }
 
     const trimSegment = this.computeTrimSegment(sheetPos, sheetThreshold);
-    // console.log('B TRIM', trimSegment);
     if (trimSegment) {
-      this.currentTrimSpit = trimSegment;
-      this.emit('splitPointOrTrimSegmentChange', trimSegment);
-      return;
+      return trimSegment;
     }
 
-    this.currentTrimSpit = null;
-    this.emit('splitPointOrTrimSegmentChange', null);
+    return null;
   }
 
   /** Computes intersection data for a given point using the new algorithm.

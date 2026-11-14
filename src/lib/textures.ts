@@ -5,6 +5,10 @@ import { DATUM_CIRCLE_RADIUS_PX } from '@/lib/entity/datum';
 
 const HANDLE_SIZE_PX = 10;
 
+/** Minimum on-screen hit-area size (in px) for interactive handles, so that they are comfortably
+ *  tappable on touch devices without enlarging their visual appearance. */
+export const TOUCH_HANDLE_HIT_SIZE_PX = 44;
+
 /** Multiplier applied to all icon texture dimensions and stroke widths for hi-DPI rendering.
  *  Setting this to 2 means textures are drawn at 2x resolution and sprites are scaled down
  *  by this factor when rendered, keeping their apparent screen size unchanged. */

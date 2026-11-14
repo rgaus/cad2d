@@ -1,6 +1,6 @@
-import { EventMode, FederatedPointerEvent, Texture } from 'pixi.js';
+import { EventMode, FederatedPointerEvent, Rectangle, Texture } from 'pixi.js';
 import { SHEET_UNITS_TO_PIXELS } from '@/lib/sheet/Sheet';
-import { SPRITE_SCALE_FACTOR } from '@/lib/textures';
+import { SPRITE_SCALE_FACTOR, TOUCH_HANDLE_HIT_SIZE_PX } from '@/lib/textures';
 import { SheetPosition } from '@/lib/viewport/types';
 
 type HandleSpritesProps = {
@@ -32,6 +32,11 @@ export const HandleSprites: React.FunctionComponent<HandleSpritesProps> = ({
   if (points.length === 0) {
     return null;
   }
+
+  // Size of the invisible enlarged hit area in local sprite coordinates. The sprite is scaled by
+  // `spriteScale`, so dividing the desired on-screen size by that scale gives the local size.
+  const hitAreaLocalSize = TOUCH_HANDLE_HIT_SIZE_PX * viewportScale * SPRITE_SCALE_FACTOR;
+  const hitHalfSize = hitAreaLocalSize / 2;
 
   return (
     <>
@@ -66,6 +71,11 @@ export const HandleSprites: React.FunctionComponent<HandleSpritesProps> = ({
             anchor={0.5}
             scale={spriteScale}
             eventMode={eventMode}
+            hitArea={
+              eventMode !== 'none'
+                ? new Rectangle(-hitHalfSize, -hitHalfSize, hitAreaLocalSize, hitAreaLocalSize)
+                : undefined
+            }
             cursor={cursor}
             onPointerDown={
               onHandlePointerDown

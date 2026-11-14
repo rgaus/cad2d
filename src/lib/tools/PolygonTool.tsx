@@ -46,6 +46,7 @@ import {
   type ViewportState,
 } from '@/lib/viewport/types';
 import { BaseTool } from './BaseTool';
+import { CLOSE_POLYGON_TAP_THRESHOLD_PX } from './constants';
 
 export type PolygonToolEndpoint = {
   polygonId: Id;
@@ -609,8 +610,12 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
             }
           }
 
-          // User hovering closing handle, so a click means "close the polygon"
-          if (this.state.isHoveringFirstHandle) {
+          // User hovering the closing handle (mouse) or tapping near it (touch), so a click means
+          // "close the polygon".
+          if (
+            this.state.isHoveringFirstHandle ||
+            this.isTappingClosingHandle(wp, screenPos, viewport)
+          ) {
             // Update the preview point to the snapped position before completing,
             // so the closing segment has the correct endpoint position.
             const pointsCopy = wp.points.slice();
@@ -1230,6 +1235,27 @@ export class PolygonTool extends BaseTool<PolygonToolEvents> {
       this.state = { ...this.state, intersection: intersectionData };
       this.emit('previewSegmentIntersections', intersectionData.intersections);
     }
+  }
+
+  /** Returns whether the tapped screen position is close enough to the polygon's closing handle to
+   * close it. This provides a touch equivalent to hovering the first handle, which a finger cannot
+   * do. */
+  private isTappingClosingHandle(
+    wp: WorkingPolygon,
+    screenPos: ScreenPosition,
+    viewport: ViewportState,
+  ): boolean {
+    if (wp.points.length <= 2) {
+      return false;
+    }
+    const isStartPointExtension = wp.source.type === 'existing-polygon' && wp.source.isStartPoint;
+    const closingPoint = isStartPointExtension
+      ? wp.points[wp.points.length - 1].point
+      : wp.points[0].point;
+    const closingScreen = closingPoint.toWorld().toScreen(viewport);
+    const dx = closingScreen.x - screenPos.x;
+    const dy = closingScreen.y - screenPos.y;
+    return Math.sqrt(dx * dx + dy * dy) <= CLOSE_POLYGON_TAP_THRESHOLD_PX;
   }
 
   /** Sets the first handle hover state, transitioning between drawing-line and closing states. */
